@@ -106,7 +106,19 @@ enum class MoneyColorMode {
     INCOME,
     EXPENSE,
     TRANSFER,
-    NEUTRAL
+    NEUTRAL;
+
+    companion object {
+        fun fromTransactionType(type: com.folioledger.app.domain.model.TransactionType): MoneyColorMode {
+            return when (type) {
+                com.folioledger.app.domain.model.TransactionType.INCOME,
+                com.folioledger.app.domain.model.TransactionType.REFUND -> INCOME
+                com.folioledger.app.domain.model.TransactionType.EXPENSE -> EXPENSE
+                com.folioledger.app.domain.model.TransactionType.TRANSFER,
+                com.folioledger.app.domain.model.TransactionType.CC_SETTLEMENT -> TRANSFER
+            }
+        }
+    }
 }
 
 fun MoneyColorMode.fromTransactionType(type: TransactionType): MoneyColorMode =
