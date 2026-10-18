@@ -92,7 +92,6 @@ abstract class FolioDatabase : RoomDatabase() {
                         }
                     }
                 })
-                .fallbackToDestructiveMigration(dropAllTables = true)
                 .build()
         }
     }
