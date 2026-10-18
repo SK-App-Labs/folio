@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModelProvider
 import com.folioledger.app.ui.accounts.AccountsViewModel
 import com.folioledger.app.ui.entry.TransactionEntryViewModel
 import com.folioledger.app.ui.ledger.LedgerHomeViewModel
+import com.folioledger.app.ui.settings.SettingsViewModel
+import com.folioledger.app.ui.stats.StatsAndBudgetsViewModel
 
 class FolioViewModelFactory(
     private val container: AppContainer
@@ -36,6 +38,20 @@ class FolioViewModelFactory(
                     accountRepository = container.accountRepository,
                     categoryAndTagRepository = container.categoryAndTagRepository,
                     settingsAndBackupRepository = container.settingsAndBackupRepository
+                ) as T
+            }
+            modelClass.isAssignableFrom(StatsAndBudgetsViewModel::class.java) -> {
+                StatsAndBudgetsViewModel(
+                    analyticsAndBudgetRepository = container.analyticsAndBudgetRepository,
+                    categoryAndTagRepository = container.categoryAndTagRepository,
+                    transactionRepository = container.transactionRepository,
+                    settingsAndBackupRepository = container.settingsAndBackupRepository
+                ) as T
+            }
+            modelClass.isAssignableFrom(SettingsViewModel::class.java) -> {
+                SettingsViewModel(
+                    settingsAndBackupRepository = container.settingsAndBackupRepository,
+                    categoryAndTagRepository = container.categoryAndTagRepository
                 ) as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
