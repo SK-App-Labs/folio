@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -29,19 +28,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardHide
 import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -74,7 +72,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -282,7 +279,7 @@ fun TransactionEntryFormContent(
             }
         }
 
-        // Amount & Live Calculator Expression Display Banner
+        // Amount & Live Calculator Expression Display Banner (Tapping toggles keypad visibility)
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainerLow,
             border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
@@ -293,7 +290,7 @@ fun TransactionEntryFormContent(
                 .clip(RoundedCornerShape(16.dp))
                 .clickable {
                     focusManager.clearFocus()
-                    onSetKeypadVisible(true)
+                    onSetKeypadVisible(!uiState.isKeypadVisible)
                 }
         ) {
             Row(
@@ -304,8 +301,9 @@ fun TransactionEntryFormContent(
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 Column {
+                    val modePrefix = if (uiState.editingTransactionId > 0L) "EDITING · " else ""
                     Text(
-                        text = when (uiState.mode) {
+                        text = modePrefix + when (uiState.mode) {
                             TransactionType.EXPENSE -> "EXPENSE AMOUNT"
                             TransactionType.INCOME -> "INCOME AMOUNT"
                             TransactionType.TRANSFER -> "TRANSFER AMOUNT"
@@ -692,12 +690,16 @@ fun TransactionEntryFormContent(
 
         HorizontalDivider(color = semanticColors.cardStrokeSubtle)
 
-        // Built-in Fast Calculator Numeric Keypad
+        // Built-in Fast Calculator Numeric Keypad with Top Minimize / Hide Strip
         AnimatedVisibility(visible = uiState.isKeypadVisible) {
             CalculatorNumericKeypad(
                 isSaving = uiState.isSaving,
+                isEditingExisting = uiState.editingTransactionId > 0L,
+                expressionBuffer = uiState.expressionBuffer,
+                currencySymbol = uiState.currencySpec.symbol,
                 expressionHasOperator = uiState.expressionHasOperator,
                 onKeyPress = onKeypadKeyPress,
+                onHideKeypadClick = { onSetKeypadVisible(false) },
                 onSaveClick = onSaveClick
             )
         }
@@ -736,7 +738,7 @@ fun TransactionEntryFormContent(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Save Transaction")
+                    Text(if (uiState.editingTransactionId > 0L) "Update" else "Save Transaction")
                 }
             }
         }
@@ -1122,10 +1124,15 @@ private fun InstallmentPlanCard(
 @Composable
 private fun CalculatorNumericKeypad(
     isSaving: Boolean,
+    isEditingExisting: Boolean,
+    expressionBuffer: String,
+    currencySymbol: String,
     expressionHasOperator: Boolean,
     onKeyPress: (String) -> Unit,
+    onHideKeypadClick: () -> Unit,
     onSaveClick: () -> Unit
 ) {
+    val semanticColors = LocalFolioSemanticColors.current
     val rows = listOf(
         listOf("7", "8", "9", "÷"),
         listOf("4", "5", "6", "×"),
@@ -1138,8 +1145,77 @@ private fun CalculatorNumericKeypad(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
+        // Compact Top Toolbar Strip above keypad keys with prominent "Hide Keypad ⌄" button
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 2.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Calculate,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (expressionHasOperator || expressionBuffer != "0") {
+                        "Expr: $currencySymbol $expressionBuffer"
+                    } else {
+                        "Calculator Keypad"
+                    },
+                    style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable(onClick = onHideKeypadClick)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.KeyboardHide,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Hide Keypad",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Icon(
+                        imageVector = Icons.Filled.KeyboardArrowDown,
+                        contentDescription = "Minimize Keypad",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+
         rows.forEach { rowKeys ->
             Row(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -1177,7 +1253,7 @@ private fun CalculatorNumericKeypad(
             }
         }
 
-        // Bottom Action Row: C | ⌫ | = (or Save)
+        // Bottom Action Row: C | ⌫ | = | Save
         Row(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.fillMaxWidth()
@@ -1186,7 +1262,7 @@ private fun CalculatorNumericKeypad(
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 modifier = Modifier
-                    .weight(1f)
+                    .weight(0.8f)
                     .height(50.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .clickable { onKeyPress("C") }
@@ -1196,7 +1272,7 @@ private fun CalculatorNumericKeypad(
                         text = "C",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = LocalFolioSemanticColors.current.expenseCoral
+                        color = semanticColors.expenseCoral
                     )
                 }
             }
@@ -1205,7 +1281,7 @@ private fun CalculatorNumericKeypad(
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 modifier = Modifier
-                    .weight(1f)
+                    .weight(0.8f)
                     .height(50.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .clickable { onKeyPress("⌫") }
@@ -1219,24 +1295,30 @@ private fun CalculatorNumericKeypad(
                 }
             }
 
-            if (expressionHasOperator) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.tertiaryContainer,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(50.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { onKeyPress("=") }
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "=",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                        )
-                    }
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = if (expressionHasOperator) {
+                    MaterialTheme.colorScheme.tertiaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHigh
+                },
+                modifier = Modifier
+                    .weight(0.8f)
+                    .height(50.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { onKeyPress("=") }
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "=",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = if (expressionHasOperator) {
+                            MaterialTheme.colorScheme.onTertiaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
                 }
             }
 
@@ -1249,7 +1331,7 @@ private fun CalculatorNumericKeypad(
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 ),
                 modifier = Modifier
-                    .weight(if (expressionHasOperator) 1f else 2f)
+                    .weight(1.6f)
                     .height(50.dp)
             ) {
                 Icon(
@@ -1259,7 +1341,7 @@ private fun CalculatorNumericKeypad(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Save",
+                    text = if (isEditingExisting) "Update" else "Save",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )

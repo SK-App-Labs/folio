@@ -6,9 +6,9 @@
 - [x] **M1-B: Room SQLite Database, DAOs, Repositories & Ledger Tests** (Pending — Chat 2)
 - [x] **M2: Material 3 Design System, Theme Engine & 4-Tab Navigation Shell** (Pending — Chat 3)
 - [x] **M3: Accounts, Credit Cards, Calculator Keypad & 5-View Home Ledger** (Pending)
-- [ ] **M4: Stats Charts, Budgets, Search/Filter, Bookmarks & Installment/Repeat Plans** (Pending)
-- [ ] **M5: Backup/Restore, CSV Export & Biometric App Lock** (Pending)
-- [ ] **M6: Release Hardening & Google Play Launch** (Pending)
+- [x] **M4: Stats Charts, Budgets, Search/Filter, Bookmarks & Installment/Repeat Plans** (Pending)
+- [x] **M5: Backup/Restore, CSV Export & Biometric App Lock** (Pending)
+- [x] **M6: Release Hardening & Google Play Launch** (Pending)
 
 ## File Inventory & Test Status
 - `gradle/libs.versions.toml` — Configured & Synced

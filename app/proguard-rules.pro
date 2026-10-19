@@ -1,17 +1,20 @@
 # File: app/proguard-rules.pro
-# --- Folio Production Keep Rules (Room SQLite & Kotlinx Serialization) ---
+# --- Folio Production Keep Rules (Room SQLite, Backup Models & Kotlinx Serialization) ---
 -keep class com.folioledger.app.data.local.entity.** { *; }
+-keep class com.folioledger.app.data.repository.** { *; }
 -keep class com.folioledger.app.domain.model.** { *; }
 
-# Keep Kotlinx Serialization generated serializers for ZIP backups
--keepattributes *Annotation*, InnerClasses
+# Keep all @Serializable classes and their generated $serializer classes
+-keepattributes *Annotation*, InnerClasses, Signature, RuntimeVisibleAnnotations
 -dontnote kotlinx.serialization.AnnotationsKt
+
 -keepclassmembers class kotlinx.serialization.json.** {
     *** Companion;
 }
 -keepclasseswithmembers class kotlinx.serialization.json.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
+
 -keep,includedescriptorclasses class com.folioledger.app.**$$serializer { *; }
 -keepclassmembers class com.folioledger.app.** {
     *** Companion;

@@ -24,9 +24,12 @@ import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
-import com.folioledger.app.ui.ledger.AccountingRulesEngine
-import com.folioledger.app.ui.ledger.FinancialPeriodRange
+import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
+import java.time.temporal.TemporalAdjusters
+import java.util.Locale
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,6 +41,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+enum class StatsPeriodGranularity(val title: String) {
+    WEEKLY("Weekly"),
+    MONTHLY("Monthly"),
+    ANNUALLY("Annually"),
+    CUSTOM("Custom")
+}
+
 enum class StatsSubTab(val title: String) {
     STATS("Stats"),
     BUDGETS("Budgets"),
@@ -47,6 +57,185 @@ enum class StatsSubTab(val title: String) {
 enum class RankingMode(val title: String) {
     TAGS("#Tag Rankings"),
     PAYEES_AND_NOTES("Payee / Note Rankings")
+}
+
+@Immutable
+data class StatsPeriodRange(
+    val startEpochDay: Long,
+    val endEpochDay: Long,
+    val title: String,
+    val subtitle: String,
+    val anchorYear: Int
+)
+
+object StatsPeriodCalculator {
+
+    private val shortMonthYearFormatter = DateTimeFormatter.ofPattern("MMM yyyy", Locale.US)
+    private val shortDayMonthFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
+    private val fullDayMonthYearFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
+
+    private fun resolveClampedDate(yearMonth: YearMonth, desiredDay: Int): LocalDate {
+        val safeDay = desiredDay.coerceIn(1, 31)
+        val clampedDay = minOf(safeDay, yearMonth.lengthOfMonth())
+        return yearMonth.atDay(clampedDay)
+    }
+
+    fun computePeriodRange(
+        granularity: StatsPeriodGranularity,
+        referenceDateEpochDay: Long,
+        monthStartDay: Int,
+        weekStartDayIso: Int,
+        customStartEpochDay: Long,
+        customEndEpochDay: Long
+    ): StatsPeriodRange = when (granularity) {
+        StatsPeriodGranularity.WEEKLY -> computeWeeklyRange(
+            referenceDateEpochDay = referenceDateEpochDay,
+            weekStartDayIso = weekStartDayIso
+        )
+        StatsPeriodGranularity.MONTHLY -> computeFinancialMonthRange(
+            referenceDateEpochDay = referenceDateEpochDay,
+            monthStartDay = monthStartDay
+        )
+        StatsPeriodGranularity.ANNUALLY -> computeAnnualRange(
+            referenceDateEpochDay = referenceDateEpochDay,
+            monthStartDay = monthStartDay
+        )
+        StatsPeriodGranularity.CUSTOM -> computeCustomRange(
+            customStartEpochDay = customStartEpochDay,
+            customEndEpochDay = customEndEpochDay
+        )
+    }
+
+    fun computeWeeklyRange(
+        referenceDateEpochDay: Long,
+        weekStartDayIso: Int
+    ): StatsPeriodRange {
+        val refDate = LocalDate.ofEpochDay(referenceDateEpochDay)
+        val startDow = DayOfWeek.of(weekStartDayIso.coerceIn(1, 7))
+        val startDate = refDate.with(TemporalAdjusters.previousOrSame(startDow))
+        val endDate = startDate.plusDays(6)
+
+        val title = "${startDate.format(shortDayMonthFormatter)} – ${endDate.format(shortDayMonthFormatter)}"
+        val subtitle = "Weekly View • ${endDate.year}"
+
+        return StatsPeriodRange(
+            startEpochDay = startDate.toEpochDay(),
+            endEpochDay = endDate.toEpochDay(),
+            title = title,
+            subtitle = subtitle,
+            anchorYear = endDate.year
+        )
+    }
+
+    fun computeFinancialMonthRange(
+        referenceDateEpochDay: Long,
+        monthStartDay: Int
+    ): StatsPeriodRange {
+        val safeStartDay = monthStartDay.coerceIn(1, 31)
+        val refDate = LocalDate.ofEpochDay(referenceDateEpochDay)
+        val refYearMonth = YearMonth.from(refDate)
+
+        val startDate: LocalDate
+        val endDate: LocalDate
+
+        if (safeStartDay == 1) {
+            startDate = refYearMonth.atDay(1)
+            endDate = refYearMonth.atEndOfMonth()
+        } else {
+            val startInRefMonth = resolveClampedDate(refYearMonth, safeStartDay)
+            if (!refDate.isBefore(startInRefMonth)) {
+                startDate = startInRefMonth
+                val nextMonthStart = resolveClampedDate(refYearMonth.plusMonths(1), safeStartDay)
+                endDate = nextMonthStart.minusDays(1)
+            } else {
+                startDate = resolveClampedDate(refYearMonth.minusMonths(1), safeStartDay)
+                endDate = startInRefMonth.minusDays(1)
+            }
+        }
+
+        val title = startDate.format(shortMonthYearFormatter)
+        val subtitle = "${startDate.format(shortDayMonthFormatter)} – ${endDate.format(fullDayMonthYearFormatter)}"
+
+        return StatsPeriodRange(
+            startEpochDay = startDate.toEpochDay(),
+            endEpochDay = endDate.toEpochDay(),
+            title = title,
+            subtitle = subtitle,
+            anchorYear = startDate.year
+        )
+    }
+
+    fun computeAnnualRange(
+        referenceDateEpochDay: Long,
+        monthStartDay: Int
+    ): StatsPeriodRange {
+        val currentMonthRange = computeFinancialMonthRange(referenceDateEpochDay, monthStartDay)
+        val anchorYear = currentMonthRange.anchorYear
+        val safeStartDay = monthStartDay.coerceIn(1, 31)
+
+        val startDate = resolveClampedDate(YearMonth.of(anchorYear, 1), safeStartDay)
+        val nextYearStart = resolveClampedDate(YearMonth.of(anchorYear + 1, 1), safeStartDay)
+        val endDate = nextYearStart.minusDays(1)
+
+        val title = "Year $anchorYear"
+        val subtitle = "${startDate.format(fullDayMonthYearFormatter)} – ${endDate.format(fullDayMonthYearFormatter)}"
+
+        return StatsPeriodRange(
+            startEpochDay = startDate.toEpochDay(),
+            endEpochDay = endDate.toEpochDay(),
+            title = title,
+            subtitle = subtitle,
+            anchorYear = anchorYear
+        )
+    }
+
+    fun computeCustomRange(
+        customStartEpochDay: Long,
+        customEndEpochDay: Long
+    ): StatsPeriodRange {
+        val safeStart = minOf(customStartEpochDay, customEndEpochDay)
+        val safeEnd = maxOf(customStartEpochDay, customEndEpochDay)
+        val startDate = LocalDate.ofEpochDay(safeStart)
+        val endDate = LocalDate.ofEpochDay(safeEnd)
+        val daysCount = (safeEnd - safeStart) + 1L
+
+        val title = if (startDate.year == endDate.year) {
+            "${startDate.format(shortDayMonthFormatter)} – ${endDate.format(fullDayMonthYearFormatter)}"
+        } else {
+            "${startDate.format(fullDayMonthYearFormatter)} – ${endDate.format(fullDayMonthYearFormatter)}"
+        }
+        val subtitle = "Custom Period ($daysCount ${if (daysCount == 1L) "day" else "days"})"
+
+        return StatsPeriodRange(
+            startEpochDay = safeStart,
+            endEpochDay = safeEnd,
+            title = title,
+            subtitle = subtitle,
+            anchorYear = endDate.year
+        )
+    }
+
+    fun stepFinancialMonth(
+        currentReferenceEpochDay: Long,
+        monthStartDay: Int,
+        deltaMonths: Long
+    ): Long {
+        val currentRange = computeFinancialMonthRange(currentReferenceEpochDay, monthStartDay)
+        val startLocalDate = LocalDate.ofEpochDay(currentRange.startEpochDay)
+        val targetYearMonth = YearMonth.from(startLocalDate).plusMonths(deltaMonths)
+        return resolveClampedDate(targetYearMonth, monthStartDay).toEpochDay()
+    }
+
+    fun stepFinancialYear(
+        currentReferenceEpochDay: Long,
+        monthStartDay: Int,
+        deltaYears: Long
+    ): Long {
+        val currentRange = computeFinancialMonthRange(currentReferenceEpochDay, monthStartDay)
+        val startLocalDate = LocalDate.ofEpochDay(currentRange.startEpochDay)
+        val targetYearMonth = YearMonth.from(startLocalDate).plusYears(deltaYears)
+        return resolveClampedDate(targetYearMonth, monthStartDay).toEpochDay()
+    }
 }
 
 @Immutable
@@ -73,10 +262,14 @@ data class CategoryDrillDownState(
 @Immutable
 data class StatsAndBudgetsUiState(
     val selectedSubTab: StatsSubTab = StatsSubTab.STATS,
+    val periodGranularity: StatsPeriodGranularity = StatsPeriodGranularity.MONTHLY,
     val selectedCategoryType: CategoryType = CategoryType.EXPENSE,
     val selectedRankingMode: RankingMode = RankingMode.TAGS,
     val referenceDateEpochDay: Long = LocalDate.now().toEpochDay(),
-    val activePeriodRange: FinancialPeriodRange = AccountingRulesEngine.computeFinancialMonthRange(
+    val customStartEpochDay: Long = LocalDate.now().withDayOfMonth(1).toEpochDay(),
+    val customEndEpochDay: Long = LocalDate.now().toEpochDay(),
+    val isCustomDatePickerOpen: Boolean = false,
+    val activePeriodRange: StatsPeriodRange = StatsPeriodCalculator.computeFinancialMonthRange(
         referenceDateEpochDay = LocalDate.now().toEpochDay(),
         monthStartDay = 1
     ),
@@ -122,9 +315,13 @@ data class StatsAndBudgetsUiState(
 
 private data class StatsInternalControlState(
     val selectedSubTab: StatsSubTab = StatsSubTab.STATS,
+    val periodGranularity: StatsPeriodGranularity = StatsPeriodGranularity.MONTHLY,
     val selectedCategoryType: CategoryType = CategoryType.EXPENSE,
     val selectedRankingMode: RankingMode = RankingMode.TAGS,
     val referenceDateEpochDay: Long = LocalDate.now().toEpochDay(),
+    val customStartEpochDay: Long = LocalDate.now().withDayOfMonth(1).toEpochDay(),
+    val customEndEpochDay: Long = LocalDate.now().toEpochDay(),
+    val isCustomDatePickerOpen: Boolean = false,
     val highlightedDonutCategoryId: Long? = null,
     val drillDownCategoryId: Long? = null,
     val budgetEditorDialogState: BudgetEditorDialogState? = null,
@@ -132,9 +329,17 @@ private data class StatsInternalControlState(
     val snackbarMessage: String? = null
 )
 
+private data class PeriodQueryParameters(
+    val granularity: StatsPeriodGranularity,
+    val referenceDateEpochDay: Long,
+    val customStartEpochDay: Long,
+    val customEndEpochDay: Long,
+    val prefs: UserPreferences
+)
+
 private data class PeriodAnalyticsBundle(
     val prefs: UserPreferences,
-    val periodRange: FinancialPeriodRange,
+    val periodRange: StatsPeriodRange,
     val periodSummary: PeriodLedgerSummary,
     val expenseStats: List<CategorySpendStat>,
     val incomeStats: List<CategorySpendStat>,
@@ -166,18 +371,30 @@ class StatsAndBudgetsViewModel(
         controlState,
         settingsAndBackupRepository.observeUserPreferences()
     ) { ctrl, prefs ->
-        ctrl.referenceDateEpochDay to prefs
-    }.flatMapLatest { (refEpochDay, prefs) ->
-        val periodRange = AccountingRulesEngine.computeFinancialMonthRange(
-            referenceDateEpochDay = refEpochDay,
-            monthStartDay = prefs.monthStartDay
+        PeriodQueryParameters(
+            granularity = ctrl.periodGranularity,
+            referenceDateEpochDay = ctrl.referenceDateEpochDay,
+            customStartEpochDay = ctrl.customStartEpochDay,
+            customEndEpochDay = ctrl.customEndEpochDay,
+            prefs = prefs
+        )
+    }.flatMapLatest { params ->
+        val prefs = params.prefs
+        val periodRange = StatsPeriodCalculator.computePeriodRange(
+            granularity = params.granularity,
+            referenceDateEpochDay = params.referenceDateEpochDay,
+            monthStartDay = prefs.monthStartDay,
+            weekStartDayIso = prefs.weekStartDayIso,
+            customStartEpochDay = params.customStartEpochDay,
+            customEndEpochDay = params.customEndEpochDay
         )
 
         val summaryAndCategoryStatsFlow = combine(
             analyticsAndBudgetRepository.observePeriodLedgerSummary(
                 startEpochDay = periodRange.startEpochDay,
                 endEpochDay = periodRange.endEpochDay,
-                includeCarryOver = prefs.carryOverEnabled
+                includeCarryOver = prefs.carryOverEnabled &&
+                        params.granularity == StatsPeriodGranularity.MONTHLY
             ),
             analyticsAndBudgetRepository.observeCategorySpendStats(
                 startEpochDay = periodRange.startEpochDay,
@@ -195,8 +412,8 @@ class StatsAndBudgetsViewModel(
 
         val trendsAndBudgetsFlow = combine(
             analyticsAndBudgetRepository.observeSixMonthTrendBars(
-                referenceDateEpochDay = refEpochDay,
-                monthStartDay = prefs.monthStartDay
+                referenceDateEpochDay = periodRange.endEpochDay,
+                monthStartDay = prefs.monthStartDay.coerceIn(1, 31)
             ),
             analyticsAndBudgetRepository.observeBudgetProgressList(
                 startEpochDay = periodRange.startEpochDay,
@@ -313,9 +530,13 @@ class StatsAndBudgetsViewModel(
 
         StatsAndBudgetsUiState(
             selectedSubTab = ctrl.selectedSubTab,
+            periodGranularity = ctrl.periodGranularity,
             selectedCategoryType = ctrl.selectedCategoryType,
             selectedRankingMode = ctrl.selectedRankingMode,
             referenceDateEpochDay = ctrl.referenceDateEpochDay,
+            customStartEpochDay = ctrl.customStartEpochDay,
+            customEndEpochDay = ctrl.customEndEpochDay,
+            isCustomDatePickerOpen = ctrl.isCustomDatePickerOpen,
             activePeriodRange = bundle.periodRange,
             periodSummary = bundle.periodSummary,
             userPreferences = prefs,
@@ -347,6 +568,51 @@ class StatsAndBudgetsViewModel(
         controlState.update { it.copy(selectedSubTab = subTab) }
     }
 
+    fun selectPeriodGranularity(granularity: StatsPeriodGranularity) {
+        val currentRange = uiState.value.activePeriodRange
+        controlState.update { current ->
+            val shouldInitCustomFromCurrent = granularity == StatsPeriodGranularity.CUSTOM &&
+                    current.periodGranularity != StatsPeriodGranularity.CUSTOM
+            current.copy(
+                periodGranularity = granularity,
+                customStartEpochDay = if (shouldInitCustomFromCurrent) {
+                    currentRange.startEpochDay
+                } else {
+                    current.customStartEpochDay
+                },
+                customEndEpochDay = if (shouldInitCustomFromCurrent) {
+                    currentRange.endEpochDay
+                } else {
+                    current.customEndEpochDay
+                },
+                isCustomDatePickerOpen = granularity == StatsPeriodGranularity.CUSTOM &&
+                        current.periodGranularity != StatsPeriodGranularity.CUSTOM,
+                highlightedDonutCategoryId = null,
+                drillDownCategoryId = null
+            )
+        }
+    }
+
+    fun setCustomDatePickerOpen(open: Boolean) {
+        controlState.update { it.copy(isCustomDatePickerOpen = open) }
+    }
+
+    fun setCustomDateRange(startEpochDay: Long, endEpochDay: Long) {
+        val safeStart = minOf(startEpochDay, endEpochDay)
+        val safeEnd = maxOf(startEpochDay, endEpochDay)
+        controlState.update {
+            it.copy(
+                periodGranularity = StatsPeriodGranularity.CUSTOM,
+                customStartEpochDay = safeStart,
+                customEndEpochDay = safeEnd,
+                referenceDateEpochDay = safeEnd,
+                isCustomDatePickerOpen = false,
+                highlightedDonutCategoryId = null,
+                drillDownCategoryId = null
+            )
+        }
+    }
+
     fun selectCategoryType(type: CategoryType) {
         controlState.update {
             it.copy(
@@ -362,45 +628,121 @@ class StatsAndBudgetsViewModel(
     }
 
     fun navigateToPreviousPeriod() {
-        val monthStartDay = uiState.value.userPreferences.monthStartDay
+        val prefs = uiState.value.userPreferences
         controlState.update { current ->
-            val prevEpochDay = AccountingRulesEngine.stepFinancialMonth(
-                currentReferenceEpochDay = current.referenceDateEpochDay,
-                monthStartDay = monthStartDay,
-                deltaMonths = -1L
-            )
-            current.copy(
-                referenceDateEpochDay = prevEpochDay,
-                highlightedDonutCategoryId = null,
-                drillDownCategoryId = null
-            )
+            when (current.periodGranularity) {
+                StatsPeriodGranularity.WEEKLY -> {
+                    current.copy(
+                        referenceDateEpochDay = current.referenceDateEpochDay - 7L,
+                        highlightedDonutCategoryId = null,
+                        drillDownCategoryId = null
+                    )
+                }
+                StatsPeriodGranularity.MONTHLY -> {
+                    val prevEpochDay = StatsPeriodCalculator.stepFinancialMonth(
+                        currentReferenceEpochDay = current.referenceDateEpochDay,
+                        monthStartDay = prefs.monthStartDay,
+                        deltaMonths = -1L
+                    )
+                    current.copy(
+                        referenceDateEpochDay = prevEpochDay,
+                        highlightedDonutCategoryId = null,
+                        drillDownCategoryId = null
+                    )
+                }
+                StatsPeriodGranularity.ANNUALLY -> {
+                    val prevYearEpochDay = StatsPeriodCalculator.stepFinancialYear(
+                        currentReferenceEpochDay = current.referenceDateEpochDay,
+                        monthStartDay = prefs.monthStartDay,
+                        deltaYears = -1L
+                    )
+                    current.copy(
+                        referenceDateEpochDay = prevYearEpochDay,
+                        highlightedDonutCategoryId = null,
+                        drillDownCategoryId = null
+                    )
+                }
+                StatsPeriodGranularity.CUSTOM -> {
+                    val spanDays = (current.customEndEpochDay - current.customStartEpochDay + 1L)
+                        .coerceAtLeast(1L)
+                    val newStart = current.customStartEpochDay - spanDays
+                    val newEnd = current.customEndEpochDay - spanDays
+                    current.copy(
+                        customStartEpochDay = newStart,
+                        customEndEpochDay = newEnd,
+                        referenceDateEpochDay = newEnd,
+                        highlightedDonutCategoryId = null,
+                        drillDownCategoryId = null
+                    )
+                }
+            }
         }
     }
 
     fun navigateToNextPeriod() {
-        val monthStartDay = uiState.value.userPreferences.monthStartDay
+        val prefs = uiState.value.userPreferences
         controlState.update { current ->
-            val nextEpochDay = AccountingRulesEngine.stepFinancialMonth(
-                currentReferenceEpochDay = current.referenceDateEpochDay,
-                monthStartDay = monthStartDay,
-                deltaMonths = 1L
-            )
-            current.copy(
-                referenceDateEpochDay = nextEpochDay,
-                highlightedDonutCategoryId = null,
-                drillDownCategoryId = null
-            )
+            when (current.periodGranularity) {
+                StatsPeriodGranularity.WEEKLY -> {
+                    current.copy(
+                        referenceDateEpochDay = current.referenceDateEpochDay + 7L,
+                        highlightedDonutCategoryId = null,
+                        drillDownCategoryId = null
+                    )
+                }
+                StatsPeriodGranularity.MONTHLY -> {
+                    val nextEpochDay = StatsPeriodCalculator.stepFinancialMonth(
+                        currentReferenceEpochDay = current.referenceDateEpochDay,
+                        monthStartDay = prefs.monthStartDay,
+                        deltaMonths = 1L
+                    )
+                    current.copy(
+                        referenceDateEpochDay = nextEpochDay,
+                        highlightedDonutCategoryId = null,
+                        drillDownCategoryId = null
+                    )
+                }
+                StatsPeriodGranularity.ANNUALLY -> {
+                    val nextYearEpochDay = StatsPeriodCalculator.stepFinancialYear(
+                        currentReferenceEpochDay = current.referenceDateEpochDay,
+                        monthStartDay = prefs.monthStartDay,
+                        deltaYears = 1L
+                    )
+                    current.copy(
+                        referenceDateEpochDay = nextYearEpochDay,
+                        highlightedDonutCategoryId = null,
+                        drillDownCategoryId = null
+                    )
+                }
+                StatsPeriodGranularity.CUSTOM -> {
+                    val spanDays = (current.customEndEpochDay - current.customStartEpochDay + 1L)
+                        .coerceAtLeast(1L)
+                    val newStart = current.customStartEpochDay + spanDays
+                    val newEnd = current.customEndEpochDay + spanDays
+                    current.copy(
+                        customStartEpochDay = newStart,
+                        customEndEpochDay = newEnd,
+                        referenceDateEpochDay = newEnd,
+                        highlightedDonutCategoryId = null,
+                        drillDownCategoryId = null
+                    )
+                }
+            }
         }
     }
 
     fun jumpToToday() {
         val today = LocalDate.now().toEpochDay()
-        controlState.update {
-            it.copy(
-                referenceDateEpochDay = today,
-                highlightedDonutCategoryId = null,
-                drillDownCategoryId = null
-            )
+        controlState.update { current ->
+            if (current.periodGranularity == StatsPeriodGranularity.CUSTOM) {
+                current.copy(isCustomDatePickerOpen = true)
+            } else {
+                current.copy(
+                    referenceDateEpochDay = today,
+                    highlightedDonutCategoryId = null,
+                    drillDownCategoryId = null
+                )
+            }
         }
     }
 

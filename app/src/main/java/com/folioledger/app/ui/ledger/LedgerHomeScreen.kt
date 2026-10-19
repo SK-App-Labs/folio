@@ -7,10 +7,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -26,14 +24,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -44,7 +40,6 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -90,10 +85,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.AccountSummary
-import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
@@ -104,7 +99,6 @@ import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.components.PeriodSelectorHeader
 import com.folioledger.app.ui.components.ThreeColumnSummaryBanner
 import com.folioledger.app.ui.components.fromTransactionType
-import com.folioledger.app.ui.components.parseHexColorSafely
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.time.LocalDate
@@ -163,6 +157,22 @@ fun LedgerHomeScreen(
                 onSearchClick = viewModel::toggleSearchBar
             )
 
+            // Prominent Scoped Account Filter Banner when an account is selected
+            val scopedAccount = uiState.scopedAccount
+            AnimatedVisibility(
+                visible = scopedAccount != null,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
+                if (scopedAccount != null) {
+                    SelectedAccountScopeBanner(
+                        account = scopedAccount,
+                        grouping = uiState.numberGrouping,
+                        onClearScopedAccount = { viewModel.setScopedAccount(null) }
+                    )
+                }
+            }
+
             AnimatedVisibility(
                 visible = uiState.isSearchBarVisible || uiState.isFilterActive,
                 enter = expandVertically(),
@@ -172,6 +182,8 @@ fun LedgerHomeScreen(
                     queryText = uiState.searchFilter.queryText,
                     activeFilterCount = uiState.activeFilterCount,
                     isFilterActive = uiState.isFilterActive,
+                    periodTitle = uiState.activePeriodRange.title,
+                    filterAllPeriods = uiState.filterAllPeriods,
                     onQueryChange = viewModel::updateSearchQuery,
                     onOpenFilterSheet = { viewModel.setFilterSheetOpen(true) },
                     onClearAllFilters = viewModel::clearAllFilters
@@ -208,6 +220,7 @@ fun LedgerHomeScreen(
                 FilteredSearchResultsContent(
                     uiState = uiState,
                     onTransactionClick = viewModel::inspectTransaction,
+                    onToggleFilterAllPeriods = viewModel::setFilterAllPeriods,
                     onClearFilters = viewModel::clearAllFilters
                 )
             } else {
@@ -286,7 +299,7 @@ fun LedgerHomeScreen(
             onToggleCategory = viewModel::toggleFilterCategoryId,
             onToggleTag = viewModel::toggleFilterTag,
             onUpdateAmountBounds = viewModel::updateFilterAmountBounds,
-            onRestrictToPeriodChange = viewModel::restrictFilterToActivePeriod,
+            onFilterAllPeriodsChange = viewModel::setFilterAllPeriods,
             onClearAll = viewModel::clearAllFilters,
             onDismiss = { viewModel.setFilterSheetOpen(false) }
         )
@@ -307,10 +320,102 @@ fun LedgerHomeScreen(
 }
 
 @Composable
+private fun SelectedAccountScopeBanner(
+    account: AccountSummary,
+    grouping: NumberGroupingSystem,
+    onClearScopedAccount: () -> Unit
+) {
+    val accountSpec = remember(account.currencyCode) {
+        SupportedCurrencies.fromCode(account.currencyCode)
+    }
+
+    Surface(
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                CategoryIconBadge(
+                    iconName = account.iconName,
+                    colorHex = account.colorHex,
+                    size = 30.dp,
+                    iconSize = 16.dp
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = "Viewing Account: ${account.name}",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Balance: ",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        MoneyText(
+                            money = account.currentBalance,
+                            currencySpec = accountSpec,
+                            grouping = grouping,
+                            colorMode = MoneyColorMode.AUTO_SIGN,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable(onClick = onClearScopedAccount)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                ) {
+                    Text(
+                        text = "Show All Accounts",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Clear Account Scope",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun SearchAndActiveFilterBanner(
     queryText: String,
     activeFilterCount: Int,
     isFilterActive: Boolean,
+    periodTitle: String,
+    filterAllPeriods: Boolean,
     onQueryChange: (String) -> Unit,
     onOpenFilterSheet: () -> Unit,
     onClearAllFilters: () -> Unit
@@ -332,7 +437,15 @@ private fun SearchAndActiveFilterBanner(
                 OutlinedTextField(
                     value = queryText,
                     onValueChange = onQueryChange,
-                    placeholder = { Text("Search payee, note, category, or tag...") },
+                    placeholder = {
+                        Text(
+                            if (filterAllPeriods) {
+                                "Search across all dates..."
+                            } else {
+                                "Search in $periodTitle..."
+                            }
+                        )
+                    },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Filled.Search,
@@ -385,6 +498,7 @@ private fun SearchAndActiveFilterBanner(
 private fun FilteredSearchResultsContent(
     uiState: LedgerHomeUiState,
     onTransactionClick: (TransactionItem) -> Unit,
+    onToggleFilterAllPeriods: (Boolean) -> Unit,
     onClearFilters: () -> Unit
 ) {
     LazyColumn(
@@ -416,13 +530,34 @@ private fun FilteredSearchResultsContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = "${uiState.filteredTransactions.size} matching transactions",
-                    style = tabularMoneyStyle(MaterialTheme.typography.labelLarge),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "${uiState.filteredTransactions.size} matches",
+                        style = tabularMoneyStyle(MaterialTheme.typography.labelLarge),
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    FilterChip(
+                        selected = !uiState.filterAllPeriods,
+                        onClick = { onToggleFilterAllPeriods(!uiState.filterAllPeriods) },
+                        label = {
+                            Text(
+                                text = if (uiState.filterAllPeriods) {
+                                    "All Dates"
+                                } else {
+                                    "In ${uiState.activePeriodRange.title}"
+                                },
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    )
+                }
+
                 TextButton(onClick = onClearFilters) {
-                    Text("Exit Search / Filter")
+                    Text("Exit Filter")
                 }
             }
         }
@@ -430,8 +565,16 @@ private fun FilteredSearchResultsContent(
         if (uiState.filteredDailyGroups.isEmpty()) {
             item {
                 EmptyStateCard(
-                    title = "No Matching Transactions",
-                    subtitle = "No ledger entries matched your search query and multi-filter criteria.",
+                    title = if (uiState.filterAllPeriods) {
+                        "No Matching Transactions"
+                    } else {
+                        "No Matches in ${uiState.activePeriodRange.title}"
+                    },
+                    subtitle = if (uiState.filterAllPeriods) {
+                        "No ledger entries matched your search query and multi-filter criteria."
+                    } else {
+                        "Use < Prev / Next > above to check other months, or tap 'In ${uiState.activePeriodRange.title}' to search across all dates."
+                    },
                     icon = Icons.Filled.Search,
                     actionLabel = "Clear All Filters",
                     onActionClick = onClearFilters
@@ -449,6 +592,7 @@ private fun FilteredSearchResultsContent(
                 items(group.transactions, key = { "filtered_tx_${it.id}" }) { tx ->
                     LedgerTransactionItemCard(
                         transaction = tx,
+                        scopedAccountId = uiState.scopedAccountId,
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.numberGrouping,
                         onClick = { onTransactionClick(tx) }
@@ -480,14 +624,19 @@ private fun DailyLedgerSubTabContent(
                 periodSummary = uiState.periodSummary,
                 currencySpec = uiState.currencySpec,
                 grouping = uiState.numberGrouping,
-                showCarryOver = uiState.userPreferences.carryOverEnabled
+                showCarryOver = uiState.userPreferences.carryOverEnabled && uiState.scopedAccountId == null
             )
         }
 
         if (uiState.dailyGroups.isEmpty()) {
             item {
+                val scopedName = uiState.scopedAccount?.name
                 EmptyStateCard(
-                    title = "No Transactions in ${uiState.activePeriodRange.title}",
+                    title = if (scopedName != null) {
+                        "No Transactions for $scopedName in ${uiState.activePeriodRange.title}"
+                    } else {
+                        "No Transactions in ${uiState.activePeriodRange.title}"
+                    },
                     subtitle = "Record an expense, income, or transfer to populate your daily chronological ledger.",
                     icon = Icons.AutoMirrored.Filled.ReceiptLong,
                     actionLabel = "+ Add Transaction",
@@ -506,6 +655,7 @@ private fun DailyLedgerSubTabContent(
                 items(group.transactions, key = { it.id }) { transaction ->
                     LedgerTransactionItemCard(
                         transaction = transaction,
+                        scopedAccountId = uiState.scopedAccountId,
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.numberGrouping,
                         onClick = { onTransactionClick(transaction) }
@@ -591,18 +741,29 @@ private fun DailyDateGroupHeaderRow(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun LedgerTransactionItemCard(
     transaction: TransactionItem,
+    scopedAccountId: Long? = null,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onClick: () -> Unit
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val txCurrency = remember(transaction.currencyCode, currencySpec) {
-        com.folioledger.app.domain.model.SupportedCurrencies.getByCode(transaction.currencyCode)
-            ?: currencySpec
+        SupportedCurrencies.getByCode(transaction.currencyCode) ?: currencySpec
+    }
+
+    val resolvedColorMode = when {
+        scopedAccountId != null &&
+                (transaction.type == TransactionType.TRANSFER || transaction.type == TransactionType.CC_SETTLEMENT) -> {
+            if (transaction.transferToAccountId == scopedAccountId) {
+                MoneyColorMode.INCOME
+            } else {
+                MoneyColorMode.EXPENSE
+            }
+        }
+        else -> MoneyColorMode.fromTransactionType(transaction.type)
     }
 
     Card(
@@ -721,7 +882,7 @@ private fun LedgerTransactionItemCard(
                 money = transaction.amount,
                 currencySpec = txCurrency,
                 grouping = grouping,
-                colorMode = MoneyColorMode.fromTransactionType(transaction.type),
+                colorMode = resolvedColorMode,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -761,7 +922,7 @@ private fun CalendarLedgerSubTabContent(
                 periodSummary = uiState.periodSummary,
                 currencySpec = uiState.currencySpec,
                 grouping = uiState.numberGrouping,
-                showCarryOver = uiState.userPreferences.carryOverEnabled
+                showCarryOver = uiState.userPreferences.carryOverEnabled && uiState.scopedAccountId == null
             )
         }
 
@@ -882,7 +1043,6 @@ private fun CalendarLedgerSubTabContent(
             }
         }
 
-        // Selected Date Header & "+ Add on this date" action
         item {
             Card(
                 shape = RoundedCornerShape(16.dp),
@@ -980,6 +1140,7 @@ private fun CalendarLedgerSubTabContent(
             ) { tx ->
                 LedgerTransactionItemCard(
                     transaction = tx,
+                    scopedAccountId = uiState.scopedAccountId,
                     currencySpec = uiState.currencySpec,
                     grouping = uiState.numberGrouping,
                     onClick = { onTransactionClick(tx) }
@@ -1012,7 +1173,7 @@ private fun WeeklyLedgerSubTabContent(
                 periodSummary = uiState.periodSummary,
                 currencySpec = uiState.currencySpec,
                 grouping = uiState.numberGrouping,
-                showCarryOver = uiState.userPreferences.carryOverEnabled
+                showCarryOver = uiState.userPreferences.carryOverEnabled && uiState.scopedAccountId == null
             )
         }
 
@@ -1108,6 +1269,7 @@ private fun WeeklyLedgerSubTabContent(
                             bucket.transactions.forEach { tx ->
                                 LedgerTransactionItemCard(
                                     transaction = tx,
+                                    scopedAccountId = uiState.scopedAccountId,
                                     currencySpec = uiState.currencySpec,
                                     grouping = uiState.numberGrouping,
                                     onClick = { onTransactionClick(tx) }
@@ -1143,7 +1305,7 @@ private fun MonthlyLedgerSubTabContent(
                 periodSummary = uiState.periodSummary,
                 currencySpec = uiState.currencySpec,
                 grouping = uiState.numberGrouping,
-                showCarryOver = uiState.userPreferences.carryOverEnabled
+                showCarryOver = uiState.userPreferences.carryOverEnabled && uiState.scopedAccountId == null
             )
         }
 
@@ -1329,11 +1491,10 @@ private fun SummaryLedgerSubTabContent(
                 periodSummary = summary,
                 currencySpec = uiState.currencySpec,
                 grouping = uiState.numberGrouping,
-                showCarryOver = uiState.userPreferences.carryOverEnabled
+                showCarryOver = uiState.userPreferences.carryOverEnabled && uiState.scopedAccountId == null
             )
         }
 
-        // Period Cashflow & Carry-Over Digest Card
         item {
             Card(
                 shape = RoundedCornerShape(16.dp),
@@ -1407,7 +1568,7 @@ private fun SummaryLedgerSubTabContent(
                         grouping = uiState.numberGrouping
                     )
 
-                    if (uiState.userPreferences.carryOverEnabled) {
+                    if (uiState.userPreferences.carryOverEnabled && uiState.scopedAccountId == null) {
                         HorizontalDivider(color = semanticColors.cardStrokeSubtle)
                         SummaryMetricRow(
                             label = "Carry-Over from Previous Period",
@@ -1428,8 +1589,7 @@ private fun SummaryLedgerSubTabContent(
             }
         }
 
-        // Budget Status Bar Preview (if any budget is configured)
-        if (overallBudget != null) {
+        if (overallBudget != null && uiState.scopedAccountId == null) {
             item {
                 val fraction = (overallBudget.usagePercentage / 100f).coerceIn(0f, 1f)
                 val barColor = when {
@@ -1518,8 +1678,7 @@ private fun SummaryLedgerSubTabContent(
             }
         }
 
-        // Top Spending Categories Preview
-        if (uiState.topExpenseCategories.isNotEmpty()) {
+        if (uiState.topExpenseCategories.isNotEmpty() && uiState.scopedAccountId == null) {
             item {
                 Card(
                     shape = RoundedCornerShape(16.dp),
@@ -1582,7 +1741,6 @@ private fun SummaryLedgerSubTabContent(
             }
         }
 
-        // Quick Export Active Period to CSV Button
         item {
             OutlinedButton(
                 onClick = onExportCsvClick,
@@ -1867,13 +2025,12 @@ private fun ReinforcedSearchFilterBottomSheet(
     onToggleCategory: (Long) -> Unit,
     onToggleTag: (String) -> Unit,
     onUpdateAmountBounds: (String, String) -> Unit,
-    onRestrictToPeriodChange: (Boolean) -> Unit,
+    onFilterAllPeriodsChange: (Boolean) -> Unit,
     onClearAll: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val filter = uiState.searchFilter
-    val restrictedToActivePeriod = filter.startEpochDay != null || filter.endEpochDay != null
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1923,19 +2080,19 @@ private fun ReinforcedSearchFilterBottomSheet(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Restrict to ${uiState.activePeriodRange.title}",
+                        text = "Scope Filter to Selected Month (${uiState.activePeriodRange.title})",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = "Disable to search across all historical periods",
+                        text = "Follows < Prev / Next > month navigation automatically",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Switch(
-                    checked = restrictedToActivePeriod,
-                    onCheckedChange = onRestrictToPeriodChange
+                    checked = !uiState.filterAllPeriods,
+                    onCheckedChange = { scopeToMonth -> onFilterAllPeriodsChange(!scopeToMonth) }
                 )
             }
 

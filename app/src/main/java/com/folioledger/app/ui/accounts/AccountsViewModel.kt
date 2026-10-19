@@ -18,6 +18,9 @@ import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import java.time.LocalDate
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,6 +30,114 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+@Immutable
+data class CreditCardCycleWindow(
+    val statementDayOfMonth: Int,
+    val paymentDueDayOfMonth: Int,
+    val lastStatementStart: LocalDate,
+    val lastStatementEnd: LocalDate,
+    val lastStatementDueDate: LocalDate,
+    val activeCycleStart: LocalDate,
+    val activeCycleEnd: LocalDate,
+    val activeCycleNextDueDate: LocalDate
+) {
+    private val shortFormatter: DateTimeFormatter
+        get() = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
+
+    private val fullFormatter: DateTimeFormatter
+        get() = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
+
+    val lastStatementRangeShortText: String
+        get() = "${lastStatementStart.format(shortFormatter)} – ${lastStatementEnd.format(shortFormatter)}"
+
+    val lastStatementRangeFullText: String
+        get() = "${lastStatementStart.format(fullFormatter)} – ${lastStatementEnd.format(fullFormatter)}"
+
+    val lastStatementDueShortText: String
+        get() = lastStatementDueDate.format(shortFormatter)
+
+    val lastStatementDueFullText: String
+        get() = lastStatementDueDate.format(fullFormatter)
+
+    val activeCycleRangeShortText: String
+        get() = "${activeCycleStart.format(shortFormatter)} – ${activeCycleEnd.format(shortFormatter)}"
+
+    val activeCycleRangeFullText: String
+        get() = "${activeCycleStart.format(fullFormatter)} – ${activeCycleEnd.format(fullFormatter)}"
+}
+
+object CreditCardCycleCalculator {
+
+    fun resolveClampedDate(yearMonth: YearMonth, desiredDayOfMonth: Int): LocalDate {
+        val safeDay = desiredDayOfMonth.coerceIn(1, 31)
+        val clampedDay = minOf(safeDay, yearMonth.lengthOfMonth())
+        return yearMonth.atDay(clampedDay)
+    }
+
+    fun computeCycleWindow(
+        referenceDateEpochDay: Long,
+        settlementDayOfMonth: Int,
+        paymentDueDayOfMonth: Int
+    ): CreditCardCycleWindow {
+        val safeStatementDay = settlementDayOfMonth.coerceIn(1, 31)
+        val safeDueDay = paymentDueDayOfMonth.coerceIn(1, 31)
+        val refDate = LocalDate.ofEpochDay(referenceDateEpochDay)
+        val refYearMonth = YearMonth.from(refDate)
+        val statementDateInRefMonth = resolveClampedDate(refYearMonth, safeStatementDay)
+
+        val lastStatementEnd: LocalDate = if (refDate.isAfter(statementDateInRefMonth)) {
+            statementDateInRefMonth
+        } else {
+            resolveClampedDate(refYearMonth.minusMonths(1), safeStatementDay)
+        }
+
+        val prevStatementEnd = resolveClampedDate(
+            YearMonth.from(lastStatementEnd).minusMonths(1),
+            safeStatementDay
+        )
+        val lastStatementStart = prevStatementEnd.plusDays(1)
+
+        val activeCycleStart = lastStatementEnd.plusDays(1)
+        val activeCycleEnd = resolveClampedDate(
+            YearMonth.from(lastStatementEnd).plusMonths(1),
+            safeStatementDay
+        )
+
+        val lastStatementDueDate = computeDueDateAfterStatementClose(
+            statementCloseDate = lastStatementEnd,
+            dueDayOfMonth = safeDueDay
+        )
+        val activeCycleNextDueDate = computeDueDateAfterStatementClose(
+            statementCloseDate = activeCycleEnd,
+            dueDayOfMonth = safeDueDay
+        )
+
+        return CreditCardCycleWindow(
+            statementDayOfMonth = safeStatementDay,
+            paymentDueDayOfMonth = safeDueDay,
+            lastStatementStart = lastStatementStart,
+            lastStatementEnd = lastStatementEnd,
+            lastStatementDueDate = lastStatementDueDate,
+            activeCycleStart = activeCycleStart,
+            activeCycleEnd = activeCycleEnd,
+            activeCycleNextDueDate = activeCycleNextDueDate
+        )
+    }
+
+    private fun computeDueDateAfterStatementClose(
+        statementCloseDate: LocalDate,
+        dueDayOfMonth: Int
+    ): LocalDate {
+        val closeYearMonth = YearMonth.from(statementCloseDate)
+        val sameMonthCandidate = resolveClampedDate(closeYearMonth, dueDayOfMonth)
+        return if (sameMonthCandidate.isAfter(statementCloseDate)) {
+            sameMonthCandidate
+        } else {
+            resolveClampedDate(closeYearMonth.plusMonths(1), dueDayOfMonth)
+        }
+    }
+}
 
 @Immutable
 data class AccountEditorDialogState(
@@ -79,6 +190,7 @@ data class AccountsUiState(
     val parentBankCandidates: List<AccountSummary> = emptyList(),
     val recentTransactionsForSelectedAccount: List<TransactionItem> = emptyList(),
     val inspectedAccountId: Long? = null,
+    val inspectedAccount: AccountSummary? = null,
     val currencySpec: CurrencySpec = SupportedCurrencies.INR,
     val numberGrouping: NumberGroupingSystem = NumberGroupingSystem.INDIAN,
     val referenceDateEpochDay: Long = LocalDate.now().toEpochDay(),
@@ -136,7 +248,7 @@ class AccountsViewModel(
         settingsAndBackupRepository.observeUserPreferences(),
         inspectedAccountTransactionsFlow,
         controlState
-    ) { netWorth, allAccounts, prefs, recentTxns, ctrl ->
+    ) { netWorth, allAccounts, prefs, accountTransactions, ctrl ->
         val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
         val visibleAccounts = if (ctrl.showArchivedAccounts) {
             allAccounts
@@ -164,13 +276,23 @@ class AccountsViewModel(
                     )
         }
 
+        val sortedAccountTransactions = accountTransactions.sortedWith(
+            compareByDescending<TransactionItem> { it.ledgerDateEpochDay }
+                .thenByDescending { it.timestampEpochMillis }
+        )
+
+        val inspectedAccount = ctrl.inspectedAccountId?.let { targetId ->
+            allAccounts.firstOrNull { it.id == targetId }
+        }
+
         AccountsUiState(
             netWorthOverview = resolvedOverview,
             allAccounts = allAccounts,
             assetAccountsForSettlement = assetAccounts,
             parentBankCandidates = bankCandidates,
-            recentTransactionsForSelectedAccount = recentTxns.take(10),
+            recentTransactionsForSelectedAccount = sortedAccountTransactions,
             inspectedAccountId = ctrl.inspectedAccountId,
+            inspectedAccount = inspectedAccount,
             currencySpec = currencySpec,
             numberGrouping = prefs.numberGrouping,
             referenceDateEpochDay = ctrl.referenceDateEpochDay,
@@ -206,6 +328,10 @@ class AccountsViewModel(
 
     fun selectAccountForInspection(accountId: Long?) {
         controlState.update { it.copy(inspectedAccountId = accountId) }
+    }
+
+    fun dismissInspectedAccountSheet() {
+        controlState.update { it.copy(inspectedAccountId = null) }
     }
 
     fun clearSnackbarMessage() {
@@ -272,8 +398,8 @@ class AccountsViewModel(
                     creditLimitInput = limitFormatted,
                     statementPayableInput = payableFormatted,
                     unbilledAmountInput = unbilledFormatted,
-                    settlementDayOfMonth = account.settlementDayOfMonth ?: 18,
-                    paymentDueDayOfMonth = account.paymentDueDayOfMonth ?: 5,
+                    settlementDayOfMonth = (account.settlementDayOfMonth ?: 18).coerceIn(1, 31),
+                    paymentDueDayOfMonth = (account.paymentDueDayOfMonth ?: 5).coerceIn(1, 31),
                     parentAccountId = account.parentAccountId,
                     includeInNetWorth = account.includeInNetWorth,
                     isArchived = account.isArchived,
@@ -314,6 +440,36 @@ class AccountsViewModel(
             return
         }
 
+        val statementPayable = if (editor.groupType == AccountGroup.CREDIT_CARD &&
+            editor.statementPayableInput.isNotBlank()
+        ) {
+            val parsed = parseInputToMinorOrZero(editor.statementPayableInput, fractionDigits)
+            if (parsed == null) {
+                updateEditorDialogState {
+                    it.copy(validationError = "Invalid Billed Statement Due amount.")
+                }
+                return
+            }
+            parsed.abs()
+        } else {
+            null
+        }
+
+        val unbilledAmount = if (editor.groupType == AccountGroup.CREDIT_CARD &&
+            editor.unbilledAmountInput.isNotBlank()
+        ) {
+            val parsed = parseInputToMinorOrZero(editor.unbilledAmountInput, fractionDigits)
+            if (parsed == null) {
+                updateEditorDialogState {
+                    it.copy(validationError = "Invalid Unbilled Spend amount.")
+                }
+                return
+            }
+            parsed.abs()
+        } else {
+            null
+        }
+
         val parsedOpeningBalance = parseInputToMinorOrZero(
             rawInput = editor.openingBalanceInput,
             fractionDigits = fractionDigits
@@ -325,10 +481,21 @@ class AccountsViewModel(
             return
         }
 
+        val effectiveOpeningMagnitude = if (
+            editor.groupType == AccountGroup.CREDIT_CARD &&
+            parsedOpeningBalance.isZero &&
+            ((statementPayable != null && statementPayable.isPositive) ||
+                    (unbilledAmount != null && unbilledAmount.isPositive))
+        ) {
+            (statementPayable ?: MinorMoney.ZERO) + (unbilledAmount ?: MinorMoney.ZERO)
+        } else {
+            parsedOpeningBalance
+        }
+
         val signedBalance = when {
             editor.groupType == AccountGroup.DEBIT_CARD -> MinorMoney.ZERO
-            editor.groupType.isLiabilityByDefault && parsedOpeningBalance.isPositive -> -parsedOpeningBalance
-            else -> parsedOpeningBalance
+            editor.groupType.isLiabilityByDefault && effectiveOpeningMagnitude.isPositive -> -effectiveOpeningMagnitude
+            else -> effectiveOpeningMagnitude
         }
 
         val creditLimit = if (editor.groupType == AccountGroup.CREDIT_CARD) {
@@ -344,22 +511,6 @@ class AccountsViewModel(
             null
         }
 
-        val statementPayable = if (editor.groupType == AccountGroup.CREDIT_CARD &&
-            editor.statementPayableInput.isNotBlank()
-        ) {
-            parseInputToMinorOrZero(editor.statementPayableInput, fractionDigits)
-        } else {
-            null
-        }
-
-        val unbilledAmount = if (editor.groupType == AccountGroup.CREDIT_CARD &&
-            editor.unbilledAmountInput.isNotBlank()
-        ) {
-            parseInputToMinorOrZero(editor.unbilledAmountInput, fractionDigits)
-        } else {
-            null
-        }
-
         val accountSummary = AccountSummary(
             id = editor.accountId,
             name = trimmedName,
@@ -370,12 +521,12 @@ class AccountsViewModel(
             creditCardStatementPayable = statementPayable,
             creditCardUnbilledAmount = unbilledAmount,
             settlementDayOfMonth = if (editor.groupType == AccountGroup.CREDIT_CARD) {
-                editor.settlementDayOfMonth.coerceIn(1, 28)
+                editor.settlementDayOfMonth.coerceIn(1, 31)
             } else {
                 null
             },
             paymentDueDayOfMonth = if (editor.groupType == AccountGroup.CREDIT_CARD) {
-                editor.paymentDueDayOfMonth.coerceIn(1, 28)
+                editor.paymentDueDayOfMonth.coerceIn(1, 31)
             } else {
                 null
             },

@@ -154,7 +154,7 @@ class SettingsViewModel(
     }
 
     fun setMonthStartDay(day: Int) {
-        val safeDay = day.coerceIn(1, 28)
+        val safeDay = day.coerceIn(1, 31)
         viewModelScope.launch {
             settingsAndBackupRepository.updateUserPreferences { current ->
                 current.copy(monthStartDay = safeDay)

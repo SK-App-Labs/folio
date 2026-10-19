@@ -103,7 +103,7 @@ class SettingsAndBackupRepositoryImpl(
         context.folioUserPreferencesDataStore.edit { mutablePrefs ->
             val current = mapPreferencesToDomain(mutablePrefs)
             val updated = transform(current)
-            val validatedMonthStart = updated.monthStartDay.coerceIn(1, 28)
+            val validatedMonthStart = updated.monthStartDay.coerceIn(1, 31)
             val validatedWeekStart = updated.weekStartDayIso.coerceIn(1, 7)
 
             mutablePrefs[PreferenceKeys.PRIMARY_CURRENCY_CODE] = updated.primaryCurrencyCode
@@ -117,6 +117,7 @@ class SettingsAndBackupRepositoryImpl(
             mutablePrefs[PreferenceKeys.ACCENT_PALETTE] = updated.accentPalette
             mutablePrefs[PreferenceKeys.BIOMETRIC_LOCK_ENABLED] = updated.biometricLockEnabled
         }
+        Unit
     }
 
     override suspend fun exportTransactionsToCsv(
@@ -237,7 +238,7 @@ class SettingsAndBackupRepositoryImpl(
         }
     }
 
-    suspend fun createBackupToStream(outputStream: OutputStream) = withContext(Dispatchers.IO) {
+    suspend fun createBackupToStream(outputStream: OutputStream): Unit = withContext(Dispatchers.IO) {
         val currentPrefs = observeUserPreferences().first()
         val accounts = database.accountDao().getAllAccountsOnce()
         val categories = database.categoryAndTagDao().getAllCategoriesOnce()
@@ -489,6 +490,7 @@ class SettingsAndBackupRepositoryImpl(
             zipOut.closeEntry()
             zipOut.finish()
         }
+        Unit
     }
 
     override suspend fun restoreFromZipBackup(
@@ -498,10 +500,11 @@ class SettingsAndBackupRepositoryImpl(
             openInputStreamForLocation(sourceUriString).use { rawStream ->
                 restoreBackupFromStream(rawStream)
             }
-        }.mapCatching { it?.getOrThrow() ?: Unit }
+            Unit
+        }
     }
 
-    suspend fun restoreBackupFromStream(inputStream: InputStream) = withContext(Dispatchers.IO) {
+    suspend fun restoreBackupFromStream(inputStream: InputStream): Unit = withContext(Dispatchers.IO) {
         var backupJsonText: String? = null
         ZipInputStream(inputStream).use { zipIn ->
             var entry = zipIn.nextEntry
@@ -591,7 +594,7 @@ class SettingsAndBackupRepositoryImpl(
                         )
                     }.getOrDefault(current.numberGrouping),
                     monthStartDay = prefsObj.optInt("monthStartDay", current.monthStartDay)
-                        .coerceIn(1, 28),
+                        .coerceIn(1, 31),
                     weekStartDayIso = prefsObj.optInt("weekStartDayIso", current.weekStartDayIso)
                         .coerceIn(1, 7),
                     subcategoriesEnabled = prefsObj.optBoolean(
@@ -615,6 +618,7 @@ class SettingsAndBackupRepositoryImpl(
                 )
             }
         }
+        Unit
     }
 
     private fun mapPreferencesToDomain(prefs: Preferences): UserPreferences {
@@ -627,7 +631,7 @@ class SettingsAndBackupRepositoryImpl(
         return UserPreferences(
             primaryCurrencyCode = currencyCode,
             numberGrouping = grouping,
-            monthStartDay = (prefs[PreferenceKeys.MONTH_START_DAY] ?: 1).coerceIn(1, 28),
+            monthStartDay = (prefs[PreferenceKeys.MONTH_START_DAY] ?: 1).coerceIn(1, 31),
             weekStartDayIso = (prefs[PreferenceKeys.WEEK_START_DAY_ISO] ?: 1).coerceIn(1, 7),
             subcategoriesEnabled = prefs[PreferenceKeys.SUBCATEGORIES_ENABLED] ?: true,
             carryOverEnabled = prefs[PreferenceKeys.CARRY_OVER_ENABLED] ?: false,

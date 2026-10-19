@@ -34,7 +34,9 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Label
@@ -45,6 +47,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
@@ -64,6 +68,8 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -100,7 +106,9 @@ import com.folioledger.app.ui.components.fromTransactionType
 import com.folioledger.app.ui.components.parseHexColorSafely
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -138,7 +146,19 @@ fun StatsAndBudgetsScreen(
                 periodSubtitle = uiState.activePeriodRange.subtitle,
                 onPreviousPeriod = viewModel::navigateToPreviousPeriod,
                 onNextPeriod = viewModel::navigateToNextPeriod,
-                onPeriodTitleClick = viewModel::jumpToToday
+                onPeriodTitleClick = {
+                    if (uiState.periodGranularity == StatsPeriodGranularity.CUSTOM) {
+                        viewModel.setCustomDatePickerOpen(true)
+                    } else {
+                        viewModel.jumpToToday()
+                    }
+                }
+            )
+
+            StatsPeriodGranularityStrip(
+                selectedGranularity = uiState.periodGranularity,
+                onSelectGranularity = viewModel::selectPeriodGranularity,
+                onOpenCustomDatePicker = { viewModel.setCustomDatePickerOpen(true) }
             )
 
             PrimaryTabRow(
@@ -200,6 +220,15 @@ fun StatsAndBudgetsScreen(
         }
     }
 
+    if (uiState.isCustomDatePickerOpen) {
+        CustomDateRangePickerDialog(
+            initialStartEpochDay = uiState.customStartEpochDay,
+            initialEndEpochDay = uiState.customEndEpochDay,
+            onConfirmRange = viewModel::setCustomDateRange,
+            onDismiss = { viewModel.setCustomDatePickerOpen(false) }
+        )
+    }
+
     val drillDown = uiState.drillDownState
     if (drillDown != null) {
         CategoryDrillDownBottomSheet(
@@ -241,6 +270,164 @@ fun StatsAndBudgetsScreen(
 }
 
 @Composable
+private fun StatsPeriodGranularityStrip(
+    selectedGranularity: StatsPeriodGranularity,
+    onSelectGranularity: (StatsPeriodGranularity) -> Unit,
+    onOpenCustomDatePicker: () -> Unit
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 6.dp)
+        ) {
+            StatsPeriodGranularity.entries.forEach { granularity ->
+                val isSelected = selectedGranularity == granularity
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (isSelected) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerLow
+                    },
+                    border = BorderStroke(
+                        width = if (isSelected) 1.5.dp else 1.dp,
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            semanticColors.cardStrokeSubtle
+                        }
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable {
+                            if (granularity == StatsPeriodGranularity.CUSTOM && isSelected) {
+                                onOpenCustomDatePicker()
+                            } else {
+                                onSelectGranularity(granularity)
+                            }
+                        }
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(vertical = 7.dp, horizontal = 4.dp)
+                    ) {
+                        if (granularity == StatsPeriodGranularity.CUSTOM) {
+                            Icon(
+                                imageVector = Icons.Filled.DateRange,
+                                contentDescription = null,
+                                tint = if (isSelected) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
+                        Text(
+                            text = granularity.title,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) {
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            textAlign = TextAlign.Center,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CustomDateRangePickerDialog(
+    initialStartEpochDay: Long,
+    initialEndEpochDay: Long,
+    onConfirmRange: (startEpochDay: Long, endEpochDay: Long) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val startMillis = remember(initialStartEpochDay) {
+        LocalDate.ofEpochDay(initialStartEpochDay)
+            .atStartOfDay(ZoneOffset.UTC)
+            .toInstant()
+            .toEpochMilli()
+    }
+    val endMillis = remember(initialEndEpochDay) {
+        LocalDate.ofEpochDay(initialEndEpochDay)
+            .atStartOfDay(ZoneOffset.UTC)
+            .toInstant()
+            .toEpochMilli()
+    }
+
+    val pickerState = rememberDateRangePickerState(
+        initialSelectedStartDateMillis = startMillis,
+        initialSelectedEndDateMillis = endMillis
+    )
+
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val selectedStart = pickerState.selectedStartDateMillis
+                    val selectedEnd = pickerState.selectedEndDateMillis ?: selectedStart
+                    if (selectedStart != null && selectedEnd != null) {
+                        val sEpoch = Instant.ofEpochMilli(selectedStart)
+                            .atZone(ZoneOffset.UTC)
+                            .toLocalDate()
+                            .toEpochDay()
+                        val eEpoch = Instant.ofEpochMilli(selectedEnd)
+                            .atZone(ZoneOffset.UTC)
+                            .toLocalDate()
+                            .toEpochDay()
+                        onConfirmRange(sEpoch, eEpoch)
+                    } else {
+                        onDismiss()
+                    }
+                }
+            ) {
+                Text("Apply Range")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    ) {
+        DateRangePicker(
+            state = pickerState,
+            title = {
+                Text(
+                    text = "Select Custom Analytics Date Range",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp)
+                )
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(460.dp)
+        )
+    }
+}
+
+@Composable
 private fun StatsBreakdownSubTabContent(
     uiState: StatsAndBudgetsUiState,
     onSelectCategoryType: (CategoryType) -> Unit,
@@ -270,7 +457,10 @@ private fun StatsBreakdownSubTabContent(
                 thirdAmount = uiState.periodSummary.netCashflow,
                 currencySpec = uiState.currencySpec,
                 grouping = uiState.numberGrouping,
-                carryOverAmount = if (uiState.userPreferences.carryOverEnabled) {
+                carryOverAmount = if (
+                    uiState.userPreferences.carryOverEnabled &&
+                    uiState.periodGranularity == StatsPeriodGranularity.MONTHLY
+                ) {
                     uiState.periodSummary.carryOverFromPreviousPeriod
                 } else {
                     null
@@ -643,7 +833,7 @@ private fun BudgetsManagerSubTabContent(
             } else {
                 EmptyStateCard(
                     title = "Set Overall Monthly Budget",
-                    subtitle = "Configure a master monthly spending target with customizable 80% warning alerts for ${uiState.activePeriodRange.title}.",
+                    subtitle = "Configure a master spending target with customizable 80% warning alerts for ${uiState.activePeriodRange.title}.",
                     icon = Icons.Filled.Savings,
                     actionLabel = "Set Monthly Budget",
                     onActionClick = onOpenOverallBudgetEditor
@@ -665,7 +855,7 @@ private fun BudgetsManagerSubTabContent(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Track limits per expense category",
+                        text = "Track limits per expense category (${uiState.activePeriodRange.title})",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -935,7 +1125,6 @@ private fun TagsAndNotesRankingsSubTabContent(
     uiState: StatsAndBudgetsUiState,
     onSelectRankingMode: (RankingMode) -> Unit
 ) {
-    val semanticColors = LocalFolioSemanticColors.current
     val items = uiState.activeRankingItems
 
     LazyColumn(
@@ -1017,7 +1206,10 @@ private fun TagsAndNotesRankingsSubTabContent(
                 )
             }
         } else {
-            itemsIndexed(items, key = { idx, item -> "${uiState.selectedRankingMode}_${idx}_${item.label}" }) { index, item ->
+            itemsIndexed(
+                items = items,
+                key = { idx, item -> "${uiState.selectedRankingMode}_${idx}_${item.label}" }
+            ) { index, item ->
                 SpendRankingItemCard(
                     rankNumber = index + 1,
                     item = item,
@@ -1130,7 +1322,7 @@ private fun SpendRankingItemCard(
 private fun CategoryDrillDownBottomSheet(
     drillDownState: CategoryDrillDownState,
     periodTitle: String,
-    sixMonthTrendBars: List< com.folioledger.app.domain.model.MonthlyTrendBar >,
+    sixMonthTrendBars: List<com.folioledger.app.domain.model.MonthlyTrendBar>,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onConfigureBudgetForCategory: () -> Unit,

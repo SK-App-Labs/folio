@@ -246,6 +246,7 @@ class TransactionEntryViewModel(
 ) : ViewModel() {
 
     private var nextSplitLocalId = 1L
+    private var lastUsedLedgerDateEpochDay: Long = LocalDate.now().toEpochDay()
     private val formState = MutableStateFlow(EntryFormControlState())
 
     private val referenceDataFlow = combine(
@@ -377,13 +378,15 @@ class TransactionEntryViewModel(
     fun resetForNewTransaction(
         defaultMode: TransactionType = TransactionType.EXPENSE,
         preselectedAccountId: Long? = null,
-        initialEpochDay: Long = LocalDate.now().toEpochDay()
+        initialEpochDay: Long? = null
     ) {
+        val targetEpochDay = initialEpochDay ?: lastUsedLedgerDateEpochDay
+        lastUsedLedgerDateEpochDay = targetEpochDay
         formState.update { current ->
             EntryFormControlState(
                 editingTransactionId = 0L,
                 mode = defaultMode,
-                ledgerDateEpochDay = initialEpochDay,
+                ledgerDateEpochDay = targetEpochDay,
                 timestampEpochMillis = System.currentTimeMillis(),
                 expressionBuffer = "0",
                 selectedAccountId = preselectedAccountId ?: current.selectedAccountId,
@@ -393,50 +396,56 @@ class TransactionEntryViewModel(
         }
     }
 
+    fun loadTransactionItemForEdit(tx: TransactionItem) {
+        val spec = SupportedCurrencies.fromCode(tx.currencyCode)
+        val plainAmount = formatMinorPlain(tx.amount.abs(), spec.fractionDigits)
+        val draftSplits = tx.splits.map { split ->
+            SplitLineDraft(
+                localId = nextSplitLocalId++,
+                categoryId = split.categoryId,
+                categoryName = split.categoryName.ifBlank { "Category" },
+                amountInput = formatMinorPlain(split.amount.abs(), spec.fractionDigits),
+                evaluatedAmount = split.amount.abs(),
+                note = split.note
+            )
+        }
+        lastUsedLedgerDateEpochDay = tx.ledgerDateEpochDay
+
+        formState.update { current ->
+            current.copy(
+                editingTransactionId = tx.id,
+                mode = tx.type,
+                ledgerDateEpochDay = tx.ledgerDateEpochDay,
+                timestampEpochMillis = tx.timestampEpochMillis,
+                expressionBuffer = plainAmount,
+                selectedAccountId = tx.accountId,
+                transferToAccountId = tx.transferToAccountId,
+                transferFeeInput = if (tx.transferFee.isPositive) {
+                    formatMinorPlain(tx.transferFee, spec.fractionDigits)
+                } else {
+                    ""
+                },
+                selectedCategoryId = tx.categoryId,
+                selectedCategoryName = tx.categoryName,
+                selectedParentCategoryName = tx.parentCategoryName,
+                selectedCategoryColorHex = tx.categoryColorHex,
+                selectedCategoryIconName = tx.categoryIconName,
+                isSplit = tx.isSplit,
+                splitDrafts = draftSplits,
+                isInstallmentEnabled = false,
+                payeeOrDescription = tx.payeeOrDescription,
+                note = tx.note,
+                selectedTags = tx.tags,
+                isKeypadVisible = true,
+                errorMessage = null
+            )
+        }
+    }
+
     fun loadTransactionForEdit(transactionId: Long) {
         viewModelScope.launch {
             val tx = transactionRepository.observeTransactionById(transactionId).firstOrNull() ?: return@launch
-            val spec = SupportedCurrencies.fromCode(tx.currencyCode)
-            val plainAmount = formatMinorPlain(tx.amount, spec.fractionDigits)
-            val draftSplits = tx.splits.map { split ->
-                SplitLineDraft(
-                    localId = nextSplitLocalId++,
-                    categoryId = split.categoryId,
-                    categoryName = split.categoryName.ifBlank { "Category" },
-                    amountInput = formatMinorPlain(split.amount, spec.fractionDigits),
-                    evaluatedAmount = split.amount,
-                    note = split.note
-                )
-            }
-
-            formState.update {
-                it.copy(
-                    editingTransactionId = tx.id,
-                    mode = tx.type,
-                    ledgerDateEpochDay = tx.ledgerDateEpochDay,
-                    timestampEpochMillis = tx.timestampEpochMillis,
-                    expressionBuffer = plainAmount,
-                    selectedAccountId = tx.accountId,
-                    transferToAccountId = tx.transferToAccountId,
-                    transferFeeInput = if (tx.transferFee.isPositive) {
-                        formatMinorPlain(tx.transferFee, spec.fractionDigits)
-                    } else {
-                        ""
-                    },
-                    selectedCategoryId = tx.categoryId,
-                    selectedCategoryName = tx.categoryName,
-                    selectedParentCategoryName = tx.parentCategoryName,
-                    selectedCategoryColorHex = tx.categoryColorHex,
-                    selectedCategoryIconName = tx.categoryIconName,
-                    isSplit = tx.isSplit,
-                    splitDrafts = draftSplits,
-                    isInstallmentEnabled = false,
-                    payeeOrDescription = tx.payeeOrDescription,
-                    note = tx.note,
-                    selectedTags = tx.tags,
-                    errorMessage = null
-                )
-            }
+            loadTransactionItemForEdit(tx)
         }
     }
 
@@ -463,13 +472,16 @@ class TransactionEntryViewModel(
     }
 
     fun setLedgerDateEpochDay(epochDay: Long) {
+        lastUsedLedgerDateEpochDay = epochDay
         formState.update { it.copy(ledgerDateEpochDay = epochDay, errorMessage = null) }
     }
 
     fun stepLedgerDateByDays(deltaDays: Long) {
         formState.update {
+            val nextDate = it.ledgerDateEpochDay + deltaDays
+            lastUsedLedgerDateEpochDay = nextDate
             it.copy(
-                ledgerDateEpochDay = it.ledgerDateEpochDay + deltaDays,
+                ledgerDateEpochDay = nextDate,
                 errorMessage = null
             )
         }
@@ -800,7 +812,7 @@ class TransactionEntryViewModel(
             return
         }
 
-        if (state.mode == TransactionType.TRANSFER) {
+        if (state.mode == TransactionType.TRANSFER || state.mode == TransactionType.CC_SETTLEMENT) {
             val destAccount = state.transferToAccount
             if (destAccount == null || destAccount.id == sourceAccount.id) {
                 formState.update {
@@ -826,8 +838,13 @@ class TransactionEntryViewModel(
         viewModelScope.launch {
             formState.update { it.copy(isSaving = true, errorMessage = null) }
 
+            val existingId = state.editingTransactionId
+            if (existingId > 0L) {
+                transactionRepository.deleteTransaction(existingId)
+            }
+
             val baseTx = TransactionItem(
-                id = state.editingTransactionId,
+                id = 0L,
                 type = state.mode,
                 timestampEpochMillis = state.timestampEpochMillis,
                 ledgerDateEpochDay = state.ledgerDateEpochDay,
@@ -867,7 +884,7 @@ class TransactionEntryViewModel(
                     )
                 }
 
-                state.mode == TransactionType.TRANSFER -> {
+                state.mode == TransactionType.TRANSFER || state.mode == TransactionType.CC_SETTLEMENT -> {
                     val feeMinor = evaluateBufferSafely(
                         rawExpression = state.transferFeeInput,
                         fractionDigits = state.currencySpec.fractionDigits
@@ -908,11 +925,13 @@ class TransactionEntryViewModel(
 
             saveResult.fold(
                 onSuccess = {
+                    lastUsedLedgerDateEpochDay = state.ledgerDateEpochDay
                     formState.update { current ->
                         EntryFormControlState(
+                            editingTransactionId = 0L,
                             mode = current.mode,
                             selectedAccountId = current.selectedAccountId,
-                            ledgerDateEpochDay = current.ledgerDateEpochDay,
+                            ledgerDateEpochDay = state.ledgerDateEpochDay,
                             savedSuccessfullyCounter = current.savedSuccessfullyCounter + 1
                         )
                     }

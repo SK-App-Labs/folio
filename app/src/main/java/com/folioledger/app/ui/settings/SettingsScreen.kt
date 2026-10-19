@@ -29,13 +29,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
@@ -80,6 +78,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -87,6 +86,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.CategoryNode
@@ -105,6 +105,7 @@ import com.folioledger.app.ui.theme.FolioThemeMode
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.time.LocalDate
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
@@ -113,9 +114,14 @@ fun SettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     var showCurrencyPickerDialog by rememberSaveable { mutableStateOf(false) }
     var showMonthStartDayDialog by rememberSaveable { mutableStateOf(false) }
+    var showUserGuideSheet by rememberSaveable { mutableStateOf(false) }
+    var showFeedbackDialog by rememberSaveable { mutableStateOf(false) }
+    var showTipJarSheet by rememberSaveable { mutableStateOf(false) }
+    var isSupporterUnlocked by rememberSaveable { mutableStateOf(false) }
 
     val createZipBackupLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/zip")
@@ -163,20 +169,14 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxSize()
         ) {
+            // 0. Folio Brand Hero Header Card (Logo, Version, Quick Guide / Feedback / Tip Jar pills)
             item {
-                Column {
-                    Text(
-                        text = "Settings & Data Management",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Customize themes, regional accounting rules, categories, backups & app security",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                FolioBrandHeaderCard(
+                    isSupporter = isSupporterUnlocked,
+                    onOpenUserGuide = { showUserGuideSheet = true },
+                    onOpenFeedback = { showFeedbackDialog = true },
+                    onOpenTipJar = { showTipJarSheet = true }
+                )
             }
 
             // 1. Appearance & Theme Card
@@ -231,16 +231,34 @@ fun SettingsScreen(
                     statusLabel = uiState.fileOperationStatusLabel,
                     onCreateZipBackup = {
                         val todayStr = LocalDate.now().toString()
-                        createZipBackupLauncher.launch("Folio_Backup_$todayStr.zip")
+                        runCatching {
+                            createZipBackupLauncher.launch("Folio_Backup_$todayStr.zip")
+                        }.onFailure {
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Unable to open system file saver on this device.")
+                            }
+                        }
                     },
                     onRestoreZipBackup = {
-                        openZipRestoreLauncher.launch(
-                            arrayOf("application/zip", "application/octet-stream")
-                        )
+                        runCatching {
+                            openZipRestoreLauncher.launch(
+                                arrayOf("application/zip", "application/octet-stream", "*/*")
+                            )
+                        }.onFailure {
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Unable to open system file picker on this device.")
+                            }
+                        }
                     },
                     onExportCsv = {
                         val todayStr = LocalDate.now().toString()
-                        exportCsvLauncher.launch("Folio_Ledger_Export_$todayStr.csv")
+                        runCatching {
+                            exportCsvLauncher.launch("Folio_Ledger_Export_$todayStr.csv")
+                        }.onFailure {
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Unable to open CSV document saver on this device.")
+                            }
+                        }
                     }
                 )
             }
@@ -252,10 +270,66 @@ fun SettingsScreen(
                     onBiometricLockChange = viewModel::setBiometricLockEnabled
                 )
             }
+
+            // 6. Help, Feedback & Support Section Card
+            item {
+                HelpFeedbackAndSupportSectionCard(
+                    isSupporter = isSupporterUnlocked,
+                    onOpenUserGuide = { showUserGuideSheet = true },
+                    onOpenFeedback = { showFeedbackDialog = true },
+                    onOpenTipJar = { showTipJarSheet = true }
+                )
+            }
+
+            // 7. Minimalist Footer
+            item {
+                Text(
+                    text = "Folio Ledger v1.0.0 • Crafted for Financial Clarity",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                )
+            }
         }
     }
 
     // Dialogs & Bottom Sheets
+    if (showUserGuideSheet) {
+        UserGuideBottomSheet(
+            onDismiss = { showUserGuideSheet = false }
+        )
+    }
+
+    if (showFeedbackDialog) {
+        FeedbackComposerDialog(
+            onDismiss = { showFeedbackDialog = false },
+            onFeedbackResult = { msg ->
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(msg)
+                }
+            }
+        )
+    }
+
+    if (showTipJarSheet) {
+        TipJarBottomSheet(
+            currencySpec = uiState.currencySpec,
+            isSupporter = isSupporterUnlocked,
+            onTipSelected = { skuId, tierTitle ->
+                isSupporterUnlocked = true
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(
+                        "Thank you for your $tierTitle ($skuId) support! ★ Supporter badge unlocked."
+                    )
+                }
+            },
+            onDismiss = { showTipJarSheet = false }
+        )
+    }
+
     if (showCurrencyPickerDialog) {
         CurrencyPickerDialog(
             selectedCode = uiState.currencySpec.code,
@@ -622,7 +696,7 @@ private fun LedgerAndRegionalRulesSectionCard(
                 )
             }
 
-            // Financial Month Start Day
+            // Financial Month Start Day (1–31)
             Surface(
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.surfaceContainer,
@@ -644,7 +718,7 @@ private fun LedgerAndRegionalRulesSectionCard(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Aligns monthly summaries & budgets with your salary cycle (1–28)",
+                            text = "Aligns monthly summaries & budgets with your salary cycle (1–31)",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1158,7 +1232,7 @@ private fun MonthStartDayPickerDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Financial Month Start Day (1–28)",
+                text = "Financial Month Start Day (1–31)",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -1169,7 +1243,7 @@ private fun MonthStartDayPickerDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState())
             ) {
                 Text(
-                    text = "Choose the day of the month your financial cycle begins (e.g., Day 1 for calendar month, or Day 25 for salary cycle).",
+                    text = "Choose the day of the month your financial cycle begins (1–31). Months with fewer days automatically clamp to the last day of that month.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1177,7 +1251,7 @@ private fun MonthStartDayPickerDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    (1..28).forEach { day ->
+                    (1..31).forEach { day ->
                         FilterChip(
                             selected = selectedDay == day,
                             onClick = { onSelectDay(day) },

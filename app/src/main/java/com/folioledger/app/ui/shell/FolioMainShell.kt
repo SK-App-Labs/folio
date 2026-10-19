@@ -93,8 +93,10 @@ fun FolioMainShell(
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = {
+                        // Uses remembered lastUsedLedgerDateEpochDay (Issue #6) and preselects scopedAccountId if active
                         entryViewModel.resetForNewTransaction(
-                            initialEpochDay = ledgerUiState.selectedCalendarDayEpochDay
+                            preselectedAccountId = ledgerUiState.scopedAccountId,
+                            initialEpochDay = null
                         )
                         isEntrySheetOpen = true
                     },
@@ -108,7 +110,6 @@ fun FolioMainShell(
                 }
             }
         ) { innerPadding ->
-            // Only forward bottom navigation bar padding so child screens don't double-pad the top status bar
             val screenContentPadding = PaddingValues(
                 bottom = innerPadding.calculateBottomPadding()
             )
@@ -119,16 +120,20 @@ fun FolioMainShell(
                         viewModel = ledgerViewModel,
                         contentPadding = screenContentPadding,
                         onOpenNewTransactionForDate = { epochDay ->
-                            entryViewModel.resetForNewTransaction(initialEpochDay = epochDay)
+                            entryViewModel.resetForNewTransaction(
+                                preselectedAccountId = ledgerUiState.scopedAccountId,
+                                initialEpochDay = epochDay
+                            )
                             isEntrySheetOpen = true
                         },
                         onEditTransaction = { transaction ->
-                            entryViewModel.loadTransactionForEdit(transaction.id)
+                            entryViewModel.loadTransactionItemForEdit(transaction)
                             isEntrySheetOpen = true
                         },
                         onSelectBookmarkTemplate = { bookmark ->
                             entryViewModel.resetForNewTransaction(
-                                initialEpochDay = ledgerUiState.selectedCalendarDayEpochDay
+                                preselectedAccountId = ledgerUiState.scopedAccountId,
+                                initialEpochDay = null
                             )
                             entryViewModel.applyBookmark(bookmark)
                             isEntrySheetOpen = true
@@ -141,7 +146,7 @@ fun FolioMainShell(
                         viewModel = statsViewModel,
                         contentPadding = screenContentPadding,
                         onInspectTransaction = { transaction ->
-                            entryViewModel.loadTransactionForEdit(transaction.id)
+                            entryViewModel.loadTransactionItemForEdit(transaction)
                             isEntrySheetOpen = true
                         }
                     )
@@ -152,7 +157,9 @@ fun FolioMainShell(
                         viewModel = accountsViewModel,
                         contentPadding = screenContentPadding,
                         onAccountClick = { account ->
-                            accountsViewModel.selectAccountForInspection(account.id)
+                            // Issue #3: Selecting an account switches to the Trans. tab scoped to that account
+                            ledgerViewModel.setScopedAccount(account.id)
+                            selectedTab = FolioMainTab.TRANSACTIONS
                         }
                     )
                 }
