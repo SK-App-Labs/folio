@@ -261,18 +261,33 @@ fun SettingsScreen(
                 )
             }
 
-            // 7. Minimalist Footer
+            // Studio Signature Footer
             item {
-                Text(
-                    text = "Folio Ledger v1.0.0 • 100% Offline Personal Finance",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                )
+                        .padding(top = 8.dp, bottom = 16.dp)
+                ) {
+                    Text(
+                        text = "Folio Ledger v1.0.0 • 100% Offline Personal Finance",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Crafted by SKAL - SK's App Labs",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
+
         }
     }
 

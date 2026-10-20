@@ -11,7 +11,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.folioledger.app"
+        applicationId = "com.skal.folio"
         minSdk = 29
         targetSdk = 37
         versionCode = 1
