@@ -117,13 +117,6 @@ fun LedgerHomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var showBookmarksQuickDialog by rememberSaveable { mutableStateOf(false) }
 
-    val csvExportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("text/csv")
-    ) { uri ->
-        if (uri != null) {
-            viewModel.exportActivePeriodToCsv(uri.toString())
-        }
-    }
 
     LaunchedEffect(uiState.snackbarMessage) {
         val msg = uiState.snackbarMessage
@@ -264,7 +257,7 @@ fun LedgerHomeScreen(
                             uiState = uiState,
                             onExportCsvClick = {
                                 val sanitizedTitle = uiState.activePeriodRange.title.replace(' ', '_')
-                                csvExportLauncher.launch("Folio_Ledger_$sanitizedTitle.csv")
+                                viewModel.exportActivePeriodToCsv("Folio_${uiState.activePeriodRange.title.replace(" ", "_")}.csv")
                             }
                         )
                     }

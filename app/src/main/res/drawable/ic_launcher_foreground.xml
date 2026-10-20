@@ -1,27 +1,23 @@
-<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-
-  <!-- Top Bar of the 'F': Upward Beveled Emerald Ledger Wing -->
-  <path
-      android:fillColor="#FF10B981"
-      android:pathData="M35,34 C35,31.79 36.79,30 39,30 L71,30 C73.21,30 74.5,32.2 73.2,34.0 L68.8,40.0 C67.9,41.25 66.5,42 65.0,42 L39,42 C36.79,42 35,40.21 35,38 Z" />
-
-  <!-- Middle Bar of the 'F': Crisp Alabaster White Balance Bar -->
-  <path
-      android:fillColor="#FFFFFFFF"
-      android:pathData="M39,48 L61,48 C64.31,48 67,50.69 67,54 C67,57.31 64.31,60 61,60 L39,60 C36.79,60 35,58.21 35,56 L35,52 C35,49.79 36.79,48 39,48 Z" />
-
-  <!-- Bottom Left Stem of the 'F': Foundation Pillar -->
-  <path
-      android:fillColor="#FFFFFFFF"
-      android:pathData="M39,66 L43,66 C45.21,66 47,67.79 47,70 L47,74 C47,76.21 45.21,78 43,78 L39,78 C36.79,78 35,76.21 35,74 L35,70 C35,67.79 36.79,66 39,66 Z" />
-
-  <!-- Bottom Right Ledger Node: Mint Emerald Balance Indicator -->
-  <path
-      android:fillColor="#FF34D399"
-      android:pathData="M59,66 A6,6 0 1,1 59,78 A6,6 0 1,1 59,66 Z" />
+  <group android:scaleX="0.75"
+      android:scaleY="0.75"
+      android:translateX="13.5"
+      android:translateY="13.5">
+    <path
+        android:pathData="M35,34C35,31.79 36.79,30 39,30L71,30C73.21,30 74.5,32.2 73.2,34L68.8,40C67.9,41.25 66.5,42 65,42L39,42C36.79,42 35,40.21 35,38Z"
+        android:fillColor="#10B981"/>
+    <path
+        android:pathData="M39,48L61,48C64.31,48 67,50.69 67,54C67,57.31 64.31,60 61,60L39,60C36.79,60 35,58.21 35,56L35,52C35,49.79 36.79,48 39,48Z"
+        android:fillColor="#FFFFFF"/>
+    <path
+        android:pathData="M39,66L43,66C45.21,66 47,67.79 47,70L47,74C47,76.21 45.21,78 43,78L39,78C36.79,78 35,76.21 35,74L35,70C35,67.79 36.79,66 39,66Z"
+        android:fillColor="#FFFFFF"/>
+    <path
+        android:pathData="M59,72m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0"
+        android:fillColor="#34D399"/>
+  </group>
 </vector>

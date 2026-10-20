@@ -9,6 +9,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -95,134 +96,44 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.CurrencySpec
+import com.folioledger.app.R
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 
-const val FOLIO_SUPPORT_EMAIL = "support.folioledger@gmail.com"
+const val FOLIO_SUPPORT_EMAIL = "support@folioledger.app"
 const val FOLIO_APP_VERSION = "v1.0.0"
 
 /**
- * Custom Jetpack Compose Canvas badge rendering Folio's signature
- * "Architectural Ledger 'F'" logo:
- * - Deep obsidian-emerald squircle container with subtle metallic rim
- * - Beveled emerald top ledger bar
- * - Crisp white vertical stem and middle crossbar
- * - Mint balance equilibrium dot at bottom-right
+ * Renders Folio's signature "Architectural Ledger 'F'" app icon
+ * using the official res/drawable app icon assets (ic_launcher_background & ic_launcher_foreground).
  */
 @Composable
 fun FolioBrandLogoBadge(
     modifier: Modifier = Modifier,
     size: Dp = 60.dp
 ) {
-    Canvas(modifier = modifier.size(size)) {
-        val w = this.size.width
-        val h = this.size.height
-        val cornerRadius = CornerRadius(w * 0.26f, h * 0.26f)
-
-        // 1. Deep Obsidian-Emerald Squircle Background
-        drawRoundRect(
-            brush = Brush.linearGradient(
-                colors = listOf(
-                    Color(0xFF07221B),
-                    Color(0xFF04130F),
-                    Color(0xFF020B09)
-                ),
-                start = Offset(0f, 0f),
-                end = Offset(w, h)
-            ),
-            topLeft = Offset.Zero,
-            size = Size(w, h),
-            cornerRadius = cornerRadius
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .size(size)
+            .clip(RoundedCornerShape(size * 0.26f))
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.ic_launcher_background),
+            contentDescription = null,
+            modifier = Modifier.matchParentSize()
         )
-
-        // Subtle ledger grid lines inside the badge
-        val gridLineColor = Color(0xFF10B981).copy(alpha = 0.10f)
-        drawLine(
-            color = gridLineColor,
-            start = Offset(w * 0.18f, h * 0.50f),
-            end = Offset(w * 0.82f, h * 0.50f),
-            strokeWidth = w * 0.015f
-        )
-        drawLine(
-            color = gridLineColor,
-            start = Offset(w * 0.50f, h * 0.18f),
-            end = Offset(w * 0.50f, h * 0.82f),
-            strokeWidth = w * 0.015f
-        )
-
-        // Outer subtle emerald rim
-        drawRoundRect(
-            brush = Brush.linearGradient(
-                colors = listOf(
-                    Color(0xFF34D399).copy(alpha = 0.55f),
-                    Color(0xFF059669).copy(alpha = 0.20f)
-                )
-            ),
-            topLeft = Offset(w * 0.02f, h * 0.02f),
-            size = Size(w * 0.96f, h * 0.96f),
-            cornerRadius = CornerRadius(w * 0.24f, h * 0.24f),
-            style = Stroke(width = w * 0.03f)
-        )
-
-        // 2. Vertical Stem & Middle Crossbar (Crisp White)
-        val stemLeft = w * 0.26f
-        val stemWidth = w * 0.15f
-        val stemTop = h * 0.39f
-        val stemBottom = h * 0.78f
-
-        // Vertical lower stem
-        drawRoundRect(
-            color = Color(0xFFF8FAFC),
-            topLeft = Offset(stemLeft, stemTop),
-            size = Size(stemWidth, stemBottom - stemTop),
-            cornerRadius = CornerRadius(w * 0.05f, h * 0.05f)
-        )
-
-        // Middle crossbar
-        val midBarTop = h * 0.45f
-        val midBarHeight = h * 0.135f
-        val midBarRight = w * 0.66f
-        drawRoundRect(
-            color = Color(0xFFF8FAFC),
-            topLeft = Offset(stemLeft, midBarTop),
-            size = Size(midBarRight - stemLeft, midBarHeight),
-            cornerRadius = CornerRadius(w * 0.05f, h * 0.05f)
-        )
-
-        // 3. Beveled Emerald Top Bar (Architectural Ledger Header)
-        val topBarTop = h * 0.22f
-        val topBarBottom = h * 0.36f
-        val topBarRight = w * 0.77f
-        val bevelCut = w * 0.06f
-
-        val topBarPath = Path().apply {
-            moveTo(stemLeft + w * 0.03f, topBarTop)
-            lineTo(topBarRight, topBarTop)
-            lineTo(topBarRight - bevelCut, topBarBottom)
-            lineTo(stemLeft, topBarBottom)
-            close()
-        }
-        drawPath(
-            path = topBarPath,
-            brush = Brush.horizontalGradient(
-                colors = listOf(
-                    Color(0xFF10B981),
-                    Color(0xFF34D399)
-                )
-            )
-        )
-
-        // 4. Mint Balance Equilibrium Dot
-        drawCircle(
-            color = Color(0xFF6EE7B7),
-            radius = w * 0.075f,
-            center = Offset(w * 0.68f, h * 0.70f)
+        Image(
+            painter = painterResource(id = R.drawable.ic_launcher_foreground),
+            contentDescription = "Folio App Icon",
+            modifier = Modifier.matchParentSize()
         )
     }
 }
@@ -315,7 +226,7 @@ fun FolioBrandHeaderCard(
                     Spacer(modifier = Modifier.height(3.dp))
 
                     Text(
-                        text = "100% Offline Personal Finance & Ledger",
+                        text = "Precision Offline Personal Finance & Ledger",
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant

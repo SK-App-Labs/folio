@@ -1,9 +1,9 @@
 // File: app/src/main/java/com/folioledger/app/ui/settings/SettingsScreen.kt
 package com.folioledger.app.ui.settings
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,24 +29,38 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Label
+import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -73,6 +88,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -85,6 +101,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -95,6 +112,7 @@ import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionBookmark
+import com.folioledger.app.ui.components.ALL_CATEGORY_ICON_KEYS
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
@@ -119,33 +137,8 @@ fun SettingsScreen(
     var showCurrencyPickerDialog by rememberSaveable { mutableStateOf(false) }
     var showMonthStartDayDialog by rememberSaveable { mutableStateOf(false) }
     var showUserGuideSheet by rememberSaveable { mutableStateOf(false) }
-    var showFeedbackDialog by rememberSaveable { mutableStateOf(false) }
     var showTipJarSheet by rememberSaveable { mutableStateOf(false) }
     var isSupporterUnlocked by rememberSaveable { mutableStateOf(false) }
-
-    val createZipBackupLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/zip")
-    ) { uri ->
-        if (uri != null) {
-            viewModel.createPortableZipBackup(uri.toString())
-        }
-    }
-
-    val openZipRestoreLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri != null) {
-            viewModel.requestRestoreConfirmation(uri.toString())
-        }
-    }
-
-    val exportCsvLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("text/csv")
-    ) { uri ->
-        if (uri != null) {
-            viewModel.exportAllTransactionsToCsv(uri.toString())
-        }
-    }
 
     LaunchedEffect(uiState.snackbarMessage) {
         val message = uiState.snackbarMessage
@@ -169,14 +162,20 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            // 0. Folio Brand Hero Header Card (Logo, Version, Quick Guide / Feedback / Tip Jar pills)
             item {
-                FolioBrandHeaderCard(
-                    isSupporter = isSupporterUnlocked,
-                    onOpenUserGuide = { showUserGuideSheet = true },
-                    onOpenFeedback = { showFeedbackDialog = true },
-                    onOpenTipJar = { showTipJarSheet = true }
-                )
+                Column {
+                    Text(
+                        text = "Settings & Data Management",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Customize themes, regional accounting rules, categories, backups & app security",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             // 1. Appearance & Theme Card
@@ -224,41 +223,23 @@ fun SettingsScreen(
                 )
             }
 
-            // 4. Data Backup, Restore & Export Card
+            // 4. Data Backup, Restore & Export Card (1-Tap via Downloads/Folio)
             item {
                 BackupRestoreExportSectionCard(
                     isBusy = uiState.isBusyWithFileOperation,
                     statusLabel = uiState.fileOperationStatusLabel,
                     onCreateZipBackup = {
-                        val todayStr = LocalDate.now().toString()
-                        runCatching {
-                            createZipBackupLauncher.launch("Folio_Backup_$todayStr.zip")
-                        }.onFailure {
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Unable to open system file saver on this device.")
-                            }
-                        }
+                        viewModel.createPortableZipBackup(
+                            "Folio_Backup_${LocalDate.now()}_${System.currentTimeMillis() / 1000}.zip"
+                        )
                     },
                     onRestoreZipBackup = {
-                        runCatching {
-                            openZipRestoreLauncher.launch(
-                                arrayOf("application/zip", "application/octet-stream", "*/*")
-                            )
-                        }.onFailure {
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Unable to open system file picker on this device.")
-                            }
-                        }
+                        viewModel.requestRestoreConfirmation("LATEST_BACKUP")
                     },
                     onExportCsv = {
-                        val todayStr = LocalDate.now().toString()
-                        runCatching {
-                            exportCsvLauncher.launch("Folio_Ledger_Export_$todayStr.csv")
-                        }.onFailure {
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Unable to open CSV document saver on this device.")
-                            }
-                        }
+                        viewModel.exportAllTransactionsToCsv(
+                            "Folio_Ledger_Export_${LocalDate.now()}.csv"
+                        )
                     }
                 )
             }
@@ -271,12 +252,11 @@ fun SettingsScreen(
                 )
             }
 
-            // 6. Help, Feedback & Support Section Card
+            // 6. Help, User Guide & Support Card
             item {
-                HelpFeedbackAndSupportSectionCard(
+                HelpUserGuideAndSupportSectionCard(
                     isSupporter = isSupporterUnlocked,
                     onOpenUserGuide = { showUserGuideSheet = true },
-                    onOpenFeedback = { showFeedbackDialog = true },
                     onOpenTipJar = { showTipJarSheet = true }
                 )
             }
@@ -284,7 +264,7 @@ fun SettingsScreen(
             // 7. Minimalist Footer
             item {
                 Text(
-                    text = "Folio Ledger v1.0.0 • Crafted for Financial Clarity",
+                    text = "Folio Ledger v1.0.0 • 100% Offline Personal Finance",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -297,39 +277,6 @@ fun SettingsScreen(
     }
 
     // Dialogs & Bottom Sheets
-    if (showUserGuideSheet) {
-        UserGuideBottomSheet(
-            onDismiss = { showUserGuideSheet = false }
-        )
-    }
-
-    if (showFeedbackDialog) {
-        FeedbackComposerDialog(
-            onDismiss = { showFeedbackDialog = false },
-            onFeedbackResult = { msg ->
-                coroutineScope.launch {
-                    snackbarHostState.showSnackbar(msg)
-                }
-            }
-        )
-    }
-
-    if (showTipJarSheet) {
-        TipJarBottomSheet(
-            currencySpec = uiState.currencySpec,
-            isSupporter = isSupporterUnlocked,
-            onTipSelected = { skuId, tierTitle ->
-                isSupporterUnlocked = true
-                coroutineScope.launch {
-                    snackbarHostState.showSnackbar(
-                        "Thank you for your $tierTitle ($skuId) support! ★ Supporter badge unlocked."
-                    )
-                }
-            },
-            onDismiss = { showTipJarSheet = false }
-        )
-    }
-
     if (showCurrencyPickerDialog) {
         CurrencyPickerDialog(
             selectedCode = uiState.currencySpec.code,
@@ -370,6 +317,7 @@ fun SettingsScreen(
     if (categoryEditor != null) {
         CategoryEditorDialog(
             state = categoryEditor,
+            onNameChange = viewModel::onCategoryNameInputChanged,
             onUpdateState = viewModel::updateCategoryEditorState,
             onSave = viewModel::saveCategoryFromDialog,
             onDelete = {
@@ -405,6 +353,28 @@ fun SettingsScreen(
         RestoreConfirmationDialog(
             onConfirmRestore = viewModel::confirmRestoreFromZipBackup,
             onCancel = viewModel::cancelPendingRestore
+        )
+    }
+
+    if (showUserGuideSheet) {
+        UserGuideBottomSheet(
+            onDismiss = { showUserGuideSheet = false }
+        )
+    }
+
+    if (showTipJarSheet) {
+        TipJarBottomSheet(
+            currencySpec = uiState.currencySpec,
+            isSupporter = isSupporterUnlocked,
+            onTipSelected = { _, tierTitle ->
+                isSupporterUnlocked = true
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(
+                        "Thank you for your $tierTitle support! ★ Supporter badge unlocked."
+                    )
+                }
+            },
+            onDismiss = { showTipJarSheet = false }
         )
     }
 }
@@ -560,6 +530,7 @@ private fun AppearanceAndThemeSectionCard(
                 Switch(
                     checked = dynamicColorEnabled,
                     onCheckedChange = onDynamicColorChange
+
                 )
             }
         }
@@ -688,7 +659,7 @@ private fun LedgerAndRegionalRulesSectionCard(
                     onClick = { onGroupingChange(NumberGroupingSystem.INTERNATIONAL) },
                     label = {
                         Text(
-                            text = "Intl (1,234,567.89)",
+                            text = "US (1,234,567.89)",
                             style = tabularMoneyStyle(MaterialTheme.typography.labelMedium)
                         )
                     },
@@ -853,7 +824,7 @@ private fun CategoriesTagsBookmarksSectionCard(
             SettingsNavigationRow(
                 icon = Icons.Filled.Category,
                 title = "2-Level Category & Subcategory Manager",
-                subtitle = "$expenseCount Expense items · $incomeCount Income items",
+                subtitle = "$expenseCount Expense items · $incomeCount Income items (72+ smart icons)",
                 onClick = onOpenCategoryManager
             )
 
@@ -876,10 +847,11 @@ private fun CategoriesTagsBookmarksSectionCard(
 
 @Composable
 private fun SettingsNavigationRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     title: String,
     subtitle: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    iconTint: Color = MaterialTheme.colorScheme.primary
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -904,7 +876,7 @@ private fun SettingsNavigationRow(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = iconTint,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
@@ -966,7 +938,7 @@ private fun BackupRestoreExportSectionCard(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Uses Android Storage Access Framework — zero storage permissions required",
+                        text = "1-tap save & restore directly via your device's Downloads/Folio folder",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -981,7 +953,7 @@ private fun BackupRestoreExportSectionCard(
                         .padding(vertical = 4.dp)
                 ) {
                     Text(
-                        text = statusLabel ?: "Processing file...",
+                        text = statusLabel ?: "Processing file in Downloads/Folio...",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold
@@ -1147,6 +1119,62 @@ private fun SecurityAndPrivacySectionCard(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun HelpUserGuideAndSupportSectionCard(
+    isSupporter: Boolean,
+    onOpenUserGuide: () -> Unit,
+    onOpenTipJar: () -> Unit
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.HelpOutline,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Help, User Guide & Support",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            SettingsNavigationRow(
+                icon = Icons.AutoMirrored.Filled.MenuBook,
+                title = "Folio User Guide & FAQs",
+                subtitle = "Learn about the 5-View Ledger, Credit Card Cycles, Splits, Budgets & Backups",
+                onClick = onOpenUserGuide
+            )
+
+            SettingsNavigationRow(
+                icon = Icons.Filled.LocalCafe,
+                iconTint = semanticColors.warningAmber,
+                title = if (isSupporter) {
+                    "Support Folio (Tip Jar) ☕ ★ Supporter"
+                } else {
+                    "Support Folio (Tip Jar) ☕"
+                },
+                subtitle = "Folio is 100% free & ad-free. Support development with a voluntary tip",
+                onClick = onOpenTipJar
+            )
         }
     }
 }
@@ -1458,6 +1486,13 @@ private fun CategoryManagerBottomSheet(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                             ) {
+                                                CategoryIconBadge(
+                                                    iconName = sub.iconName,
+                                                    colorHex = sub.colorHex,
+                                                    size = 20.dp,
+                                                    iconSize = 12.dp
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
                                                 Text(
                                                     text = sub.name,
                                                     style = MaterialTheme.typography.labelMedium,
@@ -1487,6 +1522,7 @@ private fun CategoryManagerBottomSheet(
 @Composable
 private fun CategoryEditorDialog(
     state: CategoryEditorDialogState,
+    onNameChange: (String) -> Unit,
     onUpdateState: ((CategoryEditorDialogState) -> CategoryEditorDialogState) -> Unit,
     onSave: () -> Unit,
     onDelete: () -> Unit,
@@ -1494,22 +1530,13 @@ private fun CategoryEditorDialog(
 ) {
     val swatches = remember {
         listOf(
-            "#059669", "#10B981", "#0D9488", "#2563EB",
-            "#4F46E5", "#7C3AED", "#D97706", "#F97316",
-            "#E11D48", "#334155"
+            "#059669", "#10B981", "#0D9488", "#0284C7",
+            "#2563EB", "#4F46E5", "#7C3AED", "#EC4899",
+            "#E11D48", "#F97316", "#EA580C", "#D97706",
+            "#334155"
         )
     }
-    val icons = remember {
-        listOf(
-            "restaurant", "fastfood", "local_cafe", "shopping_cart",
-            "checkroom", "home", "bolt", "wifi",
-            "phone_android", "directions_car", "local_gas_station", "directions_bus",
-            "flight", "local_hospital", "fitness_center", "spa",
-            "movie", "school", "child_care", "pets",
-            "build", "payments", "work", "trending_up",
-            "savings", "card_giftcard", "receipt_long", "security"
-        )
-    }
+    val icons = remember { ALL_CATEGORY_ICON_KEYS }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1518,8 +1545,8 @@ private fun CategoryEditorDialog(
                 CategoryIconBadge(
                     iconName = state.iconName,
                     colorHex = state.colorHex,
-                    size = 36.dp,
-                    iconSize = 18.dp
+                    size = 38.dp,
+                    iconSize = 20.dp
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Column {
@@ -1547,6 +1574,7 @@ private fun CategoryEditorDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(max = 440.dp)
                     .verticalScroll(rememberScrollState())
             ) {
                 if (!state.validationError.isNullOrBlank()) {
@@ -1559,14 +1587,36 @@ private fun CategoryEditorDialog(
 
                 OutlinedTextField(
                     value = state.name,
-                    onValueChange = { v -> onUpdateState { it.copy(name = v) } },
+                    onValueChange = onNameChange,
                     label = { Text("Category Name") },
+                    placeholder = { Text("e.g., Filter Coffee, Petrol, Swiggy, SIP") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                AnimatedVisibility(visible = state.isSmartIconMatched) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.AutoAwesome,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "✨ Auto-matched icon & color from category name",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
                 Text(
-                    text = "Badge Color",
+                    text = "Badge Color (${swatches.size} Swatches)",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -1599,7 +1649,7 @@ private fun CategoryEditorDialog(
                 }
 
                 Text(
-                    text = "Icon",
+                    text = "Select Icon (${icons.size} Icons)",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -1618,8 +1668,8 @@ private fun CategoryEditorDialog(
                                 MaterialTheme.colorScheme.surfaceContainerLow
                             },
                             border = BorderStroke(
-                                1.dp,
-                                if (selected) {
+                                width = if (selected) 1.5.dp else 1.dp,
+                                color = if (selected) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     LocalFolioSemanticColors.current.cardStrokeSubtle
@@ -1634,7 +1684,7 @@ private fun CategoryEditorDialog(
                                 iconName = iconKey,
                                 colorHex = state.colorHex,
                                 size = 28.dp,
-                                iconSize = 15.dp
+                                iconSize = 16.dp
                             )
                         }
                     }
@@ -1932,7 +1982,7 @@ private fun RestoreConfirmationDialog(
         },
         text = {
             Text(
-                text = "Restoring this backup will replace your current local accounts, transactions, categories, and budgets with the contents of the selected ZIP archive. Are you sure you want to proceed?",
+                text = "Restoring the latest backup from Downloads/Folio will replace your current local accounts, transactions, categories, and budgets. Are you sure you want to proceed?",
                 style = MaterialTheme.typography.bodyMedium
             )
         },
@@ -1954,3 +2004,4 @@ private fun RestoreConfirmationDialog(
         }
     )
 }
+

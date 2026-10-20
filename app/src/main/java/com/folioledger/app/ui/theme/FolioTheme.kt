@@ -136,8 +136,8 @@ private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
     val baseSurfaceVariant = Color(0xFFF1F5F9)
     val onBackground = Color(0xFF0F172A)
     val onSurfaceVariant = Color(0xFF475569)
-    val outline = Color(0xFFCBD5E1)
-    val outlineVariant = Color(0xFFE2E8F0)
+    val outline = Color(0xFF94A3B8)
+    val outlineVariant = Color(0xFFCBD5E1)
 
     return when (accent) {
         FolioAccentPalette.EMERALD -> lightColorScheme(
@@ -163,7 +163,7 @@ private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
             surfaceContainerLow = Color(0xFFF8FAFC),
             surfaceContainer = Color(0xFFF1F5F9),
             surfaceContainerHigh = Color(0xFFE2E8F0),
-            surfaceContainerHighest = Color(0xFFCBD5E1),
+            surfaceContainerHighest = Color(0xFFE2E8F0),
             outline = outline,
             outlineVariant = outlineVariant
         )
@@ -191,7 +191,7 @@ private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
             surfaceContainerLow = Color(0xFFF8FAFC),
             surfaceContainer = Color(0xFFF1F5F9),
             surfaceContainerHigh = Color(0xFFE2E8F0),
-            surfaceContainerHighest = Color(0xFFCBD5E1),
+            surfaceContainerHighest = Color(0xFFE2E8F0),
             outline = outline,
             outlineVariant = outlineVariant
         )
@@ -219,7 +219,7 @@ private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
             surfaceContainerLow = Color(0xFFF8FAFC),
             surfaceContainer = Color(0xFFF1F5F9),
             surfaceContainerHigh = Color(0xFFE2E8F0),
-            surfaceContainerHighest = Color(0xFFCBD5E1),
+            surfaceContainerHighest = Color(0xFFE2E8F0),
             outline = outline,
             outlineVariant = outlineVariant
         )
@@ -247,7 +247,7 @@ private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
             surfaceContainerLow = Color(0xFFF8FAFC),
             surfaceContainer = Color(0xFFF1F5F9),
             surfaceContainerHigh = Color(0xFFE2E8F0),
-            surfaceContainerHighest = Color(0xFFCBD5E1),
+            surfaceContainerHighest = Color(0xFFE2E8F0),
             outline = outline,
             outlineVariant = outlineVariant
         )
@@ -275,7 +275,7 @@ private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
             surfaceContainerLow = Color(0xFFF8FAFC),
             surfaceContainer = Color(0xFFF1F5F9),
             surfaceContainerHigh = Color(0xFFE2E8F0),
-            surfaceContainerHighest = Color(0xFFCBD5E1),
+            surfaceContainerHighest = Color(0xFFE2E8F0),
             outline = outline,
             outlineVariant = outlineVariant
         )
@@ -303,7 +303,7 @@ private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
             surfaceContainerLow = Color(0xFFF8FAFC),
             surfaceContainer = Color(0xFFF1F5F9),
             surfaceContainerHigh = Color(0xFFE2E8F0),
-            surfaceContainerHighest = Color(0xFFCBD5E1),
+            surfaceContainerHighest = Color(0xFFE2E8F0),
             outline = outline,
             outlineVariant = outlineVariant
         )

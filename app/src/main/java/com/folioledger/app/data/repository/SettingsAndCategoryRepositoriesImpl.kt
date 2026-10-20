@@ -643,31 +643,116 @@ class SettingsAndBackupRepositoryImpl(
     }
 
     private fun openOutputStreamForLocation(destinationUriString: String): OutputStream {
-        return if (
-            destinationUriString.startsWith("content://") ||
-            destinationUriString.startsWith("file://")
-        ) {
+        if (destinationUriString.startsWith("content://") || destinationUriString.startsWith("file://")) {
             val uri = Uri.parse(destinationUriString)
-            context.contentResolver.openOutputStream(uri)
+            return context.contentResolver.openOutputStream(uri)
                 ?: throw IOException("Unable to open OutputStream for URI: $destinationUriString")
+        }
+
+        val cleanFileName = destinationUriString
+            .substringAfterLast('/')
+            .substringAfterLast('\\')
+            .ifBlank { "Folio_Export_${System.currentTimeMillis()}.dat" }
+
+        val isZip = cleanFileName.endsWith(".zip", ignoreCase = true)
+        val mimeType = if (isZip) "application/zip" else "text/csv"
+
+        // Always keep an internal copy in app-specific storage so 1-tap Restore always works
+        val internalDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioBackups").apply {
+            mkdirs()
+        }
+        val internalFile = File(internalDir, cleanFileName)
+
+        // Also write directly into the phone's public Downloads/Folio folder via MediaStore (API 29+)
+        val downloadsStream: OutputStream? = runCatching {
+            val values = android.content.ContentValues().apply {
+                put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, cleanFileName)
+                put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                put(
+                    android.provider.MediaStore.MediaColumns.RELATIVE_PATH,
+                    "${android.os.Environment.DIRECTORY_DOWNLOADS}/Folio"
+                )
+            }
+            val uri = context.contentResolver.insert(
+                android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                values
+            )
+            uri?.let { context.contentResolver.openOutputStream(it) }
+        }.getOrNull()
+
+        val internalStream = FileOutputStream(internalFile)
+
+        return if (downloadsStream != null) {
+            object : OutputStream() {
+                override fun write(b: Int) {
+                    internalStream.write(b)
+                    downloadsStream.write(b)
+                }
+
+                override fun write(b: ByteArray, off: Int, len: Int) {
+                    internalStream.write(b, off, len)
+                    downloadsStream.write(b, off, len)
+                }
+
+                override fun flush() {
+                    internalStream.flush()
+                    downloadsStream.flush()
+                }
+
+                override fun close() {
+                    runCatching { internalStream.close() }
+                    runCatching { downloadsStream.close() }
+                }
+            }
         } else {
-            val file = File(destinationUriString)
-            file.parentFile?.mkdirs()
-            FileOutputStream(file)
+            internalStream
         }
     }
 
     private fun openInputStreamForLocation(sourceUriString: String): InputStream {
-        return if (
-            sourceUriString.startsWith("content://") ||
-            sourceUriString.startsWith("file://")
-        ) {
+        if (sourceUriString.startsWith("content://") || sourceUriString.startsWith("file://")) {
             val uri = Uri.parse(sourceUriString)
-            context.contentResolver.openInputStream(uri)
+            return context.contentResolver.openInputStream(uri)
                 ?: throw IOException("Unable to open InputStream for URI: $sourceUriString")
-        } else {
-            FileInputStream(File(sourceUriString))
         }
+
+        val internalDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioBackups")
+        if (sourceUriString == "LATEST_BACKUP" || !File(sourceUriString).exists()) {
+            val latestZip = internalDir.listFiles { file ->
+                file.isFile && file.name.endsWith(".zip", ignoreCase = true)
+            }?.maxByOrNull { it.lastModified() }
+
+            if (latestZip != null) {
+                return FileInputStream(latestZip)
+            }
+
+            // Fallback: check public Downloads/Folio via MediaStore
+            val projection = arrayOf(android.provider.MediaStore.MediaColumns._ID)
+            val selection = "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?"
+            val selectionArgs = arrayOf("Folio_Backup%.zip")
+            val sortOrder = "${android.provider.MediaStore.MediaColumns.DATE_MODIFIED} DESC"
+
+            context.contentResolver.query(
+                android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                sortOrder
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val id = cursor.getLong(0)
+                    val contentUri = android.content.ContentUris.withAppendedId(
+                        android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                        id
+                    )
+                    context.contentResolver.openInputStream(contentUri)?.let { return it }
+                }
+            }
+
+            throw IOException("No Folio backup (.zip) found in Downloads/Folio or app storage. Create a backup first.")
+        }
+
+        return FileInputStream(File(sourceUriString))
     }
 
     private fun escapeCsvField(value: String): String {

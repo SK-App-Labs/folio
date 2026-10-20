@@ -14,6 +14,7 @@ import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
+import com.folioledger.app.ui.components.suggestIconAndColorForCategoryName
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -32,6 +33,8 @@ data class CategoryEditorDialogState(
     val parentCategoryName: String? = null,
     val iconName: String = "category",
     val colorHex: String = "#059669",
+    val isSmartIconMatched: Boolean = false,
+    val isIconManuallyOverridden: Boolean = false,
     val validationError: String? = null
 )
 
@@ -266,6 +269,8 @@ class SettingsViewModel(
                     parentCategoryName = null,
                     iconName = defaultIcon,
                     colorHex = defaultColor,
+                    isSmartIconMatched = false,
+                    isIconManuallyOverridden = false,
                     validationError = null
                 )
             )
@@ -284,6 +289,8 @@ class SettingsViewModel(
                     parentCategoryName = parentCategory.name,
                     iconName = parentCategory.iconName,
                     colorHex = parentCategory.colorHex,
+                    isSmartIconMatched = false,
+                    isIconManuallyOverridden = false,
                     validationError = null
                 )
             )
@@ -305,9 +312,46 @@ class SettingsViewModel(
                     parentCategoryName = parentCategoryName,
                     iconName = category.iconName,
                     colorHex = category.colorHex,
+                    isSmartIconMatched = false,
+                    isIconManuallyOverridden = true,
                     validationError = null
                 )
             )
+        }
+    }
+
+    fun onCategoryNameInputChanged(newName: String) {
+        controlState.update { current ->
+            val existing = current.categoryEditorState ?: return@update current
+            if (!existing.isEditing || !existing.isIconManuallyOverridden) {
+                val suggestion = suggestIconAndColorForCategoryName(newName, existing.type)
+                if (suggestion != null) {
+                    current.copy(
+                        categoryEditorState = existing.copy(
+                            name = newName,
+                            iconName = suggestion.first,
+                            colorHex = suggestion.second,
+                            isSmartIconMatched = true,
+                            validationError = null
+                        )
+                    )
+                } else {
+                    current.copy(
+                        categoryEditorState = existing.copy(
+                            name = newName,
+                            isSmartIconMatched = if (newName.isBlank()) false else existing.isSmartIconMatched,
+                            validationError = null
+                        )
+                    )
+                }
+            } else {
+                current.copy(
+                    categoryEditorState = existing.copy(
+                        name = newName,
+                        validationError = null
+                    )
+                )
+            }
         }
     }
 
@@ -316,7 +360,24 @@ class SettingsViewModel(
     ) {
         controlState.update { current ->
             val existing = current.categoryEditorState ?: return@update current
-            current.copy(categoryEditorState = transform(existing).copy(validationError = null))
+            val updated = transform(existing)
+            val iconOrColorChangedManually = updated.iconName != existing.iconName ||
+                    updated.colorHex != existing.colorHex
+            current.copy(
+                categoryEditorState = updated.copy(
+                    isIconManuallyOverridden = if (iconOrColorChangedManually) {
+                        true
+                    } else {
+                        updated.isIconManuallyOverridden
+                    },
+                    isSmartIconMatched = if (iconOrColorChangedManually) {
+                        false
+                    } else {
+                        updated.isSmartIconMatched
+                    },
+                    validationError = null
+                )
+            )
         }
     }
 
@@ -484,14 +545,12 @@ class SettingsViewModel(
             }
             val result = settingsAndBackupRepository.createPortableZipBackup(destinationUriString)
             result.fold(
-                onSuccess = { summary ->
+                onSuccess = {
                     controlState.update {
                         it.copy(
                             isBusyWithFileOperation = false,
                             fileOperationStatusLabel = null,
-                            snackbarMessage = summary.ifBlank {
-                                "Portable ZIP backup created successfully"
-                            }
+                            snackbarMessage = "Saved backup to Downloads/Folio/$destinationUriString"
                         )
                     }
                 },
@@ -569,7 +628,7 @@ class SettingsViewModel(
                         it.copy(
                             isBusyWithFileOperation = false,
                             fileOperationStatusLabel = null,
-                            snackbarMessage = "Exported $count ledger transactions to CSV"
+                            snackbarMessage = "Exported $count transactions to Downloads/Folio/$destinationUriString"
                         )
                     }
                 },
