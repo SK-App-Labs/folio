@@ -39,14 +39,29 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE id = :accountId LIMIT 1")
     suspend fun getAccountByIdOnce(accountId: Long): AccountEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAccount(account: AccountEntity): Long
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertNewAccountRaw(account: AccountEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAccounts(accounts: List<AccountEntity>): List<Long>
 
     @Update
     suspend fun updateAccount(account: AccountEntity)
+
+    /**
+     * Safe upsert that uses SQL UPDATE when editing an existing account (id != 0L),
+     * preventing OnConflictStrategy.REPLACE from triggering ForeignKey.CASCADE deletes
+     * on transactions, installment plans, and bookmarks.
+     */
+    @Transaction
+    suspend fun insertAccount(account: AccountEntity): Long {
+        return if (account.id != 0L && getAccountByIdOnce(account.id) != null) {
+            updateAccount(account)
+            account.id
+        } else {
+            insertNewAccountRaw(account.copy(id = 0L))
+        }
+    }
 
     @Query("UPDATE accounts SET isArchived = :isArchived WHERE id = :accountId")
     suspend fun setAccountArchived(accountId: Long, isArchived: Boolean)
@@ -76,14 +91,29 @@ interface CategoryAndTagDao {
     @Query("SELECT COUNT(*) FROM categories")
     suspend fun countCategories(): Int
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertCategory(category: CategoryEntity): Long
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertNewCategoryRaw(category: CategoryEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCategories(categories: List<CategoryEntity>): List<Long>
 
     @Update
     suspend fun updateCategory(category: CategoryEntity)
+
+    /**
+     * Safe upsert that uses SQL UPDATE when editing an existing category or subcategory,
+     * preventing OnConflictStrategy.REPLACE from cascading deletes to subcategories/budgets
+     * or unlinking historical transactions (SET NULL).
+     */
+    @Transaction
+    suspend fun insertCategory(category: CategoryEntity): Long {
+        return if (category.id != 0L && getCategoryByIdOnce(category.id) != null) {
+            updateCategory(category)
+            category.id
+        } else {
+            insertNewCategoryRaw(category.copy(id = 0L))
+        }
+    }
 
     @Query("DELETE FROM categories WHERE id = :categoryId")
     suspend fun deleteCategoryById(categoryId: Long)
@@ -127,8 +157,24 @@ interface CategoryAndTagDao {
     @Query("SELECT * FROM bookmarks ORDER BY sortOrder ASC, id ASC")
     suspend fun getAllBookmarksOnce(): List<BookmarkEntity>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertBookmark(bookmark: BookmarkEntity): Long
+    @Query("SELECT * FROM bookmarks WHERE id = :bookmarkId LIMIT 1")
+    suspend fun getBookmarkByIdOnce(bookmarkId: Long): BookmarkEntity?
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertNewBookmarkRaw(bookmark: BookmarkEntity): Long
+
+    @Update
+    suspend fun updateBookmark(bookmark: BookmarkEntity)
+
+    @Transaction
+    suspend fun upsertBookmark(bookmark: BookmarkEntity): Long {
+        return if (bookmark.id != 0L && getBookmarkByIdOnce(bookmark.id) != null) {
+            updateBookmark(bookmark)
+            bookmark.id
+        } else {
+            insertNewBookmarkRaw(bookmark.copy(id = 0L))
+        }
+    }
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBookmarks(bookmarks: List<BookmarkEntity>): List<Long>
@@ -208,6 +254,9 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE id = :transactionId LIMIT 1")
     suspend fun getTransactionByIdOnce(transactionId: Long): TransactionWithDetails?
 
+    @Query("SELECT * FROM transactions WHERE id = :transactionId LIMIT 1")
+    suspend fun getTransactionEntityByIdOnce(transactionId: Long): TransactionEntity?
+
     @Transaction
     @Query(
         """
@@ -229,14 +278,24 @@ interface TransactionDao {
     @Query("SELECT * FROM installment_plans ORDER BY id ASC")
     suspend fun getAllInstallmentPlansOnce(): List<InstallmentPlanEntity>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertTransactionRaw(transaction: TransactionEntity): Long
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertNewTransactionRaw(transaction: TransactionEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransactionsRaw(transactions: List<TransactionEntity>): List<Long>
 
     @Update
     suspend fun updateTransactionRaw(transaction: TransactionEntity)
+
+    @Transaction
+    suspend fun insertTransactionRaw(transaction: TransactionEntity): Long {
+        return if (transaction.id != 0L && getTransactionEntityByIdOnce(transaction.id) != null) {
+            updateTransactionRaw(transaction)
+            transaction.id
+        } else {
+            insertNewTransactionRaw(transaction.copy(id = 0L))
+        }
+    }
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSplits(splits: List<TransactionSplitEntity>): List<Long>
@@ -370,6 +429,9 @@ interface BudgetAndRecurringDao {
     @Query("SELECT * FROM budgets ORDER BY categoryId IS NOT NULL ASC, id ASC")
     suspend fun getAllBudgetsOnce(): List<BudgetEntity>
 
+    @Query("SELECT * FROM budgets WHERE id = :budgetId LIMIT 1")
+    suspend fun getBudgetByIdOnce(budgetId: Long): BudgetEntity?
+
     @Query(
         """
         SELECT * FROM budgets
@@ -380,8 +442,21 @@ interface BudgetAndRecurringDao {
     )
     suspend fun getBudgetByCategoryIdOnce(categoryId: Long?): BudgetEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertBudget(budget: BudgetEntity): Long
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertNewBudgetRaw(budget: BudgetEntity): Long
+
+    @Update
+    suspend fun updateBudget(budget: BudgetEntity)
+
+    @Transaction
+    suspend fun upsertBudget(budget: BudgetEntity): Long {
+        return if (budget.id != 0L && getBudgetByIdOnce(budget.id) != null) {
+            updateBudget(budget)
+            budget.id
+        } else {
+            insertNewBudgetRaw(budget.copy(id = 0L))
+        }
+    }
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBudgets(budgets: List<BudgetEntity>): List<Long>
@@ -397,6 +472,9 @@ interface BudgetAndRecurringDao {
 
     @Query("SELECT * FROM recurring_rules ORDER BY isActive DESC, nextOccurrenceEpochDay ASC, id ASC")
     suspend fun getAllRecurringRulesOnce(): List<RecurringRuleEntity>
+
+    @Query("SELECT * FROM recurring_rules WHERE id = :ruleId LIMIT 1")
+    suspend fun getRecurringRuleByIdOnce(ruleId: Long): RecurringRuleEntity?
 
     @Query(
         """
@@ -416,8 +494,21 @@ interface BudgetAndRecurringDao {
     )
     suspend fun getDueRecurringRulesOnce(todayEpochDay: Long): List<RecurringRuleEntity>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertRecurringRule(rule: RecurringRuleEntity): Long
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertNewRecurringRuleRaw(rule: RecurringRuleEntity): Long
+
+    @Update
+    suspend fun updateRecurringRule(rule: RecurringRuleEntity)
+
+    @Transaction
+    suspend fun upsertRecurringRule(rule: RecurringRuleEntity): Long {
+        return if (rule.id != 0L && getRecurringRuleByIdOnce(rule.id) != null) {
+            updateRecurringRule(rule)
+            rule.id
+        } else {
+            insertNewRecurringRuleRaw(rule.copy(id = 0L))
+        }
+    }
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRecurringRules(rules: List<RecurringRuleEntity>): List<Long>

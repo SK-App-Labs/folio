@@ -24,7 +24,9 @@ import com.folioledger.app.domain.repository.TransactionRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.time.LocalDate
 
 class AccountRepositoryImpl(
     private val accountDao: AccountDao,
@@ -39,8 +41,6 @@ class AccountRepositoryImpl(
             var totalLiabilities = MinorMoney.ZERO
 
             for (account in activeSummaries) {
-                // Exclude DEBIT_CARD proxy instruments from Net Worth totals so the parent
-                // bank account balance is never double-counted.
                 if (!account.includeInNetWorth || account.groupType == AccountGroup.DEBIT_CARD) {
                     continue
                 }
@@ -109,10 +109,34 @@ class AccountRepositoryImpl(
             null
         }
 
-        val resolvedOpeningMinor = when {
-            existing != null && openingBalance.isZero -> existing.openingBalanceMinor
-            !openingBalance.isZero -> openingBalance.amountMinor
-            else -> account.currentBalance.amountMinor
+        val resolvedOpeningMinor = if (existing != null) {
+            if (openingBalance.isZero || openingBalance.amountMinor == existing.openingBalanceMinor) {
+                existing.openingBalanceMinor
+            } else {
+                // Check live balance prior to edit so pre-filled currentBalance doesn't double-count transactions
+                val liveBeforeEdit = observeAccountById(
+                    accountId = existing.id,
+                    referenceDateEpochDay = LocalDate.now().toEpochDay()
+                ).first()
+                val previousCurrentMinor = liveBeforeEdit?.currentBalance?.amountMinor
+                    ?: existing.openingBalanceMinor
+
+                if (openingBalance.amountMinor == previousCurrentMinor) {
+                    existing.openingBalanceMinor
+                } else {
+                    val netTransactionsDelta = Math.subtractExact(
+                        previousCurrentMinor,
+                        existing.openingBalanceMinor
+                    )
+                    Math.subtractExact(openingBalance.amountMinor, netTransactionsDelta)
+                }
+            }
+        } else {
+            if (!openingBalance.isZero) {
+                openingBalance.amountMinor
+            } else {
+                account.currentBalance.amountMinor
+            }
         }
 
         val entity = AccountEntity(
@@ -122,8 +146,8 @@ class AccountRepositoryImpl(
             currencyCode = account.currencyCode.ifBlank { "INR" },
             openingBalanceMinor = resolvedOpeningMinor,
             creditLimitMinor = account.creditLimit?.amountMinor,
-            settlementDayOfMonth = account.settlementDayOfMonth?.coerceIn(1, 28),
-            paymentDueDayOfMonth = account.paymentDueDayOfMonth?.coerceIn(1, 28),
+            settlementDayOfMonth = account.settlementDayOfMonth?.coerceIn(1, 31),
+            paymentDueDayOfMonth = account.paymentDueDayOfMonth?.coerceIn(1, 31),
             parentAccountId = if (account.groupType == AccountGroup.DEBIT_CARD) {
                 account.parentAccountId
             } else {
@@ -202,11 +226,9 @@ class AccountRepositoryImpl(
         val accountsById = accountEntities.associateBy { it.id }
         val (finMonthStartDay, finMonthEndDay) = AccountingRulesEngine.computeFinancialMonthRange(
             referenceDateEpochDay = referenceDateEpochDay,
-            monthStartDay = monthStartDay.coerceIn(1, 28)
+            monthStartDay = monthStartDay.coerceIn(1, 31)
         )
 
-        // Map each DEBIT_CARD id to its parent bank account id so proxy transactions
-        // automatically deduct from or credit the parent bank account.
         val debitCardParentMap: Map<Long, Long> = accountEntities
             .filter { it.groupType == AccountGroup.DEBIT_CARD && it.parentAccountId != null }
             .associate { it.id to it.parentAccountId!! }
@@ -214,7 +236,6 @@ class AccountRepositoryImpl(
         fun resolveEffectiveAccountId(rawAccountId: Long): Long =
             debitCardParentMap[rawAccountId] ?: rawAccountId
 
-        // Track live balances for non-credit-card accounts
         val runningBalancesMinor = HashMap<Long, Long>(accountEntities.size)
         for (entity in accountEntities) {
             if (
@@ -232,7 +253,6 @@ class AccountRepositoryImpl(
             }
         }
 
-        // Track current financial month spend for each DEBIT_CARD
         val debitCardPeriodSpendMap = HashMap<Long, Long>()
         for (entity in accountEntities) {
             if (entity.groupType == AccountGroup.DEBIT_CARD) {
@@ -240,7 +260,6 @@ class AccountRepositoryImpl(
             }
         }
 
-        // Process all transactions up to referenceDateEpochDay for non-CC balances & debit card spend
         for (txWithDetails in allTransactions) {
             val tx = txWithDetails.transaction
             if (tx.ledgerDateEpochDay > referenceDateEpochDay) continue
@@ -248,7 +267,6 @@ class AccountRepositoryImpl(
             val amountMinor = Math.abs(tx.amountMinor)
             val feeMinor = Math.abs(tx.transferFeeMinor)
 
-            // 1. Track DEBIT_CARD period spend within the current financial month
             if (
                 debitCardPeriodSpendMap.containsKey(tx.accountId) &&
                 tx.ledgerDateEpochDay in finMonthStartDay..finMonthEndDay
@@ -267,7 +285,6 @@ class AccountRepositoryImpl(
                 debitCardPeriodSpendMap[tx.accountId] = updatedSpend
             }
 
-            // 2. Apply cashflow delta to non-credit-card accounts (routing DEBIT_CARD to parent)
             val effectiveSourceId = resolveEffectiveAccountId(tx.accountId)
             val effectiveTargetId = tx.transferToAccountId?.let { resolveEffectiveAccountId(it) }
 
@@ -299,7 +316,6 @@ class AccountRepositoryImpl(
             }
         }
 
-        // Assemble AccountSummary list
         return accountEntities.map { entity ->
             when (entity.groupType) {
                 AccountGroup.CREDIT_CARD -> {
@@ -310,9 +326,6 @@ class AccountRepositoryImpl(
                         if (!isSource && !isTarget) {
                             null
                         } else {
-                            // If a TRANSFER targets the credit card from another account, treat it
-                            // as a payment reducing credit card debt; if it originates from the
-                            // credit card, treat it as a cash-advance outflow.
                             val normalizedType = if (
                                 tx.type == TransactionType.TRANSFER && isTarget && !isSource
                             ) {
@@ -345,7 +358,7 @@ class AccountRepositoryImpl(
                         }
                     }
 
-                    val settlementDay = (entity.settlementDayOfMonth ?: 15).coerceIn(1, 28)
+                    val settlementDay = (entity.settlementDayOfMonth ?: 15).coerceIn(1, 31)
                     val creditLimitMoney = entity.creditLimitMinor?.let { MinorMoney(it) }
                     val ccMetrics = AccountingRulesEngine.computeCreditCardMetrics(
                         openingBalance = MinorMoney(entity.openingBalanceMinor),
@@ -481,7 +494,6 @@ class TransactionRepositoryImpl(
             val accountsById = accounts.associateBy { it.id }
             val categoriesById = categories.associateBy { it.id }
 
-            // Expand categoryIds filter to also include subcategories whose parentId is in filter.categoryIds
             val expandedCategoryIds: Set<Long> = if (filter.categoryIds.isEmpty()) {
                 emptySet()
             } else {
@@ -845,10 +857,12 @@ class TransactionRepositoryImpl(
             tags = mappedTags,
             payeeOrDescription = tx.payeeOrDescription,
             note = tx.note,
-            installmentIndex = tx.installmentIndex,
-            installmentTotalCount = tx.installmentTotalCount
+            installmentIndex = transactionIdOrNull(tx.installmentIndex),
+            installmentTotalCount = transactionIdOrNull(tx.installmentTotalCount)
         )
     }
+
+    private fun transactionIdOrNull(value: Int?): Int? = value
 
     companion object {
         private const val MILLIS_PER_DAY = 86_400_000L
