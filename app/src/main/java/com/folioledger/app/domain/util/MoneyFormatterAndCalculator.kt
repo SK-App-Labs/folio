@@ -86,7 +86,7 @@ object MoneyFormatterAndCalculator {
         expression: String,
         fractionDigits: Int
     ): Result<MinorMoney> {
-        if (fractionDigits < 0 || fractionDigits > 6) {
+        if (fractionDigits !in 0..6) {
             return Result.failure(
                 IllegalArgumentException("Unsupported fractionDigits: $fractionDigits")
             )
@@ -233,25 +233,3 @@ object MoneyFormatterAndCalculator {
         }
     }
 }
-
-fun formatMinorMoney(
-    money: MinorMoney,
-    currencySpec: CurrencySpec,
-    grouping: NumberGroupingSystem = currencySpec.defaultGrouping,
-    includeSymbol: Boolean = true,
-    showPlusSignForPositive: Boolean = false
-): String = MoneyFormatterAndCalculator.formatMinorMoney(
-    money = money,
-    currencySpec = currencySpec,
-    grouping = grouping,
-    includeSymbol = includeSymbol,
-    showPlusSignForPositive = showPlusSignForPositive
-)
-
-fun evaluateKeypadExpressionToMinor(
-    expression: String,
-    fractionDigits: Int
-): Result<MinorMoney> = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
-    expression = expression,
-    fractionDigits = fractionDigits
-)

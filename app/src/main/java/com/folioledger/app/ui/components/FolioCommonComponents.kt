@@ -138,6 +138,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.core.graphics.toColorInt
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -267,21 +268,12 @@ val ALL_CATEGORY_ICON_KEYS: List<String> = listOf(
     "currency_rupee",
     "attach_money",
     "percent",
-    "category"
+    "category",
 )
-
-object FolioCategoryIcons {
-    val ALL_KEYS: List<String> = ALL_CATEGORY_ICON_KEYS
-
-    fun resolve(iconName: String?): ImageVector = resolveFolioIcon(iconName)
-
-    fun suggestForName(name: String, type: CategoryType): Pair<String, String>? =
-        suggestIconAndColorForCategoryName(name, type)
-}
 
 fun suggestIconAndColorForCategoryName(
     name: String,
-    type: CategoryType = CategoryType.EXPENSE
+    type: CategoryType = CategoryType.EXPENSE,
 ): Pair<String, String>? {
     val normalized = name.trim().lowercase(Locale.US)
     if (normalized.isEmpty()) return null
@@ -458,6 +450,7 @@ fun suggestIconAndColorForCategoryName(
 @Composable
 fun MoneyText(
     money: MinorMoney,
+    modifier: Modifier = Modifier,
     currencySpec: CurrencySpec = SupportedCurrencies.INR,
     grouping: NumberGroupingSystem = currencySpec.defaultGrouping,
     colorMode: MoneyColorMode = MoneyColorMode.AUTO_SIGN,
@@ -468,7 +461,6 @@ fun MoneyText(
     includeSymbol: Boolean = true,
     showPlusSignForPositive: Boolean = false,
     maxLines: Int = 1,
-    modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val formattedText = remember(
@@ -476,14 +468,14 @@ fun MoneyText(
         currencySpec,
         grouping,
         includeSymbol,
-        showPlusSignForPositive
+        showPlusSignForPositive,
     ) {
         MoneyFormatterAndCalculator.formatMinorMoney(
             money = money,
             currencySpec = currencySpec,
             grouping = grouping,
             includeSymbol = includeSymbol,
-            showPlusSignForPositive = showPlusSignForPositive
+            showPlusSignForPositive = showPlusSignForPositive,
         )
     }
 
@@ -510,7 +502,7 @@ fun MoneyText(
         textAlign = textAlign,
         maxLines = maxLines,
         overflow = TextOverflow.Ellipsis,
-        modifier = modifier
+        modifier = modifier,
     )
 }
 
@@ -525,7 +517,7 @@ fun PeriodSelectorHeader(
     onSearchClick: (() -> Unit)? = null,
     onFilterClick: (() -> Unit)? = null,
     activeFilterCount: Int = 0,
-    onBookmarksClick: (() -> Unit)? = null
+    onBookmarksClick: (() -> Unit)? = null,
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
@@ -611,9 +603,9 @@ fun PeriodSelectorHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.End
             ) {
-                if (onBookmarksClick != null) {
+                onBookmarksClick?.let { onClick ->
                     IconButton(
-                        onClick = onBookmarksClick,
+                        onClick = onClick,
                         modifier = Modifier.size(38.dp)
                     ) {
                         Icon(
@@ -624,9 +616,9 @@ fun PeriodSelectorHeader(
                     }
                 }
 
-                if (onFilterClick != null) {
+                onFilterClick?.let { onClick ->
                     IconButton(
-                        onClick = onFilterClick,
+                        onClick = onClick,
                         modifier = Modifier.size(38.dp)
                     ) {
                         BadgedBox(
@@ -657,9 +649,9 @@ fun PeriodSelectorHeader(
                     }
                 }
 
-                if (onSearchClick != null) {
+                onSearchClick?.let { onClick ->
                     IconButton(
-                        onClick = onSearchClick,
+                        onClick = onClick,
                         modifier = Modifier.size(38.dp)
                     ) {
                         Icon(
@@ -682,6 +674,7 @@ fun ThreeColumnSummaryBanner(
     secondAmount: MinorMoney,
     thirdLabel: String,
     thirdAmount: MinorMoney,
+    modifier: Modifier = Modifier,
     currencySpec: CurrencySpec = SupportedCurrencies.INR,
     grouping: NumberGroupingSystem = currencySpec.defaultGrouping,
     firstColorMode: MoneyColorMode = MoneyColorMode.INCOME,
@@ -689,7 +682,6 @@ fun ThreeColumnSummaryBanner(
     thirdColorMode: MoneyColorMode = MoneyColorMode.AUTO_SIGN,
     carryOverAmount: MinorMoney? = null,
     onColumnClick: ((columnIndex: Int) -> Unit)? = null,
-    modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -758,7 +750,7 @@ fun ThreeColumnSummaryBanner(
                 )
             }
 
-            if (carryOverAmount != null && !carryOverAmount.isZero) {
+            if ((carryOverAmount != null) && (!carryOverAmount.isZero)) {
                 HorizontalDivider(
                     color = semanticColors.cardStrokeSubtle,
                     thickness = 1.dp
@@ -794,11 +786,11 @@ fun ThreeColumnSummaryBanner(
 @Composable
 fun ThreeColumnSummaryBanner(
     periodSummary: PeriodLedgerSummary,
+    modifier: Modifier = Modifier,
     currencySpec: CurrencySpec = SupportedCurrencies.INR,
     grouping: NumberGroupingSystem = currencySpec.defaultGrouping,
     showCarryOver: Boolean = false,
     onColumnClick: ((columnIndex: Int) -> Unit)? = null,
-    modifier: Modifier = Modifier
 ) {
     ThreeColumnSummaryBanner(
         firstLabel = "Income",
@@ -821,10 +813,10 @@ fun ThreeColumnSummaryBanner(
 @Composable
 fun ThreeColumnSummaryBanner(
     netWorthOverview: NetWorthOverview,
+    modifier: Modifier = Modifier,
     currencySpec: CurrencySpec = SupportedCurrencies.INR,
     grouping: NumberGroupingSystem = currencySpec.defaultGrouping,
     onColumnClick: ((columnIndex: Int) -> Unit)? = null,
-    modifier: Modifier = Modifier
 ) {
     ThreeColumnSummaryBanner(
         firstLabel = "Assets",
@@ -851,9 +843,9 @@ private fun SummaryColumnCell(
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     colorMode: MoneyColorMode,
+    modifier: Modifier = Modifier,
     showPlusSignForPositive: Boolean = false,
-    onClick: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    onClick: (() -> Unit)? = null
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -897,7 +889,7 @@ fun parseHexColorSafely(colorHex: String?, fallback: Color = Color(0xFF059669)):
         "#${colorHex.trim()}"
     }
     return try {
-        Color(android.graphics.Color.parseColor(normalized))
+        Color(normalized.toColorInt())
     } catch (_: IllegalArgumentException) {
         fallback
     }
@@ -1106,7 +1098,7 @@ fun EmptyStateCard(
                 textAlign = TextAlign.Center
             )
 
-            if (!actionLabel.isNullOrBlank() && onActionClick != null) {
+            if ((!actionLabel.isNullOrBlank()) && (onActionClick != null)) {
                 Spacer(modifier = Modifier.height(18.dp))
                 Button(
                     onClick = onActionClick,

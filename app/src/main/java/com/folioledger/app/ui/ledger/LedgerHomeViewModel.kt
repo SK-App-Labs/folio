@@ -3,7 +3,6 @@ package com.folioledger.app.ui.ledger
 
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.BudgetProgress
@@ -804,6 +803,7 @@ class LedgerHomeViewModel(
         }
     }
 
+    @Suppress("unused")
     fun restrictFilterToActivePeriod(restrict: Boolean) {
         setFilterAllPeriods(!restrict)
     }
@@ -895,7 +895,7 @@ class LedgerHomeViewModel(
     ): Pair<MinorMoney, MinorMoney> {
         var incomeMinor = 0L
         var expenseMinor = 0L
-        for (tx in transactions) {
+        transactions.forEach { tx ->
             when (tx.type) {
                 TransactionType.INCOME -> {
                     incomeMinor = Math.addExact(incomeMinor, tx.amount.amountMinor)
@@ -1090,26 +1090,5 @@ class LedgerHomeViewModel(
                 )
             }
             .sortedByDescending { it.transactionCount }
-    }
-
-    companion object {
-        fun provideFactory(
-            transactionRepository: TransactionRepository,
-            analyticsAndBudgetRepository: AnalyticsAndBudgetRepository,
-            accountRepository: AccountRepository,
-            categoryAndTagRepository: CategoryAndTagRepository,
-            settingsAndBackupRepository: SettingsAndBackupRepository
-        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return LedgerHomeViewModel(
-                    transactionRepository = transactionRepository,
-                    analyticsAndBudgetRepository = analyticsAndBudgetRepository,
-                    accountRepository = accountRepository,
-                    categoryAndTagRepository = categoryAndTagRepository,
-                    settingsAndBackupRepository = settingsAndBackupRepository
-                ) as T
-            }
-        }
     }
 }

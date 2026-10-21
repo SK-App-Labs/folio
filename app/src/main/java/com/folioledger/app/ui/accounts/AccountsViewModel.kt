@@ -3,7 +3,6 @@ package com.folioledger.app.ui.accounts
 
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
@@ -70,6 +69,7 @@ data class CreditCardCycleWindow(
     val activeCycleRangeFullText: String
         get() = "${activeCycleStart.format(fullFormatter)} – ${activeCycleEnd.format(fullFormatter)}"
 
+    @Suppress("unused")
     val activeCycleNextDueFullText: String
         get() = activeCycleNextDueDate.format(fullFormatter)
 }
@@ -348,8 +348,8 @@ private data class ChronologicalPassbookItem(
 @OptIn(ExperimentalCoroutinesApi::class)
 class AccountsViewModel(
     private val accountRepository: AccountRepository,
-    private val transactionRepository: TransactionRepository,
-    private val settingsAndBackupRepository: SettingsAndBackupRepository
+    transactionRepository: TransactionRepository,
+    settingsAndBackupRepository: SettingsAndBackupRepository
 ) : ViewModel() {
 
     private val controlState = MutableStateFlow(AccountsInternalControlState())
@@ -584,7 +584,7 @@ class AccountsViewModel(
                 val date = LocalDate.ofEpochDay(epochDay)
                 var dayInflow = 0L
                 var dayOutflow = 0L
-                for (entry in dayEntriesNewestFirst) {
+                dayEntriesNewestFirst.forEach { entry ->
                     val d = entry.signedDelta.amountMinor
                     if (d > 0L) {
                         dayInflow += d
@@ -1164,21 +1164,6 @@ class AccountsViewModel(
             AccountGroup.OVERDRAFT -> "#EA580C"
             AccountGroup.LOAN -> "#BE123C"
             AccountGroup.OTHER -> "#475569"
-        }
-
-        fun provideFactory(
-            accountRepository: AccountRepository,
-            transactionRepository: TransactionRepository,
-            settingsAndBackupRepository: SettingsAndBackupRepository
-        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return AccountsViewModel(
-                    accountRepository = accountRepository,
-                    transactionRepository = transactionRepository,
-                    settingsAndBackupRepository = settingsAndBackupRepository
-                ) as T
-            }
         }
     }
 }

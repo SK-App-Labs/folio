@@ -3,7 +3,6 @@ package com.folioledger.app.ui.entry
 
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
@@ -73,7 +72,7 @@ object AccountingRulesEngine {
         }
 
         var allocatedMinor = 0L
-        for (line in splits) {
+        splits.forEach { line ->
             if (line.categoryId <= 0L) {
                 return SplitValidationSummary(
                     isValid = false,
@@ -240,9 +239,9 @@ private data class EntryFormControlState(
 
 class TransactionEntryViewModel(
     private val transactionRepository: TransactionRepository,
-    private val accountRepository: AccountRepository,
+    accountRepository: AccountRepository,
     private val categoryAndTagRepository: CategoryAndTagRepository,
-    private val settingsAndBackupRepository: SettingsAndBackupRepository
+    settingsAndBackupRepository: SettingsAndBackupRepository
 ) : ViewModel() {
 
     private var nextSplitLocalId = 1L
@@ -442,6 +441,7 @@ class TransactionEntryViewModel(
         }
     }
 
+    @Suppress("unused")
     fun loadTransactionForEdit(transactionId: Long) {
         viewModelScope.launch {
             val tx = transactionRepository.observeTransactionById(transactionId).firstOrNull() ?: return@launch
@@ -456,16 +456,8 @@ class TransactionEntryViewModel(
                 selectedCategoryId = null,
                 selectedCategoryName = null,
                 selectedParentCategoryName = null,
-                isSplit = if (mode == TransactionType.EXPENSE || mode == TransactionType.INCOME) {
-                    current.isSplit
-                } else {
-                    false
-                },
-                isInstallmentEnabled = if (mode == TransactionType.EXPENSE) {
-                    current.isInstallmentEnabled
-                } else {
-                    false
-                },
+                isSplit = (mode == TransactionType.EXPENSE || mode == TransactionType.INCOME) && current.isSplit,
+                isInstallmentEnabled = (mode == TransactionType.EXPENSE) && current.isInstallmentEnabled,
                 errorMessage = null
             )
         }
@@ -601,7 +593,7 @@ class TransactionEntryViewModel(
 
             current.copy(
                 isSplit = enabling,
-                isInstallmentEnabled = if (enabling) false else current.isInstallmentEnabled,
+                isInstallmentEnabled = !enabling && current.isInstallmentEnabled,
                 splitDrafts = initialDrafts,
                 errorMessage = null
             )
@@ -664,6 +656,7 @@ class TransactionEntryViewModel(
         }
     }
 
+    @Suppress("unused")
     fun updateSplitLineNote(localId: Long, note: String) {
         formState.update { current ->
             current.copy(
@@ -701,7 +694,7 @@ class TransactionEntryViewModel(
             val next = !current.isInstallmentEnabled
             current.copy(
                 isInstallmentEnabled = next,
-                isSplit = if (next) false else current.isSplit,
+                isSplit = !next && current.isSplit,
                 errorMessage = null
             )
         }
@@ -794,6 +787,7 @@ class TransactionEntryViewModel(
         }
     }
 
+    @Suppress("unused")
     fun clearErrorMessage() {
         formState.update { it.copy(errorMessage = null) }
     }
@@ -990,23 +984,14 @@ class TransactionEntryViewModel(
 
     private fun findCategoryNodeById(tree: List<CategoryNode>, id: Long?): CategoryNode? {
         if (id == null) return null
-        for (parent in tree) {
-            if (parent.id == id) return parent
-            for (sub in parent.subcategories) {
-                if (sub.id == id) return sub
-            }
+        return tree.firstNotNullOfOrNull { parent ->
+            if (parent.id == id) parent else parent.subcategories.firstOrNull { it.id == id }
         }
-        return null
     }
 
     private fun findParentCategoryName(tree: List<CategoryNode>, id: Long?): String? {
         if (id == null) return null
-        for (parent in tree) {
-            if (parent.subcategories.any { it.id == id }) {
-                return parent.name
-            }
-        }
-        return null
+        return tree.firstOrNull { parent -> parent.subcategories.any { it.id == id } }?.name
     }
 
     private data class ReferenceBundle(
@@ -1016,23 +1001,4 @@ class TransactionEntryViewModel(
         val tags: List<String>,
         val bookmarks: List<TransactionBookmark>
     )
-
-    companion object {
-        fun provideFactory(
-            transactionRepository: TransactionRepository,
-            accountRepository: AccountRepository,
-            categoryAndTagRepository: CategoryAndTagRepository,
-            settingsAndBackupRepository: SettingsAndBackupRepository
-        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return TransactionEntryViewModel(
-                    transactionRepository = transactionRepository,
-                    accountRepository = accountRepository,
-                    categoryAndTagRepository = categoryAndTagRepository,
-                    settingsAndBackupRepository = settingsAndBackupRepository
-                ) as T
-            }
-        }
-    }
 }

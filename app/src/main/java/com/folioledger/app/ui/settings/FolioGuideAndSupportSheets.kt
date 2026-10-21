@@ -1,27 +1,19 @@
-// File: app/src/main/java/com/folioledger/app/ui/settings/FolioGuideAndSupportSheets.kt
 package com.folioledger.app.ui.settings
 
-import android.content.Intent
-import android.net.Uri
-import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -32,50 +24,35 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Calculate
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.LocalCafe
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.WorkspacePremium
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -87,28 +64,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.R
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
-
-const val FOLIO_SUPPORT_EMAIL = "support@folioledger.app"
-const val FOLIO_APP_VERSION = "v1.0.0"
 
 /**
  * Renders Folio's signature "Architectural Ledger 'F'" app icon
@@ -135,313 +101,6 @@ fun FolioBrandLogoBadge(
             contentDescription = "Folio App Icon",
             modifier = Modifier.matchParentSize()
         )
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun FolioBrandHeaderCard(
-    isSupporter: Boolean = false,
-    onOpenUserGuide: () -> Unit,
-    onOpenFeedback: () -> Unit,
-    onOpenTipJar: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val semanticColors = LocalFolioSemanticColors.current
-
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                FolioBrandLogoBadge(size = 62.dp)
-
-                Spacer(modifier = Modifier.width(14.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "Folio",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer
-                        ) {
-                            Text(
-                                text = FOLIO_APP_VERSION,
-                                style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                            )
-                        }
-
-                        if (isSupporter) {
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = semanticColors.warningAmberContainer
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Star,
-                                        contentDescription = null,
-                                        tint = semanticColors.warningAmber,
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(3.dp))
-                                    Text(
-                                        text = "Supporter",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = semanticColors.onWarningAmberContainer
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(3.dp))
-
-                    Text(
-                        text = "Precision Offline Personal Finance & Ledger",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            HorizontalDivider(color = semanticColors.cardStrokeSubtle)
-
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                BrandQuickActionPill(
-                    icon = Icons.Filled.MenuBook,
-                    label = "User Guide",
-                    tint = MaterialTheme.colorScheme.primary,
-                    onClick = onOpenUserGuide,
-                    modifier = Modifier.weight(1f)
-                )
-
-                BrandQuickActionPill(
-                    icon = Icons.Filled.Forum,
-                    label = "Feedback",
-                    tint = semanticColors.transferBlue,
-                    onClick = onOpenFeedback,
-                    modifier = Modifier.weight(1f)
-                )
-
-                BrandQuickActionPill(
-                    icon = Icons.Filled.Favorite,
-                    label = "Tip Jar",
-                    tint = semanticColors.expenseCoral,
-                    onClick = onOpenTipJar,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun BrandQuickActionPill(
-    icon: ImageVector,
-    label: String,
-    tint: Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val semanticColors = LocalFolioSemanticColors.current
-
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-@Composable
-fun HelpFeedbackAndSupportSectionCard(
-    isSupporter: Boolean = false,
-    onOpenUserGuide: () -> Unit,
-    onOpenFeedback: () -> Unit,
-    onOpenTipJar: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val semanticColors = LocalFolioSemanticColors.current
-
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.HelpOutline,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Help, Feedback & Support Folio",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            SupportActionRowItem(
-                icon = Icons.Filled.MenuBook,
-                iconTint = MaterialTheme.colorScheme.primary,
-                title = "User Guide, Tutorials & FAQs",
-                subtitle = "Learn how to use Accounts, Credit Card Cycles, Splits, Budgets & Backups",
-                onClick = onOpenUserGuide
-            )
-
-            SupportActionRowItem(
-                icon = Icons.Filled.Forum,
-                iconTint = semanticColors.transferBlue,
-                title = "Send Feedback or Report an Issue",
-                subtitle = "Share feature ideas, report bugs, or rate Folio on Google Play",
-                onClick = onOpenFeedback
-            )
-
-            SupportActionRowItem(
-                icon = Icons.Filled.Favorite,
-                iconTint = semanticColors.expenseCoral,
-                title = if (isSupporter) {
-                    "Tip Jar — Thank You for Supporting Folio! ★"
-                } else {
-                    "Tip Jar — Support Folio Development"
-                },
-                subtitle = "Folio is 100% free & ad-free. Support the developer with a voluntary tip",
-                onClick = onOpenTipJar
-            )
-        }
-    }
-}
-
-@Composable
-private fun SupportActionRowItem(
-    icon: ImageVector,
-    iconTint: Color,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    val semanticColors = LocalFolioSemanticColors.current
-
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(iconTint.copy(alpha = 0.14f))
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = iconTint,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
     }
 }
 
@@ -497,7 +156,7 @@ fun UserGuideBottomSheet(
                 category = GuideCategoryTab.GETTING_STARTED,
                 title = "2. The 5-View Home Ledger & Account Scoping",
                 summary = "Daily, Calendar, Weekly, Monthly & Summary views",
-                icon = Icons.Filled.MenuBook,
+                icon = Icons.AutoMirrored.Filled.MenuBook,
                 bulletPoints = listOf(
                     "Daily View: Chronological list grouped by date with daily Income and Expense subtotals.",
                     "Calendar View: Visual monthly grid showing daily cashflow. Tap any date cell to inspect that day's transactions or tap '+ Add on this date' to backdate an entry effortlessly.",
@@ -792,192 +451,6 @@ fun UserGuideBottomSheet(
             }
         }
     }
-}
-
-enum class FeedbackCategoryType(val label: String) {
-    FEATURE_REQUEST("Feature Request"),
-    BUG_REPORT("Bug Report"),
-    ACCOUNTING_QUESTION("Accounting Question"),
-    GENERAL_PRAISE("General Praise")
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun FeedbackComposerDialog(
-    onDismiss: () -> Unit,
-    onFeedbackResult: (String) -> Unit = {}
-) {
-    val context = LocalContext.current
-    val semanticColors = LocalFolioSemanticColors.current
-
-    var selectedType by rememberSaveable { mutableStateOf(FeedbackCategoryType.FEATURE_REQUEST) }
-    var messageText by rememberSaveable { mutableStateOf("") }
-    var includeDeviceInfo by rememberSaveable { mutableStateOf(true) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Filled.Forum,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Column {
-                    Text(
-                        text = "Send Feedback to Developer",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = FOLIO_SUPPORT_EMAIL,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        },
-        text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-            ) {
-                Text(
-                    text = "Feedback Topic",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    FeedbackCategoryType.entries.forEach { type ->
-                        FilterChip(
-                            selected = selectedType == type,
-                            onClick = { selectedType = type },
-                            label = { Text(type.label, style = MaterialTheme.typography.labelSmall) }
-                        )
-                    }
-                }
-
-                OutlinedTextField(
-                    value = messageText,
-                    onValueChange = { messageText = it },
-                    label = { Text("Your Message or Idea") },
-                    placeholder = {
-                        Text("Describe the feature you'd love to see, or steps to reproduce an issue...")
-                    },
-                    minLines = 4,
-                    maxLines = 7,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Include basic device & app version info",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "${Build.MANUFACTURER} ${Build.MODEL} • Android ${Build.VERSION.RELEASE} • Folio $FOLIO_APP_VERSION",
-                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = includeDeviceInfo,
-                        onCheckedChange = { includeDeviceInfo = it }
-                    )
-                }
-
-                HorizontalDivider(color = semanticColors.cardStrokeSubtle)
-
-                OutlinedButton(
-                    onClick = {
-                        val playIntent = Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse("market://details?id=${context.packageName}")
-                        )
-                        runCatching {
-                            context.startActivity(playIntent)
-                        }.onFailure {
-                            runCatching {
-                                context.startActivity(
-                                    Intent(
-                                        Intent.ACTION_VIEW,
-                                        Uri.parse("https://play.google.com/store/apps/details?id=${context.packageName}")
-                                    )
-                                )
-                            }
-                        }
-                        onDismiss()
-                    },
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Star,
-                        contentDescription = null,
-                        tint = semanticColors.warningAmber,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Rate Folio on Google Play")
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val subject = "[Folio $FOLIO_APP_VERSION] ${selectedType.label}"
-                    val diagnosticsBlock = if (includeDeviceInfo) {
-                        "\n\n---\nApp: Folio Ledger $FOLIO_APP_VERSION\nDevice: ${Build.MANUFACTURER} ${Build.MODEL}\nAndroid: ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"
-                    } else {
-                        ""
-                    }
-                    val fullBody = messageText.trim() + diagnosticsBlock
-
-                    val mailtoUri = Uri.parse(
-                        "mailto:$FOLIO_SUPPORT_EMAIL" +
-                                "?subject=${Uri.encode(subject)}" +
-                                "&body=${Uri.encode(fullBody)}"
-                    )
-                    val emailIntent = Intent(Intent.ACTION_SENDTO, mailtoUri)
-
-                    runCatching {
-                        context.startActivity(emailIntent)
-                        onFeedbackResult("Opened email app to send feedback")
-                        onDismiss()
-                    }.onFailure {
-                        onFeedbackResult("No email app found. Write to $FOLIO_SUPPORT_EMAIL")
-                        onDismiss()
-                    }
-                }
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Send via Email App")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
 }
 
 @Immutable

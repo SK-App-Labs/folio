@@ -9,7 +9,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -30,16 +29,15 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Warning
@@ -90,7 +88,6 @@ import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategorySpendStat
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.CurrencySpec
-import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SpendRankingItem
 import com.folioledger.app.domain.model.TransactionItem
@@ -116,7 +113,7 @@ import java.util.Locale
 fun StatsAndBudgetsScreen(
     viewModel: StatsAndBudgetsViewModel,
     contentPadding: PaddingValues = PaddingValues(0.dp),
-    onInspectTransaction: (TransactionItem) -> Unit = {}
+    onInspectTransaction: (TransactionItem) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -148,7 +145,7 @@ fun StatsAndBudgetsScreen(
                 onNextPeriod = viewModel::navigateToNextPeriod,
                 onPeriodTitleClick = {
                     if (uiState.periodGranularity == StatsPeriodGranularity.CUSTOM) {
-                        viewModel.setCustomDatePickerOpen(true)
+                        viewModel.setCustomDatePickerOpen(open = true)
                     } else {
                         viewModel.jumpToToday()
                     }
@@ -229,8 +226,7 @@ fun StatsAndBudgetsScreen(
         )
     }
 
-    val drillDown = uiState.drillDownState
-    if (drillDown != null) {
+    uiState.drillDownState?.let { drillDown ->
         CategoryDrillDownBottomSheet(
             drillDownState = drillDown,
             periodTitle = uiState.activePeriodRange.title,
@@ -260,7 +256,7 @@ fun StatsAndBudgetsScreen(
             onUpdateState = viewModel::updateBudgetEditorState,
             onSave = viewModel::saveBudgetFromDialog,
             onDelete = {
-                if (budgetEditor.isEditing && budgetEditor.budgetId > 0L) {
+                if ((budgetEditor.isEditing) && (budgetEditor.budgetId > 0L)) {
                     viewModel.deleteBudget(budgetEditor.budgetId)
                 }
             },
@@ -353,7 +349,6 @@ private fun StatsPeriodGranularityStrip(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CustomDateRangePickerDialog(
     initialStartEpochDay: Long,
@@ -1164,7 +1159,7 @@ private fun TagsAndNotesRankingsSubTabContent(
                         leadingIcon = {
                             Icon(
                                 imageVector = if (mode == RankingMode.TAGS) {
-                                    Icons.Filled.Label
+                                    Icons.AutoMirrored.Filled.Label
                                 } else {
                                     Icons.AutoMirrored.Filled.ReceiptLong
                                 },
@@ -1199,7 +1194,7 @@ private fun TagsAndNotesRankingsSubTabContent(
                         "Add Payee names or Notes to your transactions to see your top merchants and descriptions."
                     },
                     icon = if (uiState.selectedRankingMode == RankingMode.TAGS) {
-                        Icons.Filled.Label
+                        Icons.AutoMirrored.Filled.Label
                     } else {
                         Icons.AutoMirrored.Filled.ReceiptLong
                     }
@@ -1545,7 +1540,7 @@ private fun CategoryDrillDownBottomSheet(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BudgetEditorBottomSheet(
     state: BudgetEditorDialogState,

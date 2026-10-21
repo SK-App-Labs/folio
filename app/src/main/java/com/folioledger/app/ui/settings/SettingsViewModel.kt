@@ -3,7 +3,6 @@ package com.folioledger.app.ui.settings
 
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
@@ -339,7 +338,7 @@ class SettingsViewModel(
                     current.copy(
                         categoryEditorState = existing.copy(
                             name = newName,
-                            isSmartIconMatched = if (newName.isBlank()) false else existing.isSmartIconMatched,
+                            isSmartIconMatched = newName.isNotBlank() && existing.isSmartIconMatched,
                             validationError = null
                         )
                     )
@@ -365,16 +364,8 @@ class SettingsViewModel(
                     updated.colorHex != existing.colorHex
             current.copy(
                 categoryEditorState = updated.copy(
-                    isIconManuallyOverridden = if (iconOrColorChangedManually) {
-                        true
-                    } else {
-                        updated.isIconManuallyOverridden
-                    },
-                    isSmartIconMatched = if (iconOrColorChangedManually) {
-                        false
-                    } else {
-                        updated.isSmartIconMatched
-                    },
+                    isIconManuallyOverridden = iconOrColorChangedManually || updated.isIconManuallyOverridden,
+                    isSmartIconMatched = !iconOrColorChangedManually && updated.isSmartIconMatched,
                     validationError = null
                 )
             )
@@ -655,19 +646,4 @@ class SettingsViewModel(
         val tags: List<String>,
         val bookmarks: List<TransactionBookmark>
     )
-
-    companion object {
-        fun provideFactory(
-            settingsAndBackupRepository: SettingsAndBackupRepository,
-            categoryAndTagRepository: CategoryAndTagRepository
-        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return SettingsViewModel(
-                    settingsAndBackupRepository = settingsAndBackupRepository,
-                    categoryAndTagRepository = categoryAndTagRepository
-                ) as T
-            }
-        }
-    }
 }

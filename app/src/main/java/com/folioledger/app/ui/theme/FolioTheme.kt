@@ -14,7 +14,6 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
@@ -43,7 +42,7 @@ enum class FolioAccentPalette(
     val key: String,
     val displayName: String,
     val seedHex: String,
-    val previewColor: Color
+    val previewColor: Color,
 ) {
     EMERALD("EMERALD", "Emerald Ledger", "#059669", Color(0xFF059669)),
     INDIGO("INDIGO", "Royal Indigo", "#4F46E5", Color(0xFF4F46E5)),
@@ -77,7 +76,7 @@ data class FolioSemanticColors(
     val chartGridLine: Color,
     val cardStrokeSubtle: Color,
     val isDark: Boolean,
-    val isAmoled: Boolean
+    val isAmoled: Boolean,
 )
 
 val LightFolioSemanticColors = FolioSemanticColors(
@@ -98,7 +97,7 @@ val LightFolioSemanticColors = FolioSemanticColors(
     chartGridLine = Color(0xFFE2E8F0),
     cardStrokeSubtle = Color(0xFFE2E8F0),
     isDark = false,
-    isAmoled = false
+    isAmoled = false,
 )
 
 val DarkFolioSemanticColors = FolioSemanticColors(
@@ -119,13 +118,13 @@ val DarkFolioSemanticColors = FolioSemanticColors(
     chartGridLine = Color(0xFF1E293B),
     cardStrokeSubtle = Color(0xFF1E293B),
     isDark = true,
-    isAmoled = false
+    isAmoled = false,
 )
 
 val AmoledFolioSemanticColors = DarkFolioSemanticColors.copy(
     chartGridLine = Color(0xFF171717),
     cardStrokeSubtle = Color(0xFF1F1F1F),
-    isAmoled = true
+    isAmoled = true,
 )
 
 val LocalFolioSemanticColors = staticCompositionLocalOf { LightFolioSemanticColors }
@@ -165,7 +164,7 @@ private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
             surfaceContainerHigh = Color(0xFFE2E8F0),
             surfaceContainerHighest = Color(0xFFE2E8F0),
             outline = outline,
-            outlineVariant = outlineVariant
+            outlineVariant = outlineVariant,
         )
 
         FolioAccentPalette.INDIGO -> lightColorScheme(
@@ -193,7 +192,7 @@ private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
             surfaceContainerHigh = Color(0xFFE2E8F0),
             surfaceContainerHighest = Color(0xFFE2E8F0),
             outline = outline,
-            outlineVariant = outlineVariant
+            outlineVariant = outlineVariant,
         )
 
         FolioAccentPalette.AMBER -> lightColorScheme(
@@ -221,7 +220,7 @@ private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
             surfaceContainerHigh = Color(0xFFE2E8F0),
             surfaceContainerHighest = Color(0xFFE2E8F0),
             outline = outline,
-            outlineVariant = outlineVariant
+            outlineVariant = outlineVariant,
         )
 
         FolioAccentPalette.TEAL -> lightColorScheme(
@@ -312,7 +311,7 @@ private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
 
 private fun buildDarkSchemeForAccent(
     accent: FolioAccentPalette,
-    amoledPitchBlack: Boolean
+    amoledPitchBlack: Boolean,
 ): ColorScheme {
     val background = if (amoledPitchBlack) Color(0xFF000000) else Color(0xFF0B1120)
     val surface = if (amoledPitchBlack) Color(0xFF000000) else Color(0xFF0F172A)
@@ -355,7 +354,7 @@ private fun buildDarkSchemeForAccent(
             tertiary = Color(0xFF22D3EE),
             onTertiary = Color(0xFF083344),
             tertiaryContainer = Color(0xFF155E75),
-            onTertiaryContainer = Color(0xFFCFFAFE)
+            onTertiaryContainer = Color(0xFFCFFAFE),
         )
 
         FolioAccentPalette.AMBER -> darkColorScheme(
@@ -370,7 +369,7 @@ private fun buildDarkSchemeForAccent(
             tertiary = Color(0xFF34D399),
             onTertiary = Color(0xFF022C22),
             tertiaryContainer = Color(0xFF065F46),
-            onTertiaryContainer = Color(0xFFD1FAE5)
+            onTertiaryContainer = Color(0xFFD1FAE5),
         )
 
         FolioAccentPalette.TEAL -> darkColorScheme(
@@ -385,7 +384,7 @@ private fun buildDarkSchemeForAccent(
             tertiary = Color(0xFF818CF8),
             onTertiary = Color(0xFF1E1B4B),
             tertiaryContainer = Color(0xFF3730A3),
-            onTertiaryContainer = Color(0xFFE0E7FF)
+            onTertiaryContainer = Color(0xFFE0E7FF),
         )
 
         FolioAccentPalette.CRIMSON -> darkColorScheme(
@@ -400,7 +399,7 @@ private fun buildDarkSchemeForAccent(
             tertiary = Color(0xFF60A5FA),
             onTertiary = Color(0xFF172554),
             tertiaryContainer = Color(0xFF1D4ED8),
-            onTertiaryContainer = Color(0xFFDBEAFE)
+            onTertiaryContainer = Color(0xFFDBEAFE),
         )
 
         FolioAccentPalette.SLATE -> darkColorScheme(
@@ -415,7 +414,7 @@ private fun buildDarkSchemeForAccent(
             tertiary = Color(0xFF2DD4BF),
             onTertiary = Color(0xFF042F2E),
             tertiaryContainer = Color(0xFF115E59),
-            onTertiaryContainer = Color(0xFFCCFBF1)
+            onTertiaryContainer = Color(0xFFCCFBF1),
         )
     }
 
@@ -432,15 +431,12 @@ private fun buildDarkSchemeForAccent(
         surfaceContainerHigh = surfaceHigh,
         surfaceContainerHighest = surfaceHighest,
         outline = outline,
-        outlineVariant = outlineVariant
+        outlineVariant = outlineVariant,
     )
 }
 
 fun tabularMoneyStyle(baseStyle: TextStyle): TextStyle =
     baseStyle.copy(fontFeatureSettings = "tnum")
-
-fun TextStyle.withTabularNumerals(): TextStyle =
-    copy(fontFeatureSettings = "tnum")
 
 val FolioTypography = Typography(
     displaySmall = TextStyle(
@@ -449,7 +445,7 @@ val FolioTypography = Typography(
         fontSize = 34.sp,
         lineHeight = 40.sp,
         letterSpacing = (-0.5).sp,
-        fontFeatureSettings = "tnum"
+        fontFeatureSettings = "tnum",
     ),
     headlineLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
@@ -515,7 +511,7 @@ val FolioTypography = Typography(
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp,
         lineHeight = 16.sp,
-        fontFeatureSettings = "tnum"
+        fontFeatureSettings = "tnum",
     ),
     labelLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
@@ -523,7 +519,7 @@ val FolioTypography = Typography(
         fontSize = 13.sp,
         lineHeight = 18.sp,
         letterSpacing = 0.1.sp,
-        fontFeatureSettings = "tnum"
+        fontFeatureSettings = "tnum",
     ),
     labelMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
@@ -531,7 +527,7 @@ val FolioTypography = Typography(
         fontSize = 11.sp,
         lineHeight = 15.sp,
         letterSpacing = 0.2.sp,
-        fontFeatureSettings = "tnum"
+        fontFeatureSettings = "tnum",
     ),
     labelSmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
@@ -543,24 +539,14 @@ val FolioTypography = Typography(
     )
 )
 
-object FolioThemeDefaults {
-    val semanticColors: FolioSemanticColors
-        @Composable
-        @ReadOnlyComposable
-        get() = LocalFolioSemanticColors.current
-}
 
-val MaterialTheme.folioSemanticColors: FolioSemanticColors
-    @Composable
-    @ReadOnlyComposable
-    get() = LocalFolioSemanticColors.current
 
 @Composable
 fun FolioTheme(
     themeMode: String = "SYSTEM",
     accentPalette: String = "EMERALD",
     dynamicColorEnabled: Boolean = false,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val resolvedMode = FolioThemeMode.fromKey(themeMode)
     val resolvedAccent = FolioAccentPalette.fromKey(accentPalette)
@@ -577,7 +563,7 @@ fun FolioTheme(
     val context = LocalContext.current
 
     val baseColorScheme = when {
-        dynamicColorEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+        dynamicColorEnabled && (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) -> {
             if (useDarkTheme) {
                 val dynamicDark = dynamicDarkColorScheme(context)
                 if (isAmoled) {

@@ -8,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -37,7 +36,7 @@ import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardHide
-import androidx.compose.material.icons.filled.Label
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
@@ -143,7 +142,6 @@ fun TransactionEntrySheet(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun TransactionEntryFormContent(
     uiState: TransactionEntryUiState,
@@ -678,7 +676,7 @@ fun TransactionEntryFormContent(
                     onClick = { showNewTagDialog = true },
                     leadingIcon = {
                         Icon(
-                            imageVector = Icons.Filled.Label,
+                            imageVector = Icons.AutoMirrored.Filled.Label,
                             contentDescription = null,
                             modifier = Modifier.size(14.dp)
                         )
@@ -1029,7 +1027,6 @@ private fun SplitTransactionEditorCard(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun InstallmentPlanCard(
     uiState: TransactionEntryUiState,
@@ -1431,7 +1428,6 @@ private fun AccountPickerDialog(
     )
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CategoryTwoLevelPickerDialog(
     categories: List<CategoryNode>,

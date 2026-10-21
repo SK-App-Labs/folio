@@ -34,7 +34,6 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.folioledger.app.di.FolioViewModelFactory
-import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.ui.shell.FolioMainShell
 import com.folioledger.app.ui.theme.FolioTheme
 

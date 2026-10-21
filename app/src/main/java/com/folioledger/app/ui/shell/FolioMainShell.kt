@@ -5,10 +5,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -41,9 +41,9 @@ import com.folioledger.app.ui.theme.FolioTheme
 
 enum class FolioMainTab(
     val label: String,
-    val icon: ImageVector
+    val icon: ImageVector,
 ) {
-    TRANSACTIONS("Trans.", Icons.Default.ReceiptLong),
+    TRANSACTIONS("Trans.", Icons.AutoMirrored.Filled.ReceiptLong),
     STATS("Stats", Icons.Default.PieChart),
     ACCOUNTS("Accounts", Icons.Default.AccountBalanceWallet),
     SETTINGS("Settings", Icons.Default.Settings)
@@ -51,7 +51,7 @@ enum class FolioMainTab(
 
 @Composable
 fun FolioMainShell(
-    viewModelFactory: ViewModelProvider.Factory
+    viewModelFactory: ViewModelProvider.Factory,
 ) {
     val ledgerViewModel: LedgerHomeViewModel = viewModel(factory = viewModelFactory)
     val accountsViewModel: AccountsViewModel = viewModel(factory = viewModelFactory)

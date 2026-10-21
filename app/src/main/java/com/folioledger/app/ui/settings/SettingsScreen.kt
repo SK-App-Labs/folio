@@ -2,15 +2,12 @@
 package com.folioledger.app.ui.settings
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -32,35 +29,25 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.Label
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -88,7 +75,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -128,7 +114,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
-    contentPadding: PaddingValues = PaddingValues(0.dp)
+    contentPadding: PaddingValues = PaddingValues(0.dp),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -328,15 +314,14 @@ fun SettingsScreen(
         )
     }
 
-    val categoryEditor = uiState.categoryEditorState
-    if (categoryEditor != null) {
+    uiState.categoryEditorState?.let { categoryEditor ->
         CategoryEditorDialog(
             state = categoryEditor,
             onNameChange = viewModel::onCategoryNameInputChanged,
             onUpdateState = viewModel::updateCategoryEditorState,
             onSave = viewModel::saveCategoryFromDialog,
             onDelete = {
-                if (categoryEditor.isEditing && categoryEditor.categoryId > 0L) {
+                if ((categoryEditor.isEditing) && (categoryEditor.categoryId > 0L)) {
                     viewModel.deleteCategory(categoryEditor.categoryId, null)
                 }
             },
@@ -394,7 +379,6 @@ fun SettingsScreen(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AppearanceAndThemeSectionCard(
     themeMode: String,
@@ -552,7 +536,6 @@ private fun AppearanceAndThemeSectionCard(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun LedgerAndRegionalRulesSectionCard(
     currencySpec: CurrencySpec,
@@ -844,7 +827,7 @@ private fun CategoriesTagsBookmarksSectionCard(
             )
 
             SettingsNavigationRow(
-                icon = Icons.Filled.Label,
+                icon = Icons.AutoMirrored.Filled.Label,
                 title = "#Tag Manager",
                 subtitle = "$tagCount custom cross-category tags configured",
                 onClick = onOpenTagManager
@@ -1264,7 +1247,6 @@ private fun CurrencyPickerDialog(
     )
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MonthStartDayPickerDialog(
     selectedDay: Int,
@@ -1318,7 +1300,7 @@ private fun MonthStartDayPickerDialog(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CategoryManagerBottomSheet(
     uiState: SettingsUiState,
@@ -1533,7 +1515,6 @@ private fun CategoryManagerBottomSheet(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CategoryEditorDialog(
     state: CategoryEditorDialogState,

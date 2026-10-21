@@ -12,7 +12,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -33,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,10 +75,10 @@ private data class DonutSliceArc(
     val color: Color
 )
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun InteractiveCategoryDonutChart(
     stats: List<CategorySpendStat>,
+    modifier: Modifier = Modifier,
     currencySpec: CurrencySpec = SupportedCurrencies.INR,
     grouping: NumberGroupingSystem = currencySpec.defaultGrouping,
     selectedCategoryId: Long? = null,
@@ -86,14 +86,13 @@ fun InteractiveCategoryDonutChart(
     centerLabelWhenUnselected: String = "Total Spend",
     chartSize: Dp = 230.dp,
     strokeWidth: Dp = 32.dp,
-    showLegendChips: Boolean = true,
-    modifier: Modifier = Modifier
+    showLegendChips: Boolean = true
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     var internalSelectedId by rememberSaveable { mutableStateOf<Long?>(null) }
     val activeSelectedId = selectedCategoryId ?: internalSelectedId
 
-    var entryTarget by remember { mutableStateOf(0f) }
+    var entryTarget by remember { mutableFloatStateOf(0f) }
     LaunchedEffect(stats) {
         entryTarget = 1f
     }
@@ -381,11 +380,11 @@ fun InteractiveCategoryDonutChart(
 @Composable
 fun SixMonthTrendBarChart(
     bars: List<MonthlyTrendBar>,
+    modifier: Modifier = Modifier,
     currencySpec: CurrencySpec = SupportedCurrencies.INR,
     grouping: NumberGroupingSystem = currencySpec.defaultGrouping,
     initialNetMode: Boolean = false,
-    chartHeight: Dp = 200.dp,
-    modifier: Modifier = Modifier
+    chartHeight: Dp = 200.dp
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     var showNetMode by rememberSaveable { mutableStateOf(initialNetMode) }
@@ -393,7 +392,7 @@ fun SixMonthTrendBarChart(
         mutableIntStateOf(if (bars.isNotEmpty()) bars.lastIndex else -1)
     }
 
-    var entryTarget by remember { mutableStateOf(0f) }
+    var entryTarget by remember { mutableFloatStateOf(0f) }
     LaunchedEffect(bars, showNetMode) {
         entryTarget = 0f
         entryTarget = 1f

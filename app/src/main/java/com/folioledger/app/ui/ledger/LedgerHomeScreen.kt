@@ -1,8 +1,5 @@
-// File: app/src/main/java/com/folioledger/app/ui/ledger/LedgerHomeScreen.kt
 package com.folioledger.app.ui.ledger
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -10,7 +7,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -257,7 +253,7 @@ fun LedgerHomeScreen(
                             uiState = uiState,
                             onExportCsvClick = {
                                 val sanitizedTitle = uiState.activePeriodRange.title.replace(' ', '_')
-                                viewModel.exportActivePeriodToCsv("Folio_${uiState.activePeriodRange.title.replace(" ", "_")}.csv")
+                                viewModel.exportActivePeriodToCsv("Folio_$sanitizedTitle.csv")
                             }
                         )
                     }
@@ -1791,7 +1787,7 @@ private fun SummaryMetricRow(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TransactionDetailActionSheet(
     transaction: TransactionItem,
@@ -2008,7 +2004,7 @@ private fun TransactionDetailActionSheet(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ReinforcedSearchFilterBottomSheet(
     uiState: LedgerHomeUiState,

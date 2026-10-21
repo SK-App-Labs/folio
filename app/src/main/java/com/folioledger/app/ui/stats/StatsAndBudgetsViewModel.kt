@@ -3,7 +3,6 @@ package com.folioledger.app.ui.stats
 
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.folioledger.app.domain.model.BudgetProgress
 import com.folioledger.app.domain.model.CategoryNode
@@ -353,9 +352,9 @@ private data class PeriodAnalyticsBundle(
 @OptIn(ExperimentalCoroutinesApi::class)
 class StatsAndBudgetsViewModel(
     private val analyticsAndBudgetRepository: AnalyticsAndBudgetRepository,
-    private val categoryAndTagRepository: CategoryAndTagRepository,
-    private val transactionRepository: TransactionRepository,
-    private val settingsAndBackupRepository: SettingsAndBackupRepository
+    categoryAndTagRepository: CategoryAndTagRepository,
+    transactionRepository: TransactionRepository,
+    settingsAndBackupRepository: SettingsAndBackupRepository
 ) : ViewModel() {
 
     private val controlState = MutableStateFlow(StatsInternalControlState())
@@ -958,17 +957,15 @@ class StatsAndBudgetsViewModel(
         tree: List<CategoryNode>,
         targetCategoryId: Long
     ): Set<Long> {
-        for (parent in tree) {
-            if (parent.id == targetCategoryId) {
+        for ((id, _, _, _, _, _, subcategories) in tree) {
+            if (id == targetCategoryId) {
                 return buildSet {
-                    add(parent.id)
-                    parent.subcategories.forEach { add(it.id) }
+                    add(id)
+                    subcategories.forEach { add(it.id) }
                 }
             }
-            for (sub in parent.subcategories) {
-                if (sub.id == targetCategoryId) {
-                    return setOf(sub.id)
-                }
+            if (subcategories.any { it.id == targetCategoryId }) {
+                return setOf(targetCategoryId)
             }
         }
         return setOf(targetCategoryId)
@@ -978,9 +975,8 @@ class StatsAndBudgetsViewModel(
         if (categoryId == null) return null
         for (parent in tree) {
             if (parent.id == categoryId) return parent
-            for (sub in parent.subcategories) {
-                if (sub.id == categoryId) return sub
-            }
+            val matchingSub = parent.subcategories.firstOrNull { it.id == categoryId }
+            if (matchingSub != null) return matchingSub
         }
         return null
     }
@@ -1002,25 +998,6 @@ class StatsAndBudgetsViewModel(
             formatted.trimEnd('0').trimEnd('.')
         } else {
             formatted
-        }
-    }
-
-    companion object {
-        fun provideFactory(
-            analyticsAndBudgetRepository: AnalyticsAndBudgetRepository,
-            categoryAndTagRepository: CategoryAndTagRepository,
-            transactionRepository: TransactionRepository,
-            settingsAndBackupRepository: SettingsAndBackupRepository
-        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return StatsAndBudgetsViewModel(
-                    analyticsAndBudgetRepository = analyticsAndBudgetRepository,
-                    categoryAndTagRepository = categoryAndTagRepository,
-                    transactionRepository = transactionRepository,
-                    settingsAndBackupRepository = settingsAndBackupRepository
-                ) as T
-            }
         }
     }
 }

@@ -10,7 +10,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
@@ -954,7 +953,7 @@ private fun CreditCardAccountRow(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AccountPassbookBottomSheet(
     passbook: AccountPassbookUiModel,
@@ -1116,7 +1115,7 @@ private fun AccountPassbookBottomSheet(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "+ Add Transaction",
+                                text = "Add Transaction",
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold
                             )
@@ -1373,8 +1372,8 @@ private fun PassbookSummaryMetricCell(
     colorMode: MoneyColorMode,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    showPlusSign: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showPlusSign: Boolean = false
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1800,7 +1799,7 @@ private fun CreditCardStatementBreakdownCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AccountEditorBottomSheet(
     state: AccountEditorDialogState,
@@ -2309,7 +2308,6 @@ private fun AccountEditorBottomSheet(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DayOfMonthPickerDialog(
     title: String,
@@ -2365,7 +2363,7 @@ private fun DayOfMonthPickerDialog(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CreditCardSettlementBottomSheet(
     state: CreditCardSettlementSheetState,
