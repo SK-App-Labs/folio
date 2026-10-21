@@ -13,6 +13,9 @@ import com.folioledger.app.domain.model.NetWorthOverview
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
+import com.folioledger.app.domain.model.TransactionSearchFilter
+import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.repository.AccountRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
@@ -20,6 +23,7 @@ import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,6 +69,9 @@ data class CreditCardCycleWindow(
 
     val activeCycleRangeFullText: String
         get() = "${activeCycleStart.format(fullFormatter)} – ${activeCycleEnd.format(fullFormatter)}"
+
+    val activeCycleNextDueFullText: String
+        get() = activeCycleNextDueDate.format(fullFormatter)
 }
 
 object CreditCardCycleCalculator {
@@ -140,6 +147,121 @@ object CreditCardCycleCalculator {
 }
 
 @Immutable
+data class PassbookPeriodRange(
+    val startEpochDay: Long,
+    val endEpochDay: Long,
+    val periodTitle: String,
+    val periodSubtitle: String
+)
+
+private object AccountingRulesEngine {
+
+    private val shortMonthYearFormatter = DateTimeFormatter.ofPattern("MMM yyyy", Locale.US)
+    private val shortDayMonthFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
+    private val fullDayMonthYearFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
+
+    private fun resolveClampedDate(yearMonth: YearMonth, desiredDayOfMonth: Int): LocalDate {
+        val safeDay = desiredDayOfMonth.coerceIn(1, 31)
+        val clampedDay = minOf(safeDay, yearMonth.lengthOfMonth())
+        return yearMonth.atDay(clampedDay)
+    }
+
+    fun computeFinancialMonthRange(
+        referenceDateEpochDay: Long,
+        monthStartDay: Int
+    ): PassbookPeriodRange {
+        val safeStartDay = monthStartDay.coerceIn(1, 31)
+        val refDate = LocalDate.ofEpochDay(referenceDateEpochDay)
+        val refYearMonth = YearMonth.from(refDate)
+
+        val startDate: LocalDate
+        val endDate: LocalDate
+
+        if (safeStartDay == 1) {
+            startDate = refYearMonth.atDay(1)
+            endDate = refYearMonth.atEndOfMonth()
+        } else {
+            val startInRefMonth = resolveClampedDate(refYearMonth, safeStartDay)
+            if (!refDate.isBefore(startInRefMonth)) {
+                startDate = startInRefMonth
+                val nextMonthStart = resolveClampedDate(refYearMonth.plusMonths(1), safeStartDay)
+                endDate = nextMonthStart.minusDays(1)
+            } else {
+                startDate = resolveClampedDate(refYearMonth.minusMonths(1), safeStartDay)
+                endDate = startInRefMonth.minusDays(1)
+            }
+        }
+
+        val periodTitle = startDate.format(shortMonthYearFormatter)
+        val periodSubtitle = "${startDate.format(shortDayMonthFormatter)} – ${endDate.format(fullDayMonthYearFormatter)}"
+
+        return PassbookPeriodRange(
+            startEpochDay = startDate.toEpochDay(),
+            endEpochDay = endDate.toEpochDay(),
+            periodTitle = periodTitle,
+            periodSubtitle = periodSubtitle
+        )
+    }
+
+    fun stepFinancialMonth(
+        currentReferenceEpochDay: Long,
+        monthStartDay: Int,
+        deltaMonths: Int
+    ): Long {
+        if (deltaMonths == 0) return currentReferenceEpochDay
+        val safeStartDay = monthStartDay.coerceIn(1, 31)
+        val currentRange = computeFinancialMonthRange(currentReferenceEpochDay, safeStartDay)
+        val startLocalDate = LocalDate.ofEpochDay(currentRange.startEpochDay)
+        val targetYearMonth = YearMonth.from(startLocalDate).plusMonths(deltaMonths.toLong())
+        return resolveClampedDate(targetYearMonth, safeStartDay).toEpochDay()
+    }
+}
+
+@Immutable
+data class AccountPassbookEntryUiModel(
+    val transaction: TransactionItem,
+    val signedDelta: MinorMoney,
+    val isInflow: Boolean,
+    val runningBalanceAfter: MinorMoney,
+    val viaLinkedDebitCardName: String? = null
+)
+
+@Immutable
+data class AccountPassbookDayGroup(
+    val epochDay: Long,
+    val dateHeaderTitle: String,
+    val dayOfMonthText: String,
+    val dayOfWeekText: String,
+    val monthYearText: String,
+    val isToday: Boolean,
+    val dayInflowTotal: MinorMoney,
+    val dayOutflowTotal: MinorMoney,
+    val dayEndRunningBalance: MinorMoney,
+    val entries: List<AccountPassbookEntryUiModel>
+)
+
+@Immutable
+data class AccountPassbookUiModel(
+    val account: AccountSummary,
+    val parentBankAccount: AccountSummary? = null,
+    val linkedDebitCards: List<AccountSummary> = emptyList(),
+    val monthOffset: Int = 0,
+    val startEpochDay: Long = 0L,
+    val endEpochDay: Long = 0L,
+    val periodTitle: String = "",
+    val periodSubtitle: String = "",
+    val currentLiveBalance: MinorMoney = MinorMoney.ZERO,
+    val periodOpeningBalance: MinorMoney = MinorMoney.ZERO,
+    val periodInflows: MinorMoney = MinorMoney.ZERO,
+    val periodOutflows: MinorMoney = MinorMoney.ZERO,
+    val periodNetFlow: MinorMoney = MinorMoney.ZERO,
+    val periodClosingBalance: MinorMoney = MinorMoney.ZERO,
+    val totalPeriodTransactionCount: Int = 0,
+    val dayGroups: List<AccountPassbookDayGroup> = emptyList(),
+    val entries: List<AccountPassbookEntryUiModel> = emptyList()
+)
+
+@Immutable
 data class AccountEditorDialogState(
     val isEditing: Boolean = false,
     val accountId: Long = 0L,
@@ -191,6 +313,8 @@ data class AccountsUiState(
     val recentTransactionsForSelectedAccount: List<TransactionItem> = emptyList(),
     val inspectedAccountId: Long? = null,
     val inspectedAccount: AccountSummary? = null,
+    val passbookMonthOffset: Int = 0,
+    val accountPassbook: AccountPassbookUiModel? = null,
     val currencySpec: CurrencySpec = SupportedCurrencies.INR,
     val numberGrouping: NumberGroupingSystem = NumberGroupingSystem.INDIAN,
     val referenceDateEpochDay: Long = LocalDate.now().toEpochDay(),
@@ -207,10 +331,18 @@ private data class AccountsInternalControlState(
     val showArchivedAccounts: Boolean = false,
     val collapsedGroups: Set<AccountGroup> = emptySet(),
     val inspectedAccountId: Long? = null,
+    val passbookMonthOffset: Int = 0,
     val editorDialogState: AccountEditorDialogState? = null,
     val settlementSheetState: CreditCardSettlementSheetState? = null,
     val isSaving: Boolean = false,
     val snackbarMessage: String? = null
+)
+
+private data class ChronologicalPassbookItem(
+    val transaction: TransactionItem,
+    val deltaMinor: Long,
+    val runningBalanceAfterMinor: Long,
+    val viaLinkedDebitCardName: String?
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -232,23 +364,16 @@ class AccountsViewModel(
             accountRepository.observeAllAccounts(state.referenceDateEpochDay)
         }
 
-    private val inspectedAccountTransactionsFlow = controlState
-        .flatMapLatest { state ->
-            val accountId = state.inspectedAccountId
-            if (accountId != null && accountId > 0L) {
-                transactionRepository.observeTransactionsForAccount(accountId)
-            } else {
-                MutableStateFlow(emptyList())
-            }
-        }
+    private val allTransactionsFlow = transactionRepository
+        .searchAndFilterTransactions(TransactionSearchFilter())
 
     val uiState: StateFlow<AccountsUiState> = combine(
         netWorthFlow,
         allAccountsFlow,
         settingsAndBackupRepository.observeUserPreferences(),
-        inspectedAccountTransactionsFlow,
+        allTransactionsFlow,
         controlState
-    ) { netWorth, allAccounts, prefs, accountTransactions, ctrl ->
+    ) { netWorth, allAccounts, prefs, allTransactions, ctrl ->
         val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
         val visibleAccounts = if (ctrl.showArchivedAccounts) {
             allAccounts
@@ -276,23 +401,35 @@ class AccountsViewModel(
                     )
         }
 
-        val sortedAccountTransactions = accountTransactions.sortedWith(
-            compareByDescending<TransactionItem> { it.ledgerDateEpochDay }
-                .thenByDescending { it.timestampEpochMillis }
-        )
-
         val inspectedAccount = ctrl.inspectedAccountId?.let { targetId ->
             allAccounts.firstOrNull { it.id == targetId }
         }
+
+        val passbookModel = if (inspectedAccount != null) {
+            buildAccountPassbookUiModel(
+                inspectedAccount = inspectedAccount,
+                allAccounts = allAccounts,
+                allTransactions = allTransactions,
+                prefs = prefs,
+                referenceDateEpochDay = ctrl.referenceDateEpochDay,
+                passbookMonthOffset = ctrl.passbookMonthOffset
+            )
+        } else {
+            null
+        }
+
+        val periodTxnsNewestFirst = passbookModel?.entries?.map { it.transaction }.orEmpty()
 
         AccountsUiState(
             netWorthOverview = resolvedOverview,
             allAccounts = allAccounts,
             assetAccountsForSettlement = assetAccounts,
             parentBankCandidates = bankCandidates,
-            recentTransactionsForSelectedAccount = sortedAccountTransactions,
+            recentTransactionsForSelectedAccount = periodTxnsNewestFirst,
             inspectedAccountId = ctrl.inspectedAccountId,
             inspectedAccount = inspectedAccount,
+            passbookMonthOffset = ctrl.passbookMonthOffset,
+            accountPassbook = passbookModel,
             currencySpec = currencySpec,
             numberGrouping = prefs.numberGrouping,
             referenceDateEpochDay = ctrl.referenceDateEpochDay,
@@ -308,6 +445,221 @@ class AccountsViewModel(
         started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = AccountsUiState()
     )
+
+    private fun buildAccountPassbookUiModel(
+        inspectedAccount: AccountSummary,
+        allAccounts: List<AccountSummary>,
+        allTransactions: List<TransactionItem>,
+        prefs: UserPreferences,
+        referenceDateEpochDay: Long,
+        passbookMonthOffset: Int
+    ): AccountPassbookUiModel {
+        val safeMonthStartDay = prefs.monthStartDay.coerceIn(1, 31)
+        val targetRefEpochDay = AccountingRulesEngine.stepFinancialMonth(
+            currentReferenceEpochDay = referenceDateEpochDay,
+            monthStartDay = safeMonthStartDay,
+            deltaMonths = passbookMonthOffset
+        )
+        val periodRange = AccountingRulesEngine.computeFinancialMonthRange(
+            referenceDateEpochDay = targetRefEpochDay,
+            monthStartDay = safeMonthStartDay
+        )
+
+        val parentBankAccount = if (inspectedAccount.groupType == AccountGroup.DEBIT_CARD) {
+            inspectedAccount.parentAccountId?.let { parentId ->
+                allAccounts.firstOrNull { it.id == parentId }
+            }
+        } else {
+            null
+        }
+
+        val childDebitCards = if (inspectedAccount.groupType != AccountGroup.DEBIT_CARD) {
+            allAccounts.filter { candidate ->
+                candidate.groupType == AccountGroup.DEBIT_CARD &&
+                        candidate.parentAccountId == inspectedAccount.id
+            }
+        } else {
+            emptyList()
+        }
+        val childDebitCardById = childDebitCards.associateBy { it.id }
+
+        val effectiveAccountIds: Set<Long> = buildSet {
+            add(inspectedAccount.id)
+            childDebitCards.forEach { add(it.id) }
+        }
+
+        val matchingChronological = allTransactions
+            .filter { tx ->
+                tx.accountId in effectiveAccountIds ||
+                        (tx.transferToAccountId != null && tx.transferToAccountId in effectiveAccountIds)
+            }
+            .sortedWith(
+                compareBy<TransactionItem> { it.ledgerDateEpochDay }
+                    .thenBy { it.timestampEpochMillis }
+                    .thenBy { it.id }
+            )
+
+        val deltasWithTx: List<Pair<TransactionItem, Long>> = matchingChronological.map { tx ->
+            val deltaMinor = computeSignedDeltaMinorForAccount(
+                tx = tx,
+                effectiveAccountIds = effectiveAccountIds
+            )
+            tx to deltaMinor
+        }
+
+        val todayEpochDay = LocalDate.now().toEpochDay()
+        val netDeltaUpToToday: Long = deltasWithTx
+            .filter { (tx, _) -> tx.ledgerDateEpochDay <= todayEpochDay }
+            .fold(0L) { sum, (_, delta) -> sum + delta }
+
+        val anchorLiveBalanceMinor: Long = if (inspectedAccount.groupType == AccountGroup.DEBIT_CARD) {
+            parentBankAccount?.currentBalance?.amountMinor ?: 0L
+        } else {
+            inspectedAccount.currentBalance.amountMinor
+        }
+
+        val initialOpeningBalanceMinor: Long = anchorLiveBalanceMinor - netDeltaUpToToday
+
+        var runningBalanceMinor = initialOpeningBalanceMinor
+        var periodOpeningBalanceMinor = initialOpeningBalanceMinor
+        var periodInflowsMinor = 0L
+        var periodOutflowsMinor = 0L
+
+        val periodChronologicalItems = mutableListOf<ChronologicalPassbookItem>()
+
+        for ((tx, deltaMinor) in deltasWithTx) {
+            if (tx.ledgerDateEpochDay < periodRange.startEpochDay) {
+                runningBalanceMinor += deltaMinor
+                periodOpeningBalanceMinor = runningBalanceMinor
+            } else if (tx.ledgerDateEpochDay in periodRange.startEpochDay..periodRange.endEpochDay) {
+                runningBalanceMinor += deltaMinor
+                if (deltaMinor > 0L) {
+                    periodInflowsMinor += deltaMinor
+                } else if (deltaMinor < 0L) {
+                    periodOutflowsMinor += (-deltaMinor)
+                }
+                val viaCardName = if (
+                    inspectedAccount.groupType != AccountGroup.DEBIT_CARD &&
+                    tx.accountId in childDebitCardById
+                ) {
+                    childDebitCardById[tx.accountId]?.name
+                } else {
+                    null
+                }
+                periodChronologicalItems.add(
+                    ChronologicalPassbookItem(
+                        transaction = tx,
+                        deltaMinor = deltaMinor,
+                        runningBalanceAfterMinor = runningBalanceMinor,
+                        viaLinkedDebitCardName = viaCardName
+                    )
+                )
+            } else {
+                runningBalanceMinor += deltaMinor
+            }
+        }
+
+        val periodClosingBalanceMinor = periodOpeningBalanceMinor + periodInflowsMinor - periodOutflowsMinor
+
+        val periodEntriesNewestFirst = periodChronologicalItems
+            .asReversed()
+            .map { item ->
+                AccountPassbookEntryUiModel(
+                    transaction = item.transaction,
+                    signedDelta = MinorMoney(item.deltaMinor),
+                    isInflow = item.deltaMinor >= 0L,
+                    runningBalanceAfter = MinorMoney(item.runningBalanceAfterMinor),
+                    viaLinkedDebitCardName = item.viaLinkedDebitCardName
+                )
+            }
+
+        val fullDateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy (EEE)", Locale.US)
+        val monthYearFormatter = DateTimeFormatter.ofPattern("MMM yyyy", Locale.US)
+
+        val dayGroups = periodEntriesNewestFirst
+            .groupBy { it.transaction.ledgerDateEpochDay }
+            .entries
+            .sortedByDescending { it.key }
+            .map { (epochDay, dayEntriesNewestFirst) ->
+                val date = LocalDate.ofEpochDay(epochDay)
+                var dayInflow = 0L
+                var dayOutflow = 0L
+                for (entry in dayEntriesNewestFirst) {
+                    val d = entry.signedDelta.amountMinor
+                    if (d > 0L) {
+                        dayInflow += d
+                    } else if (d < 0L) {
+                        dayOutflow += (-d)
+                    }
+                }
+                val dayEndBalance = dayEntriesNewestFirst.first().runningBalanceAfter
+                val headerTitle = when (epochDay) {
+                    todayEpochDay -> "Today, ${date.format(fullDateFormatter)}"
+                    todayEpochDay - 1L -> "Yesterday, ${date.format(fullDateFormatter)}"
+                    else -> date.format(fullDateFormatter)
+                }
+
+                AccountPassbookDayGroup(
+                    epochDay = epochDay,
+                    dateHeaderTitle = headerTitle,
+                    dayOfMonthText = String.format(Locale.US, "%02d", date.dayOfMonth),
+                    dayOfWeekText = date.dayOfWeek
+                        .getDisplayName(JavaTextStyle.SHORT, Locale.US)
+                        .uppercase(Locale.US),
+                    monthYearText = date.format(monthYearFormatter),
+                    isToday = epochDay == todayEpochDay,
+                    dayInflowTotal = MinorMoney(dayInflow),
+                    dayOutflowTotal = MinorMoney(dayOutflow),
+                    dayEndRunningBalance = dayEndBalance,
+                    entries = dayEntriesNewestFirst
+                )
+            }
+
+        return AccountPassbookUiModel(
+            account = inspectedAccount,
+            parentBankAccount = parentBankAccount,
+            linkedDebitCards = childDebitCards,
+            monthOffset = passbookMonthOffset,
+            startEpochDay = periodRange.startEpochDay,
+            endEpochDay = periodRange.endEpochDay,
+            periodTitle = periodRange.periodTitle,
+            periodSubtitle = periodRange.periodSubtitle,
+            currentLiveBalance = MinorMoney(anchorLiveBalanceMinor),
+            periodOpeningBalance = MinorMoney(periodOpeningBalanceMinor),
+            periodInflows = MinorMoney(periodInflowsMinor),
+            periodOutflows = MinorMoney(periodOutflowsMinor),
+            periodNetFlow = MinorMoney(periodInflowsMinor - periodOutflowsMinor),
+            periodClosingBalance = MinorMoney(periodClosingBalanceMinor),
+            totalPeriodTransactionCount = periodEntriesNewestFirst.size,
+            dayGroups = dayGroups,
+            entries = periodEntriesNewestFirst
+        )
+    }
+
+    private fun computeSignedDeltaMinorForAccount(
+        tx: TransactionItem,
+        effectiveAccountIds: Set<Long>
+    ): Long {
+        val amt = tx.amount.amountMinor.coerceAtLeast(0L)
+        val fee = tx.transferFee.amountMinor.coerceAtLeast(0L)
+        val isSource = tx.accountId in effectiveAccountIds
+        val isTarget = tx.transferToAccountId != null && tx.transferToAccountId in effectiveAccountIds
+
+        return when (tx.type) {
+            TransactionType.INCOME,
+            TransactionType.REFUND -> if (isSource) amt else 0L
+
+            TransactionType.EXPENSE -> if (isSource) -(amt + fee) else 0L
+
+            TransactionType.TRANSFER,
+            TransactionType.CC_SETTLEMENT -> when {
+                isSource && isTarget -> -fee
+                isSource -> -(amt + fee)
+                isTarget -> amt
+                else -> 0L
+            }
+        }
+    }
 
     fun toggleGroupCollapsed(group: AccountGroup) {
         controlState.update { current ->
@@ -327,11 +679,33 @@ class AccountsViewModel(
     }
 
     fun selectAccountForInspection(accountId: Long?) {
-        controlState.update { it.copy(inspectedAccountId = accountId) }
+        controlState.update {
+            it.copy(
+                inspectedAccountId = accountId,
+                passbookMonthOffset = 0
+            )
+        }
     }
 
     fun dismissInspectedAccountSheet() {
-        controlState.update { it.copy(inspectedAccountId = null) }
+        controlState.update {
+            it.copy(
+                inspectedAccountId = null,
+                passbookMonthOffset = 0
+            )
+        }
+    }
+
+    fun stepPassbookMonth(deltaMonths: Int) {
+        controlState.update { current ->
+            current.copy(passbookMonthOffset = current.passbookMonthOffset + deltaMonths)
+        }
+    }
+
+    fun resetPassbookToCurrentMonth() {
+        controlState.update { current ->
+            current.copy(passbookMonthOffset = 0)
+        }
     }
 
     fun clearSnackbarMessage() {

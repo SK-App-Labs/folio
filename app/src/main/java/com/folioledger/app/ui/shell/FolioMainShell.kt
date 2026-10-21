@@ -60,6 +60,7 @@ fun FolioMainShell(
     val settingsViewModel: SettingsViewModel = viewModel(factory = viewModelFactory)
 
     val ledgerUiState by ledgerViewModel.uiState.collectAsStateWithLifecycle()
+    val accountsUiState by accountsViewModel.uiState.collectAsStateWithLifecycle()
     val prefs = ledgerUiState.userPreferences
 
     var selectedTab by rememberSaveable { mutableStateOf(FolioMainTab.TRANSACTIONS) }
@@ -78,7 +79,13 @@ fun FolioMainShell(
                     FolioMainTab.entries.forEach { tab ->
                         NavigationBarItem(
                             selected = selectedTab == tab,
-                            onClick = { selectedTab = tab },
+                            onClick = {
+                                if (selectedTab == FolioMainTab.ACCOUNTS && tab == FolioMainTab.ACCOUNTS) {
+                                    // Tapping Accounts tab icon again returns to main accounts list
+                                    accountsViewModel.selectAccountForInspection(null)
+                                }
+                                selectedTab = tab
+                            },
                             icon = {
                                 Icon(
                                     imageVector = tab.icon,
@@ -93,9 +100,14 @@ fun FolioMainShell(
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = {
-                        // Uses remembered lastUsedLedgerDateEpochDay (Issue #6) and preselects scopedAccountId if active
+                        // If user is currently inside an Account Passbook in the Accounts tab, pre-select that account!
+                        val activeAccountId = if (selectedTab == FolioMainTab.ACCOUNTS) {
+                            accountsUiState.inspectedAccountId
+                        } else {
+                            ledgerUiState.scopedAccountId
+                        }
                         entryViewModel.resetForNewTransaction(
-                            preselectedAccountId = ledgerUiState.scopedAccountId,
+                            preselectedAccountId = activeAccountId,
                             initialEpochDay = null
                         )
                         isEntrySheetOpen = true
@@ -157,9 +169,18 @@ fun FolioMainShell(
                         viewModel = accountsViewModel,
                         contentPadding = screenContentPadding,
                         onAccountClick = { account ->
-                            // Issue #3: Selecting an account switches to the Trans. tab scoped to that account
-                            ledgerViewModel.setScopedAccount(account.id)
-                            selectedTab = FolioMainTab.TRANSACTIONS
+                            accountsViewModel.selectAccountForInspection(account.id)
+                        },
+                        onAddTransactionForAccount = { account ->
+                            entryViewModel.resetForNewTransaction(
+                                preselectedAccountId = account.id,
+                                initialEpochDay = null
+                            )
+                            isEntrySheetOpen = true
+                        },
+                        onEditTransaction = { transaction ->
+                            entryViewModel.loadTransactionItemForEdit(transaction)
+                            isEntrySheetOpen = true
                         }
                     )
                 }
