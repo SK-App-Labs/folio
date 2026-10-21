@@ -36,7 +36,7 @@ data class InstallmentPreviewItem(
     val installmentIndex: Int,
     val totalInstallments: Int,
     val dueDateEpochDay: Long,
-    val amount: MinorMoney
+    val amount: MinorMoney,
 )
 
 @Immutable
@@ -193,6 +193,7 @@ data class TransactionEntryUiState(
     val bookmarks: List<TransactionBookmark> = emptyList(),
     val currencySpec: CurrencySpec = SupportedCurrencies.INR,
     val numberGrouping: NumberGroupingSystem = NumberGroupingSystem.INDIAN,
+    val subcategoriesEnabled: Boolean = true,
     val isKeypadVisible: Boolean = true,
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
@@ -363,6 +364,7 @@ class TransactionEntryViewModel(
             bookmarks = refs.bookmarks,
             currencySpec = currencySpec,
             numberGrouping = prefs.numberGrouping,
+            subcategoriesEnabled = prefs.subcategoriesEnabled,
             isKeypadVisible = form.isKeypadVisible,
             isSaving = form.isSaving,
             errorMessage = form.errorMessage,

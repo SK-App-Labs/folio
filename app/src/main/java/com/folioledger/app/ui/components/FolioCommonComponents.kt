@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -518,6 +519,7 @@ fun PeriodSelectorHeader(
     onFilterClick: (() -> Unit)? = null,
     activeFilterCount: Int = 0,
     onBookmarksClick: (() -> Unit)? = null,
+    trailingContent: (@Composable () -> Unit)? = null,
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
@@ -529,7 +531,8 @@ fun PeriodSelectorHeader(
             horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 4.dp)
+                .heightIn(min = 56.dp)
+                .padding(horizontal = 6.dp, vertical = 2.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -603,6 +606,8 @@ fun PeriodSelectorHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.End
             ) {
+                trailingContent?.invoke()
+
                 onBookmarksClick?.let { onClick ->
                     IconButton(
                         onClick = onClick,

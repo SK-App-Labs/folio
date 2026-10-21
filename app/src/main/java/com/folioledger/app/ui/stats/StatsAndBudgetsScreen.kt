@@ -34,6 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
@@ -47,6 +48,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DateRangePicker
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
@@ -73,7 +76,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -88,6 +93,7 @@ import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategorySpendStat
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.CurrencySpec
+import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SpendRankingItem
 import com.folioledger.app.domain.model.TransactionItem
@@ -149,13 +155,14 @@ fun StatsAndBudgetsScreen(
                     } else {
                         viewModel.jumpToToday()
                     }
+                },
+                trailingContent = {
+                    StatsPeriodGranularityDropdownChip(
+                        selectedGranularity = uiState.periodGranularity,
+                        onSelectGranularity = viewModel::selectPeriodGranularity,
+                        onOpenCustomDatePicker = { viewModel.setCustomDatePickerOpen(true) }
+                    )
                 }
-            )
-
-            StatsPeriodGranularityStrip(
-                selectedGranularity = uiState.periodGranularity,
-                onSelectGranularity = viewModel::selectPeriodGranularity,
-                onOpenCustomDatePicker = { viewModel.setCustomDatePickerOpen(true) }
             )
 
             PrimaryTabRow(
@@ -266,84 +273,88 @@ fun StatsAndBudgetsScreen(
 }
 
 @Composable
-private fun StatsPeriodGranularityStrip(
+private fun StatsPeriodGranularityDropdownChip(
     selectedGranularity: StatsPeriodGranularity,
     onSelectGranularity: (StatsPeriodGranularity) -> Unit,
     onOpenCustomDatePicker: () -> Unit
 ) {
-    val semanticColors = LocalFolioSemanticColors.current
+    var menuExpanded by remember { mutableStateOf(false) }
 
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 6.dp)
-        ) {
-            StatsPeriodGranularity.entries.forEach { granularity ->
-                val isSelected = selectedGranularity == granularity
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = if (isSelected) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerLow
-                    },
-                    border = BorderStroke(
-                        width = if (isSelected) 1.5.dp else 1.dp,
-                        color = if (isSelected) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            semanticColors.cardStrokeSubtle
-                        }
-                    ),
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(10.dp))
-                        .clickable {
-                            if (granularity == StatsPeriodGranularity.CUSTOM && isSelected) {
-                                onOpenCustomDatePicker()
-                            } else {
-                                onSelectGranularity(granularity)
-                            }
-                        }
+    Box(modifier = Modifier.padding(end = 8.dp)) {
+        FilterChip(
+            selected = true,
+            onClick = { menuExpanded = true },
+            label = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.padding(vertical = 7.dp, horizontal = 4.dp)
-                    ) {
-                        if (granularity == StatsPeriodGranularity.CUSTOM) {
-                            Icon(
-                                imageVector = Icons.Filled.DateRange,
-                                contentDescription = null,
-                                tint = if (isSelected) {
-                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                        }
-                        Text(
-                            text = granularity.title,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) {
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            textAlign = TextAlign.Center,
-                            maxLines = 1
+                    if (selectedGranularity == StatsPeriodGranularity.CUSTOM) {
+                        Icon(
+                            imageVector = Icons.Filled.DateRange,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp)
                         )
                     }
+                    Text(
+                        text = selectedGranularity.title,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Icon(
+                        imageVector = Icons.Filled.ArrowDropDown,
+                        contentDescription = "Select Granularity",
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
+            },
+            shape = RoundedCornerShape(10.dp)
+        )
+
+        DropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = { menuExpanded = false }
+        ) {
+            StatsPeriodGranularity.entries.forEach { granularity ->
+                val isSelected = granularity == selectedGranularity
+                DropdownMenuItem(
+                    text = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (granularity == StatsPeriodGranularity.CUSTOM) {
+                                Icon(
+                                    imageVector = Icons.Filled.DateRange,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = if (isSelected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                )
+                            }
+                            Text(
+                                text = granularity.title,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                }
+                            )
+                        }
+                    },
+                    onClick = {
+                        menuExpanded = false
+                        onSelectGranularity(granularity)
+                        if (granularity == StatsPeriodGranularity.CUSTOM) {
+                            onOpenCustomDatePicker()
+                        }
+                    }
+                )
             }
         }
     }
@@ -581,9 +592,6 @@ private fun StatsBreakdownSubTabContent(
                 selectedCategoryId = uiState.highlightedDonutCategoryId,
                 onCategorySelected = { tappedStat ->
                     onDonutSliceSelected(tappedStat)
-                    if (tappedStat != null) {
-                        onOpenCategoryDrillDown(tappedStat)
-                    }
                 },
                 centerLabelWhenUnselected = if (uiState.selectedCategoryType == CategoryType.EXPENSE) {
                     "Total Expenses"
@@ -1312,6 +1320,13 @@ private fun SpendRankingItemCard(
     }
 }
 
+private data class SubcategoryBreakdownItem(
+    val name: String,
+    val totalAmount: MinorMoney,
+    val transactionCount: Int,
+    val percentageOfParent: Float
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CategoryDrillDownBottomSheet(
@@ -1329,6 +1344,38 @@ private fun CategoryDrillDownBottomSheet(
     val stat = drillDownState.categoryStat
     val catColor = remember(stat.colorHex) { parseHexColorSafely(stat.colorHex) }
     val dateFormatter = remember { DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US) }
+
+    val subcategoryBreakdown = remember(drillDownState.transactions, stat.netAmount) {
+        val amountBySubcategory = mutableMapOf<String, Long>()
+        val countBySubcategory = mutableMapOf<String, Int>()
+
+        for (tx in drillDownState.transactions) {
+            if (tx.isSplit && tx.splits.isNotEmpty()) {
+                for (split in tx.splits) {
+                    val subName = split.categoryName.ifBlank { "Uncategorized Split" }
+                    val subAmount = Math.abs(split.amount.amountMinor)
+                    amountBySubcategory[subName] = (amountBySubcategory[subName] ?: 0L) + subAmount
+                    countBySubcategory[subName] = (countBySubcategory[subName] ?: 0) + 1
+                }
+            } else {
+                val subName = tx.categoryName?.ifBlank { null } ?: stat.categoryName
+                val subAmount = Math.abs(tx.amount.amountMinor)
+                amountBySubcategory[subName] = (amountBySubcategory[subName] ?: 0L) + subAmount
+                countBySubcategory[subName] = (countBySubcategory[subName] ?: 0) + 1
+            }
+        }
+
+        val parentTotalMinor = stat.netAmount.amountMinor.coerceAtLeast(1L)
+        amountBySubcategory.map { (subName, minorSum) ->
+            val pct = (minorSum.toFloat() / parentTotalMinor.toFloat() * 100f).coerceIn(0f, 100f)
+            SubcategoryBreakdownItem(
+                name = subName,
+                totalAmount = MinorMoney(minorSum),
+                transactionCount = countBySubcategory[subName] ?: 1,
+                percentageOfParent = pct
+            )
+        }.sortedByDescending { it.totalAmount.amountMinor }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1448,6 +1495,105 @@ private fun CategoryDrillDownBottomSheet(
                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                                 ) {
                                     Text("Set Budget", style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (subcategoryBreakdown.size > 1 || (subcategoryBreakdown.size == 1 && subcategoryBreakdown.first().name != stat.categoryName)) {
+                item {
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        ),
+                        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.padding(14.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "Subcategory Breakdown (${subcategoryBreakdown.size})",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Share of ${stat.categoryName}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            HorizontalDivider(color = semanticColors.cardStrokeSubtle)
+
+                            subcategoryBreakdown.forEach { subItem ->
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text(
+                                                text = subItem.name,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = String.format(
+                                                    Locale.US,
+                                                    "%.1f%% · %d txns",
+                                                    subItem.percentageOfParent,
+                                                    subItem.transactionCount
+                                                ),
+                                                style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+
+                                        MoneyText(
+                                            money = subItem.totalAmount,
+                                            currencySpec = currencySpec,
+                                            grouping = grouping,
+                                            colorMode = if (drillDownState.categoryType == CategoryType.EXPENSE) {
+                                                MoneyColorMode.EXPENSE
+                                            } else {
+                                                MoneyColorMode.INCOME
+                                            },
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+
+                                    val fraction = (subItem.percentageOfParent / 100f).coerceIn(0f, 1f)
+                                    LinearProgressIndicator(
+                                        progress = { fraction },
+                                        color = catColor,
+                                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        strokeCap = StrokeCap.Round,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(5.dp)
+                                            .clip(RoundedCornerShape(3.dp))
+                                    )
                                 }
                             }
                         }

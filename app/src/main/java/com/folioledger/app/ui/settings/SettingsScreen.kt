@@ -1314,6 +1314,7 @@ private fun CategoryManagerBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
     val categories = uiState.activeManagedCategories
+    val subcategoriesEnabled = uiState.userPreferences.subcategoriesEnabled
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1334,12 +1335,12 @@ private fun CategoryManagerBottomSheet(
             ) {
                 Column {
                     Text(
-                        text = "Category & Subcategory Manager",
+                        text = if (subcategoriesEnabled) "Category & Subcategory Manager" else "Category Manager",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Add, edit, or organize 2-level categories",
+                        text = if (subcategoriesEnabled) "Add, edit, or organize 2-level categories" else "Add or edit main categories",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1418,24 +1419,28 @@ private fun CategoryManagerBottomSheet(
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold
                                     )
-                                    Text(
-                                        text = "${parent.subcategories.size} subcategories",
-                                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                    if (subcategoriesEnabled) {
+                                        Text(
+                                            text = "${parent.subcategories.size} subcategories",
+                                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
 
-                                TextButton(
-                                    onClick = { onAddSubcategory(parent) },
-                                    contentPadding = PaddingValues(horizontal = 8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Add,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(2.dp))
-                                    Text("Sub", style = MaterialTheme.typography.labelSmall)
+                                if (subcategoriesEnabled) {
+                                    TextButton(
+                                        onClick = { onAddSubcategory(parent) },
+                                        contentPadding = PaddingValues(horizontal = 8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Add,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(2.dp))
+                                        Text("Sub", style = MaterialTheme.typography.labelSmall)
+                                    }
                                 }
 
                                 IconButton(
@@ -1462,7 +1467,7 @@ private fun CategoryManagerBottomSheet(
                                 }
                             }
 
-                            if (parent.subcategories.isNotEmpty()) {
+                            if (subcategoriesEnabled && parent.subcategories.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 HorizontalDivider(color = semanticColors.cardStrokeSubtle)
                                 Spacer(modifier = Modifier.height(8.dp))

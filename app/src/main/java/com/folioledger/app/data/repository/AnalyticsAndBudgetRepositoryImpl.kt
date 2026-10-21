@@ -106,12 +106,18 @@ class AnalyticsAndBudgetRepositoryImpl(
             val netMinorByCategoryId = HashMap<Long, Long>()
             val txCountByCategoryId = HashMap<Long, Int>()
 
+            fun getTargetMainCategoryId(rawCatId: Long?): Long {
+                val catId = rawCatId ?: UNATEGORIZED_BUCKET_ID
+                val catEntity = categoriesById[catId] ?: return catId
+                return catEntity.parentId ?: catId
+            }
+
             fun addCategoryDelta(categoryId: Long?, deltaMinor: Long, countIncrement: Int) {
-                val resolvedId = categoryId ?: UNATEGORIZED_BUCKET_ID
-                val currentAmount = netMinorByCategoryId[resolvedId] ?: 0L
-                netMinorByCategoryId[resolvedId] = Math.addExact(currentAmount, deltaMinor)
+                val targetMainId = getTargetMainCategoryId(categoryId)
+                val currentAmount = netMinorByCategoryId[targetMainId] ?: 0L
+                netMinorByCategoryId[targetMainId] = Math.addExact(currentAmount, deltaMinor)
                 if (countIncrement > 0) {
-                    txCountByCategoryId[resolvedId] = (txCountByCategoryId[resolvedId] ?: 0) + countIncrement
+                    txCountByCategoryId[targetMainId] = (txCountByCategoryId[targetMainId] ?: 0) + countIncrement
                 }
             }
 

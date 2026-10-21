@@ -99,7 +99,7 @@ import java.util.Locale
 fun TransactionEntrySheet(
     viewModel: TransactionEntryViewModel,
     onDismiss: () -> Unit,
-    onTransactionSaved: () -> Unit = onDismiss
+    onTransactionSaved: () -> Unit = onDismiss,
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -812,6 +812,7 @@ fun TransactionEntryFormContent(
         CategoryTwoLevelPickerDialog(
             categories = uiState.activeCategoryTree,
             selectedCategoryId = uiState.selectedCategoryId,
+            subcategoriesEnabled = uiState.subcategoriesEnabled,
             onCategorySelected = { category, parentName ->
                 val targetSplitId = splitLineIdForCategoryPicker
                 if (targetSplitId != null) {
@@ -1432,6 +1433,7 @@ private fun AccountPickerDialog(
 private fun CategoryTwoLevelPickerDialog(
     categories: List<CategoryNode>,
     selectedCategoryId: Long?,
+    subcategoriesEnabled: Boolean = true,
     onCategorySelected: (CategoryNode, String?) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -1439,7 +1441,7 @@ private fun CategoryTwoLevelPickerDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Select Category & Subcategory",
+                text = if (subcategoriesEnabled) "Select Category & Subcategory" else "Select Category",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -1489,7 +1491,7 @@ private fun CategoryTwoLevelPickerDialog(
                                 }
                             }
 
-                            if (parent.subcategories.isNotEmpty()) {
+                            if (subcategoriesEnabled && parent.subcategories.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(6.dp))
                                 FlowRow(
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
