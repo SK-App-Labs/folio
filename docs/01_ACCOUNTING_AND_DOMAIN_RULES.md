@@ -46,11 +46,13 @@ Each `CREDIT_CARD` account defines:
 - `settlementDayOfMonth` ($1..31$, statement closing day)
 - `paymentDueDayOfMonth` ($1..31$, bill due day)
 - `creditLimitMinor` (optional credit limit)
+- `initialUnbilledMinor` (initial unbilled spend upon card creation/edit)
 
-### Two Key Credit Card Metrics (Realbyte Parity + Upgrade)
-1. **Outstanding Balance (Total Unsettled Debt):** The net sum of all historical purchases, refunds, and settlements on the card up to today.
-2. **Balance Payable (Statement Due):** The unpaid balance of transactions whose `ledgerDateEpochDay` falls on or before the most recent `settlementDayOfMonth`, minus any `CC_SETTLEMENT` payments made since that statement closed.
-3. **Credit Utilization %:** $\text{Outstanding Debt} / \text{Credit Limit} \times 100$.
+### Credit Card Metrics (Symmetrical Billed vs Unbilled)
+1. **Balance Payable (Closed Statement Due):** Net unpaid balance of transactions whose `ledgerDateEpochDay` falls on or before the most recent `settlementDayOfMonth`, minus payments (`CC_SETTLEMENT`) made since statement close.
+2. **Current Unbilled (Active Cycle):** Net purchases incurred after the last statement cutoff date, starting from `initialUnbilledMinor`.
+3. **Outstanding Balance (Total Debt):** $\text{Balance Payable} + \text{Current Unbilled}$.
+4. **Credit Utilization %:** $\text{Outstanding Debt} / \text{Credit Limit} \times 100$.
 
 ### Credit Card Installment Plans (`Inst.`)
 When a purchase of `totalAmountMinor` is split across $N$ monthly installments (`monthsCount = N`) starting on date $D$:

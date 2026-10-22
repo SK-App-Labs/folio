@@ -11,7 +11,8 @@ Root package: `com.folioledger.app`
 ## 2. Dependency Injection Strategy
 To ensure 100% compatibility with AGP 9.4+ Built-in Kotlin and fast build times, Folio uses Google's official **Manual Constructor DI (`AppContainer` + `AppViewModelProvider.Factory`)**. No Dagger/Hilt annotations are used.
 
-## 3. Room SQLite Database Schema (`FolioDatabase`, Version = 1)
+## 3. Room SQLite Database Schema (`FolioDatabase`, Version = 2)
+`FolioDatabase` is at Version 2. Uses explicit `MIGRATION_1_2` (`ALTER TABLE accounts ADD COLUMN initialUnbilledMinor INTEGER DEFAULT NULL`) and pre-migration backup engine (`DatabaseBackupManager.createPreMigrationBackup`). Destructive fallback is guarded by `if (BuildConfig.DEBUG)`.
 
 ### Table 1: `accounts`
 - `id`: `Long` (PrimaryKey, autoGenerate = true)
@@ -19,6 +20,7 @@ To ensure 100% compatibility with AGP 9.4+ Built-in Kotlin and fast build times,
 - `groupType`: `String` (Enum `AccountGroup`)
 - `currencyCode`: `String` (ISO 4217, e.g. `"INR"`, `"USD"`)
 - `openingBalanceMinor`: `Long` (Can be positive, zero, or negative)
+- `initialUnbilledMinor`: `Long?` (Added in v2 for credit card unbilled allocation)
 - `openingBalanceDateEpochDay`: `Long`
 - `parentAccountId`: `Long?` (FK -> `accounts.id` ON DELETE SET NULL; indexed; used by `DEBIT_CARD`)
 - `creditLimitMinor`: `Long?`
@@ -81,7 +83,7 @@ To ensure 100% compatibility with AGP 9.4+ Built-in Kotlin and fast build times,
 - `accountId`: `Long?`
 - `transferToAccountId`: `Long?`
 - `categoryId`: `Long?`
-- ` payeeOrDescription`: `String`
+- `payeeOrDescription`: `String`
 - `note`: `String`
 - `sortOrder`: `Int`
 
