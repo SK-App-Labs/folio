@@ -454,7 +454,7 @@ internal fun CalendarLedgerSubTabContent(
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(
-                                text = "${uiState.selectedCalendarDayTransactions.size} txns",
+                                text = "${uiState.selectedCalendarDayTransactions.size} trans",
                                 style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -755,7 +755,7 @@ internal fun MonthlyLedgerSubTabContent(
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "${monthItem.periodRange.subtitle} · ${monthItem.transactionCount} txns",
+                                    text = "${monthItem.periodRange.subtitle} · ${monthItem.transactionCount} trans",
                                     style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -1105,7 +1105,7 @@ internal fun SummaryLedgerSubTabContent(
                                     Text(
                                         text = String.format(
                                             Locale.US,
-                                            "%.1f%% · %d txns",
+                                            "%.1f%% · %d trans",
                                             stat.percentageOfTotal,
                                             stat.transactionCount
                                         ),

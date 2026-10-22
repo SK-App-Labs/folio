@@ -103,6 +103,7 @@ import com.folioledger.app.ui.components.InteractiveCategoryDonutChart
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.components.PeriodSelectorHeader
+import com.folioledger.app.ui.components.SixMonthSmoothTrendAreaChart
 import com.folioledger.app.ui.components.SixMonthTrendBarChart
 import com.folioledger.app.ui.components.ThreeColumnSummaryBanner
 import com.folioledger.app.ui.components.fromTransactionType
@@ -1560,7 +1561,7 @@ private fun CategoryDrillDownBottomSheet(
                                             Text(
                                                 text = String.format(
                                                     Locale.US,
-                                                    "%.1f%% · %d txns",
+                                                    "%.1f%% · %d trans",
                                                     subItem.percentageOfParent,
                                                     subItem.transactionCount
                                                 ),
@@ -1603,11 +1604,12 @@ private fun CategoryDrillDownBottomSheet(
 
             if (sixMonthTrendBars.isNotEmpty()) {
                 item {
-                    SixMonthTrendBarChart(
+                    SixMonthSmoothTrendAreaChart(
                         bars = sixMonthTrendBars,
                         currencySpec = currencySpec,
                         grouping = grouping,
-                        chartHeight = 150.dp
+                        categoryType = drillDownState.categoryType,
+                        chartHeight = 160.dp
                     )
                 }
             }

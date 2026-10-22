@@ -282,6 +282,7 @@ class SettingsAndBackupRepositoryImpl(
                                 put("groupType", acc.groupType.name)
                                 put("currencyCode", acc.currencyCode)
                                 put("openingBalanceMinor", acc.openingBalanceMinor)
+                                putNullableLong("initialUnbilledMinor", acc.initialUnbilledMinor)
                                 putNullableLong("creditLimitMinor", acc.creditLimitMinor)
                                 putNullableInt("settlementDayOfMonth", acc.settlementDayOfMonth)
                                 putNullableInt("paymentDueDayOfMonth", acc.paymentDueDayOfMonth)
@@ -794,6 +795,7 @@ class SettingsAndBackupRepositoryImpl(
                 }.getOrDefault(AccountGroup.OTHER),
                 currencyCode = obj.optString("currencyCode", "INR"),
                 openingBalanceMinor = obj.optLong("openingBalanceMinor", 0L),
+                initialUnbilledMinor = obj.optNullableLong("initialUnbilledMinor"),
                 creditLimitMinor = obj.optNullableLong("creditLimitMinor"),
                 settlementDayOfMonth = obj.optNullableInt("settlementDayOfMonth"),
                 paymentDueDayOfMonth = obj.optNullableInt("paymentDueDayOfMonth"),

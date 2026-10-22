@@ -145,6 +145,11 @@ class AccountRepositoryImpl(
             groupType = account.groupType,
             currencyCode = account.currencyCode.ifBlank { "INR" },
             openingBalanceMinor = resolvedOpeningMinor,
+            initialUnbilledMinor = if (account.groupType == AccountGroup.CREDIT_CARD) {
+                account.creditCardUnbilledAmount?.amountMinor
+            } else {
+                null
+            },
             creditLimitMinor = account.creditLimit?.amountMinor,
             settlementDayOfMonth = account.settlementDayOfMonth?.coerceIn(1, 31),
             paymentDueDayOfMonth = account.paymentDueDayOfMonth?.coerceIn(1, 31),
@@ -360,12 +365,14 @@ class AccountRepositoryImpl(
 
                     val settlementDay = (entity.settlementDayOfMonth ?: 15).coerceIn(1, 31)
                     val creditLimitMoney = entity.creditLimitMinor?.let { MinorMoney(it) }
+                    val initialUnbilledMoney = entity.initialUnbilledMinor?.let { MinorMoney(it) }
                     val ccMetrics = AccountingRulesEngine.computeCreditCardMetrics(
                         openingBalance = MinorMoney(entity.openingBalanceMinor),
                         transactions = ccTransactions,
                         settlementDayOfMonth = settlementDay,
                         referenceDateEpochDay = referenceDateEpochDay,
-                        creditLimit = creditLimitMoney
+                        creditLimit = creditLimitMoney,
+                        initialUnbilledAmount = initialUnbilledMoney
                     )
 
                     AccountSummary(

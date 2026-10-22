@@ -253,7 +253,8 @@ data class LedgerHomeUiState(
     val bookmarks: List<TransactionBookmark> = emptyList(),
     val inspectedTransaction: TransactionItem? = null,
     val isExportingCsv: Boolean = false,
-    val snackbarMessage: String? = null
+    val snackbarMessage: String? = null,
+    val isInitialDataLoaded: Boolean = false
 )
 
 private data class LedgerControlState(
@@ -568,6 +569,7 @@ class LedgerHomeViewModel(
         }
 
         LedgerHomeUiState(
+            isInitialDataLoaded = true,
             selectedSubTab = ctrl.selectedSubTab,
             referenceDateEpochDay = ctrl.referenceDateEpochDay,
             activePeriodRange = periodRange,

@@ -151,7 +151,8 @@ class AccountingRulesEngine {
             transactions: List<TransactionItem>,
             settlementDayOfMonth: Int,
             referenceDateEpochDay: Long,
-            creditLimit: MinorMoney?
+            creditLimit: MinorMoney?,
+            initialUnbilledAmount: MinorMoney? = null
         ): CreditCardMetrics {
             require(settlementDayOfMonth in 1..28) {
                 "settlementDayOfMonth must be between 1 and 28 inclusive, but was $settlementDayOfMonth."
@@ -177,9 +178,14 @@ class AccountingRulesEngine {
                 }
             }
 
-            // Opening debt is normalized to positive debt minor units (whether caller passed -50000L or +50000L).
-            var closedCycleNetDebtMinor: Long = openingBalance.abs().amountMinor
-            var activeCycleSpendMinor = 0L
+            // Opening debt is normalized to positive debt minor units.
+            // If initialUnbilledAmount is specified, split initial opening debt into closed cycle debt vs active cycle unbilled spend.
+            val initTotalDebtMinor = openingBalance.abs().amountMinor
+            val initUnbilledMinor = (initialUnbilledAmount?.abs()?.amountMinor ?: 0L)
+                .coerceAtMost(initTotalDebtMinor)
+
+            var closedCycleNetDebtMinor: Long = Math.subtractExact(initTotalDebtMinor, initUnbilledMinor)
+            var activeCycleSpendMinor: Long = initUnbilledMinor
             var activeCycleCreditMinor = 0L
 
             for (tx in uniqueTransactions) {

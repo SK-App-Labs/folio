@@ -68,6 +68,7 @@ data class AccountEntity(
     val groupType: AccountGroup,
     val currencyCode: String,
     val openingBalanceMinor: Long = 0L,
+    val initialUnbilledMinor: Long? = null,
     val creditLimitMinor: Long? = null,
     val settlementDayOfMonth: Int? = null,
     val paymentDueDayOfMonth: Int? = null,

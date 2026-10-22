@@ -27,42 +27,91 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
+import android.view.View
+import android.view.animation.AccelerateDecelerateInterpolator
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.folioledger.app.di.FolioViewModelFactory
+import com.folioledger.app.ui.ledger.LedgerHomeViewModel
 import com.folioledger.app.ui.shell.FolioMainShell
 import com.folioledger.app.ui.theme.FolioTheme
 
 class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         val appContainer = (application as FolioApplication).container
         val viewModelFactory = FolioViewModelFactory(appContainer)
 
+        var keepSplashScreen = true
+        splashScreen.setKeepOnScreenCondition { keepSplashScreen }
+
+        splashScreen.setOnExitAnimationListener { splashViewProvider ->
+            val splashView = splashViewProvider.view
+            val iconView = splashViewProvider.iconView
+
+            val iconScaleX = ObjectAnimator.ofFloat(iconView, View.SCALE_X, 1f, 0.55f)
+            val iconScaleY = ObjectAnimator.ofFloat(iconView, View.SCALE_Y, 1f, 0.55f)
+            val iconTranslationY = ObjectAnimator.ofFloat(
+                iconView,
+                View.TRANSLATION_Y,
+                0f,
+                -iconView.height.toFloat() * 1.6f
+            )
+            val splashAlpha = ObjectAnimator.ofFloat(splashView, View.ALPHA, 1f, 0f)
+
+            AnimatorSet().apply {
+                playTogether(iconScaleX, iconScaleY, iconTranslationY, splashAlpha)
+                duration = 380L
+                interpolator = AccelerateDecelerateInterpolator()
+                addListener(object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) {
+                        splashViewProvider.remove()
+                    }
+                })
+                start()
+            }
+        }
+
         setContent {
             val prefs by appContainer.settingsAndBackupRepository
                 .observeUserPreferences()
                 .collectAsStateWithLifecycle(initialValue = null)
 
+            val ledgerViewModel: LedgerHomeViewModel = viewModel(factory = viewModelFactory)
+            val ledgerUiState by ledgerViewModel.uiState.collectAsStateWithLifecycle()
+
             var isSessionUnlocked by rememberSaveable { mutableStateOf(false) }
             var authErrorText by rememberSaveable { mutableStateOf<String?>(null) }
 
             val activePrefs = prefs
-            if (activePrefs == null) {
-                // Brief blank themed surface while preferences load (< 20ms)
-                FolioTheme {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.background
-                    ) {}
+            val isInitialDataLoaded = ledgerUiState.isInitialDataLoaded
+            val isDataReady = activePrefs != null && isInitialDataLoaded
+
+            LaunchedEffect(isDataReady) {
+                if (isDataReady) {
+                    keepSplashScreen = false
                 }
+            }
+
+            if (activePrefs == null || !isInitialDataLoaded) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {}
             } else if (!activePrefs.biometricLockEnabled || isSessionUnlocked) {
                 FolioMainShell(viewModelFactory = viewModelFactory)
             } else {

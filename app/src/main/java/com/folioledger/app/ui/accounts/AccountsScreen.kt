@@ -790,7 +790,7 @@ private fun CreditCardAccountRow(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Pay Bill / Settle",
+                    text = "Pay Bill",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -828,11 +828,17 @@ private fun CreditCardAccountRow(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Balance Payable (${cycleWindow.lastStatementRangeShortText})",
+                        text = "Balance Payable",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = cycleWindow.lastStatementRangeShortText,
                         style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     MoneyText(
                         money = statementPayable,
                         currencySpec = accountCurrency,
@@ -852,16 +858,26 @@ private fun CreditCardAccountRow(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "Outstanding Balance (Total Debt)",
-                        style = MaterialTheme.typography.labelSmall,
+                        text = "Current Unbilled",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Active Cycle",
+                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     MoneyText(
-                        money = account.currentBalance,
+                        money = unbilledCycleAmount,
                         currencySpec = accountCurrency,
                         grouping = grouping,
-                        colorMode = MoneyColorMode.AUTO_SIGN,
+                        colorMode = if (unbilledCycleAmount.isPositive) {
+                            MoneyColorMode.EXPENSE
+                        } else {
+                            MoneyColorMode.NEUTRAL
+                        },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -884,29 +900,12 @@ private fun CreditCardAccountRow(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "Credit Utilization · $pctText",
-                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                        fontWeight = FontWeight.SemiBold,
-                        color = utilizationColor
-                    )
-                    if (unbilledCycleAmount.isPositive) {
-                        Text(
-                            text = " · Unbilled: ",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        MoneyText(
-                            money = unbilledCycleAmount,
-                            currencySpec = accountCurrency,
-                            grouping = grouping,
-                            colorMode = MoneyColorMode.NEUTRAL,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
+                Text(
+                    text = "Credit Utilization · $pctText",
+                    style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                    fontWeight = FontWeight.SemiBold,
+                    color = utilizationColor
+                )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(

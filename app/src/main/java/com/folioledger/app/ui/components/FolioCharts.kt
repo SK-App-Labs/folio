@@ -44,10 +44,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.unit.dp
+import com.folioledger.app.domain.model.CategoryType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -283,7 +289,7 @@ fun InteractiveCategoryDonutChart(
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(
-                                text = "$formattedPct · ${selectedStat.transactionCount} txns",
+                                text = "$formattedPct · ${selectedStat.transactionCount} trans",
                                 style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                                 color = parseHexColorSafely(selectedStat.colorHex),
                                 fontWeight = FontWeight.SemiBold,
@@ -685,6 +691,294 @@ fun SixMonthTrendBarChart(
                             .clip(RoundedCornerShape(6.dp))
                             .clickable { selectedBarIndex = index }
                             .padding(vertical = 4.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SixMonthSmoothTrendAreaChart(
+    bars: List<MonthlyTrendBar>,
+    modifier: Modifier = Modifier,
+    currencySpec: CurrencySpec = SupportedCurrencies.INR,
+    grouping: NumberGroupingSystem = currencySpec.defaultGrouping,
+    categoryType: CategoryType = CategoryType.EXPENSE,
+    chartHeight: Dp = 160.dp
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+    var selectedIndex by rememberSaveable(bars.size) {
+        mutableIntStateOf(if (bars.isNotEmpty()) bars.lastIndex else -1)
+    }
+
+    var entryTarget by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(bars) {
+        entryTarget = 0f
+        entryTarget = 1f
+    }
+
+    val entryProgress by animateFloatAsState(
+        targetValue = entryTarget,
+        animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing),
+        label = "AreaChartEntryAnimation"
+    )
+
+    val lineColor = if (categoryType == CategoryType.EXPENSE) {
+        semanticColors.expenseCoral
+    } else {
+        semanticColors.incomeEmerald
+    }
+
+    val maxAmountMinor = remember(bars, categoryType) {
+        if (bars.isEmpty()) {
+            1L
+        } else {
+            bars.maxOf { bar ->
+                if (categoryType == CategoryType.EXPENSE) {
+                    bar.totalExpense.amountMinor
+                } else {
+                    bar.totalIncome.amountMinor
+                }
+            }.coerceAtLeast(1L)
+        }
+    }
+
+    val selectedBar = bars.getOrNull(selectedIndex)
+
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    Text(
+                        text = "6-Month Trend Curve",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Tap data point to inspect month total",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = lineColor.copy(alpha = 0.16f)
+                ) {
+                    Text(
+                        text = if (categoryType == CategoryType.EXPENSE) "Expense Trend" else "Income Trend",
+                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                        fontWeight = FontWeight.Bold,
+                        color = lineColor,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            if (selectedBar != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = selectedBar.periodLabel,
+                            style = tabularMoneyStyle(MaterialTheme.typography.labelLarge),
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        val displayAmount = if (categoryType == CategoryType.EXPENSE) {
+                            selectedBar.totalExpense
+                        } else {
+                            selectedBar.totalIncome
+                        }
+
+                        MoneyText(
+                            money = displayAmount,
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            colorMode = if (categoryType == CategoryType.EXPENSE) {
+                                MoneyColorMode.EXPENSE
+                            } else {
+                                MoneyColorMode.INCOME
+                            },
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            val gridColor = semanticColors.chartGridLine
+            val highlightBg = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(chartHeight)
+                    .pointerInput(bars) {
+                        detectTapGestures { offset ->
+                            if (bars.isEmpty()) return@detectTapGestures
+                            val slotWidth = size.width / bars.size.toFloat()
+                            val index = (offset.x / slotWidth).toInt().coerceIn(0, bars.lastIndex)
+                            selectedIndex = index
+                        }
+                    }
+            ) {
+                val horizontalLines = 3
+                val dashEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
+                val topPadding = 12.dp.toPx()
+                val bottomPadding = 24.dp.toPx()
+                val usableHeight = size.height - topPadding - bottomPadding
+
+                for (i in 0..horizontalLines) {
+                    val y = topPadding + (usableHeight / horizontalLines) * i
+                    drawLine(
+                        color = gridColor,
+                        start = Offset(0f, y),
+                        end = Offset(size.width, y),
+                        strokeWidth = 1.dp.toPx(),
+                        pathEffect = if (i == horizontalLines) null else dashEffect
+                    )
+                }
+
+                if (bars.isEmpty()) return@Canvas
+
+                val slotWidth = size.width / bars.size.toFloat()
+                val points = bars.mapIndexed { idx, bar ->
+                    val x = idx * slotWidth + slotWidth / 2f
+                    val rawVal = if (categoryType == CategoryType.EXPENSE) {
+                        bar.totalExpense.amountMinor
+                    } else {
+                        bar.totalIncome.amountMinor
+                    }
+                    val ratio = (rawVal.toFloat() / maxAmountMinor.toFloat()).coerceIn(0f, 1f) * entryProgress
+                    val y = topPadding + usableHeight * (1f - ratio)
+                    Offset(x, y)
+                }
+
+                if (selectedIndex in points.indices) {
+                    val selX = points[selectedIndex].x
+                    drawRoundRect(
+                        color = highlightBg,
+                        topLeft = Offset(selX - slotWidth / 2f + 4.dp.toPx(), topPadding),
+                        size = Size(slotWidth - 8.dp.toPx(), usableHeight),
+                        cornerRadius = CornerRadius(8.dp.toPx(), 8.dp.toPx())
+                    )
+                }
+
+                val strokePath = Path()
+                val fillPath = Path()
+
+                strokePath.moveTo(points.first().x, points.first().y)
+                fillPath.moveTo(points.first().x, topPadding + usableHeight)
+                fillPath.lineTo(points.first().x, points.first().y)
+
+                for (i in 0 until points.size - 1) {
+                    val p1 = points[i]
+                    val p2 = points[i + 1]
+                    val controlX1 = p1.x + (p2.x - p1.x) * 0.35f
+                    val controlY1 = p1.y
+                    val controlX2 = p1.x + (p2.x - p1.x) * 0.65f
+                    val controlY2 = p2.y
+
+                    strokePath.cubicTo(controlX1, controlY1, controlX2, controlY2, p2.x, p2.y)
+                    fillPath.cubicTo(controlX1, controlY1, controlX2, controlY2, p2.x, p2.y)
+                }
+
+                fillPath.lineTo(points.last().x, topPadding + usableHeight)
+                fillPath.close()
+
+                drawPath(
+                    path = fillPath,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            lineColor.copy(alpha = 0.35f),
+                            lineColor.copy(alpha = 0.02f)
+                        ),
+                        startY = topPadding,
+                        endY = topPadding + usableHeight
+                    )
+                )
+
+                drawPath(
+                    path = strokePath,
+                    color = lineColor,
+                    style = Stroke(
+                        width = 3.dp.toPx(),
+                        cap = StrokeCap.Round,
+                        join = StrokeJoin.Round
+                    )
+                )
+
+                val textPaint = android.graphics.Paint().apply {
+                    color = android.graphics.Color.GRAY
+                    textSize = 10.dp.toPx()
+                    textAlign = android.graphics.Paint.Align.CENTER
+                    isAntiAlias = true
+                }
+
+                points.forEachIndexed { idx, pt ->
+                    val isSelected = idx == selectedIndex
+                    if (isSelected) {
+                        drawCircle(
+                            color = lineColor.copy(alpha = 0.22f),
+                            radius = 12.dp.toPx(),
+                            center = pt
+                        )
+                        drawCircle(
+                            color = lineColor,
+                            radius = 6.dp.toPx(),
+                            center = pt
+                        )
+                        drawCircle(
+                            color = Color.White,
+                            radius = 3.dp.toPx(),
+                            center = pt
+                        )
+                    } else {
+                        drawCircle(
+                            color = lineColor,
+                            radius = 4.dp.toPx(),
+                            center = pt
+                        )
+                    }
+
+                    val monthLabel = bars[idx].periodLabel.take(3)
+                    drawContext.canvas.nativeCanvas.drawText(
+                        monthLabel,
+                        pt.x,
+                        topPadding + usableHeight + 16.dp.toPx(),
+                        textPaint
                     )
                 }
             }
