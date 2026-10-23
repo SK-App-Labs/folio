@@ -140,7 +140,10 @@ internal fun TransactionDetailActionSheet(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = if (transaction.transferToAccountName != null) {
+                    text = if (
+                        (transaction.type == TransactionType.TRANSFER || transaction.type == TransactionType.CC_SETTLEMENT) &&
+                        transaction.transferToAccountName != null
+                    ) {
                         "${transaction.accountName} → ${transaction.transferToAccountName}"
                     } else {
                         transaction.accountName

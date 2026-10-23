@@ -453,13 +453,22 @@ class TransactionEntryViewModel(
 
     fun setMode(mode: TransactionType) {
         formState.update { current ->
+            val isTransferMode = mode == TransactionType.TRANSFER || mode == TransactionType.CC_SETTLEMENT
+            val sanitizedPayee = if (!isTransferMode && current.payeeOrDescription.contains(" → ")) {
+                ""
+            } else {
+                current.payeeOrDescription
+            }
             current.copy(
                 mode = mode,
-                selectedCategoryId = null,
-                selectedCategoryName = null,
-                selectedParentCategoryName = null,
+                transferToAccountId = if (isTransferMode) current.transferToAccountId else null,
+                transferFeeInput = if (isTransferMode) current.transferFeeInput else "",
+                selectedCategoryId = if (isTransferMode) null else current.selectedCategoryId,
+                selectedCategoryName = if (isTransferMode) null else current.selectedCategoryName,
+                selectedParentCategoryName = if (isTransferMode) null else current.selectedParentCategoryName,
                 isSplit = (mode == TransactionType.EXPENSE || mode == TransactionType.INCOME) && current.isSplit,
                 isInstallmentEnabled = (mode == TransactionType.EXPENSE) && current.isInstallmentEnabled,
+                payeeOrDescription = sanitizedPayee,
                 errorMessage = null
             )
         }
@@ -745,13 +754,14 @@ class TransactionEntryViewModel(
     fun applyBookmark(bookmark: TransactionBookmark) {
         val currentUi = uiState.value
         val plainAmount = formatMinorPlain(bookmark.amount, currentUi.currencySpec.fractionDigits)
+        val isTransferMode = bookmark.type == TransactionType.TRANSFER || bookmark.type == TransactionType.CC_SETTLEMENT
         formState.update { current ->
             current.copy(
                 mode = bookmark.type,
                 expressionBuffer = plainAmount,
                 selectedAccountId = bookmark.accountId,
-                transferToAccountId = bookmark.transferToAccountId,
-                selectedCategoryId = bookmark.categoryId,
+                transferToAccountId = if (isTransferMode) bookmark.transferToAccountId else null,
+                selectedCategoryId = if (isTransferMode) null else bookmark.categoryId,
                 payeeOrDescription = bookmark.payeeOrDescription,
                 note = bookmark.note,
                 selectedTags = bookmark.tags,
@@ -766,14 +776,15 @@ class TransactionEntryViewModel(
         if (trimmedTitle.isEmpty()) return
         val currentUi = uiState.value
         val account = currentUi.selectedAccount ?: return
+        val isTransferMode = currentUi.mode == TransactionType.TRANSFER || currentUi.mode == TransactionType.CC_SETTLEMENT
         val bookmark = TransactionBookmark(
             id = 0L,
             title = trimmedTitle,
             type = currentUi.mode,
             amount = currentUi.evaluatedAmount,
             accountId = account.id,
-            transferToAccountId = currentUi.transferToAccount?.id,
-            categoryId = currentUi.selectedCategoryId,
+            transferToAccountId = if (isTransferMode) currentUi.transferToAccount?.id else null,
+            categoryId = if (isTransferMode) null else currentUi.selectedCategoryId,
             payeeOrDescription = currentUi.payeeOrDescription.trim(),
             note = currentUi.note.trim(),
             tags = currentUi.selectedTags
@@ -839,6 +850,9 @@ class TransactionEntryViewModel(
                 transactionRepository.deleteTransaction(existingId)
             }
 
+            val isTransferMode = state.mode == TransactionType.TRANSFER || state.mode == TransactionType.CC_SETTLEMENT
+            val isExpenseOrIncome = state.mode == TransactionType.EXPENSE || state.mode == TransactionType.INCOME
+
             val baseTx = TransactionItem(
                 id = 0L,
                 type = state.mode,
@@ -848,22 +862,26 @@ class TransactionEntryViewModel(
                 currencyCode = sourceAccount.currencyCode,
                 accountId = sourceAccount.id,
                 accountName = sourceAccount.name,
-                transferToAccountId = state.transferToAccount?.id,
-                transferToAccountName = state.transferToAccount?.name,
-                categoryId = state.selectedCategoryId,
-                categoryName = state.selectedCategoryName,
-                parentCategoryName = state.selectedParentCategoryName,
-                categoryColorHex = state.selectedCategoryColorHex,
-                categoryIconName = state.selectedCategoryIconName,
-                isSplit = state.isSplit,
-                splits = state.splitDrafts.map { draft ->
-                    SplitLineItem(
-                        id = 0L,
-                        categoryId = draft.categoryId,
-                        categoryName = draft.categoryName,
-                        amount = draft.evaluatedAmount,
-                        note = draft.note.trim()
-                    )
+                transferToAccountId = if (isTransferMode) state.transferToAccount?.id else null,
+                transferToAccountName = if (isTransferMode) state.transferToAccount?.name else null,
+                categoryId = if (isTransferMode) null else state.selectedCategoryId,
+                categoryName = if (isTransferMode) null else state.selectedCategoryName,
+                parentCategoryName = if (isTransferMode) null else state.selectedParentCategoryName,
+                categoryColorHex = if (isTransferMode) null else state.selectedCategoryColorHex,
+                categoryIconName = if (isTransferMode) null else state.selectedCategoryIconName,
+                isSplit = isExpenseOrIncome && state.isSplit,
+                splits = if (isExpenseOrIncome && state.isSplit) {
+                    state.splitDrafts.map { draft ->
+                        SplitLineItem(
+                            id = 0L,
+                            categoryId = draft.categoryId,
+                            categoryName = draft.categoryName,
+                            amount = draft.evaluatedAmount,
+                            note = draft.note.trim()
+                        )
+                    }
+                } else {
+                    emptyList()
                 },
                 tags = state.selectedTags,
                 payeeOrDescription = state.payeeOrDescription.trim(),

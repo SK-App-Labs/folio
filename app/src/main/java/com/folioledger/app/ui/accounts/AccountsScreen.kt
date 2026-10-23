@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -110,6 +111,7 @@ fun AccountsScreen(
     viewModel: AccountsViewModel,
     contentPadding: PaddingValues = PaddingValues(0.dp),
     onAccountClick: ((AccountSummary) -> Unit)? = null,
+    onViewAccountInLedger: ((AccountSummary) -> Unit)? = null,
     onAddTransactionForAccount: (AccountSummary) -> Unit = {},
     onEditTransaction: (TransactionItem) -> Unit = {}
 ) {
@@ -160,6 +162,10 @@ fun AccountsScreen(
             onSettleBillClick = {
                 viewModel.dismissInspectedAccountSheet()
                 viewModel.openSettlementSheet(passbook.account)
+            },
+            onViewInLedgerClick = {
+                viewModel.dismissInspectedAccountSheet()
+                onViewAccountInLedger?.invoke(passbook.account)
             },
             onTransactionRowClick = { tx ->
                 viewModel.dismissInspectedAccountSheet()
@@ -965,6 +971,7 @@ private fun AccountPassbookBottomSheet(
     onEditAccountClick: () -> Unit,
     onAddTransactionClick: () -> Unit,
     onSettleBillClick: () -> Unit,
+    onViewInLedgerClick: () -> Unit,
     onTransactionRowClick: (TransactionItem) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -1066,6 +1073,14 @@ private fun AccountPassbookBottomSheet(
 
                 Spacer(modifier = Modifier.width(4.dp))
 
+                IconButton(onClick = onEditAccountClick) {
+                    Icon(
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = "Edit ${account.name}",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
                 IconButton(onClick = onDismiss) {
                     Icon(
                         imageVector = Icons.Filled.Close,
@@ -1080,7 +1095,28 @@ private fun AccountPassbookBottomSheet(
                 periodSubtitle = passbook.periodSubtitle,
                 onPreviousPeriod = onPreviousPeriod,
                 onNextPeriod = onNextPeriod,
-                onPeriodTitleClick = onResetToCurrentMonth
+                onPeriodTitleClick = onResetToCurrentMonth,
+                trailingContent = {
+                    AssistChip(
+                        onClick = onViewInLedgerClick,
+                        label = {
+                            Text(
+                                text = "View in Ledger",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                }
             )
 
             HorizontalDivider(color = semanticColors.cardStrokeSubtle)
@@ -1095,17 +1131,18 @@ private fun AccountPassbookBottomSheet(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Quick Actions Row
+                // Quick Actions Row (Primary Transaction Actions Only)
                 item {
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Button(
                             onClick = onAddTransactionClick,
                             shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                            modifier = Modifier.weight(1f)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Add,
@@ -1124,7 +1161,8 @@ private fun AccountPassbookBottomSheet(
                             FilledTonalButton(
                                 onClick = onSettleBillClick,
                                 shape = RoundedCornerShape(12.dp),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                                modifier = Modifier.weight(1f)
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Payments,
@@ -1138,24 +1176,6 @@ private fun AccountPassbookBottomSheet(
                                     fontWeight = FontWeight.Bold
                                 )
                             }
-                        }
-
-                        OutlinedButton(
-                            onClick = onEditAccountClick,
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Edit,
-                                contentDescription = null,
-                                modifier = Modifier.size(17.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Edit Account",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold
-                            )
                         }
                     }
                 }

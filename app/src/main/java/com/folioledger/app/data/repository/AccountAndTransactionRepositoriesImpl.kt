@@ -585,6 +585,8 @@ class TransactionRepositoryImpl(
                 account?.currencyCode ?: "INR"
             }
 
+            val isTransferType = transaction.type == TransactionType.TRANSFER || transaction.type == TransactionType.CC_SETTLEMENT
+
             val entity = TransactionEntity(
                 id = transaction.id,
                 type = transaction.type,
@@ -593,9 +595,9 @@ class TransactionRepositoryImpl(
                 amountMinor = transaction.amount.amountMinor,
                 currencyCode = resolvedCurrency,
                 accountId = transaction.accountId,
-                transferToAccountId = transaction.transferToAccountId,
-                transferFeeMinor = transaction.transferFee.amountMinor,
-                categoryId = transaction.categoryId,
+                transferToAccountId = if (isTransferType) transaction.transferToAccountId else null,
+                transferFeeMinor = if (isTransferType) transaction.transferFee.amountMinor else 0L,
+                categoryId = if (isTransferType) null else transaction.categoryId,
                 isSplit = false,
                 payeeOrDescription = transaction.payeeOrDescription.trim(),
                 note = transaction.note.trim(),
@@ -842,6 +844,12 @@ class TransactionRepositoryImpl(
 
         val mappedTags = txWithDetails.tags.map { it.name }
 
+        val isTransferType = tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT
+        val effectiveTransferToAccountId = if (isTransferType) tx.transferToAccountId else null
+        val effectiveTransferToAccountName = if (isTransferType) targetAccount?.name else null
+        val effectiveTransferFee = if (isTransferType) MinorMoney(tx.transferFeeMinor) else MinorMoney.ZERO
+        val effectiveCategoryId = if (isTransferType) null else tx.categoryId
+
         return TransactionItem(
             id = tx.id,
             type = tx.type,
@@ -851,16 +859,16 @@ class TransactionRepositoryImpl(
             currencyCode = tx.currencyCode,
             accountId = tx.accountId,
             accountName = sourceAccount?.name ?: "Unknown Account",
-            transferToAccountId = tx.transferToAccountId,
-            transferToAccountName = targetAccount?.name,
-            transferFee = MinorMoney(tx.transferFeeMinor),
-            categoryId = tx.categoryId,
-            categoryName = if (tx.isSplit) "Split" else category?.name,
-            parentCategoryName = parentCategory?.name,
-            categoryColorHex = category?.colorHex ?: parentCategory?.colorHex,
-            categoryIconName = category?.iconName ?: parentCategory?.iconName,
-            isSplit = tx.isSplit,
-            splits = mappedSplits,
+            transferToAccountId = effectiveTransferToAccountId,
+            transferToAccountName = effectiveTransferToAccountName,
+            transferFee = effectiveTransferFee,
+            categoryId = effectiveCategoryId,
+            categoryName = if (isTransferType) null else (if (tx.isSplit) "Split" else category?.name),
+            parentCategoryName = if (isTransferType) null else parentCategory?.name,
+            categoryColorHex = if (isTransferType) null else (category?.colorHex ?: parentCategory?.colorHex),
+            categoryIconName = if (isTransferType) null else (category?.iconName ?: parentCategory?.iconName),
+            isSplit = !isTransferType && tx.isSplit,
+            splits = if (isTransferType) emptyList() else mappedSplits,
             tags = mappedTags,
             payeeOrDescription = tx.payeeOrDescription,
             note = tx.note,

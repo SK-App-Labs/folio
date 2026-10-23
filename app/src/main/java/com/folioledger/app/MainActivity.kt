@@ -1,4 +1,3 @@
-// File: app/src/main/java/com/folioledger/app/MainActivity.kt
 package com.folioledger.app
 
 import android.os.Bundle
@@ -37,9 +36,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.WindowCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.folioledger.app.di.FolioViewModelFactory
 import com.folioledger.app.ui.ledger.LedgerHomeViewModel
@@ -58,6 +58,8 @@ class MainActivity : FragmentActivity() {
 
         var keepSplashScreen = true
         splashScreen.setKeepOnScreenCondition { keepSplashScreen }
+
+        var lastResolvedThemeMode = "SYSTEM"
 
         splashScreen.setOnExitAnimationListener { splashViewProvider ->
             val splashView = splashViewProvider.view
@@ -80,6 +82,16 @@ class MainActivity : FragmentActivity() {
                 addListener(object : AnimatorListenerAdapter() {
                     override fun onAnimationEnd(animation: Animator) {
                         splashViewProvider.remove()
+                        val systemDark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+                        val isDarkActive = when (lastResolvedThemeMode) {
+                            "LIGHT" -> false
+                            "DARK", "AMOLED_BLACK" -> true
+                            else -> systemDark
+                        }
+                        WindowCompat.getInsetsController(window, window.decorView).apply {
+                            isAppearanceLightStatusBars = !isDarkActive
+                            isAppearanceLightNavigationBars = !isDarkActive
+                        }
                     }
                 })
                 start()
@@ -98,6 +110,9 @@ class MainActivity : FragmentActivity() {
             var authErrorText by rememberSaveable { mutableStateOf<String?>(null) }
 
             val activePrefs = prefs
+            if (activePrefs != null) {
+                lastResolvedThemeMode = activePrefs.themeMode
+            }
             val isInitialDataLoaded = ledgerUiState.isInitialDataLoaded
             val isDataReady = activePrefs != null && isInitialDataLoaded
 
@@ -107,31 +122,35 @@ class MainActivity : FragmentActivity() {
                 }
             }
 
-            if (activePrefs == null || !isInitialDataLoaded) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {}
-            } else if (!activePrefs.biometricLockEnabled || isSessionUnlocked) {
-                FolioMainShell(viewModelFactory = viewModelFactory)
-            } else {
-                LaunchedEffect(Unit) {
-                    triggerBiometricOrCredentialPrompt(
-                        onSuccess = {
-                            isSessionUnlocked = true
-                            authErrorText = null
-                        },
-                        onError = { msg ->
-                            authErrorText = msg
-                        }
-                    )
-                }
+            val themeMode = activePrefs?.themeMode ?: "SYSTEM"
+            val accentPalette = activePrefs?.accentPalette ?: "EMERALD"
+            val dynamicColorEnabled = activePrefs?.dynamicColorEnabled ?: false
 
-                FolioTheme(
-                    themeMode = activePrefs.themeMode,
-                    accentPalette = activePrefs.accentPalette,
-                    dynamicColorEnabled = activePrefs.dynamicColorEnabled
-                ) {
+            FolioTheme(
+                themeMode = themeMode,
+                accentPalette = accentPalette,
+                dynamicColorEnabled = dynamicColorEnabled
+            ) {
+                if (activePrefs == null || !isInitialDataLoaded) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {}
+                } else if (!activePrefs.biometricLockEnabled || isSessionUnlocked) {
+                    FolioMainShell(viewModelFactory = viewModelFactory)
+                } else {
+                    LaunchedEffect(Unit) {
+                        triggerBiometricOrCredentialPrompt(
+                            onSuccess = {
+                                isSessionUnlocked = true
+                                authErrorText = null
+                            },
+                            onError = { msg ->
+                                authErrorText = msg
+                            }
+                        )
+                    }
+
                     LockedLedgerScreen(
                         errorMessage = authErrorText,
                         onUnlockClick = {

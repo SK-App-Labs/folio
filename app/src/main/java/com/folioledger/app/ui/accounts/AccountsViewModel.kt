@@ -490,8 +490,14 @@ class AccountsViewModel(
 
         val matchingChronological = allTransactions
             .filter { tx ->
-                tx.accountId in effectiveAccountIds ||
-                        (tx.transferToAccountId != null && tx.transferToAccountId in effectiveAccountIds)
+                when (tx.type) {
+                    TransactionType.EXPENSE,
+                    TransactionType.INCOME,
+                    TransactionType.REFUND -> tx.accountId in effectiveAccountIds
+                    TransactionType.TRANSFER,
+                    TransactionType.CC_SETTLEMENT -> tx.accountId in effectiveAccountIds ||
+                            (tx.transferToAccountId != null && tx.transferToAccountId in effectiveAccountIds)
+                }
             }
             .sortedWith(
                 compareBy<TransactionItem> { it.ledgerDateEpochDay }
@@ -538,22 +544,24 @@ class AccountsViewModel(
                 } else if (deltaMinor < 0L) {
                     periodOutflowsMinor += (-deltaMinor)
                 }
-                val viaCardName = if (
-                    inspectedAccount.groupType != AccountGroup.DEBIT_CARD &&
-                    tx.accountId in childDebitCardById
-                ) {
-                    childDebitCardById[tx.accountId]?.name
-                } else {
-                    null
-                }
-                periodChronologicalItems.add(
-                    ChronologicalPassbookItem(
-                        transaction = tx,
-                        deltaMinor = deltaMinor,
-                        runningBalanceAfterMinor = runningBalanceMinor,
-                        viaLinkedDebitCardName = viaCardName
+                if (deltaMinor != 0L) {
+                    val viaCardName = if (
+                        inspectedAccount.groupType != AccountGroup.DEBIT_CARD &&
+                        tx.accountId in childDebitCardById
+                    ) {
+                        childDebitCardById[tx.accountId]?.name
+                    } else {
+                        null
+                    }
+                    periodChronologicalItems.add(
+                        ChronologicalPassbookItem(
+                            transaction = tx,
+                            deltaMinor = deltaMinor,
+                            runningBalanceAfterMinor = runningBalanceMinor,
+                            viaLinkedDebitCardName = viaCardName
+                        )
                     )
-                )
+                }
             } else {
                 runningBalanceMinor += deltaMinor
             }

@@ -15,10 +15,18 @@
 4. **Credit Card Engine (`CREDIT_CARD`):** Tracks `creditLimit`, `settlementDayOfMonth (1..31)`, `paymentDueDayOfMonth (1..31)`, Statement Payable vs. Unbilled Spend (`initialUnbilledMinor`), and 1-tap `CC_SETTLEMENT` ("Pay Bill") which reduces bank asset and CC liability without double-counting expense.
 5. **Split, Refund & Installments:** Supports 1-to-N `SplitLineItem` transactions, `REFUND` transactions (offset category spend without inflating income), and remainder-safe Credit Card `InstallmentPlan` generation (first month absorbs `total % months`).
 6. **Data Protection & Migrations:** `FolioDatabase` is at Version 2 with explicit `MIGRATION_1_2` (`ALTER TABLE accounts ADD COLUMN initialUnbilledMinor`). Destructive fallback is guarded by `BuildConfig.DEBUG`. Includes `DatabaseBackupManager` for automatic pre-migration `.pre_migration_bak` SQLite backups with fail-safe automatic rollback.
+7. **Strict Transaction Isolation & Field Integrity:**
+   - Non-transfer types (`EXPENSE`, `INCOME`, `REFUND`) strictly enforce `transferToAccountId = null`, `transferToAccountName = null`, `transferFee = 0L`.
+   - Transfer types (`TRANSFER`, `CC_SETTLEMENT`) strictly enforce `categoryId = null`.
+   - Passbook statements filter strictly by matching transaction types and exclude zero-delta entries (`deltaMinor != 0L`).
+8. **Android 15 Edge-to-Edge System Bar Synchronization:**
+   - Native night XML resource (`res/values-night/themes.xml`) sets `windowLightStatusBar = false` and `windowLightNavigationBar = false`.
+   - `FolioTheme.kt` uses `Context.findActivity()` extension helper to call `ComponentActivity.enableEdgeToEdge(...)` with explicit `SystemBarStyle.dark` / `SystemBarStyle.light` and `WindowCompat.getInsetsController(window, window.decorView)` inside `SideEffect`.
+   - `MainActivity.kt` re-asserts status bar icon appearance when splash screen exits and guards frame 1 composition.
 
 ## 3. Package & File Map (`app/src/main/java/com/folioledger/app/`)
 - **Root & DI:**
-    - `FolioApplication.kt`, `MainActivity.kt` (FragmentActivity with `core-splashscreen` API, data-sync splash hold, morph-to-header exit animation, and BiometricPrompt gate)
+    - `FolioApplication.kt`, `MainActivity.kt` (FragmentActivity with `core-splashscreen` API, data-sync splash hold, morph-to-header exit animation, biometric gate, and Android 15 edge-to-edge re-assertion)
     - `di/AppContainer.kt`, `di/FolioViewModelFactory.kt`
 - **Domain Layer (`domain/`):**
     - `model/DomainEnumsAndMoney.kt`, `model/DomainModels.kt`
@@ -28,11 +36,11 @@
 - **Data Layer (`data/`):**
     - `local/FolioDatabase.kt` (v2, `MIGRATION_1_2`, `DatabaseBackupManager`), `local/RoomTypeConverters.kt`, `local/DefaultCategorySeeder.kt`
     - `local/entity/RoomEntities.kt` (`AccountEntity` with `initialUnbilledMinor`), `local/dao/RoomDaos.kt`
-    - `repository/AccountAndTransactionRepositoriesImpl.kt`
+    - `repository/AccountAndTransactionRepositoriesImpl.kt` (Enforces field sanitization for transfers vs non-transfers)
     - `repository/AnalyticsAndBudgetRepositoryImpl.kt` (Main parent category spend/income rollup)
     - `repository/SettingsAndCategoryRepositoriesImpl.kt` (Lossless ZIP/CSV engine supporting `initialUnbilledMinor`)
 - **UI Layer (`ui/`):**
-    - `theme/FolioTheme.kt` (4 modes: SYSTEM, LIGHT, DARK, AMOLED_BLACK + 6 accent palettes)
+    - `theme/FolioTheme.kt` (4 modes: SYSTEM, LIGHT, DARK, AMOLED_BLACK + 6 accent palettes, `Context.findActivity()`, synchronized `enableEdgeToEdge` & `WindowCompat.getInsetsController`)
     - `components/FolioCommonComponents.kt` (72+ icons, standardized 56dp `PeriodSelectorHeader`), `components/FolioCharts.kt` (Interactive Donut, `SixMonthTrendBarChart`, `SixMonthSmoothTrendAreaChart`)
     - `shell/FolioMainShell.kt` (4 tabs: `TRANSACTIONS`, `STATS`, `ACCOUNTS`, `SETTINGS` + `+` FAB)
     - `ledger/` (Decomposed into 5 sub-files):
@@ -40,8 +48,8 @@
         - `LedgerHeaderBanners.kt` (Account scope & search banners)
         - `LedgerItemCards.kt` (Transaction cards & date headers)
         - `LedgerSubTabs.kt` (5 sub-tabs with sticky date headers and scroll-fading daily totals)
-        - `LedgerSheetsAndDialogs.kt` (Detail action sheet, multi-filter bottom sheet, quick bookmarks launcher)
-    - `entry/TransactionEntryViewModel.kt`, `entry/TransactionEntrySheet.kt` (Calculator keypad with minimize toggle, Splits, Installments, Bookmarks, in-place Edit)
-    - `accounts/AccountsViewModel.kt`, `accounts/AccountsScreen.kt` (2-column Statement Due vs. Current Unbilled Credit Card cards)
+        - `LedgerSheetsAndDialogs.kt` (Detail action sheet checking transaction type before rendering `Source → Target`, multi-filter bottom sheet, quick bookmarks launcher)
+    - `entry/TransactionEntryViewModel.kt`, `entry/TransactionEntrySheet.kt` (Calculator keypad with minimize toggle, Splits, Installments, Bookmarks, in-place Edit, auto-clearing transfer payee strings on mode change)
+    - `accounts/AccountsViewModel.kt`, `accounts/AccountsScreen.kt` (2-column Statement Due vs. Current Unbilled Credit Card cards, de-cluttered `AccountPassbookBottomSheet` with top header edit button, period header "View in Ledger" chip, and strict type-aware passbook isolation)
     - `stats/StatsAndBudgetsViewModel.kt`, `stats/StatsAndBudgetsScreen.kt` (Top-bar chip dropdown granularity selector, parent category donut, Subcategory Breakdown & smooth trend line in drill-down sheet)
     - `settings/SettingsViewModel.kt`, `settings/SettingsScreen.kt` (2-Level Category Manager, 1-tap ZIP/CSV, User Guide & Tip Jar)

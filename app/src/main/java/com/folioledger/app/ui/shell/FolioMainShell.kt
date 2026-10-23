@@ -171,6 +171,11 @@ fun FolioMainShell(
                         onAccountClick = { account ->
                             accountsViewModel.selectAccountForInspection(account.id)
                         },
+                        onViewAccountInLedger = { account ->
+                            accountsViewModel.selectAccountForInspection(null)
+                            ledgerViewModel.setScopedAccount(account.id)
+                            selectedTab = FolioMainTab.TRANSACTIONS
+                        },
                         onAddTransactionForAccount = { account ->
                             entryViewModel.resetForNewTransaction(
                                 preselectedAccountId = account.id,
