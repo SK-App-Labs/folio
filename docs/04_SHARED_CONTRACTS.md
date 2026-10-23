@@ -23,8 +23,8 @@ val ZERO = MinorMoney(0L)
 enum class NumberGroupingSystem { INTERNATIONAL, INDIAN }
 
 data class CurrencySpec(
-val code: String,          // e.g. "INR", "USD", "EUR", "JPY", "KWD"
-val symbol: String,        // e.g. "₹", "$", "€", "¥", "KD"
+val code: String,          // e.g. "INR", "USD", "EUR", "JPY", "KWD", "SAR"
+val symbol: String,        // e.g. "₹", "$", "€", "¥", "KD", "SAR"
 val displayName: String,
 val fractionDigits: Int,   // 2 for INR/USD/EUR, 0 for JPY, 3 for KWD
 val defaultGrouping: NumberGroupingSystem
@@ -165,9 +165,9 @@ val monthStartDay: Int = 1,         // 1..28
 val weekStartDayIso: Int = 1,       // 1 = Monday, 7 = Sunday
 val subcategoriesEnabled: Boolean = true,
 val carryOverEnabled: Boolean = false,
-val themeMode: String = "SYSTEM",   // SYSTEM, LIGHT, DARK, AMOLED_BLACK
+val themeMode: String = "SYSTEM",   // SYSTEM, LIGHT, SEPIA, SLATE_GRAY, DARK, AMOLED_BLACK
 val dynamicColorEnabled: Boolean = false,
-val accentPalette: String = "EMERALD",
+val accentPalette: String = "EMERALD", // EMERALD, COBALT, INDIGO, PURPLE, TEAL, CRIMSON, AMBER, SLATE
 val biometricLockEnabled: Boolean = false
 )
 

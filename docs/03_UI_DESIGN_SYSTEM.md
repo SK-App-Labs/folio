@@ -1,15 +1,25 @@
 # Folio — UI/UX & Material 3 Design System (SSOT #3)
 
-## 1. Visual Identity & Theme Modes
-- **Aesthetic:** Minimalist editorial finance ledger — generous whitespace, crisp tabular numerals (`fontFeatureSettings = "tnum"`), subtle surface elevation, and zero visual clutter.
-- **Supported Theme Modes:**
-    1. `SYSTEM` (Follows Android Light/Dark toggle)
-    2. `LIGHT` (Warm Alabaster surface `#F8F9FA`, Deep Slate ink `#111827`)
-    3. `DARK` (Obsidian surface `#0F141C`)
-    4. `AMOLED_BLACK` (Pure `#000000` background for battery saving)
-- **Dynamic & Custom Accent Colors:**
+## 1. Visual Identity & Theme Engine
+- **Aesthetic:** Minimalist editorial finance ledger — generous whitespace, crisp tabular numerals (`fontFeatureSettings = "tnum"`), subtle surface elevation, enclosed card borders, and zero visual clutter.
+- **6 Supported Theme Modes (`FolioThemeMode`):**
+    1. `SYSTEM` (Follows Android Light/Dark toggle automatically)
+    2. `LIGHT` (Clean crisp white `#FFFFFF` surface)
+    3. `SEPIA` (Warm Sand parchment paper cream `#F7F3E9` for low eye-strain daytime viewing)
+    4. `SLATE_GRAY` (Charcoal Gray matching Google Chrome's Dark Theme palette: `#202124` background, `#292A2D` surface, `#35363A` container, `#E8EAED` text, `#9AA0A6` secondary text, `#3C4043` outline)
+    5. `DARK` (Midnight Navy `#0F172A` deep slate)
+    6. `AMOLED_BLACK` (Pure `#000000` background for maximum OLED battery savings)
+- **8 Dynamic & Custom Accent Color Palettes (`FolioAccentPalette`):**
     - Supports Android 12+ Material You (`dynamicColor`) toggle.
-    - Includes 6 curated financial accent palettes: **Folio Emerald** (Default), **Royal Indigo**, **Amber Gold**, **Ocean Teal**, **Crimson Rose**, and **Monochrome Slate**.
+    - Includes 8 curated financial accent palettes:
+      1. **Emerald Ledger** (`#059669` - Default)
+      2. **Electric Cobalt** (`#2563EB` - #1 Global Fintech Trust Blue used by Wise & PayPal)
+      3. **Royal Indigo** (`#4F46E5`)
+      4. **Vivid Violet** (`#7C3AED` - Modern fintech purple used by NuBank & Revolut)
+      5. **Oceanic Teal** (`#0D9488`)
+      6. **Ruby Crimson** (`#E11D48`)
+      7. **Saffron Amber** (`#D97706`)
+      8. **Monochrome Slate** (`#475569`)
 - **Cold Start & Splash Screen:** Integrates AndroidX `core-splashscreen` (`Theme.Folio.Starting`) with data-sync splash hold and 380ms morph-to-header exit animation.
 
 ## 2. Semantic Financial Colors (Consistent Across All Screens)
@@ -21,11 +31,13 @@
 - **Budget Exceeded (100%+):** Coral Red (`#E11D48`)
 
 ## 3. Shape & Typography Rules
-- **Header Standardization:** `PeriodSelectorHeader` enforces a standardized `56.dp` minimum height across all main screens for zero-shift tab transitions.
-- **Cards & Containers:** `RoundedCornerShape(20.dp)` for hero summary cards, `RoundedCornerShape(16.dp)` for list group cards, `RoundedCornerShape(12.dp)` for keypad buttons and chips.
+- **Header Standardization:** Screen top headers across all tabs use `headlineSmall` (24sp Bold) with `padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp)` to align perfectly across `AccountsScreen`, `TransactionsScreen`, `StatsAndBudgetsScreen`, and `SettingsScreen`.
+- **Card Enclosure Standard:** `SettingsGroupCard`, `AccountGroupSectionCard`, and list cards specify `border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle)` with `RoundedCornerShape(18.dp)` or `RoundedCornerShape(16.dp)` so card boundaries stay crisp and enclosed in both Light and Dark themes.
 - **Tabular Numbers:** Every currency amount component (`MoneyText`) applies `fontFeatureSettings = "tnum"` so digits align vertically and never jitter during animations.
+- **Category Typography Standard:** Parent titles = `titleMedium` (16sp Bold); Subcategory counts = `bodySmall` (12sp); Subcategory items = `bodyLarge` (15sp–16sp SemiBold); Subcategory icon badges = `32.dp`.
+- **Accordion Chevron Rule:** 16.dp IconButton (`ExpandMore`/`ExpandLess`) is rendered on ALL main category cards (including empty ones) to reveal subcategories or the `+ Add Subcategory under [Parent]` button with empty state guidance.
 
-## 4. Navigation Architecture (4 Primary Bottom Tabs + FAB)
+## 4. Navigation Architecture (4 Primary Bottom Tabs + Scoped FAB)
 1. **Tab 1: `Trans.` (Ledger Home)**
     - Top Period Selector (`< Oct 2026 >`) + Search, Filter, and Bookmark (`★`) icons.
     - Decomposed into 5 domain sub-files (`LedgerHeaderBanners`, `LedgerItemCards`, `LedgerSubTabs`, `LedgerSheetsAndDialogs`, `LedgerHomeScreen`).
@@ -39,5 +51,10 @@
     - Top 3-Column Net Worth Banner: `Assets` | `Liabilities` | `Net Worth`.
     - Grouped Account Cards (`Cash`, `Bank Accounts`, `Credit Cards` with 2-column `Balance Payable` vs `Current Unbilled` + Utilization bar, `Debit Cards` showing monthly spend).
 4. **Tab 4: `Settings` (Configuration & Data)**
-    - Currency & Numbering Format (`1,234,567` vs `12,34,567`), Month Start Day, Subcategory Toggle, Carry-Over Toggle, Categories Manager, Recurring & Installment Manager, Backup/Restore, CSV Export, App Lock, Theme Picker.
-- **Floating Action Button (`+`):** Opens the fast `TransactionEntrySheet` with built-in `+ - × ÷` calculator keypad, `Income | Expense | Transfer | Refund` mode tabs, Split builder, Bookmark picker, and `Rep. / Inst.` scheduler.
+    - 3 Grouped Cards (`LEDGER & TAXONOMY`, `APPEARANCE & SECURITY`, `DATA, BACKUPS & HELP`).
+    - Currency & Number Formatting Sheet (`RegionalFormatBottomSheet` with 1-line `Standard` vs `Indian` grouping, real-time currency search bar, popular currency chips, and full-width currency cards).
+    - Category & Subcategory Manager (`CategoryManagerBottomSheet` with scaled typography and always-present chevrons).
+    - Unified Tags & Bookmarks (`TagsAndBookmarksBottomSheet` with `#Tags` and `Bookmarks ★` tabs).
+    - Appearance & Theme Sheet (`AppearanceBottomSheet` with Live Theme & Accent Preview card, 6 visual theme mode cards, and 8 accent swatch grid).
+    - Backup/Restore (`DataAndBackupBottomSheet` for portable .zip and CSV export), App Lock, User Guide & Tip Jar.
+- **Floating Action Button (`+`):** Scoped strictly to `TRANSACTIONS` and `STATS` tabs using `AnimatedVisibility` (hidden on `ACCOUNTS` and `SETTINGS`). Opens `TransactionEntrySheet` with calculator keypad, mode tabs, Splits, Bookmarks, and `CategoryPickerBottomSheet`.

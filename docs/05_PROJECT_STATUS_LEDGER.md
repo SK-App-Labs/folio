@@ -9,11 +9,12 @@
 - [x] **M4: Stats Charts, Parent Rollup, Subcategory Breakdown, Budgets, Search/Filter, Bookmarks & Installments** (Completed)
 - [x] **M5: Lossless ZIP Backup/Restore, CSV Export, Data Protection & Biometric App Lock** (Completed)
 - [x] **M6: Release Hardening, Pre-Migration SQLite Backups & Google Play Launch Prep** (Completed)
+- [x] **M7: UI Refactor, 6 Theme Suite, 8 Accent Palettes, Regional Formatting & Scoped Navigation** (Completed)
 
 ## File Inventory & Documentation Status
 - `docs/01_ACCOUNTING_AND_DOMAIN_RULES.md` — Updated & Synced
 - `docs/02_ARCHITECTURE_AND_SCHEMA.md` — Updated & Synced (Room v2 Schema & Migrations)
-- `docs/03_UI_DESIGN_SYSTEM.md` — Updated & Synced (Splash API, 56dp Header, Smooth Area Charts)
-- `docs/04_SHARED_CONTRACTS.md` — Locked & Synced
-- `docs/05_PROJECT_STATUS_LEDGER.md` — Updated & Synced
-- `docs/06_AI_CONTEXT_HANDOVER.md` — Updated & Synced
+- `docs/03_UI_DESIGN_SYSTEM.md` — Updated & Synced (6 Themes, 8 Accents, Header Standard, Card Borders, FAB Scoping)
+- `docs/04_SHARED_CONTRACTS.md` — Updated & Synced (UserPreferences Theme & Accent Enum Specs)
+- `docs/05_PROJECT_STATUS_LEDGER.md` — Updated & Synced (Milestone M7 Completed)
+- `docs/06_AI_CONTEXT_HANDOVER.md` — Updated & Synced (Comprehensive Handover Card v1.1.0)

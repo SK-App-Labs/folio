@@ -31,7 +31,9 @@ import androidx.core.view.WindowCompat
 enum class FolioThemeMode(val key: String, val displayName: String) {
     SYSTEM("SYSTEM", "System Default"),
     LIGHT("LIGHT", "Light"),
-    DARK("DARK", "Dark"),
+    SEPIA("SEPIA", "Warm Sand"),
+    SLATE_GRAY("SLATE_GRAY", "Charcoal Gray"),
+    DARK("DARK", "Midnight Navy"),
     AMOLED_BLACK("AMOLED_BLACK", "AMOLED Pitch Black");
 
     companion object {
@@ -47,11 +49,13 @@ enum class FolioAccentPalette(
     val previewColor: Color,
 ) {
     EMERALD("EMERALD", "Emerald Ledger", "#059669", Color(0xFF059669)),
+    COBALT("COBALT", "Electric Cobalt", "#2563EB", Color(0xFF2563EB)),
     INDIGO("INDIGO", "Royal Indigo", "#4F46E5", Color(0xFF4F46E5)),
-    AMBER("AMBER", "Saffron Amber", "#D97706", Color(0xFFD97706)),
+    PURPLE("PURPLE", "Vivid Violet", "#7C3AED", Color(0xFF7C3AED)),
     TEAL("TEAL", "Oceanic Teal", "#0D9488", Color(0xFF0D9488)),
     CRIMSON("CRIMSON", "Ruby Crimson", "#E11D48", Color(0xFFE11D48)),
-    SLATE("SLATE", "Monochrome Slate", "#334155", Color(0xFF334155));
+    AMBER("AMBER", "Saffron Amber", "#D97706", Color(0xFFD97706)),
+    SLATE("SLATE", "Monochrome Slate", "#475569", Color(0xFF475569));
 
     companion object {
         fun fromKey(key: String): FolioAccentPalette =
@@ -169,6 +173,34 @@ private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
             outlineVariant = outlineVariant,
         )
 
+        FolioAccentPalette.COBALT -> lightColorScheme(
+            primary = Color(0xFF2563EB),
+            onPrimary = Color.White,
+            primaryContainer = Color(0xFFDBEAFE),
+            onPrimaryContainer = Color(0xFF1E3A8A),
+            secondary = Color(0xFF1D4ED8),
+            onSecondary = Color.White,
+            secondaryContainer = Color(0xFFEFF6FF),
+            onSecondaryContainer = Color(0xFF172554),
+            tertiary = Color(0xFF0D9488),
+            onTertiary = Color.White,
+            tertiaryContainer = Color(0xFFCCFBF1),
+            onTertiaryContainer = Color(0xFF134E4A),
+            background = baseBackground,
+            onBackground = onBackground,
+            surface = baseSurface,
+            onSurface = onBackground,
+            surfaceVariant = baseSurfaceVariant,
+            onSurfaceVariant = onSurfaceVariant,
+            surfaceContainerLowest = Color.White,
+            surfaceContainerLow = Color(0xFFF8FAFC),
+            surfaceContainer = Color(0xFFF1F5F9),
+            surfaceContainerHigh = Color(0xFFE2E8F0),
+            surfaceContainerHighest = Color(0xFFE2E8F0),
+            outline = outline,
+            outlineVariant = outlineVariant,
+        )
+
         FolioAccentPalette.INDIGO -> lightColorScheme(
             primary = Color(0xFF4F46E5),
             onPrimary = Color.White,
@@ -182,6 +214,34 @@ private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
             onTertiary = Color.White,
             tertiaryContainer = Color(0xFFCFFAFE),
             onTertiaryContainer = Color(0xFF164E63),
+            background = baseBackground,
+            onBackground = onBackground,
+            surface = baseSurface,
+            onSurface = onBackground,
+            surfaceVariant = baseSurfaceVariant,
+            onSurfaceVariant = onSurfaceVariant,
+            surfaceContainerLowest = Color.White,
+            surfaceContainerLow = Color(0xFFF8FAFC),
+            surfaceContainer = Color(0xFFF1F5F9),
+            surfaceContainerHigh = Color(0xFFE2E8F0),
+            surfaceContainerHighest = Color(0xFFE2E8F0),
+            outline = outline,
+            outlineVariant = outlineVariant,
+        )
+
+        FolioAccentPalette.PURPLE -> lightColorScheme(
+            primary = Color(0xFF7C3AED),
+            onPrimary = Color.White,
+            primaryContainer = Color(0xFFEDE9FE),
+            onPrimaryContainer = Color(0xFF4C1D95),
+            secondary = Color(0xFF6D28D9),
+            onSecondary = Color.White,
+            secondaryContainer = Color(0xFFF5F3FF),
+            onSecondaryContainer = Color(0xFF3B0764),
+            tertiary = Color(0xFF2563EB),
+            onTertiary = Color.White,
+            tertiaryContainer = Color(0xFFDBEAFE),
+            onTertiaryContainer = Color(0xFF1E3A8A),
             background = baseBackground,
             onBackground = onBackground,
             surface = baseSurface,
@@ -338,6 +398,36 @@ private fun buildDarkSchemeForAccent(
             onSecondary = Color(0xFF042F2E),
             secondaryContainer = Color(0xFF115E59),
             onSecondaryContainer = Color(0xFFCCFBF1),
+            tertiary = Color(0xFF38BDF8),
+            onTertiary = Color(0xFF082F49),
+            tertiaryContainer = Color(0xFF0369A1),
+            onTertiaryContainer = Color(0xFFE0F2FE)
+        )
+
+        FolioAccentPalette.COBALT -> darkColorScheme(
+            primary = Color(0xFF60A5FA),
+            onPrimary = Color(0xFF172554),
+            primaryContainer = Color(0xFF1E40AF),
+            onPrimaryContainer = Color(0xFFDBEAFE),
+            secondary = Color(0xFF93C5FD),
+            onSecondary = Color(0xFF1E3A8A),
+            secondaryContainer = Color(0xFF1E3A8A),
+            onSecondaryContainer = Color(0xFFEFF6FF),
+            tertiary = Color(0xFF2DD4BF),
+            onTertiary = Color(0xFF042F2E),
+            tertiaryContainer = Color(0xFF115E59),
+            onTertiaryContainer = Color(0xFFCCFBF1)
+        )
+
+        FolioAccentPalette.PURPLE -> darkColorScheme(
+            primary = Color(0xFFA78BFA),
+            onPrimary = Color(0xFF3B0764),
+            primaryContainer = Color(0xFF5B21B6),
+            onPrimaryContainer = Color(0xFFEDE9FE),
+            secondary = Color(0xFFC4B5FD),
+            onSecondary = Color(0xFF4C1D95),
+            secondaryContainer = Color(0xFF4C1D95),
+            onSecondaryContainer = Color(0xFFF5F3FF),
             tertiary = Color(0xFF38BDF8),
             onTertiary = Color(0xFF082F49),
             tertiaryContainer = Color(0xFF0369A1),
@@ -543,6 +633,42 @@ val FolioTypography = Typography(
 
 
 
+private fun buildSepiaSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
+    val lightBase = buildLightSchemeForAccent(accent)
+    return lightBase.copy(
+        background = Color(0xFFF7F3E9),
+        surface = Color(0xFFF3EEDD),
+        surfaceContainerLowest = Color(0xFFFAF7F0),
+        surfaceContainerLow = Color(0xFFEFEAD8),
+        surfaceContainer = Color(0xFFE7E1CC),
+        surfaceContainerHigh = Color(0xFFDFD8C0),
+        surfaceContainerHighest = Color(0xFFDFD8C0),
+        onBackground = Color(0xFF2A241E),
+        onSurface = Color(0xFF2A241E),
+        onSurfaceVariant = Color(0xFF63584B),
+        outline = Color(0xFFC4BBA8),
+        outlineVariant = Color(0xFFD8D0BE)
+    )
+}
+
+private fun buildCharcoalSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
+    val darkBase = buildDarkSchemeForAccent(accent, amoledPitchBlack = false)
+    return darkBase.copy(
+        background = Color(0xFF202124),       // Google Chrome Dark background
+        surface = Color(0xFF292A2D),          // Google Chrome Dark surface
+        surfaceContainerLowest = Color(0xFF1B1C1E),
+        surfaceContainerLow = Color(0xFF292A2D),
+        surfaceContainer = Color(0xFF2F3033),
+        surfaceContainerHigh = Color(0xFF35363A),
+        surfaceContainerHighest = Color(0xFF3C4043),
+        onBackground = Color(0xFFE8EAED),     // Google Chrome high-contrast text
+        onSurface = Color(0xFFE8EAED),
+        onSurfaceVariant = Color(0xFF9AA0A6), // Google Chrome secondary text
+        outline = Color(0xFF3C4043),          // Google Chrome border outline
+        outlineVariant = Color(0xFF2D2E31)
+    )
+}
+
 @Composable
 fun FolioTheme(
     themeMode: String = "SYSTEM",
@@ -557,6 +683,8 @@ fun FolioTheme(
     val useDarkTheme = when (resolvedMode) {
         FolioThemeMode.SYSTEM -> systemDark
         FolioThemeMode.LIGHT -> false
+        FolioThemeMode.SEPIA -> false
+        FolioThemeMode.SLATE_GRAY -> true
         FolioThemeMode.DARK -> true
         FolioThemeMode.AMOLED_BLACK -> true
     }
@@ -585,6 +713,8 @@ fun FolioTheme(
                 dynamicLightColorScheme(context)
             }
         }
+        resolvedMode == FolioThemeMode.SEPIA -> buildSepiaSchemeForAccent(resolvedAccent)
+        resolvedMode == FolioThemeMode.SLATE_GRAY -> buildCharcoalSchemeForAccent(resolvedAccent)
         useDarkTheme -> buildDarkSchemeForAccent(
             accent = resolvedAccent,
             amoledPitchBlack = isAmoled

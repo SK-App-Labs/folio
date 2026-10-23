@@ -526,6 +526,45 @@ class TransactionEntryViewModel(
         }
     }
 
+    fun createAndSelectCategory(
+        name: String,
+        parentId: Long? = null,
+        parentName: String? = null,
+        iconName: String,
+        colorHex: String,
+        splitLineLocalId: Long? = null,
+        onSuccess: ((CategoryNode) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val type = if (formState.value.mode == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE
+            val newNode = CategoryNode(
+                id = 0L,
+                name = name.trim(),
+                type = type,
+                parentId = parentId,
+                iconName = iconName,
+                colorHex = colorHex
+            )
+            val result = categoryAndTagRepository.upsertCategory(newNode)
+            result.onSuccess { createdId ->
+                val createdNode = CategoryNode(
+                    id = createdId,
+                    name = name.trim(),
+                    type = type,
+                    parentId = parentId,
+                    iconName = iconName,
+                    colorHex = colorHex
+                )
+                if (splitLineLocalId != null) {
+                    updateSplitLineCategory(splitLineLocalId, createdNode)
+                } else {
+                    selectCategory(createdNode, parentName)
+                }
+                onSuccess?.invoke(createdNode)
+            }
+        }
+    }
+
     fun setKeypadVisible(visible: Boolean) {
         formState.update { it.copy(isKeypadVisible = visible) }
     }

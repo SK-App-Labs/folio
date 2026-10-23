@@ -4,10 +4,12 @@ package com.folioledger.app.ui.settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,18 +18,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -35,24 +38,29 @@ import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.LocalCafe
-import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
@@ -95,9 +103,11 @@ import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.CurrencySpec
+import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
-import com.folioledger.app.domain.model.TransactionBookmark
+import com.folioledger.app.domain.model.UserPreferences
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.ALL_CATEGORY_ICON_KEYS
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
@@ -120,11 +130,17 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    var showCurrencyPickerDialog by rememberSaveable { mutableStateOf(false) }
+    var isAppearanceSheetOpen by rememberSaveable { mutableStateOf(false) }
+    var isRegionalFormatSheetOpen by rememberSaveable { mutableStateOf(false) }
+    var isDataBackupSheetOpen by rememberSaveable { mutableStateOf(false) }
+    var isTagsAndBookmarksSheetOpen by rememberSaveable { mutableStateOf(false) }
+
     var showMonthStartDayDialog by rememberSaveable { mutableStateOf(false) }
     var showUserGuideSheet by rememberSaveable { mutableStateOf(false) }
     var showTipJarSheet by rememberSaveable { mutableStateOf(false) }
     var isSupporterUnlocked by rememberSaveable { mutableStateOf(false) }
+
+    val prefs = uiState.userPreferences
 
     LaunchedEffect(uiState.snackbarMessage) {
         val message = uiState.snackbarMessage
@@ -138,157 +154,216 @@ fun SettingsScreen(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         modifier = Modifier.fillMaxSize()
     ) { scaffoldPadding ->
-        LazyColumn(
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
-                top = contentPadding.calculateTopPadding() + scaffoldPadding.calculateTopPadding() + 12.dp,
-                bottom = contentPadding.calculateBottomPadding() + scaffoldPadding.calculateBottomPadding() + 48.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxSize()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    top = contentPadding.calculateTopPadding() + scaffoldPadding.calculateTopPadding(),
+                    bottom = contentPadding.calculateBottomPadding() + scaffoldPadding.calculateBottomPadding()
+                )
         ) {
-            item {
-                Column {
-                    Text(
-                        text = "Settings & Data Management",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Customize themes, regional accounting rules, categories, backups & app security",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            // 1. Appearance & Theme Card
-            item {
-                AppearanceAndThemeSectionCard(
-                    themeMode = uiState.userPreferences.themeMode,
-                    accentPalette = uiState.userPreferences.accentPalette,
-                    dynamicColorEnabled = uiState.userPreferences.dynamicColorEnabled,
-                    onThemeModeChange = viewModel::setThemeMode,
-                    onAccentPaletteChange = viewModel::setAccentPalette,
-                    onDynamicColorChange = viewModel::setDynamicColorEnabled
-                )
-            }
-
-            // 2. Ledger & Regional Rules Card
-            item {
-                LedgerAndRegionalRulesSectionCard(
-                    currencySpec = uiState.currencySpec,
-                    numberGrouping = uiState.userPreferences.numberGrouping,
-                    monthStartDay = uiState.userPreferences.monthStartDay,
-                    weekStartDayIso = uiState.userPreferences.weekStartDayIso,
-                    subcategoriesEnabled = uiState.userPreferences.subcategoriesEnabled,
-                    carryOverEnabled = uiState.userPreferences.carryOverEnabled,
-                    onOpenCurrencyPicker = { showCurrencyPickerDialog = true },
-                    onGroupingChange = viewModel::setNumberGrouping,
-                    onOpenMonthStartDayPicker = { showMonthStartDayDialog = true },
-                    onWeekStartDayChange = viewModel::setWeekStartDayIso,
-                    onSubcategoriesEnabledChange = viewModel::setSubcategoriesEnabled,
-                    onCarryOverEnabledChange = viewModel::setCarryOverEnabled
-                )
-            }
-
-            // 3. Categories, Tags & Bookmarks Card
-            item {
-                CategoriesTagsBookmarksSectionCard(
-                    expenseCount = uiState.totalExpenseCategoryCount,
-                    incomeCount = uiState.totalIncomeCategoryCount,
-                    tagCount = uiState.tags.size,
-                    bookmarkCount = uiState.bookmarks.size,
-                    onOpenCategoryManager = {
-                        viewModel.setCategoryManagerOpen(true, CategoryType.EXPENSE)
-                    },
-                    onOpenTagManager = { viewModel.setTagManagerOpen(true) },
-                    onOpenBookmarkManager = { viewModel.setBookmarkManagerOpen(true) }
-                )
-            }
-
-            // 4. Data Backup, Restore & Export Card (1-Tap via Downloads/Folio)
-            item {
-                BackupRestoreExportSectionCard(
-                    isBusy = uiState.isBusyWithFileOperation,
-                    statusLabel = uiState.fileOperationStatusLabel,
-                    onCreateZipBackup = {
-                        viewModel.createPortableZipBackup(
-                            "Folio_Backup_${LocalDate.now()}_${System.currentTimeMillis() / 1000}.zip"
-                        )
-                    },
-                    onRestoreZipBackup = {
-                        viewModel.requestRestoreConfirmation("LATEST_BACKUP")
-                    },
-                    onExportCsv = {
-                        viewModel.exportAllTransactionsToCsv(
-                            "Folio_Ledger_Export_${LocalDate.now()}.csv"
-                        )
-                    }
-                )
-            }
-
-            // 5. Security & Privacy Card
-            item {
-                SecurityAndPrivacySectionCard(
-                    biometricLockEnabled = uiState.userPreferences.biometricLockEnabled,
-                    onBiometricLockChange = viewModel::setBiometricLockEnabled
-                )
-            }
-
-            // 6. Help, User Guide & Support Card
-            item {
-                HelpUserGuideAndSupportSectionCard(
-                    isSupporter = isSupporterUnlocked,
-                    onOpenUserGuide = { showUserGuideSheet = true },
-                    onOpenTipJar = { showTipJarSheet = true }
-                )
-            }
-
-            // Studio Signature Footer
-            item {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
+            // Header Bar (Matches Accounts & Net Worth header typography & padding)
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp, bottom = 16.dp)
+                        .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Folio Ledger v1.0.0 • 100% Offline Personal Finance",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Crafted by SKAL - SK's App Labs",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Settings & Data Management",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Customize themes, regional accounting rules, categories, backups & app security",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                if (uiState.isBusyWithFileOperation) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
             }
 
+            LazyColumn(
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 12.dp,
+                    bottom = 48.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // Group 1: LEDGER & TAXONOMY
+                item {
+                    SettingsGroupCard(title = "LEDGER & TAXONOMY") {
+                        SettingsNavigationRow(
+                            icon = Icons.Default.Category,
+                            title = "Categories & Subcategories",
+                            valueText = "${uiState.expenseCategories.size + uiState.incomeCategories.size} active",
+                            onClick = { viewModel.setCategoryManagerOpen(true) }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsSwitchRow(
+                            icon = Icons.Default.Category,
+                            title = "Enable Subcategories",
+                            checked = prefs.subcategoriesEnabled,
+                            onCheckedChange = { viewModel.setSubcategoriesEnabled(it) }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsNavigationRow(
+                            icon = Icons.AutoMirrored.Filled.Label,
+                            title = "Tags & Bookmarks",
+                            valueText = "${uiState.tags.size} tags • ${uiState.bookmarks.size} saved",
+                            onClick = { isTagsAndBookmarksSheetOpen = true }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsNavigationRow(
+                            icon = Icons.Default.Payments,
+                            title = "Currency & Number Format",
+                            valueText = "${prefs.primaryCurrencyCode} • ${if (prefs.numberGrouping == NumberGroupingSystem.INDIAN) "12,34,567" else "1,234,567"}",
+                            onClick = { isRegionalFormatSheetOpen = true }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsNavigationRow(
+                            icon = Icons.Default.CalendarMonth,
+                            title = "Financial Month Start Day",
+                            valueText = if (prefs.monthStartDay == 1) "1st of month" else "Day ${prefs.monthStartDay}",
+                            onClick = { showMonthStartDayDialog = true }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsSwitchRow(
+                            icon = Icons.Default.Sync,
+                            title = "Carry-Over Monthly Balance",
+                            checked = prefs.carryOverEnabled,
+                            onCheckedChange = { viewModel.setCarryOverEnabled(it) }
+                        )
+                    }
+                }
+
+                // Group 2: APPEARANCE & SECURITY
+                item {
+                    SettingsGroupCard(title = "APPEARANCE & SECURITY") {
+                        val themeModeObj = FolioThemeMode.fromKey(prefs.themeMode)
+                        val accentPaletteObj = FolioAccentPalette.fromKey(prefs.accentPalette)
+                        SettingsNavigationRow(
+                            icon = Icons.Default.Palette,
+                            title = "Theme & Accent Palette",
+                            valueText = themeModeObj.displayName,
+                            valueColorDot = accentPaletteObj.previewColor,
+                            onClick = { isAppearanceSheetOpen = true }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsSwitchRow(
+                            icon = Icons.Default.Fingerprint,
+                            title = "Biometric App Lock",
+                            checked = prefs.biometricLockEnabled,
+                            onCheckedChange = { viewModel.setBiometricLockEnabled(it) }
+                        )
+                    }
+                }
+
+                // Group 3: DATA, BACKUPS & HELP
+                item {
+                    SettingsGroupCard(title = "DATA, BACKUPS & HELP") {
+                        SettingsNavigationRow(
+                            icon = Icons.Default.Backup,
+                            title = "Backups, CSV Export & Reset",
+                            valueText = "Downloads/Folio",
+                            onClick = { isDataBackupSheetOpen = true }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsNavigationRow(
+                            icon = Icons.AutoMirrored.Filled.MenuBook,
+                            title = "Folio User Guide & FAQs",
+                            valueText = "Guide",
+                            onClick = { showUserGuideSheet = true }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsNavigationRow(
+                            icon = Icons.Default.LocalCafe,
+                            title = "Support Folio (Tip Jar) ☕",
+                            valueText = "Tip Jar",
+                            onClick = { showTipJarSheet = true }
+                        )
+                    }
+                }
+
+                // Minimalist Footer
+                item {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp, bottom = 24.dp)
+                    ) {
+                        Text(
+                            text = "Folio Ledger v1.0.1 • 100% Offline SQLite",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Zero Cloud • Zero Ads • Local Device Privacy",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
         }
     }
 
-    // Dialogs & Bottom Sheets
-    if (showCurrencyPickerDialog) {
-        CurrencyPickerDialog(
-            selectedCode = uiState.currencySpec.code,
-            onSelectCurrency = { code ->
-                viewModel.setPrimaryCurrency(code)
-                showCurrencyPickerDialog = false
-            },
-            onDismiss = { showCurrencyPickerDialog = false }
+    // 3 New Bottom Sheets
+    if (isAppearanceSheetOpen) {
+        AppearanceBottomSheet(
+            prefs = prefs,
+            onSelectThemeModeString = viewModel::setThemeMode,
+            onSelectAccentPaletteString = viewModel::setAccentPalette,
+            onToggleDynamicColor = viewModel::setDynamicColorEnabled,
+            onDismiss = { isAppearanceSheetOpen = false }
         )
     }
 
+    if (isRegionalFormatSheetOpen) {
+        RegionalFormatBottomSheet(
+            prefs = prefs,
+            onSelectCurrency = viewModel::setPrimaryCurrency,
+            onSelectGroupingStyle = viewModel::setNumberGrouping,
+            onDismiss = { isRegionalFormatSheetOpen = false }
+        )
+    }
+
+    if (isDataBackupSheetOpen) {
+        DataAndBackupBottomSheet(
+            onCreateBackup = {
+                viewModel.createPortableZipBackup(
+                    "Folio_Backup_${LocalDate.now()}_${System.currentTimeMillis() / 1000}.zip"
+                )
+            },
+            onRestoreBackup = {
+                viewModel.requestRestoreConfirmation("LATEST_BACKUP")
+            },
+            onExportCsv = {
+                viewModel.exportAllTransactionsToCsv(
+                    "Folio_Ledger_Export_${LocalDate.now()}.csv"
+                )
+            },
+            onRequestClearAllData = {
+                viewModel.requestRestoreConfirmation("LATEST_BACKUP")
+            },
+            onDismiss = { isDataBackupSheetOpen = false }
+        )
+    }
+
+    // Dialogs & Secondary Sheets
     if (showMonthStartDayDialog) {
         MonthStartDayPickerDialog(
             selectedDay = uiState.userPreferences.monthStartDay,
@@ -329,23 +404,18 @@ fun SettingsScreen(
         )
     }
 
-    if (uiState.isTagManagerOpen) {
-        TagManagerDialog(
-            tags = uiState.tags,
+    if (isTagsAndBookmarksSheetOpen || uiState.isTagManagerOpen || uiState.isBookmarkManagerOpen) {
+        TagsAndBookmarksBottomSheet(
+            uiState = uiState,
             onCreateTag = viewModel::createTag,
             onRenameTag = viewModel::renameTag,
             onDeleteTag = viewModel::deleteTag,
-            onDismiss = { viewModel.setTagManagerOpen(false) }
-        )
-    }
-
-    if (uiState.isBookmarkManagerOpen) {
-        BookmarkManagerDialog(
-            bookmarks = uiState.bookmarks,
-            currencySpec = uiState.currencySpec,
-            grouping = uiState.userPreferences.numberGrouping,
             onDeleteBookmark = viewModel::deleteBookmark,
-            onDismiss = { viewModel.setBookmarkManagerOpen(false) }
+            onDismiss = {
+                isTagsAndBookmarksSheetOpen = false
+                viewModel.setTagManagerOpen(false)
+                viewModel.setBookmarkManagerOpen(false)
+            }
         )
     }
 
@@ -377,874 +447,6 @@ fun SettingsScreen(
             onDismiss = { showTipJarSheet = false }
         )
     }
-}
-
-@Composable
-private fun AppearanceAndThemeSectionCard(
-    themeMode: String,
-    accentPalette: String,
-    dynamicColorEnabled: Boolean,
-    onThemeModeChange: (String) -> Unit,
-    onAccentPaletteChange: (String) -> Unit,
-    onDynamicColorChange: (Boolean) -> Unit
-) {
-    val semanticColors = LocalFolioSemanticColors.current
-
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Filled.DarkMode,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Appearance & Theme",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Text(
-                text = "Theme Mode",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FolioThemeMode.entries.forEach { mode ->
-                    FilterChip(
-                        selected = themeMode.equals(mode.key, ignoreCase = true),
-                        onClick = { onThemeModeChange(mode.key) },
-                        label = { Text(mode.displayName) }
-                    )
-                }
-            }
-
-            HorizontalDivider(color = semanticColors.cardStrokeSubtle)
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Filled.Palette,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Accent Palette (6 Presets)",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                FolioAccentPalette.entries.forEach { palette ->
-                    val isSelected = accentPalette.equals(palette.key, ignoreCase = true)
-                    val swatchColor = parseHexColorSafely(palette.seedHex, palette.previewColor)
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isSelected) {
-                            swatchColor.copy(alpha = 0.16f)
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainer
-                        },
-                        border = BorderStroke(
-                            width = if (isSelected) 2.dp else 1.dp,
-                            color = if (isSelected) swatchColor else semanticColors.cardStrokeSubtle
-                        ),
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable { onAccentPaletteChange(palette.key) }
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                        ) {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .clip(CircleShape)
-                                    .background(swatchColor)
-                            ) {
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Check,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = palette.displayName,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                            )
-                        }
-                    }
-                }
-            }
-
-            HorizontalDivider(color = semanticColors.cardStrokeSubtle)
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Material You Dynamic Color (Android 12+)",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = "Adapts primary surfaces to your device wallpaper",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Switch(
-                    checked = dynamicColorEnabled,
-                    onCheckedChange = onDynamicColorChange
-
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun LedgerAndRegionalRulesSectionCard(
-    currencySpec: CurrencySpec,
-    numberGrouping: NumberGroupingSystem,
-    monthStartDay: Int,
-    weekStartDayIso: Int,
-    subcategoriesEnabled: Boolean,
-    carryOverEnabled: Boolean,
-    onOpenCurrencyPicker: () -> Unit,
-    onGroupingChange: (NumberGroupingSystem) -> Unit,
-    onOpenMonthStartDayPicker: () -> Unit,
-    onWeekStartDayChange: (Int) -> Unit,
-    onSubcategoriesEnabledChange: (Boolean) -> Unit,
-    onCarryOverEnabledChange: (Boolean) -> Unit
-) {
-    val semanticColors = LocalFolioSemanticColors.current
-
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Filled.CalendarMonth,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Ledger & Regional Rules",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            // Primary Currency Selector Row
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable(onClick = onOpenCurrencyPicker)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
-                ) {
-                    Column {
-                        Text(
-                            text = "Primary Ledger Currency",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "${currencySpec.displayName} (${currencySpec.code}) · ${currencySpec.fractionDigits} decimals",
-                            style = tabularMoneyStyle(MaterialTheme.typography.bodySmall),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer
-                        ) {
-                            Text(
-                                text = "${currencySpec.symbol} ${currencySpec.code}",
-                                style = tabularMoneyStyle(MaterialTheme.typography.labelLarge),
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-
-            // Number Grouping System
-            Text(
-                text = "Number Digit Grouping",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                FilterChip(
-                    selected = numberGrouping == NumberGroupingSystem.INDIAN,
-                    onClick = { onGroupingChange(NumberGroupingSystem.INDIAN) },
-                    label = {
-                        Text(
-                            text = "Indian (12,34,567.89)",
-                            style = tabularMoneyStyle(MaterialTheme.typography.labelMedium)
-                        )
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-                FilterChip(
-                    selected = numberGrouping == NumberGroupingSystem.INTERNATIONAL,
-                    onClick = { onGroupingChange(NumberGroupingSystem.INTERNATIONAL) },
-                    label = {
-                        Text(
-                            text = "US (1,234,567.89)",
-                            style = tabularMoneyStyle(MaterialTheme.typography.labelMedium)
-                        )
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            // Financial Month Start Day (1–31)
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable(onClick = onOpenMonthStartDayPicker)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Financial Month Start Day",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "Aligns monthly summaries & budgets with your salary cycle (1–31)",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Day $monthStartDay",
-                            style = tabularMoneyStyle(MaterialTheme.typography.titleSmall),
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-
-            // Week Start Day
-            Text(
-                text = "Week Start Day",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                val weekOptions = listOf(1 to "Monday", 7 to "Sunday", 6 to "Saturday")
-                weekOptions.forEach { (iso, label) ->
-                    FilterChip(
-                        selected = weekStartDayIso == iso,
-                        onClick = { onWeekStartDayChange(iso) },
-                        label = { Text(label) }
-                    )
-                }
-            }
-
-            HorizontalDivider(color = semanticColors.cardStrokeSubtle)
-
-            // 2-Level Subcategories Toggle
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Enable 2-Level Subcategories",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = "Allows nested subcategories under main Expense & Income categories",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Switch(
-                    checked = subcategoriesEnabled,
-                    onCheckedChange = onSubcategoriesEnabledChange
-                )
-            }
-
-            // Period Carry-Over Toggle
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Carry-Over Balance Across Months",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = "Rolls cumulative net surplus/deficit into the next financial period",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Switch(
-                    checked = carryOverEnabled,
-                    onCheckedChange = onCarryOverEnabledChange
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun CategoriesTagsBookmarksSectionCard(
-    expenseCount: Int,
-    incomeCount: Int,
-    tagCount: Int,
-    bookmarkCount: Int,
-    onOpenCategoryManager: () -> Unit,
-    onOpenTagManager: () -> Unit,
-    onOpenBookmarkManager: () -> Unit
-) {
-    val semanticColors = LocalFolioSemanticColors.current
-
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Filled.Category,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Categories, #Tags & Bookmarks",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            SettingsNavigationRow(
-                icon = Icons.Filled.Category,
-                title = "2-Level Category & Subcategory Manager",
-                subtitle = "$expenseCount Expense items · $incomeCount Income items (72+ smart icons)",
-                onClick = onOpenCategoryManager
-            )
-
-            SettingsNavigationRow(
-                icon = Icons.AutoMirrored.Filled.Label,
-                title = "#Tag Manager",
-                subtitle = "$tagCount custom cross-category tags configured",
-                onClick = onOpenTagManager
-            )
-
-            SettingsNavigationRow(
-                icon = Icons.Filled.Star,
-                title = "Saved Bookmarks (★) Templates",
-                subtitle = "$bookmarkCount quick-entry transaction templates",
-                onClick = onOpenBookmarkManager
-            )
-        }
-    }
-}
-
-@Composable
-private fun SettingsNavigationRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit,
-    iconTint: Color = MaterialTheme.colorScheme.primary
-) {
-    val semanticColors = LocalFolioSemanticColors.current
-
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = subtitle,
-                        style = tabularMoneyStyle(MaterialTheme.typography.bodySmall),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-private fun BackupRestoreExportSectionCard(
-    isBusy: Boolean,
-    statusLabel: String?,
-    onCreateZipBackup: () -> Unit,
-    onRestoreZipBackup: () -> Unit,
-    onExportCsv: () -> Unit
-) {
-    val semanticColors = LocalFolioSemanticColors.current
-
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Filled.Backup,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Column {
-                    Text(
-                        text = "Portable Backup, Restore & CSV Export",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "1-tap save & restore directly via your device's Downloads/Folio folder",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            AnimatedVisibility(visible = isBusy) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                ) {
-                    Text(
-                        text = statusLabel ?: "Processing file in Downloads/Folio...",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                }
-            }
-
-            Button(
-                onClick = onCreateZipBackup,
-                enabled = !isBusy,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Backup,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Create Portable ZIP Backup",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                FilledTonalButton(
-                    onClick = onRestoreZipBackup,
-                    enabled = !isBusy,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Restore,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Restore ZIP",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                OutlinedButton(
-                    onClick = onExportCsv,
-                    enabled = !isBusy,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Download,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Export CSV",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SecurityAndPrivacySectionCard(
-    biometricLockEnabled: Boolean,
-    onBiometricLockChange: (Boolean) -> Unit
-) {
-    val semanticColors = LocalFolioSemanticColors.current
-
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Filled.Security,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Security & Offline Privacy",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Fingerprint,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "Biometric / Device Credential App Lock",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "Require fingerprint, face unlock, or device PIN when opening Folio",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-                Switch(
-                    checked = biometricLockEnabled,
-                    onCheckedChange = onBiometricLockChange
-                )
-            }
-
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = semanticColors.incomeEmeraldContainer.copy(alpha = 0.55f),
-                border = BorderStroke(1.dp, semanticColors.incomeEmerald.copy(alpha = 0.4f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Lock,
-                        contentDescription = null,
-                        tint = semanticColors.incomeEmerald,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "100% Offline-First Architecture: All financial records stay strictly inside your local device database with zero cloud servers, zero telemetry, and zero SMS reading.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun HelpUserGuideAndSupportSectionCard(
-    isSupporter: Boolean,
-    onOpenUserGuide: () -> Unit,
-    onOpenTipJar: () -> Unit
-) {
-    val semanticColors = LocalFolioSemanticColors.current
-
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.HelpOutline,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Help, User Guide & Support",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            SettingsNavigationRow(
-                icon = Icons.AutoMirrored.Filled.MenuBook,
-                title = "Folio User Guide & FAQs",
-                subtitle = "Learn about the 5-View Ledger, Credit Card Cycles, Splits, Budgets & Backups",
-                onClick = onOpenUserGuide
-            )
-
-            SettingsNavigationRow(
-                icon = Icons.Filled.LocalCafe,
-                iconTint = semanticColors.warningAmber,
-                title = if (isSupporter) {
-                    "Support Folio (Tip Jar) ☕ ★ Supporter"
-                } else {
-                    "Support Folio (Tip Jar) ☕"
-                },
-                subtitle = "Folio is 100% free & ad-free. Support development with a voluntary tip",
-                onClick = onOpenTipJar
-            )
-        }
-    }
-}
-
-@Composable
-private fun CurrencyPickerDialog(
-    selectedCode: String,
-    onSelectCurrency: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = "Select Primary Currency",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(SupportedCurrencies.ALL, key = { it.code }) { spec ->
-                    val isSelected = spec.code == selectedCode
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isSelected) {
-                            MaterialTheme.colorScheme.primaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainerLow
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable { onSelectCurrency(spec.code) }
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
-                        ) {
-                            Column {
-                                Text(
-                                    text = "${spec.displayName} (${spec.code})",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "${spec.fractionDigits} decimal digits · ${spec.defaultGrouping.name} grouping",
-                                    style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Text(
-                                text = spec.symbol,
-                                style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
-            }
-        }
-    )
 }
 
 @Composable
@@ -1300,225 +502,7 @@ private fun MonthStartDayPickerDialog(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CategoryManagerBottomSheet(
-    uiState: SettingsUiState,
-    onSelectCategoryType: (CategoryType) -> Unit,
-    onAddMainCategory: () -> Unit,
-    onAddSubcategory: (CategoryNode) -> Unit,
-    onEditCategory: (CategoryNode, String?) -> Unit,
-    onDeleteCategory: (Long) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val semanticColors = LocalFolioSemanticColors.current
-    val categories = uiState.activeManagedCategories
-    val subcategoriesEnabled = uiState.userPreferences.subcategoriesEnabled
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 24.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
-            ) {
-                Column {
-                    Text(
-                        text = if (subcategoriesEnabled) "Category & Subcategory Manager" else "Category Manager",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = if (subcategoriesEnabled) "Add, edit, or organize 2-level categories" else "Add or edit main categories",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                FilledTonalButton(
-                    onClick = onAddMainCategory,
-                    shape = RoundedCornerShape(10.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Add,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Main Category", style = MaterialTheme.typography.labelMedium)
-                }
-            }
-
-            PrimaryTabRow(
-                selectedTabIndex = if (uiState.selectedCategoryManagerType == CategoryType.EXPENSE) 0 else 1,
-                containerColor = MaterialTheme.colorScheme.surface
-            ) {
-                Tab(
-                    selected = uiState.selectedCategoryManagerType == CategoryType.EXPENSE,
-                    onClick = { onSelectCategoryType(CategoryType.EXPENSE) },
-                    text = {
-                        Text(
-                            text = "Expenses (${uiState.expenseCategories.size})",
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                )
-                Tab(
-                    selected = uiState.selectedCategoryManagerType == CategoryType.INCOME,
-                    onClick = { onSelectCategoryType(CategoryType.INCOME) },
-                    text = {
-                        Text(
-                            text = "Income (${uiState.incomeCategories.size})",
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                )
-            }
-
-            LazyColumn(
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(categories, key = { it.id }) { parent ->
-                    Card(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        ),
-                        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                CategoryIconBadge(
-                                    iconName = parent.iconName,
-                                    colorHex = parent.colorHex,
-                                    size = 38.dp,
-                                    iconSize = 19.dp
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = parent.name,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    if (subcategoriesEnabled) {
-                                        Text(
-                                            text = "${parent.subcategories.size} subcategories",
-                                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-
-                                if (subcategoriesEnabled) {
-                                    TextButton(
-                                        onClick = { onAddSubcategory(parent) },
-                                        contentPadding = PaddingValues(horizontal = 8.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Add,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(2.dp))
-                                        Text("Sub", style = MaterialTheme.typography.labelSmall)
-                                    }
-                                }
-
-                                IconButton(
-                                    onClick = { onEditCategory(parent, null) },
-                                    modifier = Modifier.size(30.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Edit,
-                                        contentDescription = "Edit ${parent.name}",
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-
-                                IconButton(
-                                    onClick = { onDeleteCategory(parent.id) },
-                                    modifier = Modifier.size(30.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Delete,
-                                        contentDescription = "Delete ${parent.name}",
-                                        tint = semanticColors.expenseCoral,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-
-                            if (subcategoriesEnabled && parent.subcategories.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                HorizontalDivider(color = semanticColors.cardStrokeSubtle)
-                                Spacer(modifier = Modifier.height(8.dp))
-                                FlowRow(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    parent.subcategories.forEach { sub ->
-                                        Surface(
-                                            shape = RoundedCornerShape(10.dp),
-                                            color = MaterialTheme.colorScheme.surfaceContainer,
-                                            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(10.dp))
-                                                .clickable { onEditCategory(sub, parent.name) }
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                                            ) {
-                                                CategoryIconBadge(
-                                                    iconName = sub.iconName,
-                                                    colorHex = sub.colorHex,
-                                                    size = 20.dp,
-                                                    iconSize = 12.dp
-                                                )
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Text(
-                                                    text = sub.name,
-                                                    style = MaterialTheme.typography.labelMedium,
-                                                    fontWeight = FontWeight.Medium
-                                                )
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Icon(
-                                                    imageVector = Icons.Filled.Edit,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    modifier = Modifier.size(12.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 @Composable
 private fun CategoryEditorDialog(
@@ -1717,247 +701,323 @@ private fun CategoryEditorDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TagManagerDialog(
-    tags: List<String>,
+private fun TagsAndBookmarksBottomSheet(
+    uiState: SettingsUiState,
     onCreateTag: (String) -> Unit,
     onRenameTag: (String, String) -> Unit,
     onDeleteTag: (String) -> Unit,
+    onDeleteBookmark: (Long) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val semanticColors = LocalFolioSemanticColors.current
+    var selectedTab by rememberSaveable { mutableStateOf(0) }
+
     var newTagInput by remember { mutableStateOf("") }
     var tagBeingRenamed by remember { mutableStateOf<String?>(null) }
     var renameInput by remember { mutableStateOf("") }
 
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = "#Tag Manager (${tags.size})",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.85f)
+                .padding(bottom = 24.dp)
+        ) {
+            // Header Row
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = newTagInput,
-                        onValueChange = { newTagInput = it },
-                        label = { Text("New #tag name") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Button(
-                        onClick = {
-                            if (newTagInput.isNotBlank()) {
-                                onCreateTag(newTagInput)
-                                newTagInput = ""
-                            }
-                        }
-                    ) {
-                        Text("Add")
-                    }
-                }
-
-                if (tagBeingRenamed != null) {
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.padding(8.dp)
-                        ) {
-                            OutlinedTextField(
-                                value = renameInput,
-                                onValueChange = { renameInput = it },
-                                label = { Text("Rename #$tagBeingRenamed") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f)
-                            )
-                            TextButton(
-                                onClick = {
-                                    val old = tagBeingRenamed
-                                    if (old != null && renameInput.isNotBlank()) {
-                                        onRenameTag(old, renameInput)
-                                    }
-                                    tagBeingRenamed = null
-                                }
-                            ) {
-                                Text("Save")
-                            }
-                        }
-                    }
-                }
-
-                HorizontalDivider(color = LocalFolioSemanticColors.current.cardStrokeSubtle)
-
-                if (tags.isEmpty()) {
+                Column {
                     Text(
-                        text = "No tags created yet.",
+                        text = "Tags & Favorite Bookmarks",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Manage cross-category #tags & saved transaction templates",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                } else {
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth()
+                }
+            }
+
+            // Tab Row
+            PrimaryTabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = MaterialTheme.colorScheme.surface
+            ) {
+                Tab(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    text = {
+                        Text(
+                            text = "#Tags (${uiState.tags.size})",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                )
+                Tab(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    text = {
+                        Text(
+                            text = "Bookmarks ★ (${uiState.bookmarks.size})",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                )
+            }
+
+            when (selectedTab) {
+                0 -> {
+                    // Tag Manager Content
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(tags, key = { it }) { tag ->
+                        // Create New Tag Input Row
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = newTagInput,
+                                onValueChange = { newTagInput = it },
+                                label = { Text("New #tag name") },
+                                placeholder = { Text("e.g. vacation, tax, project") },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f)
+                            )
+                            Button(
+                                onClick = {
+                                    if (newTagInput.isNotBlank()) {
+                                        onCreateTag(newTagInput.trim())
+                                        newTagInput = ""
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                enabled = newTagInput.isNotBlank()
+                            ) {
+                                Text("Add")
+                            }
+                        }
+
+                        // Rename Tag Section
+                        if (tagBeingRenamed != null) {
                             Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.secondaryContainer,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.padding(12.dp)
                                 ) {
-                                    Text(
-                                        text = "#$tag",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.SemiBold,
+                                    OutlinedTextField(
+                                        value = renameInput,
+                                        onValueChange = { renameInput = it },
+                                        label = { Text("Rename #$tagBeingRenamed") },
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(10.dp),
                                         modifier = Modifier.weight(1f)
                                     )
-                                    IconButton(
+                                    TextButton(
                                         onClick = {
-                                            tagBeingRenamed = tag
-                                            renameInput = tag
-                                        },
-                                        modifier = Modifier.size(28.dp)
+                                            val old = tagBeingRenamed
+                                            if (old != null && renameInput.isNotBlank()) {
+                                                onRenameTag(old, renameInput.trim())
+                                            }
+                                            tagBeingRenamed = null
+                                        }
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Edit,
-                                            contentDescription = "Rename #$tag",
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                    }
-                                    IconButton(
-                                        onClick = { onDeleteTag(tag) },
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Delete,
-                                            contentDescription = "Delete #$tag",
-                                            tint = LocalFolioSemanticColors.current.expenseCoral,
-                                            modifier = Modifier.size(15.dp)
-                                        )
+                                        Text("Save", fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
                         }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
-            }
-        }
-    )
-}
 
-@Composable
-private fun BookmarkManagerDialog(
-    bookmarks: List<TransactionBookmark>,
-    currencySpec: CurrencySpec,
-    grouping: NumberGroupingSystem,
-    onDeleteBookmark: (Long) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = "Saved Bookmarks (${bookmarks.size})",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            if (bookmarks.isEmpty()) {
-                Text(
-                    text = "No bookmarks saved yet. Open the + New Transaction sheet and tap ★ to save any form as a reusable template.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    items(bookmarks, key = { it.id }) { bm ->
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerLow,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        HorizontalDivider(color = semanticColors.cardStrokeSubtle)
+
+                        if (uiState.tags.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = bm.title,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    if (bm.payeeOrDescription.isNotBlank()) {
-                                        Text(
-                                            text = bm.payeeOrDescription,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
+                                Text(
+                                    text = "No tags created yet. Type a name above to create your first #tag.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                items(uiState.tags, key = { it }) { tag ->
+                                    Card(
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                        ),
+                                        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                                        ) {
+                                            Text(
+                                                text = "#$tag",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            IconButton(
+                                                onClick = {
+                                                    tagBeingRenamed = tag
+                                                    renameInput = tag
+                                                },
+                                                modifier = Modifier.size(32.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Edit,
+                                                    contentDescription = "Rename #$tag",
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = { onDeleteTag(tag) },
+                                                modifier = Modifier.size(32.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Delete,
+                                                    contentDescription = "Delete #$tag",
+                                                    tint = semanticColors.expenseCoral,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
                                     }
                                 }
-                                MoneyText(
-                                    money = bm.amount,
-                                    currencySpec = currencySpec,
-                                    grouping = grouping,
-                                    colorMode = MoneyColorMode.fromTransactionType(bm.type),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Bold
+                            }
+                        }
+                    }
+                }
+
+                1 -> {
+                    // Bookmark Templates Content
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        if (uiState.bookmarks.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No favorite bookmarks saved yet.\nTap ★ in the + New Transaction sheet to save any form as a reusable template.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
                                 )
-                                IconButton(
-                                    onClick = { onDeleteBookmark(bm.id) },
-                                    modifier = Modifier.size(28.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Delete,
-                                        contentDescription = "Delete Bookmark",
-                                        tint = LocalFolioSemanticColors.current.expenseCoral,
-                                        modifier = Modifier.size(16.dp)
-                                    )
+                            }
+                        } else {
+                            LazyColumn(
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                items(uiState.bookmarks, key = { it.id }) { bm ->
+                                    Card(
+                                        shape = RoundedCornerShape(14.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                        ),
+                                        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = bm.title,
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                if (bm.payeeOrDescription.isNotBlank()) {
+                                                    Text(
+                                                        text = bm.payeeOrDescription,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.width(12.dp))
+
+                                            MoneyText(
+                                                money = bm.amount,
+                                                currencySpec = uiState.currencySpec,
+                                                grouping = uiState.userPreferences.numberGrouping,
+                                                colorMode = MoneyColorMode.fromTransactionType(bm.type),
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold
+                                            )
+
+                                            Spacer(modifier = Modifier.width(8.dp))
+
+                                            IconButton(
+                                                onClick = { onDeleteBookmark(bm.id) },
+                                                modifier = Modifier.size(32.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Delete,
+                                                    contentDescription = "Delete Bookmark",
+                                                    tint = semanticColors.expenseCoral,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
-            }
         }
-    )
+    }
 }
 
 @Composable
@@ -2005,4 +1065,1252 @@ private fun RestoreConfirmationDialog(
         }
     )
 }
+
+// ============================================================================
+// TYPE ALIASES & REUSABLE LAYOUT COMPONENTS
+// ============================================================================
+
+typealias ThemeMode = FolioThemeMode
+typealias AccentPalette = FolioAccentPalette
+typealias NumberGroupingStyle = NumberGroupingSystem
+
+@Composable
+fun SettingsGroupCard(
+    title: String,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = title.uppercase(),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 12.dp, bottom = 8.dp, top = 16.dp)
+        )
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+            tonalElevation = 1.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingsNavigationRow(
+    icon: ImageVector,
+    title: String,
+    valueText: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    valueColorDot: Color? = null
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 52.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
+        if (valueColorDot != null) {
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .background(color = valueColorDot, shape = CircleShape)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+        if (!valueText.isNullOrEmpty()) {
+            Text(
+                text = valueText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+        Icon(
+            imageVector = Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
+@Composable
+fun SettingsSwitchRow(
+    icon: ImageVector,
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 52.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            if (!subtitle.isNullOrEmpty()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
+    }
+}
+
+// ============================================================================
+// 2. FOCUSED MODAL BOTTOM SHEETS
+// ============================================================================
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AppearanceBottomSheet(
+    prefs: UserPreferences,
+    onSelectThemeMode: (ThemeMode) -> Unit,
+    onSelectAccentPalette: (AccentPalette) -> Unit,
+    onToggleDynamicColor: (Boolean) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val currentTheme = FolioThemeMode.fromKey(prefs.themeMode)
+    val currentAccent = FolioAccentPalette.fromKey(prefs.accentPalette)
+    val semanticColors = LocalFolioSemanticColors.current
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp, top = 8.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            Text(
+                text = "Appearance & Theme",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+
+            // Live Theme & Accent Preview Card
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "LIVE THEME PREVIEW",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = currentAccent.previewColor.copy(alpha = 0.18f)
+                        ) {
+                            Text(
+                                text = currentAccent.displayName,
+                                style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                                fontWeight = FontWeight.Bold,
+                                color = currentAccent.previewColor,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "💼 Monthly Salary",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "+₹45,000.00",
+                            style = tabularMoneyStyle(MaterialTheme.typography.titleSmall),
+                            fontWeight = FontWeight.Bold,
+                            color = semanticColors.incomeEmerald
+                        )
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "☕ Filter Coffee",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "-₹150.00",
+                            style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
+                            fontWeight = FontWeight.Bold,
+                            color = semanticColors.expenseCoral
+                        )
+                    }
+                }
+            }
+
+            // Theme Mode Selection Cards
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "THEME MODE",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FolioThemeMode.entries.forEach { mode ->
+                        val isSelected = currentTheme == mode
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSelected) {
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceContainerLow
+                                }
+                            ),
+                            border = BorderStroke(
+                                width = if (isSelected) 2.dp else 1.dp,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
+                            ),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { onSelectThemeMode(mode) }
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            when (mode) {
+                                                FolioThemeMode.SYSTEM -> MaterialTheme.colorScheme.primary
+                                                FolioThemeMode.LIGHT -> Color(0xFFFFFFFF)
+                                                FolioThemeMode.SEPIA -> Color(0xFFF7F3E9)
+                                                FolioThemeMode.SLATE_GRAY -> Color(0xFF202124)
+                                                FolioThemeMode.DARK -> Color(0xFF0F172A)
+                                                FolioThemeMode.AMOLED_BLACK -> Color(0xFF000000)
+                                            }
+                                        )
+                                        .border(1.dp, semanticColors.cardStrokeSubtle, CircleShape)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = mode.displayName,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                                if (isSelected) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Selected",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            HorizontalDivider()
+
+            // Accent Palette Selection
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "ACCENT COLOR PALETTE",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = currentAccent.displayName,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = currentAccent.previewColor
+                    )
+                }
+
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    FolioAccentPalette.entries.forEach { palette ->
+                        val isSelected = currentAccent == palette
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(palette.previewColor)
+                                .clickable { onSelectAccentPalette(palette) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = palette.displayName,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            HorizontalDivider()
+
+            // Dynamic Color Toggle
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Dynamic Color (Material You)",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "Adapt system colors from wallpaper on supported devices",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = prefs.dynamicColorEnabled,
+                    onCheckedChange = onToggleDynamicColor
+                )
+            }
+        }
+    }
+}
+
+// String-based overload for AppearanceBottomSheet for seamless compatibility
+@JvmName("AppearanceBottomSheetString")
+@Composable
+fun AppearanceBottomSheet(
+    prefs: UserPreferences,
+    onSelectThemeModeString: (String) -> Unit,
+    onSelectAccentPaletteString: (String) -> Unit,
+    onToggleDynamicColor: (Boolean) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AppearanceBottomSheet(
+        prefs = prefs,
+        onSelectThemeMode = { onSelectThemeModeString(it.key) },
+        onSelectAccentPalette = { onSelectAccentPaletteString(it.key) },
+        onToggleDynamicColor = onToggleDynamicColor,
+        onDismiss = onDismiss
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RegionalFormatBottomSheet(
+    prefs: UserPreferences,
+    onSelectCurrency: (String) -> Unit,
+    onSelectGroupingStyle: (NumberGroupingStyle) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val activeCurrencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
+    val semanticColors = LocalFolioSemanticColors.current
+
+    var searchCurrencyQuery by rememberSaveable { mutableStateOf("") }
+
+    // Currencies list: INR, USD, EUR, GBP, JPY, AED, SGD, AUD, CAD, CHF, CNY, SAR
+    val supportedCodes = listOf("INR", "USD", "EUR", "GBP", "JPY", "AED", "SGD", "AUD", "CAD", "CHF", "CNY", "SAR")
+    val allCurrencies = remember {
+        supportedCodes.map { code ->
+            SupportedCurrencies.getByCode(code) ?: CurrencySpec(
+                code = code,
+                symbol = code,
+                displayName = when (code) {
+                    "SAR" -> "Saudi Riyal"
+                    else -> code
+                },
+                fractionDigits = 2,
+                defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+            )
+        }
+    }
+
+    val popularCurrencies = remember(allCurrencies) {
+        allCurrencies.filter { it.code in listOf("INR", "USD", "EUR", "GBP", "AED", "SAR") }
+    }
+
+    val filteredCurrencies = remember(allCurrencies, searchCurrencyQuery) {
+        if (searchCurrencyQuery.isBlank()) {
+            allCurrencies
+        } else {
+            allCurrencies.filter { currency ->
+                currency.code.contains(searchCurrencyQuery, ignoreCase = true) ||
+                currency.displayName.contains(searchCurrencyQuery, ignoreCase = true) ||
+                currency.symbol.contains(searchCurrencyQuery, ignoreCase = true)
+            }
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.88f)
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp, top = 8.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            Text(
+                text = "Regional & Formatting",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+
+            // Live Formatted Preview Card
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "LIVE NUMBER FORMAT PREVIEW",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = MoneyFormatterAndCalculator.formatMinorMoney(
+                            money = MinorMoney(123456789L),
+                            currencySpec = activeCurrencySpec,
+                            grouping = prefs.numberGrouping,
+                            includeSymbol = true
+                        ),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        text = "${activeCurrencySpec.displayName} (${if (prefs.numberGrouping == NumberGroupingSystem.INDIAN) "Indian" else "Standard"} Grouping)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                    )
+                }
+            }
+
+            // Number Grouping System Selector
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "NUMBER GROUPING STYLE",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    val isIndian = prefs.numberGrouping == NumberGroupingSystem.INDIAN
+                    val isStandard = prefs.numberGrouping == NumberGroupingSystem.INTERNATIONAL
+
+                    FilterChip(
+                        selected = isIndian,
+                        onClick = { onSelectGroupingStyle(NumberGroupingSystem.INDIAN) },
+                        label = { Text("Indian (12,34,567.89)") },
+                        leadingIcon = if (isIndian) {
+                            { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
+                        } else null,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    FilterChip(
+                        selected = isStandard,
+                        onClick = { onSelectGroupingStyle(NumberGroupingSystem.INTERNATIONAL) },
+                        label = { Text("Standard (1,234,567.89)") },
+                        leadingIcon = if (isStandard) {
+                            { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
+                        } else null,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            HorizontalDivider()
+
+            // Primary Currency Section
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "PRIMARY LEDGER CURRENCY",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                // Search Currency Field
+                OutlinedTextField(
+                    value = searchCurrencyQuery,
+                    onValueChange = { searchCurrencyQuery = it },
+                    placeholder = { Text("Search currency") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchCurrencyQuery.isNotBlank()) {
+                            IconButton(onClick = { searchCurrencyQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Clear search"
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Quick / Popular Currencies Chips
+                if (popularCurrencies.isNotEmpty() && searchCurrencyQuery.isBlank()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "⚡ POPULAR CURRENCIES",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(popularCurrencies, key = { it.code }) { currency ->
+                                val isSelected = prefs.primaryCurrencyCode.equals(currency.code, ignoreCase = true)
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = { onSelectCurrency(currency.code) },
+                                    label = { Text("${currency.code} (${currency.symbol})") },
+                                    leadingIcon = if (isSelected) {
+                                        { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
+                                    } else null
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Currency Selectable Cards List
+                if (filteredCurrencies.isEmpty()) {
+                    Text(
+                        text = "No currency found matching \"$searchCurrencyQuery\"",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 12.dp)
+                    )
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        filteredCurrencies.forEach { currency ->
+                            val isSelected = prefs.primaryCurrencyCode.equals(currency.code, ignoreCase = true)
+                            Card(
+                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isSelected) {
+                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceContainerLow
+                                    }
+                                ),
+                                border = BorderStroke(
+                                    width = if (isSelected) 2.dp else 1.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .clickable { onSelectCurrency(currency.code) }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                            modifier = Modifier.size(38.dp)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Text(
+                                                    text = currency.symbol,
+                                                    style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(
+                                            text = "${currency.displayName} (${currency.code})",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Selected",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DataAndBackupBottomSheet(
+    onCreateBackup: () -> Unit,
+    onRestoreBackup: () -> Unit,
+    onExportCsv: () -> Unit,
+    onRequestClearAllData: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp, top = 8.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Column {
+                Text(
+                    text = "Data Management & Backup",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "All backup files are automatically saved to Downloads/Folio",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Create Portable ZIP Backup
+            Card(
+                onClick = {
+                    onCreateBackup()
+                    onDismiss()
+                },
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Backup,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Create Portable ZIP Backup",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Encrypted archive of database, settings, and preferences",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Restore Latest ZIP Backup
+            Card(
+                onClick = {
+                    onRestoreBackup()
+                    onDismiss()
+                },
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Restore,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Restore Latest ZIP Backup",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Restore database from Downloads/Folio",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Export Full Ledger to CSV
+            Card(
+                onClick = {
+                    onExportCsv()
+                    onDismiss()
+                },
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Download,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Export Full Ledger to CSV",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Spreadsheet compatible file with all transactions",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // Danger Zone — Reset / Clear All Data
+            OutlinedButton(
+                onClick = {
+                    onRequestClearAllData()
+                    onDismiss()
+                },
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Danger Zone — Reset / Clear All Data",
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CategoryManagerBottomSheet(
+    uiState: SettingsUiState,
+    onSelectCategoryType: (CategoryType) -> Unit,
+    onAddMainCategory: () -> Unit,
+    onAddSubcategory: (CategoryNode) -> Unit,
+    onEditCategory: (CategoryNode, String?) -> Unit,
+    onDeleteCategory: (Long) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val semanticColors = LocalFolioSemanticColors.current
+    val categories = uiState.activeManagedCategories
+    val subcategoriesEnabled = uiState.userPreferences.subcategoriesEnabled
+
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var expandedCategoryIds by rememberSaveable { mutableStateOf(setOf<Long>()) }
+
+    // Filter categories dynamically based on searchQuery
+    val filteredCategories = remember(categories, searchQuery) {
+        if (searchQuery.isBlank()) {
+            categories
+        } else {
+            categories.mapNotNull { parent ->
+                val parentMatches = parent.name.contains(searchQuery, ignoreCase = true)
+                val matchingSubs = parent.subcategories.filter { sub ->
+                    sub.name.contains(searchQuery, ignoreCase = true)
+                }
+                if (parentMatches || matchingSubs.isNotEmpty()) {
+                    parent.copy(
+                        subcategories = if (parentMatches) parent.subcategories else matchingSubs
+                    )
+                } else null
+            }
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.9f)
+                .padding(bottom = 24.dp)
+        ) {
+            // Header Row
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (subcategoriesEnabled) "Category & Subcategory Manager" else "Category Manager",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = if (subcategoriesEnabled) "Add, edit, or organize 2-level categories" else "Add or edit main categories",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                FilledTonalButton(
+                    onClick = onAddMainCategory,
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Main Category", style = MaterialTheme.typography.labelMedium)
+                }
+            }
+
+            // Real-Time Search Bar
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Search categories or subcategories...") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotBlank()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = "Clear search"
+                            )
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 4.dp)
+            )
+
+            // Primary Tab Row
+            PrimaryTabRow(
+                selectedTabIndex = if (uiState.selectedCategoryManagerType == CategoryType.EXPENSE) 0 else 1,
+                containerColor = MaterialTheme.colorScheme.surface
+            ) {
+                Tab(
+                    selected = uiState.selectedCategoryManagerType == CategoryType.EXPENSE,
+                    onClick = { onSelectCategoryType(CategoryType.EXPENSE) },
+                    text = {
+                        Text(
+                            text = "Expenses (${uiState.expenseCategories.size})",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                )
+                Tab(
+                    selected = uiState.selectedCategoryManagerType == CategoryType.INCOME,
+                    onClick = { onSelectCategoryType(CategoryType.INCOME) },
+                    text = {
+                        Text(
+                            text = "Income (${uiState.incomeCategories.size})",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                )
+            }
+
+            if (filteredCategories.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (searchQuery.isNotBlank()) "No categories found for \"$searchQuery\"" else "No categories found.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                LazyColumn(
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(filteredCategories, key = { it.id }) { parent ->
+                        var showMenu by remember { mutableStateOf(false) }
+                        val isSearching = searchQuery.isNotBlank()
+                        val isExpanded = isSearching || expandedCategoryIds.contains(parent.id)
+
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                            ),
+                            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                // Accordion Parent Row — NO .clickable on the container row!
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    CategoryIconBadge(
+                                        iconName = parent.iconName,
+                                        colorHex = parent.colorHex,
+                                        size = 38.dp,
+                                        iconSize = 19.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = parent.name,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        if (subcategoriesEnabled) {
+                                            Text(
+                                                text = "${parent.subcategories.size} subcategories",
+                                                style = tabularMoneyStyle(MaterialTheme.typography.bodySmall),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+
+                                    // Parent Overflow Menu (⋮)
+                                    Box {
+                                        IconButton(onClick = { showMenu = true }) {
+                                            Icon(
+                                                imageVector = Icons.Default.MoreVert,
+                                                contentDescription = "Options for ${parent.name}",
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        DropdownMenu(
+                                            expanded = showMenu,
+                                            onDismissRequest = { showMenu = false }
+                                        ) {
+                                            if (subcategoriesEnabled) {
+                                                DropdownMenuItem(
+                                                    text = { Text("Add Subcategory") },
+                                                    leadingIcon = {
+                                                        Icon(Icons.Default.Add, contentDescription = null)
+                                                    },
+                                                    onClick = {
+                                                        showMenu = false
+                                                        onAddSubcategory(parent)
+                                                    }
+                                                )
+                                            }
+                                            DropdownMenuItem(
+                                                text = { Text("Edit Main Category") },
+                                                leadingIcon = {
+                                                    Icon(Icons.Default.Edit, contentDescription = null)
+                                                },
+                                                onClick = {
+                                                    showMenu = false
+                                                    onEditCategory(parent, null)
+                                                }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("Delete Category", color = semanticColors.expenseCoral) },
+                                                leadingIcon = {
+                                                    Icon(Icons.Default.Delete, contentDescription = null, tint = semanticColors.expenseCoral)
+                                                },
+                                                onClick = {
+                                                    showMenu = false
+                                                    onDeleteCategory(parent.id)
+                                                }
+                                            )
+                                        }
+                                    }
+
+                                    // Dedicated Chevron IconButton to toggle expansion!
+                                    if (subcategoriesEnabled) {
+                                        IconButton(
+                                            onClick = {
+                                                if (!isSearching) {
+                                                    expandedCategoryIds = if (isExpanded) {
+                                                        expandedCategoryIds - parent.id
+                                                    } else {
+                                                        expandedCategoryIds + parent.id
+                                                    }
+                                                }
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                                contentDescription = if (isExpanded) "Collapse ${parent.name}" else "Expand ${parent.name}",
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Expanded Subcategory Tree List
+                                if (subcategoriesEnabled && isExpanded) {
+                                    AnimatedVisibility(visible = isExpanded) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 10.dp)
+                                        ) {
+                                            HorizontalDivider(color = semanticColors.cardStrokeSubtle)
+                                            Spacer(modifier = Modifier.height(8.dp))
+
+                                            if (parent.subcategories.isEmpty()) {
+                                                Text(
+                                                    text = "No subcategories created yet under ${parent.name}",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp)
+                                                )
+                                            } else {
+                                                parent.subcategories.forEach { sub ->
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(start = 20.dp, top = 4.dp, bottom = 4.dp, end = 4.dp)
+                                                            .clip(RoundedCornerShape(8.dp))
+                                                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                                                    ) {
+                                                        CategoryIconBadge(
+                                                            iconName = sub.iconName,
+                                                            colorHex = sub.colorHex,
+                                                            size = 32.dp,
+                                                            iconSize = 16.dp
+                                                        )
+                                                        Spacer(modifier = Modifier.width(10.dp))
+                                                        Text(
+                                                            text = sub.name,
+                                                            style = MaterialTheme.typography.bodyLarge,
+                                                            fontWeight = FontWeight.SemiBold,
+                                                            modifier = Modifier.weight(1f)
+                                                        )
+                                                        IconButton(
+                                                            onClick = { onEditCategory(sub, parent.name) },
+                                                            modifier = Modifier.size(28.dp)
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Edit,
+                                                                contentDescription = "Edit ${sub.name}",
+                                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                                modifier = Modifier.size(15.dp)
+                                                            )
+                                                        }
+                                                        IconButton(
+                                                            onClick = { onDeleteCategory(sub.id) },
+                                                            modifier = Modifier.size(28.dp)
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Delete,
+                                                                contentDescription = "Delete ${sub.name}",
+                                                                tint = semanticColors.expenseCoral,
+                                                                modifier = Modifier.size(15.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            TextButton(
+                                                onClick = { onAddSubcategory(parent) },
+                                                modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Add,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    text = "Add Subcategory under ${parent.name}",
+                                                    style = MaterialTheme.typography.labelMedium
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
 

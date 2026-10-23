@@ -1,6 +1,10 @@
-// File: app/src/main/java/com/folioledger/app/ui/shell/FolioMainShell.kt
 package com.folioledger.app.ui.shell
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -60,7 +64,6 @@ fun FolioMainShell(
     val settingsViewModel: SettingsViewModel = viewModel(factory = viewModelFactory)
 
     val ledgerUiState by ledgerViewModel.uiState.collectAsStateWithLifecycle()
-    val accountsUiState by accountsViewModel.uiState.collectAsStateWithLifecycle()
     val prefs = ledgerUiState.userPreferences
 
     var selectedTab by rememberSaveable { mutableStateOf(FolioMainTab.TRANSACTIONS) }
@@ -98,27 +101,27 @@ fun FolioMainShell(
                 }
             },
             floatingActionButton = {
-                FloatingActionButton(
-                    onClick = {
-                        // If user is currently inside an Account Passbook in the Accounts tab, pre-select that account!
-                        val activeAccountId = if (selectedTab == FolioMainTab.ACCOUNTS) {
-                            accountsUiState.inspectedAccountId
-                        } else {
-                            ledgerUiState.scopedAccountId
-                        }
-                        entryViewModel.resetForNewTransaction(
-                            preselectedAccountId = activeAccountId,
-                            initialEpochDay = null
-                        )
-                        isEntrySheetOpen = true
-                    },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
+                AnimatedVisibility(
+                    visible = selectedTab == FolioMainTab.TRANSACTIONS || selectedTab == FolioMainTab.STATS,
+                    enter = fadeIn() + scaleIn(),
+                    exit = fadeOut() + scaleOut()
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add Transaction"
-                    )
+                    FloatingActionButton(
+                        onClick = {
+                            entryViewModel.resetForNewTransaction(
+                                preselectedAccountId = ledgerUiState.scopedAccountId,
+                                initialEpochDay = null
+                            )
+                            isEntrySheetOpen = true
+                        },
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add Transaction"
+                        )
+                    }
                 }
             }
         ) { innerPadding ->
