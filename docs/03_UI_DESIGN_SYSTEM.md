@@ -6,20 +6,24 @@
     1. `SYSTEM` (Follows Android Light/Dark toggle automatically)
     2. `LIGHT` (Clean crisp white `#FFFFFF` surface)
     3. `SEPIA` (Warm Sand parchment paper cream `#F7F3E9` for low eye-strain daytime viewing)
-    4. `SLATE_GRAY` (Charcoal Gray matching Google Chrome's Dark Theme palette: `#202124` background, `#292A2D` surface, `#35363A` container, `#E8EAED` text, `#9AA0A6` secondary text, `#3C4043` outline)
+    4. `SLATE_GRAY` (Charcoal Gray matching Google Chrome's Dark Theme palette: `#202124` background, `#292A2D` surface, `#35363A` container, `#E8EAED` text, `#9AA0A6` secondary text, `#3C4043` border outline, lightened `#8E96A0` OFF-switch thumb)
     5. `DARK` (Midnight Navy `#0F172A` deep slate)
     6. `AMOLED_BLACK` (Pure `#000000` background for maximum OLED battery savings)
-- **8 Dynamic & Custom Accent Color Palettes (`FolioAccentPalette`):**
+- **12 Dynamic & Custom Accent Color Palettes (`FolioAccentPalette` in Guaranteed 6x2 Grid):**
     - Supports Android 12+ Material You (`dynamicColor`) toggle.
-    - Includes 8 curated financial accent palettes:
+    - Includes 12 curated financial accent palettes:
       1. **Emerald Ledger** (`#059669` - Default)
       2. **Electric Cobalt** (`#2563EB` - #1 Global Fintech Trust Blue used by Wise & PayPal)
       3. **Royal Indigo** (`#4F46E5`)
       4. **Vivid Violet** (`#7C3AED` - Modern fintech purple used by NuBank & Revolut)
-      5. **Oceanic Teal** (`#0D9488`)
-      6. **Ruby Crimson** (`#E11D48`)
-      7. **Saffron Amber** (`#D97706`)
-      8. **Monochrome Slate** (`#475569`)
+      5. **Rose Gold** (`#F43F5E` - Warm luxury coral rose)
+      6. **Fresh Lime** (`#65A30D` - High-energy neon green)
+      7. **Electric Cyan** (`#06B6D4` - Glacier blue turquoise)
+      8. **Golden Bronze** (`#B45309` - Warm terracota earth tone)
+      9. **Oceanic Teal** (`#0D9488`)
+      10. **Ruby Crimson** (`#E11D48`)
+      11. **Saffron Amber** (`#D97706`)
+      12. **Monochrome Slate** (`#475569`)
 - **Cold Start & Splash Screen:** Integrates AndroidX `core-splashscreen` (`Theme.Folio.Starting`) with data-sync splash hold and 380ms morph-to-header exit animation.
 
 ## 2. Semantic Financial Colors (Consistent Across All Screens)
@@ -55,6 +59,6 @@
     - Currency & Number Formatting Sheet (`RegionalFormatBottomSheet` with 1-line `Standard` vs `Indian` grouping, real-time currency search bar, popular currency chips, and full-width currency cards).
     - Category & Subcategory Manager (`CategoryManagerBottomSheet` with scaled typography and always-present chevrons).
     - Unified Tags & Bookmarks (`TagsAndBookmarksBottomSheet` with `#Tags` and `Bookmarks ★` tabs).
-    - Appearance & Theme Sheet (`AppearanceBottomSheet` with Live Theme & Accent Preview card, 6 visual theme mode cards, and 8 accent swatch grid).
+    - Appearance & Theme Sheet (`AppearanceBottomSheet` with Live Theme & Accent Preview card, 6 visual theme mode cards, and guaranteed 6x2 accent swatch grid).
     - Backup/Restore (`DataAndBackupBottomSheet` for portable .zip and CSV export), App Lock, User Guide & Tip Jar.
 - **Floating Action Button (`+`):** Scoped strictly to `TRANSACTIONS` and `STATS` tabs using `AnimatedVisibility` (hidden on `ACCOUNTS` and `SETTINGS`). Opens `TransactionEntrySheet` with calculator keypad, mode tabs, Splits, Bookmarks, and `CategoryPickerBottomSheet`.

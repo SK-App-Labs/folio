@@ -1,4 +1,4 @@
-# FOLIO LEDGER — AI CONTEXT HANDOVER CARD (v1.1.0+)
+# FOLIO LEDGER — AI CONTEXT HANDOVER CARD (v1.2.0+)
 
 ## 1. Project Identity & Tech Stack
 - **App Name:** Folio: Expense & Budget Ledger
@@ -29,36 +29,23 @@
 1. **Header Layout Alignment Standard:** All top-level screen headers use `headlineSmall` (24sp Bold) with `padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp)` to align across `AccountsScreen`, `TransactionsScreen`, `StatsAndBudgetsScreen`, and `SettingsScreen`.
 2. **Card Enclosure Standard:** All grouped cards use `surfaceContainerLow` with `BorderStroke(1.dp, semanticColors.cardStrokeSubtle)` and `18.dp` or `16.dp` rounded corners. This ensures cards maintain crisp, enclosed visual boundaries in both Light Theme (where background contrast is low) and Dark Theme.
 3. **Transaction FAB Visibility Scoping (`FolioMainShell.kt`):** Restricted `FloatingActionButton` (+ New Transaction) strictly to `TRANSACTIONS` and `STATS` tabs using `AnimatedVisibility`. Hidden on `ACCOUNTS` and `SETTINGS`.
-4. **Category Typography & Badge Standard:**
-   - Parent Category Title = `titleMedium` (16sp Bold)
-   - Subcategory Count Subtitle = `bodySmall` (12sp)
-   - Subcategory Item Name = `bodyLarge` (15sp–16sp SemiBold)
-   - Subcategory Icon Badge = `32.dp` (16dp icon)
-   - Chevron Accordions = 16.dp IconButton (`ExpandMore`/`ExpandLess`) rendered on **ALL main categories** (even with 0 subcategories) to reveal subcategories or the inline `+ Add Subcategory under [Parent]` button with empty state guidance (`"No subcategories created yet under [Parent]"`).
-5. **Inline Category Creation Auto-Expansion (`TransactionEntrySheet.kt`):** Creating a category inline keeps the sheet open (`showCategorySheet = true`), auto-selects the new category, and auto-expands its accordion (`expandedCategoryIds += createdNode.id`), keeping `+ Add Subcategory` ready to tap immediately.
+4. **Category Typography & Accordion Standard:** Parent titles = `titleMedium` (16sp Bold); Subcategory counts = `bodySmall` (12sp); Subcategory items = `bodyLarge` (15sp–16sp SemiBold); Subcategory icon badges = `32.dp`. 16.dp chevron IconButton (`ExpandMore`/`ExpandLess`) rendered on **ALL main categories** (even empty ones) to reveal subcategories or `+ Add Subcategory under [Parent]`.
+5. **Inline Category Creation Auto-Expansion (`TransactionEntrySheet.kt`):** Creating a category inline keeps sheet open (`showCategorySheet = true`), auto-selects new category, and auto-expands accordion (`expandedCategoryIds += createdNode.id`).
 6. **Complete 6-Theme Mode Engine (`FolioTheme.kt`):**
    - `SYSTEM`: System Default (syncs with OS setting).
    - `LIGHT`: Clean Crisp White (`#FFFFFF`).
    - `SEPIA`: Warm Sand parchment paper cream (`#F7F3E9`) for low eye-strain daytime viewing.
-   - `SLATE_GRAY`: Charcoal Gray matching Google Chrome's Dark Theme palette (`#202124` background, `#292A2D` surface, `#35363A` container, `#E8EAED` high-contrast text, `#9AA0A6` secondary text, `#3C4043` border outline).
+   - `SLATE_GRAY`: Charcoal Gray matching Google Chrome's Dark Theme palette (`#202124` background, `#292A2D` surface, `#35363A` container, `#E8EAED` high-contrast text, `#9AA0A6` secondary text, `#3C4043` border outline, lightened `#8E96A0` OFF-switch thumb).
    - `DARK`: Midnight Navy (`#0F172A`).
    - `AMOLED_BLACK`: Pure Pitch Black (`#000000`) for maximum OLED battery savings.
-7. **Complete 8-Accent Color Suite (`FolioTheme.kt`):**
-   - `EMERALD` (`#059669` - Emerald Ledger)
-   - `COBALT` (`#2563EB` - Electric Cobalt - #1 Global Fintech Trust Blue)
-   - `INDIGO` (`#4F46E5` - Royal Indigo)
-   - `PURPLE` (`#7C3AED` - Vivid Violet - Modern fintech purple)
-   - `TEAL` (`#0D9488` - Oceanic Teal)
-   - `CRIMSON` (`#E11D48` - Ruby Crimson)
-   - `AMBER` (`#D97706` - Saffron Amber)
-   - `SLATE` (`#475569` - Monochrome Slate)
+7. **12-Accent Color Palette Suite in Guaranteed 6x2 Grid (`FolioTheme.kt`):**
+   - ❇️ `EMERALD` (`#059669`), ⚡ `COBALT` (`#2563EB`), 💜 `INDIGO` (`#4F46E5`), 🍇 `PURPLE` (`#7C3AED`), 🌸 `ROSE` (`#F43F5E`), 🍏 `LIME` (`#65A30D`), 🧊 `CYAN` (`#06B6D4`), 🍂 `BRONZE` (`#B45309`), 🌊 `TEAL` (`#0D9488`), 🔴 `CRIMSON` (`#E11D48`), 🍊 `AMBER` (`#D97706`), 🩶 `SLATE` (`#475569`).
+   - Displayed in `AppearanceBottomSheet` as a guaranteed 2-row x 6-column grid using `take(6)` and `drop(6)`.
 8. **Regional & Number Formatting (`RegionalFormatBottomSheet`):**
    - Number Grouping: 1-line chips (`"Indian (12,34,567.89)"` vs `"Standard (1,234,567.89)"`).
-   - Primary Currency Selector: Real-time search bar (`"Search currency"`), `⚡ POPULAR CURRENCIES` horizontal `LazyRow` chips (`INR`, `USD`, `EUR`, `GBP`, `AED`, `SAR`), and full-width currency cards showing symbol badge (`₹`, `$`, `€`, `£`, `¥`, `SAR`), full name, currency code, and selection checkmark.
+   - Primary Currency Selector: Real-time search bar (`"Search currency"`), `⚡ POPULAR CURRENCIES` horizontal `LazyRow` chips (`INR`, `USD`, `EUR`, `GBP`, `AED`, `SAR`), and full-width currency cards showing symbol badge (`₹`, `$`, `€`, `£`, `¥`, `SAR`), full name, code, and selection checkmark.
 9. **Unified Tags & Bookmarks (`TagsAndBookmarksBottomSheet`):**
-   - Replaced legacy standalone dialogs with a unified bottom sheet containing a `PrimaryTabRow`:
-     - Tab 1: `#Tags (${uiState.tags.size})` - Quick input (`New #tag name` + `Add`), inline renaming card (`Rename #tag` + `Save`), and tag list with edit/delete.
-     - Tab 2: `Bookmarks ★ (${uiState.bookmarks.size})` - Saved transaction templates showing Title, Payee/Note, Category, and `MoneyText` badge with color mode (`fromTransactionType`).
+   - `PrimaryTabRow` with Tab 1 (`#Tags`) and Tab 2 (`Bookmarks ★`).
 
 ## 4. Package & File Map (`app/src/main/java/com/folioledger/app/`)
 - **Root & DI:**
@@ -67,25 +54,20 @@
 - **Domain Layer (`domain/`):**
     - `model/DomainEnumsAndMoney.kt`, `model/DomainModels.kt`
     - `util/MoneyFormatterAndCalculator.kt`
-    - `usecase/AccountingRulesEngine.kt` (Credit card metrics with initial unbilled spend allocation)
-    - `repository/DomainRepositories.kt` (`AccountRepository`, `TransactionRepository`, `CategoryAndTagRepository`, `AnalyticsAndBudgetRepository`, `SettingsAndBackupRepository`)
+    - `usecase/AccountingRulesEngine.kt`
+    - `repository/DomainRepositories.kt`
 - **Data Layer (`data/`):**
     - `local/FolioDatabase.kt` (v2, `MIGRATION_1_2`, `DatabaseBackupManager`), `local/RoomTypeConverters.kt`, `local/DefaultCategorySeeder.kt`
-    - `local/entity/RoomEntities.kt` (`AccountEntity` with `initialUnbilledMinor`), `local/dao/RoomDaos.kt`
-    - `repository/AccountAndTransactionRepositoriesImpl.kt` (Enforces field sanitization for transfers vs non-transfers)
-    - `repository/AnalyticsAndBudgetRepositoryImpl.kt` (Main parent category spend/income rollup)
-    - `repository/SettingsAndCategoryRepositoriesImpl.kt` (Lossless ZIP/CSV engine supporting `initialUnbilledMinor`)
+    - `local/entity/RoomEntities.kt`, `local/dao/RoomDaos.kt`
+    - `repository/AccountAndTransactionRepositoriesImpl.kt`
+    - `repository/AnalyticsAndBudgetRepositoryImpl.kt`
+    - `repository/SettingsAndCategoryRepositoriesImpl.kt`
 - **UI Layer (`ui/`):**
-    - `theme/FolioTheme.kt` (6 Theme Modes: SYSTEM, LIGHT, SEPIA, SLATE_GRAY, DARK, AMOLED_BLACK; 8 Accent Palettes: EMERALD, COBALT, INDIGO, PURPLE, TEAL, CRIMSON, AMBER, SLATE; `buildSepiaSchemeForAccent`, `buildCharcoalSchemeForAccent` Chrome Dark `#202124` palette; synchronized `enableEdgeToEdge`)
-    - `components/FolioCommonComponents.kt` (72+ icons, standardized 56dp `PeriodSelectorHeader`), `components/FolioCharts.kt` (Interactive Donut, `SixMonthTrendBarChart`, `SixMonthSmoothTrendAreaChart`)
+    - `theme/FolioTheme.kt` (6 Theme Modes, 12 Accent Palettes in 6x2 grid, Chrome Dark `#202124` palette, lightened OFF-switch thumb)
+    - `components/FolioCommonComponents.kt` (`CategoryIconBadge`, `resolveFolioIcon`)
     - `shell/FolioMainShell.kt` (4 tabs: `TRANSACTIONS`, `STATS`, `ACCOUNTS`, `SETTINGS` + FAB scoped to `TRANSACTIONS` and `STATS` tabs)
-    - `ledger/` (Decomposed into 5 sub-files):
-        - `LedgerHomeScreen.kt` (Main scaffold & tab routing)
-        - `LedgerHeaderBanners.kt` (Account scope & search banners)
-        - `LedgerItemCards.kt` (Transaction cards & date headers)
-        - `LedgerSubTabs.kt` (5 sub-tabs with sticky date headers and scroll-fading daily totals)
-        - `LedgerSheetsAndDialogs.kt` (Detail action sheet checking transaction type before rendering `Source → Target`, multi-filter bottom sheet, quick bookmarks launcher)
-    - `entry/TransactionEntryViewModel.kt`, `entry/TransactionEntrySheet.kt` (Calculator keypad with minimize toggle, Splits, Installments, Bookmarks, in-place Edit, `CategoryPickerBottomSheet` with real-time search, frequent row, scaled typography, always-present chevrons, and inline creation auto-expansion)
+    - `ledger/` (Decomposed into 5 sub-files): `LedgerHomeScreen.kt`, `LedgerHeaderBanners.kt`, `LedgerItemCards.kt`, `LedgerSubTabs.kt`, `LedgerSheetsAndDialogs.kt`
+    - `entry/TransactionEntryViewModel.kt`, `entry/TransactionEntrySheet.kt` (`CategoryPickerBottomSheet` with real-time search, frequent row, scaled typography, always-present chevrons, and inline creation auto-expansion)
     - `accounts/AccountsViewModel.kt`, `accounts/AccountsScreen.kt` (2-column Statement Due vs. Current Unbilled Credit Card cards, de-cluttered `AccountPassbookBottomSheet` with top header edit button, period header "View in Ledger" chip, and strict type-aware passbook isolation)
-    - `stats/StatsAndBudgetsViewModel.kt`, `stats/StatsAndBudgetsScreen.kt` (Top-bar chip dropdown granularity selector, parent category donut, Subcategory Breakdown & smooth trend line in drill-down sheet)
-    - `settings/SettingsViewModel.kt`, `settings/SettingsScreen.kt` (3 grouped cards with `cardStrokeSubtle` borders, header alignment, `AppearanceBottomSheet` with Live Theme Preview Card, theme preview dots, and 8-accent swatch grid; `RegionalFormatBottomSheet` with currency search and 1-line grouping; `CategoryManagerBottomSheet` with scaled typography and always-present chevrons; `TagsAndBookmarksBottomSheet` with `#Tags` and `Bookmarks ★` tabs; `DataAndBackupBottomSheet`)
+    - `stats/StatsAndBudgetsViewModel.kt`, `stats/StatsAndBudgetsScreen.kt`
+    - `settings/SettingsViewModel.kt`, `settings/SettingsScreen.kt` (3 grouped cards with `cardStrokeSubtle` borders; `AppearanceBottomSheet` with Live Theme Preview Card, guaranteed 6x2 accent swatch grid; `RegionalFormatBottomSheet` with currency search; `CategoryManagerBottomSheet`; `TagsAndBookmarksBottomSheet`; `DataAndBackupBottomSheet`)

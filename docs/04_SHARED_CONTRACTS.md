@@ -167,7 +167,7 @@ val subcategoriesEnabled: Boolean = true,
 val carryOverEnabled: Boolean = false,
 val themeMode: String = "SYSTEM",   // SYSTEM, LIGHT, SEPIA, SLATE_GRAY, DARK, AMOLED_BLACK
 val dynamicColorEnabled: Boolean = false,
-val accentPalette: String = "EMERALD", // EMERALD, COBALT, INDIGO, PURPLE, TEAL, CRIMSON, AMBER, SLATE
+val accentPalette: String = "EMERALD", // EMERALD, COBALT, INDIGO, PURPLE, ROSE, LIME, CYAN, BRONZE, TEAL, CRIMSON, AMBER, SLATE
 val biometricLockEnabled: Boolean = false
 )
 

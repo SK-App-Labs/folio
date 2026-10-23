@@ -1410,28 +1410,62 @@ fun AppearanceBottomSheet(
                     )
                 }
 
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    FolioAccentPalette.entries.forEach { palette ->
-                        val isSelected = currentAccent == palette
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(palette.previewColor)
-                                .clickable { onSelectAccentPalette(palette) },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = palette.displayName,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(24.dp)
-                                )
+                val row1Palettes = remember { FolioAccentPalette.entries.take(6) }
+                val row2Palettes = remember { FolioAccentPalette.entries.drop(6) }
+
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // Row 1 (Exactly 6 swatches)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        row1Palettes.forEach { palette ->
+                            val isSelected = currentAccent == palette
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(palette.previewColor)
+                                    .clickable { onSelectAccentPalette(palette) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = palette.displayName,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Row 2 (Exactly 6 swatches)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        row2Palettes.forEach { palette ->
+                            val isSelected = currentAccent == palette
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(palette.previewColor)
+                                    .clickable { onSelectAccentPalette(palette) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = palette.displayName,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
                             }
                         }
                     }

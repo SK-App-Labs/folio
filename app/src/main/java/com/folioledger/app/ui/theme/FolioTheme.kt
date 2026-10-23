@@ -52,6 +52,10 @@ enum class FolioAccentPalette(
     COBALT("COBALT", "Electric Cobalt", "#2563EB", Color(0xFF2563EB)),
     INDIGO("INDIGO", "Royal Indigo", "#4F46E5", Color(0xFF4F46E5)),
     PURPLE("PURPLE", "Vivid Violet", "#7C3AED", Color(0xFF7C3AED)),
+    ROSE("ROSE", "Rose Gold", "#F43F5E", Color(0xFFF43F5E)),
+    LIME("LIME", "Fresh Lime", "#65A30D", Color(0xFF65A30D)),
+    CYAN("CYAN", "Electric Cyan", "#06B6D4", Color(0xFF06B6D4)),
+    BRONZE("BRONZE", "Golden Bronze", "#B45309", Color(0xFFB45309)),
     TEAL("TEAL", "Oceanic Teal", "#0D9488", Color(0xFF0D9488)),
     CRIMSON("CRIMSON", "Ruby Crimson", "#E11D48", Color(0xFFE11D48)),
     AMBER("AMBER", "Saffron Amber", "#D97706", Color(0xFFD97706)),
@@ -257,6 +261,118 @@ private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
             outlineVariant = outlineVariant,
         )
 
+        FolioAccentPalette.ROSE -> lightColorScheme(
+            primary = Color(0xFFF43F5E),
+            onPrimary = Color.White,
+            primaryContainer = Color(0xFFFFE4E6),
+            onPrimaryContainer = Color(0xFF881337),
+            secondary = Color(0xFFE11D48),
+            onSecondary = Color.White,
+            secondaryContainer = Color(0xFFFECDD3),
+            onSecondaryContainer = Color(0xFF4C0519),
+            tertiary = Color(0xFF2563EB),
+            onTertiary = Color.White,
+            tertiaryContainer = Color(0xFFDBEAFE),
+            onTertiaryContainer = Color(0xFF1E3A8A),
+            background = baseBackground,
+            onBackground = onBackground,
+            surface = baseSurface,
+            onSurface = onBackground,
+            surfaceVariant = baseSurfaceVariant,
+            onSurfaceVariant = onSurfaceVariant,
+            surfaceContainerLowest = Color.White,
+            surfaceContainerLow = Color(0xFFF8FAFC),
+            surfaceContainer = Color(0xFFF1F5F9),
+            surfaceContainerHigh = Color(0xFFE2E8F0),
+            surfaceContainerHighest = Color(0xFFE2E8F0),
+            outline = outline,
+            outlineVariant = outlineVariant,
+        )
+
+        FolioAccentPalette.LIME -> lightColorScheme(
+            primary = Color(0xFF65A30D),
+            onPrimary = Color.White,
+            primaryContainer = Color(0xFFECFCCB),
+            onPrimaryContainer = Color(0xFF1A2E05),
+            secondary = Color(0xFF4D7C0F),
+            onSecondary = Color.White,
+            secondaryContainer = Color(0xFFF7FEE7),
+            onSecondaryContainer = Color(0xFF365314),
+            tertiary = Color(0xFF0284C7),
+            onTertiary = Color.White,
+            tertiaryContainer = Color(0xFFE0F2FE),
+            onTertiaryContainer = Color(0xFF0C4A6E),
+            background = baseBackground,
+            onBackground = onBackground,
+            surface = baseSurface,
+            onSurface = onBackground,
+            surfaceVariant = baseSurfaceVariant,
+            onSurfaceVariant = onSurfaceVariant,
+            surfaceContainerLowest = Color.White,
+            surfaceContainerLow = Color(0xFFF8FAFC),
+            surfaceContainer = Color(0xFFF1F5F9),
+            surfaceContainerHigh = Color(0xFFE2E8F0),
+            surfaceContainerHighest = Color(0xFFE2E8F0),
+            outline = outline,
+            outlineVariant = outlineVariant,
+        )
+
+        FolioAccentPalette.CYAN -> lightColorScheme(
+            primary = Color(0xFF0891B2),
+            onPrimary = Color.White,
+            primaryContainer = Color(0xFFCFFAFE),
+            onPrimaryContainer = Color(0xFF164E63),
+            secondary = Color(0xFF0284C7),
+            onSecondary = Color.White,
+            secondaryContainer = Color(0xFFE0F2FE),
+            onSecondaryContainer = Color(0xFF0C4A6E),
+            tertiary = Color(0xFF4F46E5),
+            onTertiary = Color.White,
+            tertiaryContainer = Color(0xFFE0E7FF),
+            onTertiaryContainer = Color(0xFF1E1B4B),
+            background = baseBackground,
+            onBackground = onBackground,
+            surface = baseSurface,
+            onSurface = onBackground,
+            surfaceVariant = baseSurfaceVariant,
+            onSurfaceVariant = onSurfaceVariant,
+            surfaceContainerLowest = Color.White,
+            surfaceContainerLow = Color(0xFFF8FAFC),
+            surfaceContainer = Color(0xFFF1F5F9),
+            surfaceContainerHigh = Color(0xFFE2E8F0),
+            surfaceContainerHighest = Color(0xFFE2E8F0),
+            outline = outline,
+            outlineVariant = outlineVariant,
+        )
+
+        FolioAccentPalette.BRONZE -> lightColorScheme(
+            primary = Color(0xFFB45309),
+            onPrimary = Color.White,
+            primaryContainer = Color(0xFFFEF3C7),
+            onPrimaryContainer = Color(0xFF78350F),
+            secondary = Color(0xFF92400E),
+            onSecondary = Color.White,
+            secondaryContainer = Color(0xFFFDE68A),
+            onSecondaryContainer = Color(0xFF451A03),
+            tertiary = Color(0xFF059669),
+            onTertiary = Color.White,
+            tertiaryContainer = Color(0xFFD1FAE5),
+            onTertiaryContainer = Color(0xFF064E3B),
+            background = baseBackground,
+            onBackground = onBackground,
+            surface = baseSurface,
+            onSurface = onBackground,
+            surfaceVariant = baseSurfaceVariant,
+            onSurfaceVariant = onSurfaceVariant,
+            surfaceContainerLowest = Color.White,
+            surfaceContainerLow = Color(0xFFF8FAFC),
+            surfaceContainer = Color(0xFFF1F5F9),
+            surfaceContainerHigh = Color(0xFFE2E8F0),
+            surfaceContainerHighest = Color(0xFFE2E8F0),
+            outline = outline,
+            outlineVariant = outlineVariant,
+        )
+
         FolioAccentPalette.AMBER -> lightColorScheme(
             primary = Color(0xFFD97706),
             onPrimary = Color.White,
@@ -432,6 +548,66 @@ private fun buildDarkSchemeForAccent(
             onTertiary = Color(0xFF082F49),
             tertiaryContainer = Color(0xFF0369A1),
             onTertiaryContainer = Color(0xFFE0F2FE)
+        )
+
+        FolioAccentPalette.ROSE -> darkColorScheme(
+            primary = Color(0xFFFB7185),
+            onPrimary = Color(0xFF4C0519),
+            primaryContainer = Color(0xFF881337),
+            onPrimaryContainer = Color(0xFFFFE4E6),
+            secondary = Color(0xFFFDA4AF),
+            onSecondary = Color(0xFF881337),
+            secondaryContainer = Color(0xFF9F1239),
+            onSecondaryContainer = Color(0xFFFECDD3),
+            tertiary = Color(0xFF38BDF8),
+            onTertiary = Color(0xFF082F49),
+            tertiaryContainer = Color(0xFF0369A1),
+            onTertiaryContainer = Color(0xFFE0F2FE)
+        )
+
+        FolioAccentPalette.LIME -> darkColorScheme(
+            primary = Color(0xFFA3E635),
+            onPrimary = Color(0xFF1A2E05),
+            primaryContainer = Color(0xFF365314),
+            onPrimaryContainer = Color(0xFFECFCCB),
+            secondary = Color(0xFFBEF264),
+            onSecondary = Color(0xFF365314),
+            secondaryContainer = Color(0xFF4D7C0F),
+            onSecondaryContainer = Color(0xFFF7FEE7),
+            tertiary = Color(0xFF38BDF8),
+            onTertiary = Color(0xFF082F49),
+            tertiaryContainer = Color(0xFF0369A1),
+            onTertiaryContainer = Color(0xFFE0F2FE)
+        )
+
+        FolioAccentPalette.CYAN -> darkColorScheme(
+            primary = Color(0xFF22D3EE),
+            onPrimary = Color(0xFF083344),
+            primaryContainer = Color(0xFF155E75),
+            onPrimaryContainer = Color(0xFFCFFAFE),
+            secondary = Color(0xFF67E8F9),
+            onSecondary = Color(0xFF164E63),
+            secondaryContainer = Color(0xFF0891B2),
+            onSecondaryContainer = Color(0xFFE0F2FE),
+            tertiary = Color(0xFF818CF8),
+            onTertiary = Color(0xFF1E1B4B),
+            tertiaryContainer = Color(0xFF3730A3),
+            onTertiaryContainer = Color(0xFFE0E7FF)
+        )
+
+        FolioAccentPalette.BRONZE -> darkColorScheme(
+            primary = Color(0xFFFBBF24),
+            onPrimary = Color(0xFF451A03),
+            primaryContainer = Color(0xFF78350F),
+            onPrimaryContainer = Color(0xFFFEF3C7),
+            secondary = Color(0xFFF59E0B),
+            onSecondary = Color(0xFF451A03),
+            secondaryContainer = Color(0xFF92400E),
+            onSecondaryContainer = Color(0xFFFDE68A),
+            tertiary = Color(0xFF34D399),
+            onTertiary = Color(0xFF022C22),
+            tertiaryContainer = Color(0xFF065F46),
+            onTertiaryContainer = Color(0xFFD1FAE5)
         )
 
         FolioAccentPalette.INDIGO -> darkColorScheme(
@@ -658,14 +834,14 @@ private fun buildCharcoalSchemeForAccent(accent: FolioAccentPalette): ColorSchem
         surface = Color(0xFF292A2D),          // Google Chrome Dark surface
         surfaceContainerLowest = Color(0xFF1B1C1E),
         surfaceContainerLow = Color(0xFF292A2D),
-        surfaceContainer = Color(0xFF2F3033),
-        surfaceContainerHigh = Color(0xFF35363A),
-        surfaceContainerHighest = Color(0xFF3C4043),
+        surfaceContainer = Color(0xFF313337),
+        surfaceContainerHigh = Color(0xFF3C3F43),
+        surfaceContainerHighest = Color(0xFF4A4D51), // Lightened OFF switch track
         onBackground = Color(0xFFE8EAED),     // Google Chrome high-contrast text
         onSurface = Color(0xFFE8EAED),
         onSurfaceVariant = Color(0xFF9AA0A6), // Google Chrome secondary text
-        outline = Color(0xFF3C4043),          // Google Chrome border outline
-        outlineVariant = Color(0xFF2D2E31)
+        outline = Color(0xFF8E96A0),          // High-contrast OFF switch thumb & border
+        outlineVariant = Color(0xFF5F6368)    // Crisp Chrome border outline
     )
 }
 
