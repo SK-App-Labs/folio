@@ -1,0 +1,631 @@
+package com.folioledger.app.ui.accounts.sheets
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Unarchive
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import com.folioledger.app.domain.model.AccountGroup
+import com.folioledger.app.domain.model.AccountSummary
+import com.folioledger.app.domain.model.SupportedCurrencies
+import com.folioledger.app.ui.accounts.AccountEditorDialogState
+import com.folioledger.app.ui.accounts.AccountsViewModel
+import com.folioledger.app.ui.accounts.CreditCardCycleCalculator
+import com.folioledger.app.ui.accounts.components.formatAccountGroupTitle
+import com.folioledger.app.ui.components.CategoryIconBadge
+import com.folioledger.app.ui.components.parseHexColorSafely
+import com.folioledger.app.ui.theme.LocalFolioSemanticColors
+import com.folioledger.app.ui.theme.tabularMoneyStyle
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+internal fun AccountEditorBottomSheet(
+    state: AccountEditorDialogState,
+    referenceDateEpochDay: Long,
+    parentBankCandidates: List<AccountSummary>,
+    isSaving: Boolean,
+    onUpdateState: ((AccountEditorDialogState) -> AccountEditorDialogState) -> Unit,
+    onSave: () -> Unit,
+    onToggleArchive: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val semanticColors = LocalFolioSemanticColors.current
+
+    var showStatementDayPicker by rememberSaveable { mutableStateOf(false) }
+    var showPaymentDueDayPicker by rememberSaveable { mutableStateOf(false) }
+
+    val swatchPresets = remember {
+        listOf("#059669", "#2563EB", "#4F46E5", "#D97706", "#E11D48", "#0D9488", "#7C3AED", "#334155")
+    }
+    val iconPresets = remember {
+        listOf(
+            "account_balance",
+            "account_balance_wallet",
+            "credit_card",
+            "savings",
+            "trending_up",
+            "payments",
+            "security",
+            "work"
+        )
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(start = 20.dp, end = 20.dp, bottom = 32.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CategoryIconBadge(
+                        iconName = state.iconName,
+                        colorHex = state.colorHex,
+                        size = 40.dp,
+                        iconSize = 20.dp
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = if (state.isEditing) "Edit Account" else "New Account",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Close"
+                    )
+                }
+            }
+
+            if (!state.validationError.isNullOrBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = semanticColors.expenseCoralContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = state.validationError,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = semanticColors.onExpenseCoralContainer,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    )
+                }
+            }
+
+            OutlinedTextField(
+                value = state.name,
+                onValueChange = { newName -> onUpdateState { it.copy(name = newName) } },
+                label = { Text("Account Name") },
+                placeholder = { Text("e.g., HDFC Regalia CC, ICICI Salary A/c") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Text(
+                text = "Account Group",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                AccountGroup.entries.forEach { group ->
+                    FilterChip(
+                        selected = state.groupType == group,
+                        onClick = {
+                            onUpdateState { current ->
+                                current.copy(
+                                    groupType = group,
+                                    iconName = AccountsViewModel.defaultIconForGroup(group),
+                                    colorHex = AccountsViewModel.defaultColorForGroup(group),
+                                    parentAccountId = if (group == AccountGroup.DEBIT_CARD) {
+                                        current.parentAccountId ?: parentBankCandidates.firstOrNull()?.id
+                                    } else {
+                                        null
+                                    }
+                                )
+                            }
+                        },
+                        label = { Text(formatAccountGroupTitle(group)) }
+                    )
+                }
+            }
+
+            Text(
+                text = "Currency",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                SupportedCurrencies.ALL.forEach { spec ->
+                    FilterChip(
+                        selected = state.currencyCode == spec.code,
+                        onClick = { onUpdateState { it.copy(currencyCode = spec.code) } },
+                        label = { Text("${spec.symbol} ${spec.code}") }
+                    )
+                }
+            }
+
+            when (state.groupType) {
+                AccountGroup.DEBIT_CARD -> {
+                    Text(
+                        text = "Linked Parent Bank Account",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    if (parentBankCandidates.isEmpty()) {
+                        Text(
+                            text = "No Bank or Savings account found. Create a Bank Account first to link a Debit Card.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = semanticColors.expenseCoral
+                        )
+                    } else {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            parentBankCandidates.forEach { candidate ->
+                                FilterChip(
+                                    selected = state.parentAccountId == candidate.id,
+                                    onClick = {
+                                        onUpdateState { it.copy(parentAccountId = candidate.id) }
+                                    },
+                                    label = { Text(candidate.name) }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                AccountGroup.CREDIT_CARD -> {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = state.openingBalanceInput,
+                            onValueChange = { v -> onUpdateState { it.copy(openingBalanceInput = v) } },
+                            label = { Text("Total Debt Owed") },
+                            supportingText = { Text("Billed + Unbilled debt") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = state.creditLimitInput,
+                            onValueChange = { v -> onUpdateState { it.copy(creditLimitInput = v) } },
+                            label = { Text("Credit Limit") },
+                            supportingText = { Text("Total card limit") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    OutlinedTextField(
+                        value = state.statementPayableInput,
+                        onValueChange = { v -> onUpdateState { it.copy(statementPayableInput = v) } },
+                        label = { Text("Current Billed Statement Due (Payable Now)") },
+                        supportingText = { Text("Unpaid bill from your last closed statement") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = state.unbilledAmountInput,
+                        onValueChange = { v -> onUpdateState { it.copy(unbilledAmountInput = v) } },
+                        label = { Text("Current Unbilled Spend (Since Last Statement)") },
+                        supportingText = { Text("Purchases made after your last statement closed") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainer,
+                            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { showStatementDayPicker = true }
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = "Statement Day (1–31)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Day ${state.settlementDayOfMonth}",
+                                    style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainer,
+                            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { showPaymentDueDayPicker = true }
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = "Payment Due Day (1–31)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Day ${state.paymentDueDayOfMonth}",
+                                    style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+
+                    val liveCycleWindow = remember(
+                        referenceDateEpochDay,
+                        state.settlementDayOfMonth,
+                        state.paymentDueDayOfMonth
+                    ) {
+                        CreditCardCycleCalculator.computeCycleWindow(
+                            referenceDateEpochDay = referenceDateEpochDay,
+                            settlementDayOfMonth = state.settlementDayOfMonth,
+                            paymentDueDayOfMonth = state.paymentDueDayOfMonth
+                        )
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(12.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Filled.Info,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Live Billing Cycle Preview",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+
+                            Text(
+                                text = "• Current Active Billing Cycle: ${liveCycleWindow.activeCycleRangeFullText} (New expenses in this window count as Unbilled Spend).",
+                                style = tabularMoneyStyle(MaterialTheme.typography.bodySmall),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            Text(
+                                text = "• Last Closed Statement: ${liveCycleWindow.lastStatementRangeFullText} (Payable by ${liveCycleWindow.lastStatementDueFullText}).",
+                                style = tabularMoneyStyle(MaterialTheme.typography.bodySmall),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+
+                else -> {
+                    OutlinedTextField(
+                        value = state.openingBalanceInput,
+                        onValueChange = { v -> onUpdateState { it.copy(openingBalanceInput = v) } },
+                        label = {
+                            Text(
+                                if (state.groupType.isLiabilityByDefault) {
+                                    "Current Liability / Loan Balance"
+                                } else {
+                                    "Current / Opening Balance"
+                                }
+                            )
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
+            Text(
+                text = "Badge Color & Icon",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                swatchPresets.forEach { hex ->
+                    val swatch = parseHexColorSafely(hex)
+                    val selected = state.colorHex.equals(hex, ignoreCase = true)
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(swatch)
+                            .clickable { onUpdateState { it.copy(colorHex = hex) } }
+                    ) {
+                        if (selected) {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                iconPresets.forEach { iconKey ->
+                    val isSelected = state.iconName == iconKey
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainer
+                        },
+                        border = BorderStroke(
+                            1.dp,
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                semanticColors.cardStrokeSubtle
+                            }
+                        ),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { onUpdateState { it.copy(iconName = iconKey) } }
+                            .padding(8.dp)
+                    ) {
+                        CategoryIconBadge(
+                            iconName = iconKey,
+                            colorHex = state.colorHex,
+                            size = 32.dp,
+                            iconSize = 18.dp
+                        )
+                    }
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Include in Net Worth Overview",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "Counts this account towards total Assets or Liabilities",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = state.includeInNetWorth,
+                    onCheckedChange = { checked ->
+                        onUpdateState { it.copy(includeInNetWorth = checked) }
+                    }
+                )
+            }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (state.isEditing) {
+                    OutlinedButton(
+                        onClick = onToggleArchive,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = if (state.isArchived) {
+                                Icons.Filled.Unarchive
+                            } else {
+                                Icons.Filled.Archive
+                            },
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(if (state.isArchived) "Unarchive" else "Archive")
+                    }
+                }
+
+                Button(
+                    onClick = onSave,
+                    enabled = !isSaving,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(if (state.isEditing) "Save Changes" else "Create Account")
+                }
+            }
+        }
+    }
+
+    if (showStatementDayPicker) {
+        DayOfMonthPickerDialog(
+            title = "Select Statement Closing Day (1–31)",
+            subtitle = "Months with fewer than 31 days automatically clamp to the last day of that month.",
+            selectedDay = state.settlementDayOfMonth,
+            onSelectDay = { day ->
+                onUpdateState { it.copy(settlementDayOfMonth = day.coerceIn(1, 31)) }
+                showStatementDayPicker = false
+            },
+            onDismiss = { showStatementDayPicker = false }
+        )
+    }
+
+    if (showPaymentDueDayPicker) {
+        DayOfMonthPickerDialog(
+            title = "Select Payment Due Day (1–31)",
+            subtitle = "The day of the month your billed credit card statement is due for payment.",
+            selectedDay = state.paymentDueDayOfMonth,
+            onSelectDay = { day ->
+                onUpdateState { it.copy(paymentDueDayOfMonth = day.coerceIn(1, 31)) }
+                showPaymentDueDayPicker = false
+            },
+            onDismiss = { showPaymentDueDayPicker = false }
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DayOfMonthPickerDialog(
+    title: String,
+    subtitle: String,
+    selectedDay: Int,
+    onSelectDay: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    (1..31).forEach { day ->
+                        FilterChip(
+                            selected = selectedDay == day,
+                            onClick = { onSelectDay(day) },
+                            label = {
+                                Text(
+                                    text = day.toString(),
+                                    style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
+                                    fontWeight = if (selectedDay == day) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
