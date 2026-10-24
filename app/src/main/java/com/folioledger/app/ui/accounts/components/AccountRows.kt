@@ -1,23 +1,16 @@
 package com.folioledger.app.ui.accounts.components
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -25,8 +18,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -35,6 +26,7 @@ import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.accounts.CreditCardCycleCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
@@ -72,13 +64,13 @@ internal fun StandardAccountRow(
                 onClick = onRowClick,
                 onLongClick = onEditClick
             )
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
         CategoryIconBadge(
             iconName = account.iconName,
             colorHex = account.colorHex,
-            size = 42.dp,
-            iconSize = 21.dp
+            size = 40.dp,
+            iconSize = 20.dp
         )
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -150,13 +142,13 @@ internal fun DebitCardAccountRow(
                 onClick = onRowClick,
                 onLongClick = onEditClick
             )
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
         CategoryIconBadge(
             iconName = account.iconName,
             colorHex = account.colorHex,
-            size = 42.dp,
-            iconSize = 21.dp
+            size = 40.dp,
+            iconSize = 20.dp
         )
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -166,22 +158,17 @@ internal fun DebitCardAccountRow(
                 text = account.name,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = if (parentAccount != null) {
-                    "Linked Bank: ${parentAccount.name}"
-                } else {
-                    "Linked to Parent Bank Account"
-                },
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Medium
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             if (parentAccount != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text(
-                        text = "Available Bank Bal: ",
+                        text = "${parentAccount.name} · Bal: ",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -194,24 +181,29 @@ internal fun DebitCardAccountRow(
                         fontWeight = FontWeight.SemiBold
                     )
                 }
+            } else {
+                Text(
+                    text = "Parent Bank Account",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
 
-        Column(horizontalAlignment = Alignment.End) {
-            Text(
-                text = "This Month Spend",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            MoneyText(
-                money = periodSpend,
-                currencySpec = accountCurrency,
-                grouping = grouping,
-                colorMode = MoneyColorMode.EXPENSE,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
-        }
+        MoneyText(
+            money = periodSpend,
+            currencySpec = accountCurrency,
+            grouping = grouping,
+            colorMode = if (periodSpend.isPositive) {
+                MoneyColorMode.EXPENSE
+            } else {
+                MoneyColorMode.NEUTRAL
+            },
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
@@ -225,7 +217,6 @@ internal fun CreditCardAccountRow(
     onEditClick: () -> Unit,
     onRowClick: () -> Unit
 ) {
-    val semanticColors = LocalFolioSemanticColors.current
     val accountCurrency = remember(account.currencyCode, defaultCurrencySpec) {
         SupportedCurrencies.getByCode(account.currencyCode) ?: defaultCurrencySpec
     }
@@ -249,218 +240,73 @@ internal fun CreditCardAccountRow(
             MinorMoney.ZERO
         }
 
-    val creditLimit = account.creditLimit
-    val utilizationFraction = remember(totalOutstandingDebt, creditLimit) {
-        if (creditLimit != null && creditLimit.amountMinor > 0L) {
-            (totalOutstandingDebt.amountMinor.toFloat() / creditLimit.amountMinor.toFloat())
-                .coerceIn(0f, 1f)
-        } else {
-            0f
-        }
-    }
-    val utilizationPercent = remember(utilizationFraction) {
-        utilizationFraction * 100f
-    }
-
-    val utilizationColor = when {
-        utilizationPercent >= 75f -> semanticColors.expenseCoral
-        utilizationPercent >= 35f -> semanticColors.warningAmber
-        else -> semanticColors.incomeEmerald
-    }
-
-    Column(
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
                 onClick = onRowClick,
                 onLongClick = onEditClick
             )
-            .padding(horizontal = 16.dp, vertical = 14.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            CategoryIconBadge(
-                iconName = account.iconName,
-                colorHex = account.colorHex,
-                size = 42.dp,
-                iconSize = 21.dp
+        CategoryIconBadge(
+            iconName = account.iconName,
+            colorHex = account.colorHex,
+            size = 40.dp,
+            iconSize = 20.dp
+        )
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = account.name,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
+            Text(
+                text = "Due ${cycleWindow.lastStatementDueShortText}",
+                style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
 
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = account.name,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "Statement Day $statementDay · Due by ${cycleWindow.lastStatementDueShortText}",
-                    style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            FilledTonalButton(
-                onClick = onSettleClick,
-                shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                modifier = Modifier.height(34.dp)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier.width(78.dp),
+                contentAlignment = Alignment.CenterEnd
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Payments,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Pay Bill",
-                    style = MaterialTheme.typography.labelMedium,
+                MoneyText(
+                    money = statementPayable,
+                    currencySpec = accountCurrency,
+                    grouping = grouping,
+                    colorMode = if (statementPayable.isPositive) {
+                        MoneyColorMode.EXPENSE
+                    } else {
+                        MoneyColorMode.INCOME
+                    },
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
             }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 10.dp)
+            Spacer(modifier = Modifier.width(10.dp))
+            Box(
+                modifier = Modifier.width(72.dp),
+                contentAlignment = Alignment.CenterEnd
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Balance Payable",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = cycleWindow.lastStatementRangeShortText,
-                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    MoneyText(
-                        money = statementPayable,
-                        currencySpec = accountCurrency,
-                        grouping = grouping,
-                        colorMode = if (statementPayable.isPositive) {
-                            MoneyColorMode.EXPENSE
-                        } else {
-                            MoneyColorMode.INCOME
-                        },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = "Current Unbilled",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Active Cycle",
-                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    MoneyText(
-                        money = unbilledCycleAmount,
-                        currencySpec = accountCurrency,
-                        grouping = grouping,
-                        colorMode = if (unbilledCycleAmount.isPositive) {
-                            MoneyColorMode.EXPENSE
-                        } else {
-                            MoneyColorMode.NEUTRAL
-                        },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-
-        if (creditLimit != null && creditLimit.isPositive) {
-            Spacer(modifier = Modifier.height(10.dp))
-
-            val availableCredit = (creditLimit - totalOutstandingDebt).let {
-                if (it.isNegative) MinorMoney.ZERO else it
-            }
-            val pctText = remember(utilizationPercent) {
-                String.format(Locale.US, "%.1f%% used", utilizationPercent)
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "Credit Utilization · $pctText",
-                    style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                    fontWeight = FontWeight.SemiBold,
-                    color = utilizationColor
+                MoneyText(
+                    money = unbilledCycleAmount,
+                    currencySpec = accountCurrency,
+                    grouping = grouping,
+                    colorOverride = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium
                 )
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "Avail: ",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    MoneyText(
-                        money = availableCredit,
-                        currencySpec = accountCurrency,
-                        grouping = grouping,
-                        colorMode = MoneyColorMode.NEUTRAL,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = " / ",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    MoneyText(
-                        money = creditLimit,
-                        currencySpec = accountCurrency,
-                        grouping = grouping,
-                        colorMode = MoneyColorMode.NEUTRAL,
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                }
             }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            LinearProgressIndicator(
-                progress = { utilizationFraction },
-                color = utilizationColor,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                strokeCap = StrokeCap.Round,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(7.dp)
-                    .clip(RoundedCornerShape(4.dp))
-            )
         }
     }
 }

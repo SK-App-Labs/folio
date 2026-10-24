@@ -6,24 +6,15 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -31,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
@@ -53,104 +45,170 @@ internal fun AccountGroupSectionCard(
     grouping: NumberGroupingSystem,
     isCollapsed: Boolean,
     onToggleCollapse: () -> Unit,
-    onAddAccountInGroup: () -> Unit,
     onEditAccount: (AccountSummary) -> Unit,
     onSettleCreditCard: (AccountSummary) -> Unit,
-    onAccountClick: (AccountSummary) -> Unit
+    onAccountClick: (AccountSummary) -> Unit,
+    onAddAccountInGroup: (() -> Unit)? = null
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // Section Header Row (outside card surface, whole row tap to expand/collapse)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onToggleCollapse)
+                .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 6.dp)
+        ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onToggleCollapse)
-                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                modifier = Modifier.weight(1f)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
+                Text(
+                    text = formatAccountGroupTitle(group).uppercase(),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest
                 ) {
-                    Icon(
-                        imageVector = if (isCollapsed) Icons.Filled.ExpandMore else Icons.Filled.ExpandLess,
-                        contentDescription = if (isCollapsed) "Expand Group" else "Collapse Group",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = formatAccountGroupTitle(group),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        text = accounts.size.toString(),
+                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest
-                    ) {
-                        Text(
-                            text = accounts.size.toString(),
-                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                        )
-                    }
                 }
+            }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (group == AccountGroup.DEBIT_CARD) {
-                        Text(
-                            text = "Period Spend: ",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (group == AccountGroup.CREDIT_CARD) {
+                    val groupPayableMinor = accounts.fold(0L) { sum, acc ->
+                        sum + (acc.creditCardStatementPayable?.amountMinor ?: 0L)
+                    }
+                    val groupUnbilledMinor = accounts.fold(0L) { sum, acc ->
+                        val totalDebt = acc.currentBalance.abs().amountMinor
+                        val statement = acc.creditCardStatementPayable?.amountMinor ?: 0L
+                        val unbilled = acc.creditCardUnbilledAmount?.amountMinor
+                            ?: if (totalDebt > statement) totalDebt - statement else 0L
+                        sum + unbilled
+                    }
+
+                    Box(
+                        modifier = Modifier.width(78.dp),
+                        contentAlignment = Alignment.CenterEnd
+                    ) {
+                        MoneyText(
+                            money = MinorMoney(groupPayableMinor),
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            colorMode = if (groupPayableMinor > 0L) {
+                                MoneyColorMode.EXPENSE
+                            } else {
+                                MoneyColorMode.INCOME
+                            },
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
                         )
                     }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Box(
+                        modifier = Modifier.width(72.dp),
+                        contentAlignment = Alignment.CenterEnd
+                    ) {
+                        MoneyText(
+                            money = MinorMoney(groupUnbilledMinor),
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            colorOverride = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else {
                     MoneyText(
                         money = groupSubtotal,
                         currencySpec = currencySpec,
                         grouping = grouping,
                         colorMode = if (group == AccountGroup.DEBIT_CARD) {
-                            MoneyColorMode.EXPENSE
+                            if (groupSubtotal.isPositive) MoneyColorMode.EXPENSE else MoneyColorMode.NEUTRAL
                         } else {
                             MoneyColorMode.AUTO_SIGN
                         },
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    IconButton(
-                        onClick = onAddAccountInGroup,
-                        modifier = Modifier.size(30.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Add,
-                            contentDescription = "Add to ${formatAccountGroupTitle(group)}",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
                 }
             }
+        }
 
-            AnimatedVisibility(
-                visible = !isCollapsed,
-                enter = expandVertically(),
-                exit = shrinkVertically()
+        // Account List Surface Card
+        AnimatedVisibility(
+            visible = !isCollapsed,
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                tonalElevation = 1.dp,
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    accounts.forEachIndexed { index, account ->
+                    if (group == AccountGroup.CREDIT_CARD && accounts.isNotEmpty()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 6.dp)
+                        ) {
+                            Text(
+                                text = "CARD DETAILS",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                modifier = Modifier.weight(1f)
+                            )
+                            Box(
+                                modifier = Modifier.width(78.dp),
+                                contentAlignment = Alignment.CenterEnd
+                            ) {
+                                Text(
+                                    text = "DUE NOW",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    textAlign = TextAlign.End
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Box(
+                                modifier = Modifier.width(72.dp),
+                                contentAlignment = Alignment.CenterEnd
+                            ) {
+                                Text(
+                                    text = "UNBILLED",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    textAlign = TextAlign.End
+                                )
+                            }
+                        }
                         HorizontalDivider(color = semanticColors.cardStrokeSubtle)
+                    }
+
+                    accounts.forEachIndexed { index, account ->
+                        if (index > 0) {
+                            HorizontalDivider(color = semanticColors.cardStrokeSubtle)
+                        }
                         when (account.groupType) {
                             AccountGroup.CREDIT_CARD -> {
                                 CreditCardAccountRow(
@@ -185,9 +243,6 @@ internal fun AccountGroupSectionCard(
                                     onRowClick = { onAccountClick(account) }
                                 )
                             }
-                        }
-                        if (index == accounts.lastIndex) {
-                            Spacer(modifier = Modifier.height(4.dp))
                         }
                     }
                 }
