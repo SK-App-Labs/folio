@@ -64,7 +64,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -237,7 +236,7 @@ fun UserGuideBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(
             modifier = Modifier
@@ -513,7 +512,7 @@ fun TipJarBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -614,9 +613,9 @@ fun TipJarBottomSheet(
             tipTiers.forEach { tier ->
                 val priceLabel = if (isIndianRupee) tier.inrPriceDisplay else tier.usdPriceDisplay
                 val tierColor = when (tier.skuId) {
-                    "folio_tip_coffee" -> Color(0xFFD97706)
-                    "folio_tip_supporter" -> Color(0xFF059669)
-                    else -> Color(0xFF4F46E5)
+                    "folio_tip_coffee" -> semanticColors.warningAmber
+                    "folio_tip_supporter" -> semanticColors.incomeEmerald
+                    else -> MaterialTheme.colorScheme.primary
                 }
 
                 Card(
