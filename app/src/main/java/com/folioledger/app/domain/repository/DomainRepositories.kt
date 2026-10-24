@@ -171,4 +171,6 @@ interface SettingsAndBackupRepository {
     suspend fun createPortableZipBackup(destinationUriString: String): Result<String>
 
     suspend fun restoreFromZipBackup(sourceUriString: String): Result<Unit>
+
+    suspend fun clearAllData(): Result<Unit>
 }

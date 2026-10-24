@@ -53,8 +53,14 @@
     - 3 Horizontal Sub-Tabs: `Stats` (Interactive Donut Chart + Main Category Rank + Drill-down Subcategory Breakdown & `SixMonthSmoothTrendAreaChart`) | `Budget` (Overall + Category Progress Bars) | `Note & Tags` (Ranked aggregation).
 3. **Tab 3: `Accounts` (Assets, Liabilities & Cards)**
     - Top 3-Column Net Worth Banner: `Assets` | `Liabilities` | `Net Worth`.
-    - Grouped Account Cards (`Cash`, `Bank Accounts`, `Credit Cards` with 2-column `Balance Payable` vs `Current Unbilled` + Utilization bar, `Debit Cards` showing monthly spend).
+    - Grouped Account Cards matching `SettingsGroupCard` pattern (`labelLarge` uppercase primary titles: `CASH (1)`, `SAVINGS (2)`, `DEBIT CARDS (2)`, etc.). Whole-header row tap toggles expand/collapse without chevron icons.
+    - **Compact Credit Card Rows**: 2-column layout (`DUE NOW` & `UNBILLED`) with `Due [Date]` subtext. Smart color coding (`DUE NOW` in `expenseCoral` when > 0, `incomeEmerald` when <= 0; `UNBILLED` in `onSurfaceVariant`). Optimized column widths (`78.dp` & `72.dp`), returning `+52.dp` extra horizontal width to card names.
+    - **Streamlined Debit Card Rows**: Consolidated subtext (`HDFC Bank · Bal: ₹1,20,000.00`) with positive parent bank balance in `incomeEmerald` (or overdrawn in `expenseCoral`). Reduced row height to ~52.dp.
+    - **Streamlined Account Editor Sheet (`AccountEditorBottomSheet`)**: `Opening Balance` sits directly below `Account Name`. 10 account groups categorized under 3 Segment Tabs (`Liquid` | `Cards` | `Savings & Debt`). Auto-calculates Credit Card Total Debt in real time (`Billed Due + Unbilled`). Collapsible foreign currency picker and collapsible appearance customizer.
+    - **Strict Ledger Safety Deletion Rule**: Accounts with 0 transactions can be permanently deleted after confirmation. Accounts with 1+ linked transactions cannot be deleted to protect historical reports, guiding the user to **Archive Account** instead.
+    - **Decluttered Account Passbook Sheet (`AccountPassbookBottomSheet`)**: Header uncluttered by moving `Edit Account` to the Quick Action Bar (`Add Tx` | `Settle Bill` | `Edit Account`). Removed repeated `"Day End Bal:"` label prefix from day-grouped transaction section headers.
 4. **Tab 4: `Settings` (Configuration & Data)**
+    - Modularized into `com.folioledger.app.ui.settings.sheets` package (`AppearanceBottomSheet`, `RegionalFormatBottomSheet`, `DataAndBackupBottomSheet`, `CategoryManagerBottomSheet`, `TagsAndBookmarksBottomSheet`).
     - 3 Grouped Cards (`LEDGER & TAXONOMY`, `APPEARANCE & SECURITY`, `DATA, BACKUPS & HELP`).
     - Currency & Number Formatting Sheet (`RegionalFormatBottomSheet` with 1-line `Standard` vs `Indian` grouping, real-time currency search bar, popular currency chips, and full-width currency cards).
     - Category & Subcategory Manager (`CategoryManagerBottomSheet` with scaled typography and always-present chevrons).

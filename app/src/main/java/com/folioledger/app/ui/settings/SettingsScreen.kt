@@ -97,6 +97,7 @@ fun SettingsScreen(
     var isTagsAndBookmarksSheetOpen by rememberSaveable { mutableStateOf(false) }
 
     var showMonthStartDayDialog by rememberSaveable { mutableStateOf(false) }
+    var showClearAllDataDialog by rememberSaveable { mutableStateOf(false) }
     var showUserGuideSheet by rememberSaveable { mutableStateOf(false) }
     var showTipJarSheet by rememberSaveable { mutableStateOf(false) }
     var isSupporterUnlocked by rememberSaveable { mutableStateOf(false) }
@@ -331,13 +332,23 @@ fun SettingsScreen(
                 )
             },
             onRequestClearAllData = {
-                viewModel.requestRestoreConfirmation("LATEST_BACKUP")
+                showClearAllDataDialog = true
             },
             onDismiss = { isDataBackupSheetOpen = false }
         )
     }
 
     // Dialogs & Secondary Sheets
+    if (showClearAllDataDialog) {
+        ClearAllDataConfirmationDialog(
+            onConfirmClear = {
+                showClearAllDataDialog = false
+                viewModel.clearAllData()
+            },
+            onDismiss = { showClearAllDataDialog = false }
+        )
+    }
+
     if (showMonthStartDayDialog) {
         MonthStartDayPickerDialog(
             selectedDay = uiState.userPreferences.monthStartDay,
@@ -516,6 +527,52 @@ private fun RestoreConfirmationDialog(
         },
         dismissButton = {
             TextButton(onClick = onCancel) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+private fun ClearAllDataConfirmationDialog(
+    onConfirmClear: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Filled.Warning,
+                contentDescription = null,
+                tint = LocalFolioSemanticColors.current.expenseCoral
+            )
+        },
+        title = {
+            Text(
+                text = "Reset & Clear All Ledger Data?",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Text(
+                text = "This action will permanently delete all your accounts, transactions, custom categories, tags, budgets, and settings. This action cannot be undone unless you have a backup. Are you sure you want to proceed?",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirmClear,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = LocalFolioSemanticColors.current.expenseCoral,
+                    contentColor = Color.White
+                )
+            ) {
+                Text("Clear All Data")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
         }

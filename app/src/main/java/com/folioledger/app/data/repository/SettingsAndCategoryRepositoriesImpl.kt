@@ -505,6 +505,34 @@ class SettingsAndBackupRepositoryImpl(
         }
     }
 
+    override suspend fun clearAllData(): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            database.withTransaction {
+                val txDao = database.transactionDao()
+                val catTagDao = database.categoryAndTagDao()
+                val budgetRecurringDao = database.budgetAndRecurringDao()
+                val accountDao = database.accountDao()
+
+                // Clear child tables first to respect foreign keys
+                txDao.deleteAllTagCrossRefs()
+                txDao.deleteAllSplits()
+                txDao.deleteAllTransactions()
+                txDao.deleteAllInstallmentPlans()
+                budgetRecurringDao.deleteAllRecurringRules()
+                budgetRecurringDao.deleteAllBudgets()
+                catTagDao.deleteAllBookmarks()
+                catTagDao.deleteAllTags()
+                catTagDao.deleteAllCategories()
+                accountDao.deleteAllAccounts()
+            }
+            DefaultCategorySeeder.seedIfEmpty(database.categoryAndTagDao())
+            context.folioUserPreferencesDataStore.edit { mutablePrefs ->
+                mutablePrefs.clear()
+            }
+            Unit
+        }
+    }
+
     suspend fun restoreBackupFromStream(inputStream: InputStream): Unit = withContext(Dispatchers.IO) {
         var backupJsonText: String? = null
         ZipInputStream(inputStream).use { zipIn ->

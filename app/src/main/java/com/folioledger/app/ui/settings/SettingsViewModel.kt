@@ -600,6 +600,38 @@ class SettingsViewModel(
         }
     }
 
+    fun clearAllData() {
+        viewModelScope.launch {
+            controlState.update {
+                it.copy(
+                    isBusyWithFileOperation = true,
+                    fileOperationStatusLabel = "Clearing all local data..."
+                )
+            }
+            val result = settingsAndBackupRepository.clearAllData()
+            result.fold(
+                onSuccess = {
+                    controlState.update {
+                        it.copy(
+                            isBusyWithFileOperation = false,
+                            fileOperationStatusLabel = null,
+                            snackbarMessage = "All ledger data cleared and reset to default state"
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    controlState.update {
+                        it.copy(
+                            isBusyWithFileOperation = false,
+                            fileOperationStatusLabel = null,
+                            snackbarMessage = error.message ?: "Failed to clear data"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
     fun exportAllTransactionsToCsv(destinationUriString: String) {
         viewModelScope.launch {
             controlState.update {
