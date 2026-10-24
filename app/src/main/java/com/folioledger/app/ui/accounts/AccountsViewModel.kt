@@ -322,6 +322,9 @@ data class AccountsUiState(
     val collapsedGroups: Set<AccountGroup> = emptySet(),
     val editorDialogState: AccountEditorDialogState? = null,
     val settlementSheetState: CreditCardSettlementSheetState? = null,
+    val pendingDeletionAccountId: Long? = null,
+    val pendingDeletionAccountName: String? = null,
+    val pendingDeletionTxCount: Int = 0,
     val isSaving: Boolean = false,
     val snackbarMessage: String? = null
 )
@@ -334,6 +337,9 @@ private data class AccountsInternalControlState(
     val passbookMonthOffset: Int = 0,
     val editorDialogState: AccountEditorDialogState? = null,
     val settlementSheetState: CreditCardSettlementSheetState? = null,
+    val pendingDeletionAccountId: Long? = null,
+    val pendingDeletionAccountName: String? = null,
+    val pendingDeletionTxCount: Int = 0,
     val isSaving: Boolean = false,
     val snackbarMessage: String? = null
 )
@@ -437,6 +443,9 @@ class AccountsViewModel(
             collapsedGroups = ctrl.collapsedGroups,
             editorDialogState = ctrl.editorDialogState,
             settlementSheetState = ctrl.settlementSheetState,
+            pendingDeletionAccountId = ctrl.pendingDeletionAccountId,
+            pendingDeletionAccountName = ctrl.pendingDeletionAccountName,
+            pendingDeletionTxCount = ctrl.pendingDeletionTxCount,
             isSaving = ctrl.isSaving,
             snackbarMessage = ctrl.snackbarMessage
         )
@@ -804,6 +813,49 @@ class AccountsViewModel(
         controlState.update { it.copy(editorDialogState = null) }
     }
 
+    fun requestAccountDeletion(accountId: Long) {
+        viewModelScope.launch {
+            val txCount = accountRepository.getTransactionCountForAccount(accountId)
+            val account = uiState.value.allAccounts.firstOrNull { it.id == accountId }
+            controlState.update {
+                it.copy(
+                    editorDialogState = null,
+                    pendingDeletionAccountId = accountId,
+                    pendingDeletionAccountName = account?.name ?: "Account #$accountId",
+                    pendingDeletionTxCount = txCount
+                )
+            }
+        }
+    }
+
+    fun confirmDeleteAccount(accountId: Long, deleteTransactions: Boolean) {
+        viewModelScope.launch {
+            controlState.update { it.copy(isSaving = true) }
+            val result = accountRepository.deleteAccount(accountId, deleteTransactions)
+            controlState.update { current ->
+                current.copy(
+                    isSaving = false,
+                    editorDialogState = null,
+                    inspectedAccountId = if (current.inspectedAccountId == accountId) null else current.inspectedAccountId,
+                    pendingDeletionAccountId = null,
+                    pendingDeletionAccountName = null,
+                    pendingDeletionTxCount = 0,
+                    snackbarMessage = if (result.isSuccess) "Account deleted successfully." else "Failed to delete account: ${result.exceptionOrNull()?.message}"
+                )
+            }
+        }
+    }
+
+    fun cancelPendingDeletion() {
+        controlState.update {
+            it.copy(
+                pendingDeletionAccountId = null,
+                pendingDeletionAccountName = null,
+                pendingDeletionTxCount = 0
+            )
+        }
+    }
+
     fun saveAccountFromDialog() {
         val editor = controlState.value.editorDialogState ?: return
         val trimmedName = editor.name.trim()
@@ -863,12 +915,7 @@ class AccountsViewModel(
             return
         }
 
-        val effectiveOpeningMagnitude = if (
-            editor.groupType == AccountGroup.CREDIT_CARD &&
-            parsedOpeningBalance.isZero &&
-            ((statementPayable != null && statementPayable.isPositive) ||
-                    (unbilledAmount != null && unbilledAmount.isPositive))
-        ) {
+        val effectiveOpeningMagnitude = if (editor.groupType == AccountGroup.CREDIT_CARD) {
             (statementPayable ?: MinorMoney.ZERO) + (unbilledAmount ?: MinorMoney.ZERO)
         } else {
             parsedOpeningBalance

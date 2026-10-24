@@ -30,6 +30,10 @@ interface AccountRepository {
 
     suspend fun setAccountArchived(accountId: Long, isArchived: Boolean): Result<Unit>
 
+    suspend fun deleteAccount(accountId: Long, deleteTransactions: Boolean): Result<Unit>
+
+    suspend fun getTransactionCountForAccount(accountId: Long): Int
+
     suspend fun settleCreditCardStatement(
         sourceAssetAccountId: Long,
         creditCardAccountId: Long,

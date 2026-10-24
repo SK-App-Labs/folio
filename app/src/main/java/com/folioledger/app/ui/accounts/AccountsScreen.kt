@@ -15,6 +15,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -23,6 +27,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -30,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.AccountGroup
@@ -38,6 +44,7 @@ import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.ui.accounts.components.AccountGroupSectionCard
 import com.folioledger.app.ui.accounts.sheets.AccountEditorBottomSheet
+import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.accounts.sheets.AccountPassbookBottomSheet
 import com.folioledger.app.ui.accounts.sheets.CreditCardSettlementBottomSheet
 import com.folioledger.app.ui.components.EmptyStateCard
@@ -126,7 +133,74 @@ fun AccountsScreen(
                     viewModel.setAccountArchived(editorState.accountId, !editorState.isArchived)
                 }
             },
+            onDelete = {
+                if (editorState.isEditing && editorState.accountId > 0L) {
+                    viewModel.requestAccountDeletion(editorState.accountId)
+                }
+            },
             onDismiss = viewModel::dismissAccountEditorDialog
+        )
+    }
+
+    if (uiState.pendingDeletionAccountId != null) {
+        val pendingId = uiState.pendingDeletionAccountId!!
+        val pendingName = uiState.pendingDeletionAccountName ?: "Account"
+        val txCount = uiState.pendingDeletionTxCount
+        val hasTransactions = txCount > 0
+
+        AlertDialog(
+            onDismissRequest = viewModel::cancelPendingDeletion,
+            icon = {
+                Icon(
+                    imageVector = Icons.Filled.Warning,
+                    contentDescription = null,
+                    tint = LocalFolioSemanticColors.current.warningAmber
+                )
+            },
+            title = {
+                Text(
+                    text = if (hasTransactions) "Cannot Delete $pendingName" else "Delete $pendingName?",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = if (hasTransactions) {
+                        "This account has $txCount linked transaction(s). To protect your historical reports and ledger logs, accounts with transaction history cannot be permanently deleted.\n\nWould you like to Archive this account instead? Archived accounts are hidden from active views while preserving all past transaction history."
+                    } else {
+                        "Are you sure you want to permanently delete $pendingName? This action cannot be undone."
+                    },
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                if (hasTransactions) {
+                    Button(
+                        onClick = {
+                            viewModel.setAccountArchived(pendingId, isArchived = true)
+                            viewModel.cancelPendingDeletion()
+                        }
+                    ) {
+                        Text("Archive Account")
+                    }
+                } else {
+                    Button(
+                        onClick = { viewModel.confirmDeleteAccount(pendingId, deleteTransactions = false) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = LocalFolioSemanticColors.current.expenseCoral,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Delete Account")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::cancelPendingDeletion) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 

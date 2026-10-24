@@ -252,14 +252,14 @@ internal fun AccountGroupSectionCard(
 }
 
 internal fun formatAccountGroupTitle(group: AccountGroup): String = when (group) {
-    AccountGroup.CASH -> "Cash Wallets"
+    AccountGroup.CASH -> "Cash"
     AccountGroup.BANK_ACCOUNT -> "Bank Accounts"
     AccountGroup.DEBIT_CARD -> "Debit Cards"
     AccountGroup.CREDIT_CARD -> "Credit Cards"
-    AccountGroup.SAVINGS -> "Savings & Deposits"
+    AccountGroup.SAVINGS -> "Savings"
     AccountGroup.PREPAID_WALLET -> "Prepaid Wallets"
     AccountGroup.INVESTMENT -> "Investments"
-    AccountGroup.OVERDRAFT -> "Overdraft Accounts"
-    AccountGroup.LOAN -> "Loans & Mortgages"
+    AccountGroup.OVERDRAFT -> "Overdraft"
+    AccountGroup.LOAN -> "Loans"
     AccountGroup.OTHER -> "Other Accounts"
 }

@@ -180,6 +180,26 @@ class AccountRepositoryImpl(
         accountDao.setAccountArchived(accountId = accountId, isArchived = isArchived)
     }
 
+    override suspend fun deleteAccount(
+        accountId: Long,
+        deleteTransactions: Boolean
+    ): Result<Unit> = runCatching {
+        if (deleteTransactions) {
+            val accountTxList = transactionDao.observeAllTransactions().first()
+                .filter { it.transaction.accountId == accountId || it.transaction.transferToAccountId == accountId }
+            accountTxList.forEach { tx ->
+                transactionDao.deleteTransactionById(tx.transaction.id)
+            }
+        }
+        accountDao.deleteAccountById(accountId)
+    }
+
+    override suspend fun getTransactionCountForAccount(accountId: Long): Int {
+        val accountTxList = transactionDao.observeAllTransactions().first()
+            .filter { it.transaction.accountId == accountId || it.transaction.transferToAccountId == accountId }
+        return accountTxList.size
+    }
+
     override suspend fun settleCreditCardStatement(
         sourceAssetAccountId: Long,
         creditCardAccountId: Long,

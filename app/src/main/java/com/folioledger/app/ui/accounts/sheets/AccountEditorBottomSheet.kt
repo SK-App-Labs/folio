@@ -1,5 +1,6 @@
 package com.folioledger.app.ui.accounts.sheets
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,25 +25,35 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -56,12 +67,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
+import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.ui.accounts.AccountEditorDialogState
 import com.folioledger.app.ui.accounts.AccountsViewModel
 import com.folioledger.app.ui.accounts.CreditCardCycleCalculator
 import com.folioledger.app.ui.accounts.components.formatAccountGroupTitle
 import com.folioledger.app.ui.components.CategoryIconBadge
+import com.folioledger.app.ui.components.MoneyColorMode
+import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.components.parseHexColorSafely
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
@@ -76,6 +90,7 @@ internal fun AccountEditorBottomSheet(
     onUpdateState: ((AccountEditorDialogState) -> AccountEditorDialogState) -> Unit,
     onSave: () -> Unit,
     onToggleArchive: () -> Unit,
+    onDelete: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -83,6 +98,18 @@ internal fun AccountEditorBottomSheet(
 
     var showStatementDayPicker by rememberSaveable { mutableStateOf(false) }
     var showPaymentDueDayPicker by rememberSaveable { mutableStateOf(false) }
+    var isForeignCurrencyExpanded by rememberSaveable { mutableStateOf(state.currencyCode != "INR") }
+    var isAppearanceCustomizerExpanded by rememberSaveable { mutableStateOf(false) }
+
+    var selectedSegmentIndex by rememberSaveable {
+        mutableIntStateOf(
+            when (state.groupType) {
+                AccountGroup.CASH, AccountGroup.BANK_ACCOUNT, AccountGroup.PREPAID_WALLET -> 0
+                AccountGroup.DEBIT_CARD, AccountGroup.CREDIT_CARD -> 1
+                else -> 2
+            }
+        )
+    }
 
     val swatchPresets = remember {
         listOf("#059669", "#2563EB", "#4F46E5", "#D97706", "#E11D48", "#0D9488", "#7C3AED", "#334155")
@@ -103,7 +130,7 @@ internal fun AccountEditorBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -112,6 +139,7 @@ internal fun AccountEditorBottomSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(start = 20.dp, end = 20.dp, bottom = 32.dp)
         ) {
+            // Header Row
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -155,6 +183,7 @@ internal fun AccountEditorBottomSheet(
                 }
             }
 
+            // 1. Account Name
             OutlinedTextField(
                 value = state.name,
                 onValueChange = { newName -> onUpdateState { it.copy(name = newName) } },
@@ -164,57 +193,107 @@ internal fun AccountEditorBottomSheet(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Text(
-                text = "Account Group",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold
-            )
-
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                AccountGroup.entries.forEach { group ->
-                    FilterChip(
-                        selected = state.groupType == group,
-                        onClick = {
-                            onUpdateState { current ->
-                                current.copy(
-                                    groupType = group,
-                                    iconName = AccountsViewModel.defaultIconForGroup(group),
-                                    colorHex = AccountsViewModel.defaultColorForGroup(group),
-                                    parentAccountId = if (group == AccountGroup.DEBIT_CARD) {
-                                        current.parentAccountId ?: parentBankCandidates.firstOrNull()?.id
-                                    } else {
-                                        null
-                                    }
-                                )
+            // 2. Opening Balance / Credit Limit (Moved directly below Account Name!)
+            if (state.groupType == AccountGroup.CREDIT_CARD) {
+                OutlinedTextField(
+                    value = state.creditLimitInput,
+                    onValueChange = { v -> onUpdateState { it.copy(creditLimitInput = v) } },
+                    label = { Text("Credit Limit") },
+                    supportingText = { Text("Total card credit limit") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                OutlinedTextField(
+                    value = state.openingBalanceInput,
+                    onValueChange = { v -> onUpdateState { it.copy(openingBalanceInput = v) } },
+                    label = {
+                        Text(
+                            if (state.groupType.isLiabilityByDefault) {
+                                "Current Liability / Loan Balance"
+                            } else {
+                                "Current / Opening Balance"
                             }
-                        },
-                        label = { Text(formatAccountGroupTitle(group)) }
+                        )
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            // 3. Segmented Account Group Selector
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Account Group",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                PrimaryTabRow(
+                    selectedTabIndex = selectedSegmentIndex,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    divider = {}
+                ) {
+                    Tab(
+                        selected = selectedSegmentIndex == 0,
+                        onClick = { selectedSegmentIndex = 0 },
+                        text = { Text("Liquid", fontWeight = FontWeight.Bold) }
                     )
+                    Tab(
+                        selected = selectedSegmentIndex == 1,
+                        onClick = { selectedSegmentIndex = 1 },
+                        text = { Text("Cards", fontWeight = FontWeight.Bold) }
+                    )
+                    Tab(
+                        selected = selectedSegmentIndex == 2,
+                        onClick = { selectedSegmentIndex = 2 },
+                        text = { Text("Savings & Debt", fontWeight = FontWeight.Bold) }
+                    )
+                }
+
+                val activeGroups = when (selectedSegmentIndex) {
+                    0 -> listOf(AccountGroup.CASH, AccountGroup.BANK_ACCOUNT, AccountGroup.PREPAID_WALLET)
+                    1 -> listOf(AccountGroup.DEBIT_CARD, AccountGroup.CREDIT_CARD)
+                    else -> listOf(
+                        AccountGroup.SAVINGS,
+                        AccountGroup.INVESTMENT,
+                        AccountGroup.OVERDRAFT,
+                        AccountGroup.LOAN,
+                        AccountGroup.OTHER
+                    )
+                }
+
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(top = 4.dp)
+                ) {
+                    activeGroups.forEach { group ->
+                        FilterChip(
+                            selected = state.groupType == group,
+                            onClick = {
+                                onUpdateState { current ->
+                                    current.copy(
+                                        groupType = group,
+                                        iconName = AccountsViewModel.defaultIconForGroup(group),
+                                        colorHex = AccountsViewModel.defaultColorForGroup(group),
+                                        parentAccountId = if (group == AccountGroup.DEBIT_CARD) {
+                                            current.parentAccountId ?: parentBankCandidates.firstOrNull()?.id
+                                        } else {
+                                            null
+                                        }
+                                    )
+                                }
+                            },
+                            label = { Text(formatAccountGroupTitle(group)) }
+                        )
+                    }
                 }
             }
 
-            Text(
-                text = "Currency",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold
-            )
-
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                SupportedCurrencies.ALL.forEach { spec ->
-                    FilterChip(
-                        selected = state.currencyCode == spec.code,
-                        onClick = { onUpdateState { it.copy(currencyCode = spec.code) } },
-                        label = { Text("${spec.symbol} ${spec.code}") }
-                    )
-                }
-            }
-
+            // 4. Group-Specific Fields
             when (state.groupType) {
                 AccountGroup.DEBIT_CARD -> {
                     Text(
@@ -247,30 +326,6 @@ internal fun AccountEditorBottomSheet(
                 }
 
                 AccountGroup.CREDIT_CARD -> {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        OutlinedTextField(
-                            value = state.openingBalanceInput,
-                            onValueChange = { v -> onUpdateState { it.copy(openingBalanceInput = v) } },
-                            label = { Text("Total Debt Owed") },
-                            supportingText = { Text("Billed + Unbilled debt") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = state.creditLimitInput,
-                            onValueChange = { v -> onUpdateState { it.copy(creditLimitInput = v) } },
-                            label = { Text("Credit Limit") },
-                            supportingText = { Text("Total card limit") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-
                     OutlinedTextField(
                         value = state.statementPayableInput,
                         onValueChange = { v -> onUpdateState { it.copy(statementPayableInput = v) } },
@@ -290,6 +345,40 @@ internal fun AccountEditorBottomSheet(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
+
+                    val payableVal = state.statementPayableInput.toDoubleOrNull() ?: 0.0
+                    val unbilledVal = state.unbilledAmountInput.toDoubleOrNull() ?: 0.0
+                    val totalDebtCalculated = payableVal + unbilledVal
+                    val activeSpec = SupportedCurrencies.fromCode(state.currencyCode)
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 10.dp)
+                        ) {
+                            Text(
+                                text = "✨ Calculated Total Debt Owed:",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            MoneyText(
+                                money = MinorMoney((-totalDebtCalculated * 100).toLong()),
+                                currencySpec = activeSpec,
+                                colorMode = MoneyColorMode.EXPENSE,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -399,95 +488,177 @@ internal fun AccountEditorBottomSheet(
                     }
                 }
 
-                else -> {
-                    OutlinedTextField(
-                        value = state.openingBalanceInput,
-                        onValueChange = { v -> onUpdateState { it.copy(openingBalanceInput = v) } },
-                        label = {
-                            Text(
-                                if (state.groupType.isLiabilityByDefault) {
-                                    "Current Liability / Loan Balance"
-                                } else {
-                                    "Current / Opening Balance"
-                                }
-                            )
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+                else -> {}
             }
 
-            Text(
-                text = "Badge Color & Icon",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold
-            )
+            HorizontalDivider(color = semanticColors.cardStrokeSubtle)
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
+            // 5. Collapsible Foreign Currency Selector
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { isForeignCurrencyExpanded = !isForeignCurrencyExpanded }
             ) {
-                swatchPresets.forEach { hex ->
-                    val swatch = parseHexColorSafely(hex)
-                    val selected = state.colorHex.equals(hex, ignoreCase = true)
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(swatch)
-                            .clickable { onUpdateState { it.copy(colorHex = hex) } }
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        if (selected) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Filled.Check,
+                                imageVector = Icons.Filled.Public,
                                 contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
                             )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Currency: ${state.currencyCode}",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        Icon(
+                            imageVector = if (isForeignCurrencyExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    AnimatedVisibility(visible = isForeignCurrencyExpanded) {
+                        Column(modifier = Modifier.padding(top = 10.dp)) {
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                SupportedCurrencies.ALL.forEach { spec ->
+                                    FilterChip(
+                                        selected = state.currencyCode == spec.code,
+                                        onClick = { onUpdateState { it.copy(currencyCode = spec.code) } },
+                                        label = { Text("${spec.symbol} ${spec.code}") }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
 
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            // 6. Collapsible Appearance Customizer (Badge Color & Icon)
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { isAppearanceCustomizerExpanded = !isAppearanceCustomizerExpanded }
             ) {
-                iconPresets.forEach { iconKey ->
-                    val isSelected = state.iconName == iconKey
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = if (isSelected) {
-                            MaterialTheme.colorScheme.primaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainer
-                        },
-                        border = BorderStroke(
-                            1.dp,
-                            if (isSelected) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                semanticColors.cardStrokeSubtle
-                            }
-                        ),
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .clickable { onUpdateState { it.copy(iconName = iconKey) } }
-                            .padding(8.dp)
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        CategoryIconBadge(
-                            iconName = iconKey,
-                            colorHex = state.colorHex,
-                            size = 32.dp,
-                            iconSize = 18.dp
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.Palette,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Customize Icon & Badge Color",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        Icon(
+                            imageVector = if (isAppearanceCustomizerExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+
+                    AnimatedVisibility(visible = isAppearanceCustomizerExpanded) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.padding(top = 10.dp)
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                swatchPresets.forEach { hex ->
+                                    val swatch = parseHexColorSafely(hex)
+                                    val selected = state.colorHex.equals(hex, ignoreCase = true)
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .clip(CircleShape)
+                                            .background(swatch)
+                                            .clickable { onUpdateState { it.copy(colorHex = hex) } }
+                                    ) {
+                                        if (selected) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Check,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                iconPresets.forEach { iconKey ->
+                                    val isSelected = state.iconName == iconKey
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = if (isSelected) {
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.surfaceContainer
+                                        },
+                                        border = BorderStroke(
+                                            1.dp,
+                                            if (isSelected) {
+                                                MaterialTheme.colorScheme.primary
+                                            } else {
+                                                semanticColors.cardStrokeSubtle
+                                            }
+                                        ),
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .clickable { onUpdateState { it.copy(iconName = iconKey) } }
+                                            .padding(8.dp)
+                                    ) {
+                                        CategoryIconBadge(
+                                            iconName = iconKey,
+                                            colorHex = state.colorHex,
+                                            size = 32.dp,
+                                            iconSize = 18.dp
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
 
+            // 7. Net Worth Switch
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -513,11 +684,27 @@ internal fun AccountEditorBottomSheet(
                 )
             }
 
+            // 8. Action Buttons
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (state.isEditing) {
+                    TextButton(
+                        onClick = onDelete,
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = semanticColors.expenseCoral
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Delete", fontWeight = FontWeight.Bold)
+                    }
+
                     OutlinedButton(
                         onClick = onToggleArchive,
                         modifier = Modifier.weight(1f)
