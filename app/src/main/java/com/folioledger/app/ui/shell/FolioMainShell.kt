@@ -1,6 +1,14 @@
 package com.folioledger.app.ui.shell
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -8,6 +16,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.AccountBalanceWallet
@@ -23,11 +32,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -64,10 +77,44 @@ fun FolioMainShell(
     val settingsViewModel: SettingsViewModel = viewModel(factory = viewModelFactory)
 
     val ledgerUiState by ledgerViewModel.uiState.collectAsStateWithLifecycle()
+    val accountsUiState by accountsViewModel.uiState.collectAsStateWithLifecycle()
     val prefs = ledgerUiState.userPreferences
 
     var selectedTab by rememberSaveable { mutableStateOf(FolioMainTab.TRANSACTIONS) }
     var isEntrySheetOpen by rememberSaveable { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    var backPressedTime by remember { mutableLongStateOf(0L) }
+
+    // 1. Back Handler for secondary tabs (STATS, ACCOUNTS, SETTINGS)
+    BackHandler(enabled = selectedTab != FolioMainTab.TRANSACTIONS && !isEntrySheetOpen) {
+        if (selectedTab == FolioMainTab.ACCOUNTS && accountsUiState.inspectedAccount != null) {
+            // First collapse inspected account detail view
+            accountsViewModel.selectAccountForInspection(null)
+        } else {
+            // Return to primary TRANSACTIONS tab
+            selectedTab = FolioMainTab.TRANSACTIONS
+        }
+    }
+
+    // 2. Double-Tap Back to Exit Protection on Primary TRANSACTIONS tab
+    BackHandler(enabled = selectedTab == FolioMainTab.TRANSACTIONS && !isEntrySheetOpen) {
+        if (ledgerUiState.isSearchBarVisible || ledgerUiState.isFilterActive) {
+            // Clear search/filter if active
+            ledgerViewModel.clearAllFilters()
+            if (ledgerUiState.isSearchBarVisible) {
+                ledgerViewModel.toggleSearchBar()
+            }
+        } else {
+            val now = System.currentTimeMillis()
+            if (now - backPressedTime < 2000L) {
+                context.findActivity()?.finish()
+            } else {
+                backPressedTime = now
+                Toast.makeText(context, "Press back again to exit", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     FolioTheme(
         themeMode = prefs.themeMode,
@@ -128,76 +175,85 @@ fun FolioMainShell(
             val screenContentPadding = PaddingValues(
                 bottom = innerPadding.calculateBottomPadding()
             )
+            val saveableStateHolder = rememberSaveableStateHolder()
 
-            when (selectedTab) {
-                FolioMainTab.TRANSACTIONS -> {
-                    LedgerHomeScreen(
-                        viewModel = ledgerViewModel,
-                        contentPadding = screenContentPadding,
-                        onOpenNewTransactionForDate = { epochDay ->
-                            entryViewModel.resetForNewTransaction(
-                                preselectedAccountId = ledgerUiState.scopedAccountId,
-                                initialEpochDay = epochDay
+            Crossfade(
+                targetState = selectedTab,
+                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                label = "MainTabCrossfade"
+            ) { targetTab ->
+                saveableStateHolder.SaveableStateProvider(key = targetTab) {
+                    when (targetTab) {
+                        FolioMainTab.TRANSACTIONS -> {
+                            LedgerHomeScreen(
+                                viewModel = ledgerViewModel,
+                                contentPadding = screenContentPadding,
+                                onOpenNewTransactionForDate = { epochDay ->
+                                    entryViewModel.resetForNewTransaction(
+                                        preselectedAccountId = ledgerUiState.scopedAccountId,
+                                        initialEpochDay = epochDay
+                                    )
+                                    isEntrySheetOpen = true
+                                },
+                                onEditTransaction = { transaction ->
+                                    entryViewModel.loadTransactionItemForEdit(transaction)
+                                    isEntrySheetOpen = true
+                                },
+                                onSelectBookmarkTemplate = { bookmark ->
+                                    entryViewModel.resetForNewTransaction(
+                                        preselectedAccountId = ledgerUiState.scopedAccountId,
+                                        initialEpochDay = null
+                                    )
+                                    entryViewModel.applyBookmark(bookmark)
+                                    isEntrySheetOpen = true
+                                }
                             )
-                            isEntrySheetOpen = true
-                        },
-                        onEditTransaction = { transaction ->
-                            entryViewModel.loadTransactionItemForEdit(transaction)
-                            isEntrySheetOpen = true
-                        },
-                        onSelectBookmarkTemplate = { bookmark ->
-                            entryViewModel.resetForNewTransaction(
-                                preselectedAccountId = ledgerUiState.scopedAccountId,
-                                initialEpochDay = null
+                        }
+
+                        FolioMainTab.STATS -> {
+                            StatsAndBudgetsScreen(
+                                viewModel = statsViewModel,
+                                contentPadding = screenContentPadding,
+                                onInspectTransaction = { transaction ->
+                                    entryViewModel.loadTransactionItemForEdit(transaction)
+                                    isEntrySheetOpen = true
+                                }
                             )
-                            entryViewModel.applyBookmark(bookmark)
-                            isEntrySheetOpen = true
                         }
-                    )
-                }
 
-                FolioMainTab.STATS -> {
-                    StatsAndBudgetsScreen(
-                        viewModel = statsViewModel,
-                        contentPadding = screenContentPadding,
-                        onInspectTransaction = { transaction ->
-                            entryViewModel.loadTransactionItemForEdit(transaction)
-                            isEntrySheetOpen = true
-                        }
-                    )
-                }
-
-                FolioMainTab.ACCOUNTS -> {
-                    AccountsScreen(
-                        viewModel = accountsViewModel,
-                        contentPadding = screenContentPadding,
-                        onAccountClick = { account ->
-                            accountsViewModel.selectAccountForInspection(account.id)
-                        },
-                        onViewAccountInLedger = { account ->
-                            accountsViewModel.selectAccountForInspection(null)
-                            ledgerViewModel.setScopedAccount(account.id)
-                            selectedTab = FolioMainTab.TRANSACTIONS
-                        },
-                        onAddTransactionForAccount = { account ->
-                            entryViewModel.resetForNewTransaction(
-                                preselectedAccountId = account.id,
-                                initialEpochDay = null
+                        FolioMainTab.ACCOUNTS -> {
+                            AccountsScreen(
+                                viewModel = accountsViewModel,
+                                contentPadding = screenContentPadding,
+                                onAccountClick = { account ->
+                                    accountsViewModel.selectAccountForInspection(account.id)
+                                },
+                                onViewAccountInLedger = { account ->
+                                    accountsViewModel.selectAccountForInspection(null)
+                                    ledgerViewModel.setScopedAccount(account.id)
+                                    selectedTab = FolioMainTab.TRANSACTIONS
+                                },
+                                onAddTransactionForAccount = { account ->
+                                    entryViewModel.resetForNewTransaction(
+                                        preselectedAccountId = account.id,
+                                        initialEpochDay = null
+                                    )
+                                    isEntrySheetOpen = true
+                                },
+                                onEditTransaction = { transaction ->
+                                    entryViewModel.loadTransactionItemForEdit(transaction)
+                                    isEntrySheetOpen = true
+                                }
                             )
-                            isEntrySheetOpen = true
-                        },
-                        onEditTransaction = { transaction ->
-                            entryViewModel.loadTransactionItemForEdit(transaction)
-                            isEntrySheetOpen = true
                         }
-                    )
-                }
 
-                FolioMainTab.SETTINGS -> {
-                    SettingsScreen(
-                        viewModel = settingsViewModel,
-                        contentPadding = screenContentPadding
-                    )
+                        FolioMainTab.SETTINGS -> {
+                            SettingsScreen(
+                                viewModel = settingsViewModel,
+                                contentPadding = screenContentPadding
+                            )
+                        }
+                    }
                 }
             }
 
@@ -210,4 +266,10 @@ fun FolioMainShell(
             }
         }
     }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

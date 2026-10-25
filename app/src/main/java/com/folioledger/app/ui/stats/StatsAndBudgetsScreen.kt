@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -78,7 +80,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -127,6 +132,26 @@ fun StatsAndBudgetsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    val coroutineScope = rememberCoroutineScope()
+    val pagerState = rememberPagerState(initialPage = uiState.selectedSubTab.ordinal) { StatsSubTab.entries.size }
+
+    // Sync ViewModel's selectedSubTab ONLY when user swipe gesture settles
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.settledPage }.collect { settledPage ->
+            val targetTab = StatsSubTab.entries[settledPage]
+            if (uiState.selectedSubTab != targetTab) {
+                viewModel.selectSubTab(targetTab)
+            }
+        }
+    }
+
+    // Sync pagerState when ViewModel's selectedSubTab changes externally (e.g. Tab click)
+    LaunchedEffect(uiState.selectedSubTab) {
+        if (pagerState.currentPage != uiState.selectedSubTab.ordinal && !pagerState.isScrollInProgress) {
+            pagerState.animateScrollToPage(uiState.selectedSubTab.ordinal)
+        }
+    }
+
     LaunchedEffect(uiState.snackbarMessage) {
         val message = uiState.snackbarMessage
         if (!message.isNullOrBlank()) {
@@ -149,7 +174,7 @@ fun StatsAndBudgetsScreen(
         ) {
             PeriodSelectorHeader(
                 periodTitle = uiState.activePeriodRange.title,
-                periodSubtitle = uiState.activePeriodRange.subtitle,
+                periodSubtitle = null,
                 onPreviousPeriod = viewModel::navigateToPreviousPeriod,
                 onNextPeriod = viewModel::navigateToNextPeriod,
                 onPeriodTitleClick = {
@@ -169,15 +194,19 @@ fun StatsAndBudgetsScreen(
             )
 
             PrimaryTabRow(
-                selectedTabIndex = uiState.selectedSubTab.ordinal,
+                selectedTabIndex = pagerState.currentPage,
                 containerColor = MaterialTheme.colorScheme.surface,
                 divider = {}
             ) {
                 StatsSubTab.entries.forEach { tab ->
-                    val isSelected = uiState.selectedSubTab == tab
+                    val isSelected = pagerState.currentPage == tab.ordinal
                     Tab(
                         selected = isSelected,
-                        onClick = { viewModel.selectSubTab(tab) },
+                        onClick = {
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(tab.ordinal)
+                            }
+                        },
                         text = {
                             Text(
                                 text = tab.title,
@@ -191,39 +220,45 @@ fun StatsAndBudgetsScreen(
 
             HorizontalDivider(color = LocalFolioSemanticColors.current.cardStrokeSubtle)
 
-            when (uiState.selectedSubTab) {
-                StatsSubTab.STATS -> {
-                    StatsBreakdownSubTabContent(
-                        uiState = uiState,
-                        onSelectCategoryType = viewModel::selectCategoryType,
-                        onDonutSliceSelected = viewModel::onDonutSliceSelected,
-                        onOpenCategoryDrillDown = viewModel::openCategoryDrillDown,
-                        onSelectTrendChartMode = viewModel::selectTrendChartMode,
-                        onSelectNetWorthChartMetricFilter = viewModel::selectNetWorthChartMetricFilter
-                    )
-                }
+            HorizontalPager(
+                state = pagerState,
+                beyondViewportPageCount = 1,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                when (StatsSubTab.entries[page]) {
+                    StatsSubTab.STATS -> {
+                        StatsBreakdownSubTabContent(
+                            uiState = uiState,
+                            onSelectCategoryType = viewModel::selectCategoryType,
+                            onDonutSliceSelected = viewModel::onDonutSliceSelected,
+                            onOpenCategoryDrillDown = viewModel::openCategoryDrillDown,
+                            onSelectTrendChartMode = viewModel::selectTrendChartMode,
+                            onSelectNetWorthChartMetricFilter = viewModel::selectNetWorthChartMetricFilter
+                        )
+                    }
 
-                StatsSubTab.BUDGETS -> {
-                    BudgetsManagerSubTabContent(
-                        uiState = uiState,
-                        onOpenOverallBudgetEditor = {
-                            val existing = uiState.overallBudgetProgress
-                            if (existing != null) {
-                                viewModel.openEditBudgetDialog(existing)
-                            } else {
-                                viewModel.openCreateBudgetDialog(null)
-                            }
-                        },
-                        onOpenAddCategoryBudget = viewModel::openCreateCategoryBudgetDialog,
-                        onOpenEditBudget = viewModel::openEditBudgetDialog
-                    )
-                }
+                    StatsSubTab.BUDGETS -> {
+                        BudgetsManagerSubTabContent(
+                            uiState = uiState,
+                            onOpenOverallBudgetEditor = {
+                                val existing = uiState.overallBudgetProgress
+                                if (existing != null) {
+                                    viewModel.openEditBudgetDialog(existing)
+                                } else {
+                                    viewModel.openCreateBudgetDialog(null)
+                                }
+                            },
+                            onOpenAddCategoryBudget = viewModel::openCreateCategoryBudgetDialog,
+                            onOpenEditBudget = viewModel::openEditBudgetDialog
+                        )
+                    }
 
-                StatsSubTab.TAGS_AND_NOTES -> {
-                    TagsAndNotesRankingsSubTabContent(
-                        uiState = uiState,
-                        onSelectRankingMode = viewModel::selectRankingMode
-                    )
+                    StatsSubTab.TAGS_AND_NOTES -> {
+                        TagsAndNotesRankingsSubTabContent(
+                            uiState = uiState,
+                            onSelectRankingMode = viewModel::selectRankingMode
+                        )
+                    }
                 }
             }
         }

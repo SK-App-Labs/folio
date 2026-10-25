@@ -20,6 +20,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
@@ -946,6 +947,10 @@ fun FolioTheme(
             val controller = WindowCompat.getInsetsController(window, window.decorView)
             controller.isAppearanceLightStatusBars = !useDarkTheme
             controller.isAppearanceLightNavigationBars = !useDarkTheme
+
+            val bgArgb = baseColorScheme.background.toArgb()
+            window.decorView.setBackgroundColor(bgArgb)
+            window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(bgArgb))
         }
     }
 

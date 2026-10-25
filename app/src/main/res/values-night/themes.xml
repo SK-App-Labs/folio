@@ -4,14 +4,20 @@
     <style name="Theme.Folio" parent="android:Theme.Material.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">#0F172A</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowShowWallpaper">false</item>
     </style>
 
     <style name="Theme.Folio.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">#0F172A</item>
         <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_round</item>
         <item name="postSplashScreenTheme">@style/Theme.Folio</item>
+        <item name="android:windowBackground">#0F172A</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowShowWallpaper">false</item>
     </style>
 
 </resources>

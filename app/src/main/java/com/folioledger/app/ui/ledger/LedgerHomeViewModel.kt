@@ -634,10 +634,11 @@ class LedgerHomeViewModel(
     fun navigateToPreviousPeriod() {
         val monthStartDay = uiState.value.userPreferences.monthStartDay
         controlState.update { current ->
+            val deltaMonths = if (current.selectedSubTab == LedgerSubTab.MONTHLY) -12L else -1L
             val prevEpochDay = AccountingRulesEngine.stepFinancialMonth(
                 currentReferenceEpochDay = current.referenceDateEpochDay,
                 monthStartDay = monthStartDay,
-                deltaMonths = -1L
+                deltaMonths = deltaMonths
             )
             current.copy(
                 referenceDateEpochDay = prevEpochDay,
@@ -649,10 +650,11 @@ class LedgerHomeViewModel(
     fun navigateToNextPeriod() {
         val monthStartDay = uiState.value.userPreferences.monthStartDay
         controlState.update { current ->
+            val deltaMonths = if (current.selectedSubTab == LedgerSubTab.MONTHLY) 12L else 1L
             val nextEpochDay = AccountingRulesEngine.stepFinancialMonth(
                 currentReferenceEpochDay = current.referenceDateEpochDay,
                 monthStartDay = monthStartDay,
-                deltaMonths = 1L
+                deltaMonths = deltaMonths
             )
             current.copy(
                 referenceDateEpochDay = nextEpochDay,
