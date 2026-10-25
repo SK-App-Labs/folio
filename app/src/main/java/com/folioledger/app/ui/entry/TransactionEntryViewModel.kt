@@ -21,7 +21,10 @@ import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
+import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -476,15 +479,43 @@ class TransactionEntryViewModel(
 
     fun setLedgerDateEpochDay(epochDay: Long) {
         lastUsedLedgerDateEpochDay = epochDay
-        formState.update { it.copy(ledgerDateEpochDay = epochDay, errorMessage = null) }
+        formState.update { current ->
+            val zone = ZoneId.systemDefault()
+            val currentTime = Instant.ofEpochMilli(current.timestampEpochMillis).atZone(zone).toLocalTime()
+            val newDate = LocalDate.ofEpochDay(epochDay)
+            val newTimestamp = newDate.atTime(currentTime).atZone(zone).toInstant().toEpochMilli()
+            current.copy(
+                ledgerDateEpochDay = epochDay,
+                timestampEpochMillis = newTimestamp,
+                errorMessage = null
+            )
+        }
     }
 
     fun stepLedgerDateByDays(deltaDays: Long) {
-        formState.update {
-            val nextDate = it.ledgerDateEpochDay + deltaDays
-            lastUsedLedgerDateEpochDay = nextDate
-            it.copy(
-                ledgerDateEpochDay = nextDate,
+        formState.update { current ->
+            val nextDateEpochDay = current.ledgerDateEpochDay + deltaDays
+            lastUsedLedgerDateEpochDay = nextDateEpochDay
+            val zone = ZoneId.systemDefault()
+            val currentTime = Instant.ofEpochMilli(current.timestampEpochMillis).atZone(zone).toLocalTime()
+            val newDate = LocalDate.ofEpochDay(nextDateEpochDay)
+            val newTimestamp = newDate.atTime(currentTime).atZone(zone).toInstant().toEpochMilli()
+            current.copy(
+                ledgerDateEpochDay = nextDateEpochDay,
+                timestampEpochMillis = newTimestamp,
+                errorMessage = null
+            )
+        }
+    }
+
+    fun setLedgerTime(hour: Int, minute: Int) {
+        formState.update { current ->
+            val date = LocalDate.ofEpochDay(current.ledgerDateEpochDay)
+            val time = LocalTime.of(hour, minute)
+            val zone = ZoneId.systemDefault()
+            val newTimestamp = date.atTime(time).atZone(zone).toInstant().toEpochMilli()
+            current.copy(
+                timestampEpochMillis = newTimestamp,
                 errorMessage = null
             )
         }
