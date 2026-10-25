@@ -174,6 +174,7 @@ fun MoneyColorMode.Companion.fromTransactionType(type: TransactionType): MoneyCo
         TransactionType.INCOME, TransactionType.REFUND -> MoneyColorMode.INCOME
         TransactionType.EXPENSE -> MoneyColorMode.EXPENSE
         TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> MoneyColorMode.TRANSFER
+        TransactionType.OPENING_BALANCE, TransactionType.RECONCILIATION -> MoneyColorMode.NEUTRAL
     }
 
 val ALL_CATEGORY_ICON_KEYS: List<String> = listOf(

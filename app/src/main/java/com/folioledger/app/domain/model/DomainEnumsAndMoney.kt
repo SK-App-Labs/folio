@@ -174,7 +174,9 @@ enum class TransactionType {
     EXPENSE,
     TRANSFER,
     CC_SETTLEMENT,
-    REFUND
+    REFUND,
+    OPENING_BALANCE,
+    RECONCILIATION
 }
 
 enum class CategoryType {

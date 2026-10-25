@@ -25,7 +25,8 @@ interface AccountRepository {
 
     suspend fun upsertAccount(
         account: AccountSummary,
-        openingBalance: MinorMoney = MinorMoney.ZERO
+        openingBalance: MinorMoney = MinorMoney.ZERO,
+        openingDateEpochDay: Long = java.time.LocalDate.now().toEpochDay()
     ): Result<Long>
 
     suspend fun setAccountArchived(accountId: Long, isArchived: Boolean): Result<Unit>
@@ -40,6 +41,13 @@ interface AccountRepository {
         settlementAmount: MinorMoney,
         timestampEpochMillis: Long,
         ledgerDateEpochDay: Long,
+        note: String = ""
+    ): Result<Long>
+
+    suspend fun reconcileAccountBalance(
+        accountId: Long,
+        reconciledBalance: MinorMoney,
+        reconciledDateEpochDay: Long = java.time.LocalDate.now().toEpochDay(),
         note: String = ""
     ): Result<Long>
 }

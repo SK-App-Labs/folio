@@ -53,7 +53,7 @@ data class FinancialPeriodRange(
     val anchorMonthValue: Int
 )
 
-object AccountingRulesEngine {
+object LedgerPeriodCalculator {
 
     private val shortMonthYearFormatter = DateTimeFormatter.ofPattern("MMM yyyy", Locale.US)
     private val shortDayMonthFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
@@ -202,7 +202,7 @@ data class AccountPeriodFlowSummary(
 data class LedgerHomeUiState(
     val selectedSubTab: LedgerSubTab = LedgerSubTab.DAILY,
     val referenceDateEpochDay: Long = LocalDate.now().toEpochDay(),
-    val activePeriodRange: FinancialPeriodRange = AccountingRulesEngine.computeFinancialMonthRange(
+    val activePeriodRange: FinancialPeriodRange = LedgerPeriodCalculator.computeFinancialMonthRange(
         referenceDateEpochDay = LocalDate.now().toEpochDay(),
         monthStartDay = 1
     ),
@@ -311,11 +311,11 @@ class LedgerHomeViewModel(
     ) { ctrl, prefs ->
         ctrl.referenceDateEpochDay to prefs
     }.flatMapLatest { (refEpochDay, prefs) ->
-        val periodRange = AccountingRulesEngine.computeFinancialMonthRange(
+        val periodRange = LedgerPeriodCalculator.computeFinancialMonthRange(
             referenceDateEpochDay = refEpochDay,
             monthStartDay = prefs.monthStartDay
         )
-        val yearRanges = AccountingRulesEngine.computeFinancialYearMonthRanges(
+        val yearRanges = LedgerPeriodCalculator.computeFinancialYearMonthRanges(
             anchorYear = periodRange.anchorYear,
             monthStartDay = prefs.monthStartDay
         )
@@ -374,7 +374,7 @@ class LedgerHomeViewModel(
     ) { ctrl, prefs ->
         ctrl to prefs
     }.flatMapLatest { (ctrl, prefs) ->
-        val periodRange = AccountingRulesEngine.computeFinancialMonthRange(
+        val periodRange = LedgerPeriodCalculator.computeFinancialMonthRange(
             referenceDateEpochDay = ctrl.referenceDateEpochDay,
             monthStartDay = prefs.monthStartDay
         )
@@ -635,7 +635,7 @@ class LedgerHomeViewModel(
         val monthStartDay = uiState.value.userPreferences.monthStartDay
         controlState.update { current ->
             val deltaMonths = if (current.selectedSubTab == LedgerSubTab.MONTHLY) -12L else -1L
-            val prevEpochDay = AccountingRulesEngine.stepFinancialMonth(
+            val prevEpochDay = LedgerPeriodCalculator.stepFinancialMonth(
                 currentReferenceEpochDay = current.referenceDateEpochDay,
                 monthStartDay = monthStartDay,
                 deltaMonths = deltaMonths
@@ -651,7 +651,7 @@ class LedgerHomeViewModel(
         val monthStartDay = uiState.value.userPreferences.monthStartDay
         controlState.update { current ->
             val deltaMonths = if (current.selectedSubTab == LedgerSubTab.MONTHLY) 12L else 1L
-            val nextEpochDay = AccountingRulesEngine.stepFinancialMonth(
+            val nextEpochDay = LedgerPeriodCalculator.stepFinancialMonth(
                 currentReferenceEpochDay = current.referenceDateEpochDay,
                 monthStartDay = monthStartDay,
                 deltaMonths = deltaMonths
@@ -927,6 +927,10 @@ class LedgerHomeViewModel(
                     } else if (tx.transferFee.isPositive) {
                         expenseMinor = Math.addExact(expenseMinor, tx.transferFee.amountMinor)
                     }
+                }
+                TransactionType.OPENING_BALANCE,
+                TransactionType.RECONCILIATION -> {
+                    // Capital events do not count toward operating income or expense totals
                 }
             }
         }

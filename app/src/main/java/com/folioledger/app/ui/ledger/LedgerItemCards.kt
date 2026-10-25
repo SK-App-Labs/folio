@@ -202,6 +202,8 @@ internal fun LedgerTransactionRow(
                 TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> "#2563EB"
                 TransactionType.INCOME, TransactionType.REFUND -> "#059669"
                 TransactionType.EXPENSE -> "#E11D48"
+                TransactionType.OPENING_BALANCE -> "#0284C7"
+                TransactionType.RECONCILIATION -> "#7C3AED"
             },
             size = 40.dp,
             iconSize = 20.dp
@@ -211,6 +213,8 @@ internal fun LedgerTransactionRow(
 
         Column(modifier = Modifier.weight(1f)) {
             val titleText = when {
+                transaction.type == TransactionType.OPENING_BALANCE -> "Opening Balance"
+                transaction.type == TransactionType.RECONCILIATION -> "Balance Reconciliation"
                 transaction.type == TransactionType.TRANSFER ||
                         transaction.type == TransactionType.CC_SETTLEMENT -> {
                     "${transaction.accountName} → ${transaction.transferToAccountName ?: "Account"}"

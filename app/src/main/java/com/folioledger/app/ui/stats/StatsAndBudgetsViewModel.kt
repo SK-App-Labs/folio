@@ -1087,6 +1087,15 @@ class StatsAndBudgetsViewModel(
                             TransactionType.INCOME, TransactionType.REFUND -> currentMinor -= amount
                             TransactionType.EXPENSE -> currentMinor += (amount + fee)
                             TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> currentMinor += (amount + fee)
+                            TransactionType.OPENING_BALANCE,
+                            TransactionType.RECONCILIATION -> {
+                                val isOutflow = tx.transferToAccountId != null
+                                if (isOutflow) {
+                                    currentMinor += amount
+                                } else {
+                                    currentMinor -= amount
+                                }
+                            }
                         }
                     } else if (tx.transferToAccountId == acc.id) {
                         currentMinor -= amount

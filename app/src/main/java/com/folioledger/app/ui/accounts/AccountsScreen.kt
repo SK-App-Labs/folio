@@ -46,6 +46,7 @@ import com.folioledger.app.ui.accounts.components.AccountGroupSectionCard
 import com.folioledger.app.ui.accounts.sheets.AccountEditorBottomSheet
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.accounts.sheets.AccountPassbookBottomSheet
+import com.folioledger.app.ui.accounts.sheets.ReconcileBalanceDialog
 import com.folioledger.app.ui.accounts.sheets.CreditCardSettlementBottomSheet
 import com.folioledger.app.ui.components.EmptyStateCard
 import com.folioledger.app.ui.components.ThreeColumnSummaryBanner
@@ -106,6 +107,10 @@ fun AccountsScreen(
             onSettleBillClick = {
                 viewModel.dismissInspectedAccountSheet()
                 viewModel.openSettlementSheet(passbook.account)
+            },
+            onReconcileClick = {
+                viewModel.dismissInspectedAccountSheet()
+                viewModel.openReconcileDialog(passbook.account)
             },
             onViewInLedgerClick = {
                 viewModel.dismissInspectedAccountSheet()
@@ -201,6 +206,21 @@ fun AccountsScreen(
                     Text("Cancel")
                 }
             }
+        )
+    }
+
+    val reconcileState = uiState.reconcileDialogState
+    if (reconcileState != null) {
+        ReconcileBalanceDialog(
+            state = reconcileState,
+            onUpdateTargetBalance = { newTarget ->
+                viewModel.updateReconcileDialogState { it.copy(targetBalanceInput = newTarget) }
+            },
+            onUpdateNote = { newNote ->
+                viewModel.updateReconcileDialogState { it.copy(note = newNote) }
+            },
+            onConfirm = viewModel::submitReconcileDialog,
+            onDismiss = viewModel::dismissReconcileDialog
         )
     }
 

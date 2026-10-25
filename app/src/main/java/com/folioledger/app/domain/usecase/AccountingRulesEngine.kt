@@ -45,13 +45,15 @@ class AccountingRulesEngine {
         transactions: List<TransactionItem>,
         settlementDayOfMonth: Int,
         referenceDateEpochDay: Long,
-        creditLimit: MinorMoney?
+        creditLimit: MinorMoney?,
+        initialUnbilledAmount: MinorMoney? = null
     ): CreditCardMetrics = Companion.computeCreditCardMetrics(
         openingBalance = openingBalance,
         transactions = transactions,
         settlementDayOfMonth = settlementDayOfMonth,
         referenceDateEpochDay = referenceDateEpochDay,
-        creditLimit = creditLimit
+        creditLimit = creditLimit,
+        initialUnbilledAmount = initialUnbilledAmount
     )
 
     companion object {
@@ -132,22 +134,32 @@ class AccountingRulesEngine {
             referenceDateEpochDay: Long,
             monthStartDay: Int
         ): Pair<Long, Long> {
-            require(monthStartDay in 1..28) {
-                "monthStartDay must be between 1 and 28 inclusive, but was $monthStartDay."
-            }
-
+            val safeStartDay = monthStartDay.coerceIn(1, 31)
             val referenceDate = LocalDate.ofEpochDay(referenceDateEpochDay)
-            val cycleStartDate = if (referenceDate.dayOfMonth >= monthStartDay) {
-                referenceDate.withDayOfMonth(monthStartDay)
+            val refYearMonth = YearMonth.from(referenceDate)
+
+            val cycleStartDate: LocalDate
+            val cycleEndDate: LocalDate
+
+            if (safeStartDay == 1) {
+                cycleStartDate = refYearMonth.atDay(1)
+                cycleEndDate = refYearMonth.atEndOfMonth()
             } else {
-                referenceDate.minusMonths(1).withDayOfMonth(monthStartDay)
+                val startInRefMonth = resolveClampedDate(refYearMonth, safeStartDay)
+                if (!referenceDate.isBefore(startInRefMonth)) {
+                    cycleStartDate = startInRefMonth
+                    val nextMonthStart = resolveClampedDate(refYearMonth.plusMonths(1), safeStartDay)
+                    cycleEndDate = nextMonthStart.minusDays(1)
+                } else {
+                    cycleStartDate = resolveClampedDate(refYearMonth.minusMonths(1), safeStartDay)
+                    cycleEndDate = startInRefMonth.minusDays(1)
+                }
             }
 
-            val cycleEndDate = cycleStartDate.plusMonths(1).minusDays(1)
             return cycleStartDate.toEpochDay() to cycleEndDate.toEpochDay()
         }
 
-        private fun resolveClampedDate(yearMonth: YearMonth, desiredDayOfMonth: Int): LocalDate {
+        fun resolveClampedDate(yearMonth: YearMonth, desiredDayOfMonth: Int): LocalDate {
             val safeDay = desiredDayOfMonth.coerceIn(1, 31)
             val clampedDay = minOf(safeDay, yearMonth.lengthOfMonth())
             return yearMonth.atDay(clampedDay)
@@ -226,6 +238,25 @@ class AccountingRulesEngine {
                             closedCycleNetDebtMinor = Math.subtractExact(closedCycleNetDebtMinor, txMagnitude)
                         } else {
                             activeCycleCreditMinor = Math.addExact(activeCycleCreditMinor, txMagnitude)
+                        }
+                    }
+                    TransactionType.OPENING_BALANCE -> {
+                        // Initial opening balance is managed directly via openingBalance parameter
+                    }
+                    TransactionType.RECONCILIATION -> {
+                        val isDebtIncrease = tx.transferToAccountId != null
+                        if (isDebtIncrease) {
+                            if (isClosedCycle) {
+                                closedCycleNetDebtMinor = Math.addExact(closedCycleNetDebtMinor, txMagnitude)
+                            } else {
+                                activeCycleSpendMinor = Math.addExact(activeCycleSpendMinor, txMagnitude)
+                            }
+                        } else {
+                            if (isClosedCycle) {
+                                closedCycleNetDebtMinor = Math.subtractExact(closedCycleNetDebtMinor, txMagnitude)
+                            } else {
+                                activeCycleCreditMinor = Math.addExact(activeCycleCreditMinor, txMagnitude)
+                            }
                         }
                     }
                 }

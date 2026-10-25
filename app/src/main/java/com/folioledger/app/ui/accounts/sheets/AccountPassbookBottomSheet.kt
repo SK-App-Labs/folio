@@ -24,6 +24,15 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import com.folioledger.app.ui.accounts.ReconcileBalanceDialogState
+import com.folioledger.app.ui.accounts.formatMinorPlainForInput
+import com.folioledger.app.ui.accounts.parseInputToMinorOrZero
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -83,6 +92,7 @@ internal fun AccountPassbookBottomSheet(
     onEditAccountClick: () -> Unit,
     onAddTransactionClick: () -> Unit,
     onSettleBillClick: () -> Unit,
+    onReconcileClick: () -> Unit = {},
     onViewInLedgerClick: () -> Unit,
     onTransactionRowClick: (TransactionItem) -> Unit,
     onDismiss: () -> Unit
@@ -274,6 +284,25 @@ internal fun AccountPassbookBottomSheet(
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = "Settle Bill",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        } else if (account.groupType != AccountGroup.DEBIT_CARD) {
+                            FilledTonalButton(
+                                onClick = onReconcileClick,
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Tune,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Reconcile",
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -914,4 +943,121 @@ private fun CreditCardStatementBreakdownCard(
             }
         }
     }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ReconcileBalanceDialog(
+    state: ReconcileBalanceDialogState,
+    onUpdateTargetBalance: (String) -> Unit,
+    onUpdateNote: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val recordedMinor = state.recordedBalance.amountMinor
+    val spec = SupportedCurrencies.fromCode(state.currencyCode)
+    val parsedTarget = parseInputToMinorOrZero(state.targetBalanceInput, spec.fractionDigits)
+    val diffMinor = parsedTarget?.let { it.amountMinor - recordedMinor }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Reconcile ${state.accountName}",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Match Folio's balance against your official bank statement or physical cash.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(
+                            text = "Current Recorded Balance",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${state.currencyCode} ${formatMinorPlainForInput(state.recordedBalance, spec.fractionDigits)}",
+                            style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                OutlinedTextField(
+                    value = state.targetBalanceInput,
+                    onValueChange = onUpdateTargetBalance,
+                    label = { Text("Actual Statement Balance") },
+                    placeholder = { Text("0.00") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    isError = state.validationError != null,
+                    supportingText = state.validationError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                if (diffMinor != null) {
+                    val adjustmentColor = when {
+                        diffMinor > 0L -> MaterialTheme.colorScheme.primary
+                        diffMinor < 0L -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                    val diffSign = if (diffMinor > 0L) "+" else ""
+                    val diffText = if (diffMinor == 0L) {
+                        "✓ Balances match. No adjustment needed."
+                    } else {
+                        val formattedDiff = formatMinorPlainForInput(MinorMoney(Math.abs(diffMinor)), spec.fractionDigits)
+                        "Adjustment: $diffSign${state.currencyCode} $formattedDiff (${if (diffMinor > 0L) "Inflow adjustment" else "Outflow adjustment"})"
+                    }
+
+                    Text(
+                        text = diffText,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = adjustmentColor
+                    )
+                }
+
+                OutlinedTextField(
+                    value = state.note,
+                    onValueChange = onUpdateNote,
+                    label = { Text("Note (Optional)") },
+                    placeholder = { Text("e.g., Monthly bank reconciliation") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                enabled = parsedTarget != null
+            ) {
+                Text(if (diffMinor == 0L) "Confirm Match" else "Apply Adjustment")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }

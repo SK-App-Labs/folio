@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.2.0] - Unreleased (Upcoming Play Store Release)
 
 ### Added
+- **1-Tap Account Balance Reconciliation Tool**: Added a dedicated `Reconcile` action in `AccountPassbookBottomSheet.kt` and `reconcileAccountBalance()` in repository layer. Computes balance discrepancies ($\Delta$) and inserts a `TransactionType.RECONCILIATION` system entry without corrupting historical ledger data or operating cash flow stats.
+- **Starting Balance Date Anchor Picker**: Added an interactive Starting Balance Date selector in `AccountEditorBottomSheet.kt` for backdating initial account balances.
 - **Waterfall Net Worth Chart & 3 Trend Analytics Segment Chips**: Added 3-way segment chips (`[ 📊 Cashflow ]` | `[ 📈 Net Worth ]` | `[ 💳 Credit Health ]`) in `StatsAndBudgetsScreen.kt`. Includes Waterfall Balance Sheet Canvas Chart (`NetWorthGrowthCanvasChart` with Green Assets Bar UP, Red Liabilities Bar DOWN, and connecting Net Worth Line) with metric filters (`All-in-One`, `Net Worth`, `Assets`, `Liabilities`) and drag-to-inspect tooltips driven by top granularity (`Monthly`, `Annually`, `Weekly`). Includes `CreditHealthDashboardCard` with overall credit utilization meter, per-card utilization progress bars (`0-30%` Emerald, `30-80%` Amber, `80-100%` Coral Red), available limits, and CIBIL credit score warnings.
 - **Ledger Safety Deletion Rules**: Added permanent account deletion for unused accounts (0 transactions). For accounts with linked transactions, permanent deletion is blocked to protect historical ledger reports, guiding the user to **Archive Account** instead.
 - **Auto-Calculated Credit Card Total Debt**: Credit card setup and editing now auto-calculates Total Debt Owed in real time (`Billed Due + Unbilled Spend`), eliminating manual calculation errors.
@@ -50,6 +52,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Scoped FAB**: Scoped Floating Action Button (`+`) strictly to `TRANSACTIONS` and `STATS` tabs.
 
 ### Fixed
+- **Financial Month Custom Start Days (Days 29–31)**: Relaxed domain `AccountingRulesEngine.computeFinancialMonthRange` to support custom start days 1..31 with month-length clamping (`minOf(desiredDay, yearMonth.lengthOfMonth())`), resolving `IllegalArgumentException` and `DateTimeException` crashes during February and 30-day months.
+- **Debit Card Passbook Desynchronization**: Included `parentAccountId` in `effectiveAccountIds` when building debit card passbook views in `AccountsViewModel.kt` so running balances accurately track live parent bank account activity.
+- **Triple Shadowing Refactoring**: Renamed presentation-layer helper objects in `AccountsViewModel.kt` (`PassbookPeriodCalculator`), `LedgerHomeViewModel.kt` (`LedgerPeriodCalculator`), and `TransactionEntryViewModel.kt` (`TransactionEntryRulesEngine`) to eliminate class shadowing of domain `AccountingRulesEngine`.
+- **System Transaction Cash Flow Isolation**: Enforced strict isolation of `TransactionType.OPENING_BALANCE` and `TransactionType.RECONCILIATION` system entries in `AnalyticsAndBudgetRepositoryImpl.kt` so capital introductions and balance reconciliations never pollute monthly income, expense, or budget statistics.
 - Fixed Compose flow state binding in `AccountsViewModel.kt` for `pendingDeletionAccountId` alerts.
 - Fixed Credit Card balance calculation in `AccountsViewModel.kt` (`effectiveOpeningMagnitude`).
 - **App Switching Wallpaper Bleed-Through & Transition Fix**: Added explicit `windowIsTranslucent = false` and `windowShowWallpaper = false` in `themes.xml` (both `Theme.Folio` and `Theme.Folio.Starting`), cleared `FLAG_SHOW_WALLPAPER` in `MainActivity.kt`, and synchronously painted `window.decorView` background & `windowBackground` inside `FolioTheme` SideEffect, ensuring 100% opaque window rendering and eliminating wallpaper bleed-through during Recents task switcher gestures.

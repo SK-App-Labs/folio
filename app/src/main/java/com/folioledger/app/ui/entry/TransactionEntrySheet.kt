@@ -270,6 +270,7 @@ fun TransactionEntryFormContent(
                             TransactionType.INCOME, TransactionType.REFUND -> semanticColors.incomeEmerald
                             TransactionType.EXPENSE -> semanticColors.expenseCoral
                             TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> semanticColors.transferBlue
+                            TransactionType.OPENING_BALANCE, TransactionType.RECONCILIATION -> MaterialTheme.colorScheme.primary
                         }
                         Surface(
                             shape = RoundedCornerShape(10.dp),
@@ -476,6 +477,8 @@ fun TransactionEntryFormContent(
                                 TransactionType.TRANSFER -> "TRANSFER AMOUNT"
                                 TransactionType.REFUND -> "REFUND AMOUNT"
                                 TransactionType.CC_SETTLEMENT -> "SETTLEMENT AMOUNT"
+                                TransactionType.OPENING_BALANCE -> "OPENING BALANCE"
+                                TransactionType.RECONCILIATION -> "RECONCILIATION AMOUNT"
                             },
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,

@@ -47,6 +47,19 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
+import com.folioledger.app.ui.theme.tabularMoneyStyle
+import com.folioledger.app.ui.accounts.parseInputToMinorOrZero
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -96,7 +109,6 @@ internal fun AccountEditorBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
 
-    var showStatementDayPicker by rememberSaveable { mutableStateOf(false) }
     var showPaymentDueDayPicker by rememberSaveable { mutableStateOf(false) }
     var isForeignCurrencyExpanded by rememberSaveable { mutableStateOf(state.currencyCode != "INR") }
     var isAppearanceCustomizerExpanded by rememberSaveable { mutableStateOf(false) }
@@ -199,11 +211,40 @@ internal fun AccountEditorBottomSheet(
                     value = state.creditLimitInput,
                     onValueChange = { v -> onUpdateState { it.copy(creditLimitInput = v) } },
                     label = { Text("Credit Limit") },
-                    supportingText = { Text("Total card credit limit") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+            } else if (state.isEditing) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = if (state.groupType.isLiabilityByDefault) "Current Outstanding Balance" else "Current Live Balance",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${state.currencyCode} ${state.openingBalanceInput}",
+                            style = tabularMoneyStyle(MaterialTheme.typography.titleLarge),
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "To adjust or reconcile this balance against your bank statement, use the Reconcile tool in the Passbook.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             } else {
                 OutlinedTextField(
                     value = state.openingBalanceInput,
@@ -211,9 +252,18 @@ internal fun AccountEditorBottomSheet(
                     label = {
                         Text(
                             if (state.groupType.isLiabilityByDefault) {
-                                "Current Liability / Loan Balance"
+                                "Starting Outstanding Balance"
                             } else {
-                                "Current / Opening Balance"
+                                "Starting Balance"
+                            }
+                        )
+                    },
+                    supportingText = {
+                        Text(
+                            if (state.groupType.isLiabilityByDefault) {
+                                "Initial debt as of the starting date"
+                            } else {
+                                "Initial starting balance as of the starting date"
                             }
                         )
                     },
@@ -221,6 +271,81 @@ internal fun AccountEditorBottomSheet(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                var showDatePickerDialog by remember { mutableStateOf(false) }
+                val formattedAnchorDate = remember(state.openingDateEpochDay) {
+                    LocalDate.ofEpochDay(state.openingDateEpochDay)
+                        .format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US))
+                }
+
+                OutlinedCard(
+                    onClick = { showDatePickerDialog = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(
+                                text = "Starting Balance Date",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = formattedAnchorDate,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Filled.CalendarToday,
+                            contentDescription = "Select starting date",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                if (showDatePickerDialog) {
+                    val initialMillis = remember(state.openingDateEpochDay) {
+                        LocalDate.ofEpochDay(state.openingDateEpochDay)
+                            .atStartOfDay(ZoneOffset.UTC)
+                            .toInstant()
+                            .toEpochMilli()
+                    }
+                    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+                    DatePickerDialog(
+                        onDismissRequest = { showDatePickerDialog = false },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    val selectedMillis = datePickerState.selectedDateMillis
+                                    if (selectedMillis != null) {
+                                        val selectedEpochDay = Instant.ofEpochMilli(selectedMillis)
+                                            .atZone(ZoneOffset.UTC)
+                                            .toLocalDate()
+                                            .toEpochDay()
+                                        onUpdateState { it.copy(openingDateEpochDay = selectedEpochDay) }
+                                    }
+                                    showDatePickerDialog = false
+                                }
+                            ) {
+                                Text("Confirm")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showDatePickerDialog = false }) {
+                                Text("Cancel")
+                            }
+                        }
+                    ) {
+                        DatePicker(state = datePickerState)
+                    }
+                }
             }
 
             // 3. Segmented Account Group Selector
@@ -275,8 +400,21 @@ internal fun AccountEditorBottomSheet(
                             selected = state.groupType == group,
                             onClick = {
                                 onUpdateState { current ->
+                                    val updatedAnchorEpochDay = if (group == AccountGroup.CREDIT_CARD) {
+                                        CreditCardCycleCalculator.computeCycleWindow(
+                                            referenceDateEpochDay = referenceDateEpochDay,
+                                            settlementDayOfMonth = current.settlementDayOfMonth,
+                                            paymentDueDayOfMonth = current.paymentDueDayOfMonth
+                                        ).lastStatementEnd.toEpochDay()
+                                    } else if (current.groupType == AccountGroup.CREDIT_CARD) {
+                                        LocalDate.now().toEpochDay()
+                                    } else {
+                                        current.openingDateEpochDay
+                                    }
+
                                     current.copy(
                                         groupType = group,
+                                        openingDateEpochDay = updatedAnchorEpochDay,
                                         iconName = AccountsViewModel.defaultIconForGroup(group),
                                         colorHex = AccountsViewModel.defaultColorForGroup(group),
                                         parentAccountId = if (group == AccountGroup.DEBIT_CARD) {
@@ -326,30 +464,235 @@ internal fun AccountEditorBottomSheet(
                 }
 
                 AccountGroup.CREDIT_CARD -> {
-                    OutlinedTextField(
-                        value = state.statementPayableInput,
-                        onValueChange = { v -> onUpdateState { it.copy(statementPayableInput = v) } },
-                        label = { Text("Current Billed Statement Due (Payable Now)") },
-                        supportingText = { Text("Unpaid bill from your last closed statement") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    val liveCycleWindow = remember(
+                        referenceDateEpochDay,
+                        state.settlementDayOfMonth,
+                        state.paymentDueDayOfMonth
+                    ) {
+                        CreditCardCycleCalculator.computeCycleWindow(
+                            referenceDateEpochDay = referenceDateEpochDay,
+                            settlementDayOfMonth = state.settlementDayOfMonth,
+                            paymentDueDayOfMonth = state.paymentDueDayOfMonth
+                        )
+                    }
 
-                    OutlinedTextField(
-                        value = state.unbilledAmountInput,
-                        onValueChange = { v -> onUpdateState { it.copy(unbilledAmountInput = v) } },
-                        label = { Text("Current Unbilled Spend (Since Last Statement)") },
-                        supportingText = { Text("Purchases made after your last statement closed") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    val statementAnchorDate = remember(state.openingDateEpochDay, liveCycleWindow.lastStatementEnd) {
+                        if (state.openingDateEpochDay > 0L) {
+                            LocalDate.ofEpochDay(state.openingDateEpochDay)
+                        } else {
+                            liveCycleWindow.lastStatementEnd
+                        }
+                    }
 
-                    val payableVal = state.statementPayableInput.toDoubleOrNull() ?: 0.0
-                    val unbilledVal = state.unbilledAmountInput.toDoubleOrNull() ?: 0.0
-                    val totalDebtCalculated = payableVal + unbilledVal
-                    val activeSpec = SupportedCurrencies.fromCode(state.currencyCode)
+                    var showStatementDatePickerDialog by remember { mutableStateOf(false) }
+
+                    val closedCycleText = remember(liveCycleWindow.lastStatementStart, liveCycleWindow.lastStatementEnd) {
+                        val fmt = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
+                        "${liveCycleWindow.lastStatementStart.format(fmt)} – ${liveCycleWindow.lastStatementEnd.format(fmt)}"
+                    }
+                    val activeCycleText = remember(liveCycleWindow.activeCycleStart, liveCycleWindow.activeCycleEnd) {
+                        val fmt = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
+                        "${liveCycleWindow.activeCycleStart.format(fmt)} – ${liveCycleWindow.activeCycleEnd.format(fmt)}"
+                    }
+
+                    // 1. BILLING SCHEDULE CARDS (Statement Date & Payment Due Date)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        // Statement Date Card (Unified Calendar DatePicker)
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainer,
+                            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { showStatementDatePickerDialog = true }
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Statement Date",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Filled.CalendarToday,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Day ${state.settlementDayOfMonth}",
+                                    style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        // Payment Due Day Card
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainer,
+                            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { showPaymentDueDayPicker = true }
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = "Payment Due Day",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Day ${state.paymentDueDayOfMonth}",
+                                    style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+
+                    // Statement Anchor Date Picker
+                    if (showStatementDatePickerDialog) {
+                        val initialMillis = remember(statementAnchorDate) {
+                            statementAnchorDate
+                                .atStartOfDay(ZoneOffset.UTC)
+                                .toInstant()
+                                .toEpochMilli()
+                        }
+                        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+                        DatePickerDialog(
+                            onDismissRequest = { showStatementDatePickerDialog = false },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        val selectedMillis = datePickerState.selectedDateMillis
+                                        if (selectedMillis != null) {
+                                            val selectedDate = Instant.ofEpochMilli(selectedMillis)
+                                                .atZone(ZoneOffset.UTC)
+                                                .toLocalDate()
+                                            onUpdateState {
+                                                it.copy(
+                                                    openingDateEpochDay = selectedDate.toEpochDay(),
+                                                    settlementDayOfMonth = selectedDate.dayOfMonth
+                                                )
+                                            }
+                                        }
+                                        showStatementDatePickerDialog = false
+                                    }
+                                ) {
+                                    Text("Confirm")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showStatementDatePickerDialog = false }) {
+                                    Text("Cancel")
+                                }
+                            }
+                        ) {
+                            DatePicker(state = datePickerState)
+                        }
+                    }
+
+                    // 2. COMPACT BILLING CYCLE DATE RANGE PREVIEW
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Closed Cycle (Current Due)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = closedCycleText,
+                                    style = tabularMoneyStyle(MaterialTheme.typography.bodySmall),
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "Active Cycle (Unbilled)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = activeCycleText,
+                                    style = tabularMoneyStyle(MaterialTheme.typography.bodySmall),
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+
+                    // 3. SIDE-BY-SIDE STARTING DEBT FIELDS
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = state.statementPayableInput,
+                            onValueChange = { v -> onUpdateState { it.copy(statementPayableInput = v) } },
+                            label = { Text("Current Due") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        OutlinedTextField(
+                            value = state.unbilledAmountInput,
+                            onValueChange = { v -> onUpdateState { it.copy(unbilledAmountInput = v) } },
+                            label = { Text("Unbilled Spend") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    // 4. COMPACT SUMMARY CARD
+                    val activeSpec = remember(state.currencyCode) {
+                        SupportedCurrencies.fromCode(state.currencyCode)
+                    }
+                    val payableMinor = remember(state.statementPayableInput, activeSpec.fractionDigits) {
+                        parseInputToMinorOrZero(state.statementPayableInput, activeSpec.fractionDigits) ?: MinorMoney.ZERO
+                    }
+                    val unbilledMinor = remember(state.unbilledAmountInput, activeSpec.fractionDigits) {
+                        parseInputToMinorOrZero(state.unbilledAmountInput, activeSpec.fractionDigits) ?: MinorMoney.ZERO
+                    }
+                    val totalDebtMinor = remember(payableMinor, unbilledMinor) {
+                        payableMinor + unbilledMinor
+                    }
+                    val limitMinor = remember(state.creditLimitInput, activeSpec.fractionDigits) {
+                        parseInputToMinorOrZero(state.creditLimitInput, activeSpec.fractionDigits) ?: MinorMoney.ZERO
+                    }
+                    val availableMinor = remember(limitMinor, totalDebtMinor) {
+                        if (limitMinor > totalDebtMinor) limitMinor - totalDebtMinor else MinorMoney.ZERO
+                    }
 
                     Surface(
                         shape = RoundedCornerShape(12.dp),
@@ -364,89 +707,38 @@ internal fun AccountEditorBottomSheet(
                                 .fillMaxWidth()
                                 .padding(horizontal = 14.dp, vertical = 10.dp)
                         ) {
-                            Text(
-                                text = "✨ Calculated Total Debt Owed:",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            MoneyText(
-                                money = MinorMoney((-totalDebtCalculated * 100).toLong()),
-                                currencySpec = activeSpec,
-                                colorMode = MoneyColorMode.EXPENSE,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainer,
-                            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { showStatementDayPicker = true }
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
+                            Column {
                                 Text(
-                                    text = "Statement Day (1–31)",
+                                    text = "Total Outstanding Debt",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Day ${state.settlementDayOfMonth}",
-                                    style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
+                                MoneyText(
+                                    money = -totalDebtMinor,
+                                    currencySpec = activeSpec,
+                                    colorMode = if (totalDebtMinor.isPositive) MoneyColorMode.EXPENSE else MoneyColorMode.NEUTRAL,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainer,
-                            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { showPaymentDueDayPicker = true }
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
+                            Column(horizontalAlignment = Alignment.End) {
                                 Text(
-                                    text = "Payment Due Day (1–31)",
+                                    text = "Available Credit",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Day ${state.paymentDueDayOfMonth}",
+                                MoneyText(
+                                    money = availableMinor,
+                                    currencySpec = activeSpec,
+                                    colorMode = MoneyColorMode.INCOME,
                                     style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }
                     }
 
-                    val liveCycleWindow = remember(
-                        referenceDateEpochDay,
-                        state.settlementDayOfMonth,
-                        state.paymentDueDayOfMonth
-                    ) {
-                        CreditCardCycleCalculator.computeCycleWindow(
-                            referenceDateEpochDay = referenceDateEpochDay,
-                            settlementDayOfMonth = state.settlementDayOfMonth,
-                            paymentDueDayOfMonth = state.paymentDueDayOfMonth
-                        )
-                    }
-
+                    // 4. LIVE BILLING CYCLE PREVIEW
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
@@ -732,19 +1024,6 @@ internal fun AccountEditorBottomSheet(
                 }
             }
         }
-    }
-
-    if (showStatementDayPicker) {
-        DayOfMonthPickerDialog(
-            title = "Select Statement Closing Day (1–31)",
-            subtitle = "Months with fewer than 31 days automatically clamp to the last day of that month.",
-            selectedDay = state.settlementDayOfMonth,
-            onSelectDay = { day ->
-                onUpdateState { it.copy(settlementDayOfMonth = day.coerceIn(1, 31)) }
-                showStatementDayPicker = false
-            },
-            onDismiss = { showStatementDayPicker = false }
-        )
     }
 
     if (showPaymentDueDayPicker) {

@@ -246,6 +246,49 @@ class AccountingRulesEngineTest {
     }
 
     @Test
+    fun computeFinancialMonthRange_customMonthStartDay31_clampsInShortMonthsWithoutCrashing() {
+        // Case 1: Reference date Feb 15, 2026 (non-leap year, Feb has 28 days) with monthStartDay = 31.
+        // Feb start clamped to Feb 28. Ref date Feb 15 < Feb 28 -> cycle starts Jan 31, 2026, ends Feb 27, 2026.
+        val feb15 = LocalDate.of(2026, 2, 15).toEpochDay()
+        val (start1, end1) = engine.computeFinancialMonthRange(
+            referenceDateEpochDay = feb15,
+            monthStartDay = 31
+        )
+        assertEquals(LocalDate.of(2026, 1, 31).toEpochDay(), start1)
+        assertEquals(LocalDate.of(2026, 2, 27).toEpochDay(), end1)
+
+        // Case 2: Reference date Feb 28, 2026 (on/after clamped start Feb 28) -> starts Feb 28, 2026, ends Mar 30, 2026.
+        val feb28 = LocalDate.of(2026, 2, 28).toEpochDay()
+        val (start2, end2) = engine.computeFinancialMonthRange(
+            referenceDateEpochDay = feb28,
+            monthStartDay = 31
+        )
+        assertEquals(LocalDate.of(2026, 2, 28).toEpochDay(), start2)
+        assertEquals(LocalDate.of(2026, 3, 30).toEpochDay(), end2)
+
+        // Case 3: Reference date April 15, 2026 (30-day month) -> starts Mar 31, 2026, ends Apr 29, 2026.
+        val apr15 = LocalDate.of(2026, 4, 15).toEpochDay()
+        val (start3, end3) = engine.computeFinancialMonthRange(
+            referenceDateEpochDay = apr15,
+            monthStartDay = 31
+        )
+        assertEquals(LocalDate.of(2026, 3, 31).toEpochDay(), start3)
+        assertEquals(LocalDate.of(2026, 4, 29).toEpochDay(), end3)
+    }
+
+    @Test
+    fun computeFinancialMonthRange_customMonthStartDay29_leapYearHandling() {
+        // Feb 2028 is a leap year with 29 days.
+        val feb152028 = LocalDate.of(2028, 2, 15).toEpochDay()
+        val (start, end) = engine.computeFinancialMonthRange(
+            referenceDateEpochDay = feb152028,
+            monthStartDay = 29
+        )
+        assertEquals(LocalDate.of(2028, 1, 29).toEpochDay(), start)
+        assertEquals(LocalDate.of(2028, 2, 28).toEpochDay(), end)
+    }
+
+    @Test
     fun computeCreditCardMetrics_tracksStatementPayableUnbilledAndSettlementWithoutDoubleCounting() {
         // Statement closes on the 15th of each month.
         // Reference date: 2026-10-22 -> most recent statement closed on 2026-10-15.
@@ -317,6 +360,44 @@ class AccountingRulesEngineTest {
         assertEquals(MinorMoney(-7000_00L), metrics.currentBalance)
         assertEquals(43000_00L, metrics.availableCredit?.amountMinor)
         assertEquals(14.00f, metrics.utilizationPercent, 0.001f)
+    }
+
+    @Test
+    fun computeCreditCardMetrics_reconciliationTransactions_adjustDebtCorrectly() {
+        // Statement closes on 15th of each month.
+        val statementDay = 15
+        val referenceDay = LocalDate.of(2026, 10, 20).toEpochDay()
+        val closeDay = LocalDate.of(2026, 10, 15).toEpochDay()
+
+        // Closed cycle spend of 10,000 INR
+        val closedSpend = createSampleTx(
+            id = 1L,
+            type = TransactionType.EXPENSE,
+            epochDay = closeDay - 2,
+            amount = MinorMoney(10000_00L)
+        )
+
+        // Reconciliation adjustment in active cycle (+500 debt adjustment, transferToAccountId != null)
+        val reconDebtIncrease = createSampleTx(
+            id = 2L,
+            type = TransactionType.RECONCILIATION,
+            epochDay = closeDay + 2,
+            amount = MinorMoney(500_00L)
+        ).copy(transferToAccountId = 10L)
+
+        val metrics = engine.computeCreditCardMetrics(
+            openingBalance = MinorMoney.ZERO,
+            initialUnbilledAmount = null,
+            creditLimit = MinorMoney(50000_00L),
+            settlementDayOfMonth = statementDay,
+            referenceDateEpochDay = referenceDay,
+            transactions = listOf(closedSpend, reconDebtIncrease)
+        )
+
+        assertEquals(MinorMoney(10000_00L), metrics.statementPayable)
+        assertEquals(MinorMoney(500_00L), metrics.unbilledAmount)
+        assertEquals(MinorMoney(10500_00L), metrics.outstandingBalance)
+        assertEquals(MinorMoney(-10500_00L), metrics.currentBalance)
     }
 
     private fun createSampleTx(

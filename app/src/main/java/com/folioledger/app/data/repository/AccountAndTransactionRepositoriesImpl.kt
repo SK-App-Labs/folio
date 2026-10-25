@@ -98,7 +98,8 @@ class AccountRepositoryImpl(
 
     override suspend fun upsertAccount(
         account: AccountSummary,
-        openingBalance: MinorMoney
+        openingBalance: MinorMoney,
+        openingDateEpochDay: Long
     ): Result<Long> = runCatching {
         val trimmedName = account.name.trim()
         require(trimmedName.isNotEmpty()) { "Account name cannot be blank." }
@@ -109,29 +110,47 @@ class AccountRepositoryImpl(
             null
         }
 
-        val resolvedOpeningMinor = if (existing != null) {
-            // Check live balance prior to edit so pre-filled currentBalance doesn't double-count transactions
-            val liveBeforeEdit = observeAccountById(
-                accountId = existing.id,
-                referenceDateEpochDay = LocalDate.now().toEpochDay()
-            ).first()
-            val previousCurrentMinor = liveBeforeEdit?.currentBalance?.amountMinor
-                ?: existing.openingBalanceMinor
-
-            if (openingBalance.amountMinor == previousCurrentMinor) {
-                existing.openingBalanceMinor
-            } else {
-                val netTransactionsDelta = Math.subtractExact(
-                    previousCurrentMinor,
-                    existing.openingBalanceMinor
-                )
-                Math.subtractExact(openingBalance.amountMinor, netTransactionsDelta)
-            }
+        val targetBalanceMinor = if (!openingBalance.isZero) {
+            openingBalance.amountMinor
         } else {
-            if (!openingBalance.isZero) {
-                openingBalance.amountMinor
+            account.currentBalance.amountMinor
+        }
+
+        val resolvedOpeningMinor: Long
+        val initialTx: TransactionEntity?
+
+        if (existing != null) {
+            // Immutable opening anchor: preserve legacy or previously recorded opening balance as-is.
+            // Balance reconciliations are tracked via reconcileAccountBalance to prevent delta-guessing bugs.
+            resolvedOpeningMinor = existing.openingBalanceMinor
+            initialTx = null
+        } else {
+            if (account.groupType == AccountGroup.CREDIT_CARD) {
+                resolvedOpeningMinor = Math.abs(targetBalanceMinor)
+                initialTx = null
+            } else if (account.groupType == AccountGroup.DEBIT_CARD) {
+                resolvedOpeningMinor = 0L
+                initialTx = null
+            } else if (targetBalanceMinor != 0L) {
+                // Event-sourced starting balance: Record as TransactionType.OPENING_BALANCE
+                resolvedOpeningMinor = 0L
+                val isOutflow = targetBalanceMinor < 0L || account.groupType.isLiabilityByDefault
+                val txEpochMillis = openingDateEpochDay * 86_400_000L + 12 * 3600 * 1000L
+                initialTx = TransactionEntity(
+                    id = 0L,
+                    type = TransactionType.OPENING_BALANCE,
+                    timestampEpochMillis = txEpochMillis,
+                    ledgerDateEpochDay = openingDateEpochDay,
+                    amountMinor = Math.abs(targetBalanceMinor),
+                    currencyCode = account.currencyCode.ifBlank { "INR" },
+                    accountId = 0L, // will be replaced in insertAccountWithInitialBalance
+                    transferToAccountId = if (isOutflow) 0L else null,
+                    payeeOrDescription = "Opening Balance",
+                    note = "Initial starting balance"
+                )
             } else {
-                account.currentBalance.amountMinor
+                resolvedOpeningMinor = 0L
+                initialTx = null
             }
         }
 
@@ -142,7 +161,8 @@ class AccountRepositoryImpl(
             currencyCode = account.currencyCode.ifBlank { "INR" },
             openingBalanceMinor = resolvedOpeningMinor,
             initialUnbilledMinor = if (account.groupType == AccountGroup.CREDIT_CARD) {
-                account.creditCardUnbilledAmount?.amountMinor
+                account.creditCardUnbilledAmount?.abs()?.amountMinor
+                    ?: (if (existing != null) existing.initialUnbilledMinor else null)
             } else {
                 null
             },
@@ -166,7 +186,45 @@ class AccountRepositoryImpl(
             createdAtEpochMillis = existing?.createdAtEpochMillis ?: System.currentTimeMillis()
         )
 
-        accountDao.insertAccount(entity)
+        accountDao.insertAccountWithInitialBalance(entity, initialTx)
+    }
+
+    override suspend fun reconcileAccountBalance(
+        accountId: Long,
+        reconciledBalance: MinorMoney,
+        reconciledDateEpochDay: Long,
+        note: String
+    ): Result<Long> = runCatching {
+        val account = accountDao.getAccountByIdOnce(accountId)
+            ?: throw IllegalArgumentException("Account #$accountId not found.")
+
+        val summary = observeAccountById(accountId, reconciledDateEpochDay).first()
+            ?: throw IllegalStateException("Could not compute live balance for account #$accountId")
+
+        val currentMinor = summary.currentBalance.amountMinor
+        val targetMinor = reconciledBalance.amountMinor
+        val deltaMinor = Math.subtractExact(targetMinor, currentMinor)
+
+        if (deltaMinor == 0L) {
+            return@runCatching 0L
+        }
+
+        val isOutflow = deltaMinor < 0L
+        val txEpochMillis = reconciledDateEpochDay * 86_400_000L + 12 * 3600 * 1000L
+        val reconciliationTx = TransactionEntity(
+            id = 0L,
+            type = TransactionType.RECONCILIATION,
+            timestampEpochMillis = txEpochMillis,
+            ledgerDateEpochDay = reconciledDateEpochDay,
+            amountMinor = Math.abs(deltaMinor),
+            currencyCode = account.currencyCode,
+            accountId = accountId,
+            transferToAccountId = if (isOutflow) accountId else null,
+            payeeOrDescription = "Balance Reconciliation",
+            note = note.trim().ifEmpty { "Manual balance adjustment" }
+        )
+
+        transactionDao.insertTransactionRaw(reconciliationTx)
     }
 
     override suspend fun setAccountArchived(
@@ -301,7 +359,9 @@ class AccountRepositoryImpl(
                     TransactionType.TRANSFER,
                     TransactionType.CC_SETTLEMENT ->
                         Math.addExact(currentSpend, feeMinor)
-                    TransactionType.INCOME -> currentSpend
+                    TransactionType.INCOME,
+                    TransactionType.OPENING_BALANCE,
+                    TransactionType.RECONCILIATION -> currentSpend
                 }
                 debitCardPeriodSpendMap[tx.accountId] = updatedSpend
             }
@@ -331,6 +391,17 @@ class AccountRepositoryImpl(
                     if (effectiveTargetId != null) {
                         runningBalancesMinor[effectiveTargetId]?.let { currentTarget ->
                             runningBalancesMinor[effectiveTargetId] = Math.addExact(currentTarget, amountMinor)
+                        }
+                    }
+                }
+                TransactionType.OPENING_BALANCE,
+                TransactionType.RECONCILIATION -> {
+                    val isOutflow = tx.transferToAccountId != null
+                    runningBalancesMinor[effectiveSourceId]?.let { current ->
+                        runningBalancesMinor[effectiveSourceId] = if (isOutflow) {
+                            Math.subtractExact(current, amountMinor)
+                        } else {
+                            Math.addExact(current, amountMinor)
                         }
                     }
                 }

@@ -50,7 +50,7 @@ data class SplitValidationSummary(
     val errorMessage: String? = null
 )
 
-object AccountingRulesEngine {
+object TransactionEntryRulesEngine {
 
     fun validateSplitTransaction(
         parentTotal: MinorMoney,
@@ -206,7 +206,8 @@ data class TransactionEntryUiState(
         get() = when (mode) {
             TransactionType.INCOME -> incomeCategories
             TransactionType.EXPENSE, TransactionType.REFUND,
-            TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> expenseCategories
+            TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT,
+            TransactionType.OPENING_BALANCE, TransactionType.RECONCILIATION -> expenseCategories
         }
 
     val isCreditCardExpense: Boolean
@@ -312,7 +313,7 @@ class TransactionEntryViewModel(
             )
         }
 
-        val splitValidation = AccountingRulesEngine.validateSplitTransaction(
+        val splitValidation = TransactionEntryRulesEngine.validateSplitTransaction(
             parentTotal = evaluatedMoney,
             splits = domainSplits
         )
@@ -322,7 +323,7 @@ class TransactionEntryViewModel(
         val effectiveInstallmentEnabled = form.isInstallmentEnabled && isCCExpense && !form.isSplit
 
         val schedulePreview = if (effectiveInstallmentEnabled) {
-            AccountingRulesEngine.generateInstallmentSchedule(
+            TransactionEntryRulesEngine.generateInstallmentSchedule(
                 totalAmount = evaluatedMoney,
                 monthsCount = form.installmentMonthsCount,
                 startDateEpochDay = form.ledgerDateEpochDay

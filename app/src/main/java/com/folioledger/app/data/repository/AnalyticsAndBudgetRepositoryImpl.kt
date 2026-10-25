@@ -73,6 +73,10 @@ class AnalyticsAndBudgetRepositoryImpl(
                                 periodExpenseRawMinor = Math.addExact(periodExpenseRawMinor, fee)
                             }
                         }
+                        TransactionType.OPENING_BALANCE,
+                        TransactionType.RECONCILIATION -> {
+                            // Capital adjustments do not count toward operating cashflow
+                        }
                     }
                 }
             }
@@ -164,7 +168,9 @@ class AnalyticsAndBudgetRepositoryImpl(
                                     )
                                 }
                             }
-                            TransactionType.INCOME -> Unit
+                            TransactionType.INCOME,
+                            TransactionType.OPENING_BALANCE,
+                            TransactionType.RECONCILIATION -> Unit
                         }
                     }
 
@@ -218,7 +224,7 @@ class AnalyticsAndBudgetRepositoryImpl(
         referenceDateEpochDay: Long,
         monthStartDay: Int
     ): Flow<List<MonthlyTrendBar>> {
-        val safeStartDay = monthStartDay.coerceIn(1, 28)
+        val safeStartDay = monthStartDay.coerceIn(1, 31)
         val (currentCycleStartEpochDay, _) = AccountingRulesEngine.computeFinancialMonthRange(
             referenceDateEpochDay = referenceDateEpochDay,
             monthStartDay = safeStartDay
@@ -269,6 +275,10 @@ class AnalyticsAndBudgetRepositoryImpl(
                                 expenseRawMinor = Math.addExact(expenseRawMinor, fee)
                             }
                         }
+                        TransactionType.OPENING_BALANCE,
+                        TransactionType.RECONCILIATION -> {
+                            // Capital adjustments do not count toward monthly income or expense trends
+                        }
                     }
                 }
 
@@ -310,7 +320,9 @@ class AnalyticsAndBudgetRepositoryImpl(
                         TransactionType.TRANSFER,
                         TransactionType.CC_SETTLEMENT ->
                             Math.abs(tx.transferFeeMinor)
-                        TransactionType.INCOME -> 0L
+                        TransactionType.INCOME,
+                        TransactionType.OPENING_BALANCE,
+                        TransactionType.RECONCILIATION -> 0L
                     }
                     if (deltaMinor == 0L) continue
 
@@ -367,7 +379,9 @@ class AnalyticsAndBudgetRepositoryImpl(
                         TransactionType.TRANSFER,
                         TransactionType.CC_SETTLEMENT ->
                             Math.abs(tx.transferFeeMinor)
-                        TransactionType.INCOME -> 0L
+                        TransactionType.INCOME,
+                        TransactionType.OPENING_BALANCE,
+                        TransactionType.RECONCILIATION -> 0L
                     }
                     if (deltaMinor == 0L) continue
 
@@ -451,7 +465,9 @@ class AnalyticsAndBudgetRepositoryImpl(
                             recordCategoryExpense(tx.categoryId, fee)
                         }
                     }
-                    TransactionType.INCOME -> Unit
+                    TransactionType.INCOME,
+                    TransactionType.OPENING_BALANCE,
+                    TransactionType.RECONCILIATION -> Unit
                 }
             }
 
@@ -536,6 +552,8 @@ class AnalyticsAndBudgetRepositoryImpl(
             TransactionType.EXPENSE -> Math.subtractExact(currentNetMinor, Math.addExact(amount, fee))
             TransactionType.TRANSFER,
             TransactionType.CC_SETTLEMENT -> Math.subtractExact(currentNetMinor, fee)
+            TransactionType.OPENING_BALANCE,
+            TransactionType.RECONCILIATION -> currentNetMinor
         }
     }
 

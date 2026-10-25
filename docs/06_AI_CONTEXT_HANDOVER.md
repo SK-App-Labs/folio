@@ -19,10 +19,14 @@
 7. **Strict Ledger Deletion Safety Rules:**
    - Unused accounts with 0 transactions can be permanently deleted after user confirmation (`[ Delete Account ]`).
    - Accounts with 1+ linked transactions cannot be deleted to protect historical reports and ledger integrity. The app informs the user and guides them to **Archive Account** instead.
-8. **Strict Transaction Isolation & Field Integrity:**
-   - Non-transfer types (`EXPENSE`, `INCOME`, `REFUND`) strictly enforce `transferToAccountId = null`, `transferToAccountName = null`, `transferFee = 0L`.
+8. **Strict Transaction Isolation, System Types & Field Integrity:**
+   - Non-transfer types (`EXPENSE`, `INCOME`, `REFUND`, `OPENING_BALANCE`, `RECONCILIATION`) strictly enforce `transferToAccountId = null`, `transferToAccountName = null`, `transferFee = 0L`.
    - Transfer types (`TRANSFER`, `CC_SETTLEMENT`) strictly enforce `categoryId = null`.
+   - System entries (`OPENING_BALANCE`, `RECONCILIATION`) represent capital anchors and balance adjustments. They are strictly isolated from operating cashflow, category spend stats, and budget progress calculations.
    - Passbook statements filter strictly by matching transaction types and exclude zero-delta entries (`deltaMinor != 0L`).
+9. **Financial Month Calculations (Days 1–31):**
+   - `AccountingRulesEngine.computeFinancialMonthRange` supports custom financial start days from `1` to `31`.
+   - Clamps desired start days to `minOf(desiredDay, yearMonth.lengthOfMonth())`, preventing runtime exceptions on short months (February, April, June, September, November) and leap years.
 
 ## 3. UI, Design System & Theme Engine Standards
 1. **Header Layout Alignment Standard:** All top-level screen headers use `headlineSmall` (24sp Bold) with `padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp)` to align across `AccountsScreen`, `TransactionsScreen`, `StatsAndBudgetsScreen`, and `SettingsScreen`.

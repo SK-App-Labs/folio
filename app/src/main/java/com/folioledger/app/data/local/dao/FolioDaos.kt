@@ -48,6 +48,9 @@ interface AccountDao {
     @Update
     suspend fun updateAccount(account: AccountEntity)
 
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertInitialTransactionRaw(transaction: TransactionEntity): Long
+
     /**
      * Safe upsert that uses SQL UPDATE when editing an existing account (id != 0L),
      * preventing OnConflictStrategy.REPLACE from triggering ForeignKey.CASCADE deletes
@@ -61,6 +64,18 @@ interface AccountDao {
         } else {
             insertNewAccountRaw(account.copy(id = 0L))
         }
+    }
+
+    @Transaction
+    suspend fun insertAccountWithInitialBalance(
+        account: AccountEntity,
+        initialTransaction: TransactionEntity?
+    ): Long {
+        val newAccountId = insertAccount(account)
+        if (initialTransaction != null && initialTransaction.amountMinor > 0L) {
+            insertInitialTransactionRaw(initialTransaction.copy(accountId = newAccountId))
+        }
+        return newAccountId
     }
 
     @Query("UPDATE accounts SET isArchived = :isArchived WHERE id = :accountId")
