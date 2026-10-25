@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.2.0] - Unreleased (Upcoming Play Store Release)
 
 ### Added
+- **Waterfall Net Worth Chart & 3 Trend Analytics Segment Chips**: Added 3-way segment chips (`[ 📊 Cashflow ]` | `[ 📈 Net Worth ]` | `[ 💳 Credit Health ]`) in `StatsAndBudgetsScreen.kt`. Includes Waterfall Balance Sheet Canvas Chart (`NetWorthGrowthCanvasChart` with Green Assets Bar UP, Red Liabilities Bar DOWN, and connecting Net Worth Line) with metric filters (`All-in-One`, `Net Worth`, `Assets`, `Liabilities`) and drag-to-inspect tooltips driven by top granularity (`Monthly`, `Annually`, `Weekly`). Includes `CreditHealthDashboardCard` with overall credit utilization meter, per-card utilization progress bars (`0-30%` Emerald, `30-80%` Amber, `80-100%` Coral Red), available limits, and CIBIL credit score warnings.
 - **Ledger Safety Deletion Rules**: Added permanent account deletion for unused accounts (0 transactions). For accounts with linked transactions, permanent deletion is blocked to protect historical ledger reports, guiding the user to **Archive Account** instead.
 - **Auto-Calculated Credit Card Total Debt**: Credit card setup and editing now auto-calculates Total Debt Owed in real time (`Billed Due + Unbilled Spend`), eliminating manual calculation errors.
 - **Segmented Account Group Selector**: Account Editor sheet categorizes 10 account types under 3 Segment Tabs (`Liquid` | `Cards` | `Savings & Debt`) for fast group picking.
@@ -22,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Unified Tags & Bookmarks**: `PrimaryTabRow` with `#Tags` and `Bookmarks ★` tabs.
 
 ### Changed
+- **Pure Neutral Card Container Standardization**: Standardized `tonalElevation = 0.dp` across `SettingsGroupCard` and `AccountGroupSectionCard` to remove primary color surface tinting, ensuring cards across `Trans.`, `Accounts`, and `Settings` tabs render with 100% identical pure neutral container colors in all theme modes.
+- **Grouped Daily Transaction Cards**: Refactored `DailyLedgerSubTabContent` and `LedgerItemCards.kt` to group all transactions occurring on the same day inside **1 Enclosed Surface Card** (`DailyGroupedTransactionsCard`), eliminating scattered gaps between same-day transactions and saving ~40% vertical screen space.
+- **App-Wide Divider Line Standardization**: Standardized all row divider lines in `SettingsScreen.kt` and settings sheets to explicitly pass `color = semanticColors.cardStrokeSubtle`, achieving 100% theme uniformity with Accounts and Ledger tabs.
 - **Settings Tab Modularization & Extraction**: Extracted bottom sheets into `com.folioledger.app.ui.settings.sheets` package (`AppearanceBottomSheet`, `RegionalFormatBottomSheet`, `DataAndBackupBottomSheet`, `CategoryManagerBottomSheet`, `TagsAndBookmarksBottomSheet`), and extracted `FolioGuideAndSupportSheets.kt`, shrinking `SettingsScreen.kt` from ~2,300 lines down to ~600 lines.
 - **Accounts Tab Card Design Alignment**: Section headers in `AccountGroupSectionCard.kt` match `SettingsGroupCard` pattern (`labelLarge` uppercase primary titles). Whole-header row tap toggles expand/collapse without chevron icons or `+` buttons.
 - **Compact Credit Card Rows**: Compact 2-column layout (`DUE NOW` & `UNBILLED`) with `Due [Date]` subtext. Smart color coding (`DUE NOW` in `expenseCoral` when > 0, `incomeEmerald` when <= 0). Optimized column widths (`78.dp` & `72.dp`), returning `+52.dp` extra horizontal width to card names.

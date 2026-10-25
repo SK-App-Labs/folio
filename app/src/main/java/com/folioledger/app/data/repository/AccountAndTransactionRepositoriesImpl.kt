@@ -110,26 +110,22 @@ class AccountRepositoryImpl(
         }
 
         val resolvedOpeningMinor = if (existing != null) {
-            if (openingBalance.isZero || openingBalance.amountMinor == existing.openingBalanceMinor) {
+            // Check live balance prior to edit so pre-filled currentBalance doesn't double-count transactions
+            val liveBeforeEdit = observeAccountById(
+                accountId = existing.id,
+                referenceDateEpochDay = LocalDate.now().toEpochDay()
+            ).first()
+            val previousCurrentMinor = liveBeforeEdit?.currentBalance?.amountMinor
+                ?: existing.openingBalanceMinor
+
+            if (openingBalance.amountMinor == previousCurrentMinor) {
                 existing.openingBalanceMinor
             } else {
-                // Check live balance prior to edit so pre-filled currentBalance doesn't double-count transactions
-                val liveBeforeEdit = observeAccountById(
-                    accountId = existing.id,
-                    referenceDateEpochDay = LocalDate.now().toEpochDay()
-                ).first()
-                val previousCurrentMinor = liveBeforeEdit?.currentBalance?.amountMinor
-                    ?: existing.openingBalanceMinor
-
-                if (openingBalance.amountMinor == previousCurrentMinor) {
+                val netTransactionsDelta = Math.subtractExact(
+                    previousCurrentMinor,
                     existing.openingBalanceMinor
-                } else {
-                    val netTransactionsDelta = Math.subtractExact(
-                        previousCurrentMinor,
-                        existing.openingBalanceMinor
-                    )
-                    Math.subtractExact(openingBalance.amountMinor, netTransactionsDelta)
-                }
+                )
+                Math.subtractExact(openingBalance.amountMinor, netTransactionsDelta)
             }
         } else {
             if (!openingBalance.isZero) {

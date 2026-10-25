@@ -1152,9 +1152,9 @@ private fun CalculatorNumericKeypad(
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val rows = listOf(
-        listOf("7", "8", "9", "÷"),
+        listOf("1", "2", "3", "÷"),
         listOf("4", "5", "6", "×"),
-        listOf("1", "2", "3", "-"),
+        listOf("7", "8", "9", "-"),
         listOf(".", "0", "00", "+")
     )
 

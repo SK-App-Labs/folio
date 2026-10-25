@@ -98,10 +98,12 @@ import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SpendRankingItem
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.ui.components.CategoryIconBadge
+import com.folioledger.app.ui.components.CreditHealthDashboardCard
 import com.folioledger.app.ui.components.EmptyStateCard
 import com.folioledger.app.ui.components.InteractiveCategoryDonutChart
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
+import com.folioledger.app.ui.components.NetWorthGrowthCanvasChart
 import com.folioledger.app.ui.components.PeriodSelectorHeader
 import com.folioledger.app.ui.components.SixMonthSmoothTrendAreaChart
 import com.folioledger.app.ui.components.SixMonthTrendBarChart
@@ -195,7 +197,9 @@ fun StatsAndBudgetsScreen(
                         uiState = uiState,
                         onSelectCategoryType = viewModel::selectCategoryType,
                         onDonutSliceSelected = viewModel::onDonutSliceSelected,
-                        onOpenCategoryDrillDown = viewModel::openCategoryDrillDown
+                        onOpenCategoryDrillDown = viewModel::openCategoryDrillDown,
+                        onSelectTrendChartMode = viewModel::selectTrendChartMode,
+                        onSelectNetWorthChartMetricFilter = viewModel::selectNetWorthChartMetricFilter
                     )
                 }
 
@@ -439,7 +443,9 @@ private fun StatsBreakdownSubTabContent(
     uiState: StatsAndBudgetsUiState,
     onSelectCategoryType: (CategoryType) -> Unit,
     onDonutSliceSelected: (CategorySpendStat?) -> Unit,
-    onOpenCategoryDrillDown: (CategorySpendStat) -> Unit
+    onOpenCategoryDrillDown: (CategorySpendStat) -> Unit,
+    onSelectTrendChartMode: (TrendChartMode) -> Unit,
+    onSelectNetWorthChartMetricFilter: (NetWorthChartMetricFilter) -> Unit
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val activeStats = uiState.activeCategoryStats
@@ -647,13 +653,71 @@ private fun StatsBreakdownSubTabContent(
             }
         }
 
-        // 6-Month Cashflow Trend Bar Chart
+        // Trend Analytics Section with Option A Toggle Chip
         item {
-            SixMonthTrendBarChart(
-                bars = uiState.sixMonthTrendBars,
-                currencySpec = uiState.currencySpec,
-                grouping = uiState.numberGrouping
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "Trend Analytics",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                // Segmented Toggle Chips: [ 📊 Cashflow ] | [ 📈 Net Worth ] | [ 💳 Credit Health ]
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    FilterChip(
+                        selected = uiState.selectedTrendChartMode == TrendChartMode.INCOME_VS_EXPENSE,
+                        onClick = { onSelectTrendChartMode(TrendChartMode.INCOME_VS_EXPENSE) },
+                        label = { Text("📊 Cashflow", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    FilterChip(
+                        selected = uiState.selectedTrendChartMode == TrendChartMode.NET_WORTH,
+                        onClick = { onSelectTrendChartMode(TrendChartMode.NET_WORTH) },
+                        label = { Text("📈 Net Worth", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    FilterChip(
+                        selected = uiState.selectedTrendChartMode == TrendChartMode.CREDIT_ANALYSIS,
+                        onClick = { onSelectTrendChartMode(TrendChartMode.CREDIT_ANALYSIS) },
+                        label = { Text("💳 Credit Health", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                when (uiState.selectedTrendChartMode) {
+                    TrendChartMode.INCOME_VS_EXPENSE -> {
+                        SixMonthTrendBarChart(
+                            bars = uiState.sixMonthTrendBars,
+                            currencySpec = uiState.currencySpec,
+                            grouping = uiState.numberGrouping
+                        )
+                    }
+                    TrendChartMode.NET_WORTH -> {
+                        NetWorthGrowthCanvasChart(
+                            trendItems = uiState.sixMonthNetWorthTrend,
+                            selectedFilter = uiState.selectedNetWorthMetricFilter,
+                            currencySpec = uiState.currencySpec,
+                            grouping = uiState.numberGrouping,
+                            onSelectFilter = onSelectNetWorthChartMetricFilter
+                        )
+                    }
+                    TrendChartMode.CREDIT_ANALYSIS -> {
+                        CreditHealthDashboardCard(
+                            totalAvailableCredit = uiState.totalAvailableCredit,
+                            totalCreditLimit = uiState.totalCreditLimit,
+                            totalUsedCredit = uiState.totalUsedCredit,
+                            overallUtilizationPercent = uiState.overallCreditUtilizationPercent,
+                            creditCardHealthList = uiState.creditCardHealthList,
+                            currencySpec = uiState.currencySpec,
+                            grouping = uiState.numberGrouping
+                        )
+                    }
+                }
+            }
         }
     }
 }

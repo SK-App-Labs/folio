@@ -263,13 +263,13 @@ internal fun DailyLedgerSubTabContent(
                         amountsAlpha = alpha
                     )
                 }
-                items(group.transactions, key = { it.id }) { transaction ->
-                    LedgerTransactionItemCard(
-                        transaction = transaction,
+                item(key = "day_card_${group.epochDay}") {
+                    DailyGroupedTransactionsCard(
+                        transactions = group.transactions,
                         scopedAccountId = uiState.scopedAccountId,
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.numberGrouping,
-                        onClick = { onTransactionClick(transaction) }
+                        onTransactionClick = onTransactionClick
                     )
                 }
             }

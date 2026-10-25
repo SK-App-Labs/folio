@@ -45,7 +45,8 @@ class FolioViewModelFactory(
                     analyticsAndBudgetRepository = container.analyticsAndBudgetRepository,
                     categoryAndTagRepository = container.categoryAndTagRepository,
                     transactionRepository = container.transactionRepository,
-                    settingsAndBackupRepository = container.settingsAndBackupRepository
+                    settingsAndBackupRepository = container.settingsAndBackupRepository,
+                    accountRepository = container.accountRepository
                 ) as T
             }
             modelClass.isAssignableFrom(SettingsViewModel::class.java) -> {

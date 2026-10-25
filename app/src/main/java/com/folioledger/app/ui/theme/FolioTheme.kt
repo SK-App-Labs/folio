@@ -137,6 +137,16 @@ val AmoledFolioSemanticColors = DarkFolioSemanticColors.copy(
     isAmoled = true,
 )
 
+val SepiaFolioSemanticColors = LightFolioSemanticColors.copy(
+    chartGridLine = Color(0xFFD8D0BE),
+    cardStrokeSubtle = Color(0xFFD8D0BE),
+)
+
+val SlateGrayFolioSemanticColors = DarkFolioSemanticColors.copy(
+    chartGridLine = Color(0xFF3C3F43),
+    cardStrokeSubtle = Color(0xFF3C3F43),
+)
+
 val LocalFolioSemanticColors = staticCompositionLocalOf { LightFolioSemanticColors }
 
 private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
@@ -899,6 +909,8 @@ fun FolioTheme(
     }
 
     val semanticColors = when {
+        resolvedMode == FolioThemeMode.SEPIA -> SepiaFolioSemanticColors
+        resolvedMode == FolioThemeMode.SLATE_GRAY -> SlateGrayFolioSemanticColors
         isAmoled -> AmoledFolioSemanticColors
         useDarkTheme -> DarkFolioSemanticColors
         else -> LightFolioSemanticColors

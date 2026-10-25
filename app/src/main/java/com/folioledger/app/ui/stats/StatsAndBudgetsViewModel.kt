@@ -4,6 +4,8 @@ package com.folioledger.app.ui.stats
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.folioledger.app.domain.model.AccountGroup
+import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.BudgetProgress
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategorySpendStat
@@ -18,6 +20,7 @@ import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.model.UserPreferences
+import com.folioledger.app.domain.repository.AccountRepository
 import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
@@ -52,6 +55,46 @@ enum class StatsSubTab(val title: String) {
     BUDGETS("Budgets"),
     TAGS_AND_NOTES("Tags & Notes")
 }
+
+enum class TrendChartMode(val title: String) {
+    INCOME_VS_EXPENSE("Income vs. Expense"),
+    NET_WORTH("Net Worth"),
+    CREDIT_ANALYSIS("Credit Analysis")
+}
+
+enum class NetWorthChartMetricFilter(val title: String) {
+    ALL_IN_ONE("All-in-One"),
+    NET_WORTH("Net Worth"),
+    ASSETS("Assets"),
+    LIABILITIES("Liabilities")
+}
+
+enum class CreditUtilizationStatus {
+    SAFE,
+    MODERATE,
+    WARNING
+}
+
+@Immutable
+data class NetWorthGrowthTrendItem(
+    val epochDay: Long,
+    val monthYearText: String,
+    val assets: MinorMoney,
+    val liabilities: MinorMoney,
+    val netWorth: MinorMoney
+)
+
+@Immutable
+data class CreditCardHealthUiModel(
+    val account: AccountSummary,
+    val statementPayable: MinorMoney,
+    val unbilledSpend: MinorMoney,
+    val totalDebt: MinorMoney,
+    val creditLimit: MinorMoney,
+    val availableCredit: MinorMoney,
+    val utilizationPercent: Float,
+    val status: CreditUtilizationStatus
+)
 
 enum class RankingMode(val title: String) {
     TAGS("#Tag Rankings"),
@@ -264,6 +307,8 @@ data class StatsAndBudgetsUiState(
     val periodGranularity: StatsPeriodGranularity = StatsPeriodGranularity.MONTHLY,
     val selectedCategoryType: CategoryType = CategoryType.EXPENSE,
     val selectedRankingMode: RankingMode = RankingMode.TAGS,
+    val selectedTrendChartMode: TrendChartMode = TrendChartMode.INCOME_VS_EXPENSE,
+    val selectedNetWorthMetricFilter: NetWorthChartMetricFilter = NetWorthChartMetricFilter.ALL_IN_ONE,
     val referenceDateEpochDay: Long = LocalDate.now().toEpochDay(),
     val customStartEpochDay: Long = LocalDate.now().withDayOfMonth(1).toEpochDay(),
     val customEndEpochDay: Long = LocalDate.now().toEpochDay(),
@@ -287,6 +332,12 @@ data class StatsAndBudgetsUiState(
     val incomeCategoryStats: List<CategorySpendStat> = emptyList(),
     val highlightedDonutCategoryId: Long? = null,
     val sixMonthTrendBars: List<MonthlyTrendBar> = emptyList(),
+    val sixMonthNetWorthTrend: List<NetWorthGrowthTrendItem> = emptyList(),
+    val totalAvailableCredit: MinorMoney = MinorMoney.ZERO,
+    val totalCreditLimit: MinorMoney = MinorMoney.ZERO,
+    val totalUsedCredit: MinorMoney = MinorMoney.ZERO,
+    val overallCreditUtilizationPercent: Float = 0f,
+    val creditCardHealthList: List<CreditCardHealthUiModel> = emptyList(),
     val budgetProgressList: List<BudgetProgress> = emptyList(),
     val overallBudgetProgress: BudgetProgress? = null,
     val categoryBudgetProgressList: List<BudgetProgress> = emptyList(),
@@ -317,6 +368,8 @@ private data class StatsInternalControlState(
     val periodGranularity: StatsPeriodGranularity = StatsPeriodGranularity.MONTHLY,
     val selectedCategoryType: CategoryType = CategoryType.EXPENSE,
     val selectedRankingMode: RankingMode = RankingMode.TAGS,
+    val selectedTrendChartMode: TrendChartMode = TrendChartMode.INCOME_VS_EXPENSE,
+    val selectedNetWorthMetricFilter: NetWorthChartMetricFilter = NetWorthChartMetricFilter.ALL_IN_ONE,
     val referenceDateEpochDay: Long = LocalDate.now().toEpochDay(),
     val customStartEpochDay: Long = LocalDate.now().withDayOfMonth(1).toEpochDay(),
     val customEndEpochDay: Long = LocalDate.now().toEpochDay(),
@@ -354,10 +407,14 @@ class StatsAndBudgetsViewModel(
     private val analyticsAndBudgetRepository: AnalyticsAndBudgetRepository,
     categoryAndTagRepository: CategoryAndTagRepository,
     transactionRepository: TransactionRepository,
-    settingsAndBackupRepository: SettingsAndBackupRepository
+    settingsAndBackupRepository: SettingsAndBackupRepository,
+    private val accountRepository: AccountRepository
 ) : ViewModel() {
 
     private val controlState = MutableStateFlow(StatsInternalControlState())
+
+    private val allAccountsFlow = accountRepository.observeAllAccounts(LocalDate.now().toEpochDay())
+    private val allTxsFlow = transactionRepository.observeTransactionsInRange(0L, LocalDate.now().plusMonths(12).toEpochDay())
 
     private val categoryTreesFlow: Flow<Pair<List<CategoryNode>, List<CategoryNode>>> = combine(
         categoryAndTagRepository.observeCategoryTree(CategoryType.EXPENSE),
@@ -462,10 +519,35 @@ class StatsAndBudgetsViewModel(
     val uiState: StateFlow<StatsAndBudgetsUiState> = combine(
         controlState,
         periodAnalyticsFlow,
-        categoryTreesFlow
-    ) { ctrl, bundle, (expenseTree, incomeTree) ->
+        categoryTreesFlow,
+        allAccountsFlow,
+        allTxsFlow
+    ) { ctrl, bundle, (expenseTree, incomeTree), allAccounts, allTxs ->
         val prefs = bundle.prefs
         val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
+
+        val netWorthTrend = computeSixMonthNetWorthTrend(
+            allAccounts = allAccounts,
+            allTransactions = allTxs,
+            referenceDateEpochDay = ctrl.referenceDateEpochDay
+        )
+
+        val creditHealthList = computeCreditCardHealthList(allAccounts)
+        val creditCards = allAccounts.filter { !it.isArchived && it.groupType == AccountGroup.CREDIT_CARD }
+        var totalLimitMinor = 0L
+        var totalUsedMinor = 0L
+        for (card in creditCards) {
+            totalLimitMinor += card.creditLimit?.amountMinor ?: 0L
+            totalUsedMinor += card.currentBalance.abs().amountMinor
+        }
+        val totalLimit = MinorMoney(totalLimitMinor)
+        val totalUsed = MinorMoney(totalUsedMinor)
+        val totalAvailable = if (totalLimit > totalUsed) totalLimit - totalUsed else MinorMoney.ZERO
+        val overallUtilization = if (totalLimit.isPositive) {
+            (totalUsed.amountMinor.toFloat() / totalLimit.amountMinor.toFloat() * 100f).coerceIn(0f, 100f)
+        } else {
+            0f
+        }
 
         val overallBudget = bundle.budgets.firstOrNull { it.categoryId == null }
         val categoryBudgets = bundle.budgets
@@ -532,6 +614,8 @@ class StatsAndBudgetsViewModel(
             periodGranularity = ctrl.periodGranularity,
             selectedCategoryType = ctrl.selectedCategoryType,
             selectedRankingMode = ctrl.selectedRankingMode,
+            selectedTrendChartMode = ctrl.selectedTrendChartMode,
+            selectedNetWorthMetricFilter = ctrl.selectedNetWorthMetricFilter,
             referenceDateEpochDay = ctrl.referenceDateEpochDay,
             customStartEpochDay = ctrl.customStartEpochDay,
             customEndEpochDay = ctrl.customEndEpochDay,
@@ -545,6 +629,12 @@ class StatsAndBudgetsViewModel(
             incomeCategoryStats = bundle.incomeStats,
             highlightedDonutCategoryId = ctrl.highlightedDonutCategoryId,
             sixMonthTrendBars = bundle.trendBars,
+            sixMonthNetWorthTrend = netWorthTrend,
+            totalAvailableCredit = totalAvailable,
+            totalCreditLimit = totalLimit,
+            totalUsedCredit = totalUsed,
+            overallCreditUtilizationPercent = overallUtilization,
+            creditCardHealthList = creditHealthList,
             budgetProgressList = bundle.budgets,
             overallBudgetProgress = overallBudget,
             categoryBudgetProgressList = categoryBudgets,
@@ -764,6 +854,14 @@ class StatsAndBudgetsViewModel(
         controlState.update { it.copy(drillDownCategoryId = null) }
     }
 
+    fun selectTrendChartMode(mode: TrendChartMode) {
+        controlState.update { it.copy(selectedTrendChartMode = mode) }
+    }
+
+    fun selectNetWorthChartMetricFilter(filter: NetWorthChartMetricFilter) {
+        controlState.update { it.copy(selectedNetWorthMetricFilter = filter) }
+    }
+
     // Budget CRUD Actions
 
     fun openCreateBudgetDialog(preselectedCategoryId: Long? = null) {
@@ -951,6 +1049,109 @@ class StatsAndBudgetsViewModel(
 
     fun clearSnackbarMessage() {
         controlState.update { it.copy(snackbarMessage = null) }
+    }
+
+    private fun computeSixMonthNetWorthTrend(
+        allAccounts: List<AccountSummary>,
+        allTransactions: List<TransactionItem>,
+        referenceDateEpochDay: Long
+    ): List<NetWorthGrowthTrendItem> {
+        val refLocalDate = LocalDate.ofEpochDay(referenceDateEpochDay)
+        val shortMonthFormatter = DateTimeFormatter.ofPattern("MMM yyyy", Locale.US)
+        val trendItems = ArrayList<NetWorthGrowthTrendItem>(6)
+
+        val activeAccounts = allAccounts.filter { !it.isArchived && it.includeInNetWorth && it.groupType != AccountGroup.DEBIT_CARD }
+
+        for (monthOffset in 5 downTo 0) {
+            val targetDate = refLocalDate.minusMonths(monthOffset.toLong())
+            val targetYearMonth = YearMonth.from(targetDate)
+            val endOfMonthEpochDay = targetYearMonth.atEndOfMonth().toEpochDay()
+
+            var monthAssetsMinor = 0L
+            var monthLiabilitiesMinor = 0L
+
+            for (acc in activeAccounts) {
+                var currentMinor = acc.currentBalance.amountMinor
+
+                val futureTxs = allTransactions.filter { tx ->
+                    tx.ledgerDateEpochDay > endOfMonthEpochDay &&
+                            (tx.accountId == acc.id || tx.transferToAccountId == acc.id)
+                }
+
+                for (tx in futureTxs) {
+                    val amount = Math.abs(tx.amount.amountMinor)
+                    val fee = Math.abs(tx.transferFee.amountMinor)
+
+                    if (tx.accountId == acc.id) {
+                        when (tx.type) {
+                            TransactionType.INCOME, TransactionType.REFUND -> currentMinor -= amount
+                            TransactionType.EXPENSE -> currentMinor += (amount + fee)
+                            TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> currentMinor += (amount + fee)
+                        }
+                    } else if (tx.transferToAccountId == acc.id) {
+                        currentMinor -= amount
+                    }
+                }
+
+                if (currentMinor >= 0L) {
+                    monthAssetsMinor += currentMinor
+                } else {
+                    monthLiabilitiesMinor += Math.abs(currentMinor)
+                }
+            }
+
+            val assets = MinorMoney(monthAssetsMinor)
+            val liabilities = MinorMoney(monthLiabilitiesMinor)
+            val netWorth = MinorMoney(monthAssetsMinor - monthLiabilitiesMinor)
+
+            trendItems.add(
+                NetWorthGrowthTrendItem(
+                    epochDay = endOfMonthEpochDay,
+                    monthYearText = targetYearMonth.format(shortMonthFormatter),
+                    assets = assets,
+                    liabilities = liabilities,
+                    netWorth = netWorth
+                )
+            )
+        }
+
+        return trendItems
+    }
+
+    private fun computeCreditCardHealthList(
+        allAccounts: List<AccountSummary>
+    ): List<CreditCardHealthUiModel> {
+        val creditCards = allAccounts.filter { !it.isArchived && it.groupType == AccountGroup.CREDIT_CARD }
+        return creditCards.map { card ->
+            val limit = card.creditLimit ?: MinorMoney.ZERO
+            val debt = card.currentBalance.abs()
+            val payable = card.creditCardStatementPayable ?: MinorMoney.ZERO
+            val unbilled = card.creditCardUnbilledAmount ?: MinorMoney.ZERO
+
+            val available = if (limit > debt) limit - debt else MinorMoney.ZERO
+            val utilization = if (limit.isPositive) {
+                (debt.amountMinor.toFloat() / limit.amountMinor.toFloat() * 100f).coerceIn(0f, 100f)
+            } else {
+                0f
+            }
+
+            val status = when {
+                utilization > 80f -> CreditUtilizationStatus.WARNING
+                utilization > 30f -> CreditUtilizationStatus.MODERATE
+                else -> CreditUtilizationStatus.SAFE
+            }
+
+            CreditCardHealthUiModel(
+                account = card,
+                statementPayable = payable,
+                unbilledSpend = unbilled,
+                totalDebt = debt,
+                creditLimit = limit,
+                availableCredit = available,
+                utilizationPercent = utilization,
+                status = status
+            )
+        }
     }
 
     private fun collectCategoryAndSubcategoryIds(

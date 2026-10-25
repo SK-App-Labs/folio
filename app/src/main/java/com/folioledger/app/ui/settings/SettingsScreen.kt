@@ -152,6 +152,7 @@ fun SettingsScreen(
             }
 
             val isNotBusy = !uiState.isBusyWithFileOperation
+            val semanticColors = LocalFolioSemanticColors.current
 
             LazyColumn(
                 contentPadding = PaddingValues(
@@ -173,7 +174,10 @@ fun SettingsScreen(
                             enabled = isNotBusy,
                             onClick = { viewModel.setCategoryManagerOpen(true) }
                         )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        HorizontalDivider(
+                            color = semanticColors.cardStrokeSubtle,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
                         SettingsSwitchRow(
                             icon = Icons.Default.Category,
                             title = "Enable Subcategories",
@@ -181,7 +185,10 @@ fun SettingsScreen(
                             enabled = isNotBusy,
                             onCheckedChange = { viewModel.setSubcategoriesEnabled(it) }
                         )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        HorizontalDivider(
+                            color = semanticColors.cardStrokeSubtle,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
                         SettingsNavigationRow(
                             icon = Icons.AutoMirrored.Filled.Label,
                             title = "Tags & Bookmarks",
@@ -189,7 +196,10 @@ fun SettingsScreen(
                             enabled = isNotBusy,
                             onClick = { isTagsAndBookmarksSheetOpen = true }
                         )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        HorizontalDivider(
+                            color = semanticColors.cardStrokeSubtle,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
                         SettingsNavigationRow(
                             icon = Icons.Default.Payments,
                             title = "Currency & Number Format",
@@ -197,7 +207,10 @@ fun SettingsScreen(
                             enabled = isNotBusy,
                             onClick = { isRegionalFormatSheetOpen = true }
                         )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        HorizontalDivider(
+                            color = semanticColors.cardStrokeSubtle,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
                         SettingsNavigationRow(
                             icon = Icons.Default.CalendarMonth,
                             title = "Financial Month Start Day",
@@ -205,7 +218,10 @@ fun SettingsScreen(
                             enabled = isNotBusy,
                             onClick = { showMonthStartDayDialog = true }
                         )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        HorizontalDivider(
+                            color = semanticColors.cardStrokeSubtle,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
                         SettingsSwitchRow(
                             icon = Icons.Default.Sync,
                             title = "Carry-Over Monthly Balance",
@@ -229,7 +245,10 @@ fun SettingsScreen(
                             enabled = isNotBusy,
                             onClick = { isAppearanceSheetOpen = true }
                         )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        HorizontalDivider(
+                            color = semanticColors.cardStrokeSubtle,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
                         SettingsSwitchRow(
                             icon = Icons.Default.Fingerprint,
                             title = "Biometric App Lock",
@@ -250,7 +269,10 @@ fun SettingsScreen(
                             enabled = isNotBusy,
                             onClick = { isDataBackupSheetOpen = true }
                         )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        HorizontalDivider(
+                            color = semanticColors.cardStrokeSubtle,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
                         SettingsNavigationRow(
                             icon = Icons.AutoMirrored.Filled.MenuBook,
                             title = "Folio User Guide & FAQs",
@@ -258,7 +280,10 @@ fun SettingsScreen(
                             enabled = isNotBusy,
                             onClick = { showUserGuideSheet = true }
                         )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        HorizontalDivider(
+                            color = semanticColors.cardStrokeSubtle,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
                         SettingsNavigationRow(
                             icon = Icons.Default.LocalCafe,
                             title = "Support Folio (Tip Jar) ☕",
@@ -599,7 +624,7 @@ fun SettingsGroupCard(
             shape = RoundedCornerShape(18.dp),
             color = MaterialTheme.colorScheme.surfaceContainerLow,
             border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-            tonalElevation = 1.dp,
+            tonalElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {

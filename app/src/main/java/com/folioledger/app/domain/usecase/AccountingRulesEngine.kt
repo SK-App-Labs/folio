@@ -8,6 +8,7 @@ import com.folioledger.app.domain.model.TransactionType
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDate
+import java.time.YearMonth
 
 data class CreditCardMetrics(
     val currentBalance: MinorMoney,
@@ -146,6 +147,12 @@ class AccountingRulesEngine {
             return cycleStartDate.toEpochDay() to cycleEndDate.toEpochDay()
         }
 
+        private fun resolveClampedDate(yearMonth: YearMonth, desiredDayOfMonth: Int): LocalDate {
+            val safeDay = desiredDayOfMonth.coerceIn(1, 31)
+            val clampedDay = minOf(safeDay, yearMonth.lengthOfMonth())
+            return yearMonth.atDay(clampedDay)
+        }
+
         fun computeCreditCardMetrics(
             openingBalance: MinorMoney,
             transactions: List<TransactionItem>,
@@ -154,15 +161,15 @@ class AccountingRulesEngine {
             creditLimit: MinorMoney?,
             initialUnbilledAmount: MinorMoney? = null
         ): CreditCardMetrics {
-            require(settlementDayOfMonth in 1..28) {
-                "settlementDayOfMonth must be between 1 and 28 inclusive, but was $settlementDayOfMonth."
-            }
-
+            val safeSettlementDay = settlementDayOfMonth.coerceIn(1, 31)
             val referenceDate = LocalDate.ofEpochDay(referenceDateEpochDay)
-            val lastStatementCloseDate = if (referenceDate.dayOfMonth >= settlementDayOfMonth) {
-                referenceDate.withDayOfMonth(settlementDayOfMonth)
+            val refYearMonth = YearMonth.from(referenceDate)
+            val statementInRefMonth = resolveClampedDate(refYearMonth, safeSettlementDay)
+
+            val lastStatementCloseDate = if (referenceDate.isAfter(statementInRefMonth) || referenceDate.isEqual(statementInRefMonth)) {
+                statementInRefMonth
             } else {
-                referenceDate.minusMonths(1).withDayOfMonth(settlementDayOfMonth)
+                resolveClampedDate(refYearMonth.minusMonths(1), safeSettlementDay)
             }
             val lastStatementCloseEpochDay = lastStatementCloseDate.toEpochDay()
 
