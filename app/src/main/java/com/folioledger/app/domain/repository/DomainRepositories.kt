@@ -14,6 +14,8 @@ import com.folioledger.app.domain.model.SpendRankingItem
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionSearchFilter
+import com.folioledger.app.domain.model.ImportCsvPreview
+import com.folioledger.app.domain.model.ImportCsvResult
 import com.folioledger.app.domain.model.UserPreferences
 import kotlinx.coroutines.flow.Flow
 
@@ -175,6 +177,13 @@ interface SettingsAndBackupRepository {
         startEpochDay: Long? = null,
         endEpochDay: Long? = null
     ): Result<Int>
+
+    suspend fun previewTransactionsCsv(sourceUriString: String): Result<ImportCsvPreview>
+
+    suspend fun importTransactionsFromCsv(
+        sourceUriString: String,
+        skipDuplicates: Boolean = true
+    ): Result<ImportCsvResult>
 
     suspend fun createPortableZipBackup(destinationUriString: String): Result<String>
 

@@ -155,3 +155,23 @@ data class TransactionSearchFilter(
     val minAmount: MinorMoney? = null,
     val maxAmount: MinorMoney? = null
 )
+
+data class ImportCsvPreview(
+    val sourceUriString: String,
+    val totalRowsRead: Int,
+    val validTransactionCount: Int,
+    val duplicateCount: Int,
+    val newAccountsToCreate: List<String>,
+    val newCategoriesToCreate: List<String>,
+    val warningMessages: List<String>
+)
+
+data class ImportCsvResult(
+    val totalRowsRead: Int,
+    val importedCount: Int,
+    val updatedCount: Int,
+    val skippedCount: Int,
+    val newAccountsCreated: List<String>,
+    val newCategoriesCreated: List<String>,
+    val errorMessages: List<String>
+)

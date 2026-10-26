@@ -68,6 +68,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.Checkbox
+import com.folioledger.app.domain.model.ImportCsvPreview
+import com.folioledger.app.domain.model.ImportCsvResult
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.ui.settings.sheets.AppearanceBottomSheet
 import com.folioledger.app.ui.settings.sheets.CategoryEditorDialog
@@ -97,6 +102,14 @@ fun SettingsScreen(
     var isTagsAndBookmarksSheetOpen by rememberSaveable { mutableStateOf(false) }
 
     var showMonthStartDayDialog by rememberSaveable { mutableStateOf(false) }
+
+    val csvDocumentPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.loadCsvPreview(uri.toString())
+        }
+    }
     var showClearAllDataDialog by rememberSaveable { mutableStateOf(false) }
     var showUserGuideSheet by rememberSaveable { mutableStateOf(false) }
     var showTipJarSheet by rememberSaveable { mutableStateOf(false) }
@@ -356,6 +369,9 @@ fun SettingsScreen(
                     "Folio_Ledger_Export_${LocalDate.now()}.csv"
                 )
             },
+            onImportCsv = {
+                csvDocumentPicker.launch(arrayOf("text/csv", "text/comma-separated-values", "application/vnd.ms-excel", "*/*"))
+            },
             onRequestClearAllData = {
                 showClearAllDataDialog = true
             },
@@ -364,6 +380,23 @@ fun SettingsScreen(
     }
 
     // Dialogs & Secondary Sheets
+    uiState.csvPreview?.let { preview ->
+        ImportCsvPreviewDialog(
+            preview = preview,
+            onConfirmImport = { skipDuplicates ->
+                viewModel.confirmCsvImport(skipDuplicates)
+            },
+            onDismiss = viewModel::dismissCsvPreview
+        )
+    }
+
+    uiState.csvImportResult?.let { result ->
+        ImportCsvResultDialog(
+            result = result,
+            onDismiss = viewModel::dismissCsvImportResult
+        )
+    }
+
     if (showClearAllDataDialog) {
         ClearAllDataConfirmationDialog(
             onConfirmClear = {
@@ -736,4 +769,214 @@ fun SettingsSwitchRow(
             enabled = enabled
         )
     }
+}
+
+@Composable
+fun ImportCsvPreviewDialog(
+    preview: ImportCsvPreview,
+    onConfirmImport: (skipDuplicates: Boolean) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var skipDuplicates by rememberSaveable { mutableStateOf(true) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Import CSV Preview",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Folio analyzed your spreadsheet and found:",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "• Total Rows: ${preview.totalRowsRead}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "• Valid Transactions: ${preview.validTransactionCount}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        if (preview.duplicateCount > 0) {
+                            Text(
+                                text = "• Duplicates Found: ${preview.duplicateCount}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.secondary,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        if (preview.newAccountsToCreate.isNotEmpty()) {
+                            Text(
+                                text = "• New Accounts to create (${preview.newAccountsToCreate.size}): ${preview.newAccountsToCreate.joinToString(", ")}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (preview.newCategoriesToCreate.isNotEmpty()) {
+                            Text(
+                                text = "• New Categories to create (${preview.newCategoriesToCreate.size}): ${preview.newCategoriesToCreate.take(5).joinToString(", ")}${if (preview.newCategoriesToCreate.size > 5) "..." else ""}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                if (preview.duplicateCount > 0) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { skipDuplicates = !skipDuplicates }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = skipDuplicates,
+                            onCheckedChange = { skipDuplicates = it }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Skip duplicate transactions",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
+                if (preview.warningMessages.isNotEmpty()) {
+                    Text(
+                        text = "Warnings (${preview.warningMessages.size}):",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold
+                    )
+                    preview.warningMessages.take(3).forEach { warning ->
+                        Text(
+                            text = "⚠ $warning",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirmImport(skipDuplicates) },
+                enabled = preview.validTransactionCount > 0
+            ) {
+                Text("Confirm & Import")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun ImportCsvResultDialog(
+    result: ImportCsvResult,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Import Summary",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "CSV import completed successfully!",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(text = "• Imported: ${result.importedCount} transactions")
+                        if (result.updatedCount > 0) {
+                            Text(text = "• Updated: ${result.updatedCount} existing transactions")
+                        }
+                        if (result.skippedCount > 0) {
+                            Text(text = "• Skipped: ${result.skippedCount} duplicates/invalid rows")
+                        }
+                        if (result.newAccountsCreated.isNotEmpty()) {
+                            Text(
+                                text = "• Created Accounts: ${result.newAccountsCreated.joinToString(", ")}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        if (result.newCategoriesCreated.isNotEmpty()) {
+                            Text(
+                                text = "• Created Categories: ${result.newCategoriesCreated.size} new categories",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+
+                if (result.errorMessages.isNotEmpty()) {
+                    Text(
+                        text = "Errors / Skipped rows (${result.errorMessages.size}):",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold
+                    )
+                    result.errorMessages.take(5).forEach { err ->
+                        Text(
+                            text = "• $err",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = onDismiss) {
+                Text("Done")
+            }
+        }
+    )
 }

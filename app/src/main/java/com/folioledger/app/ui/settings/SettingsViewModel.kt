@@ -5,6 +5,8 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.folioledger.app.domain.model.CategoryNode
+import com.folioledger.app.domain.model.ImportCsvPreview
+import com.folioledger.app.domain.model.ImportCsvResult
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.NumberGroupingSystem
@@ -51,6 +53,8 @@ data class SettingsUiState(
     val isTagManagerOpen: Boolean = false,
     val isBookmarkManagerOpen: Boolean = false,
     val pendingRestoreUriString: String? = null,
+    val csvPreview: ImportCsvPreview? = null,
+    val csvImportResult: ImportCsvResult? = null,
     val isBusyWithFileOperation: Boolean = false,
     val fileOperationStatusLabel: String? = null,
     val snackbarMessage: String? = null
@@ -75,6 +79,8 @@ private data class SettingsInternalControlState(
     val isTagManagerOpen: Boolean = false,
     val isBookmarkManagerOpen: Boolean = false,
     val pendingRestoreUriString: String? = null,
+    val csvPreview: ImportCsvPreview? = null,
+    val csvImportResult: ImportCsvResult? = null,
     val isBusyWithFileOperation: Boolean = false,
     val fileOperationStatusLabel: String? = null,
     val snackbarMessage: String? = null
@@ -120,6 +126,8 @@ class SettingsViewModel(
             isTagManagerOpen = ctrl.isTagManagerOpen,
             isBookmarkManagerOpen = ctrl.isBookmarkManagerOpen,
             pendingRestoreUriString = ctrl.pendingRestoreUriString,
+            csvPreview = ctrl.csvPreview,
+            csvImportResult = ctrl.csvImportResult,
             isBusyWithFileOperation = ctrl.isBusyWithFileOperation,
             fileOperationStatusLabel = ctrl.fileOperationStatusLabel,
             snackbarMessage = ctrl.snackbarMessage
@@ -666,6 +674,84 @@ class SettingsViewModel(
                 }
             )
         }
+    }
+
+    fun loadCsvPreview(uriString: String) {
+        viewModelScope.launch {
+            controlState.update {
+                it.copy(
+                    isBusyWithFileOperation = true,
+                    fileOperationStatusLabel = "Analyzing CSV file..."
+                )
+            }
+            val result = settingsAndBackupRepository.previewTransactionsCsv(uriString)
+            result.fold(
+                onSuccess = { preview ->
+                    controlState.update {
+                        it.copy(
+                            isBusyWithFileOperation = false,
+                            fileOperationStatusLabel = null,
+                            csvPreview = preview
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    controlState.update {
+                        it.copy(
+                            isBusyWithFileOperation = false,
+                            fileOperationStatusLabel = null,
+                            snackbarMessage = error.message ?: "Failed to read CSV file"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    fun confirmCsvImport(skipDuplicates: Boolean = true) {
+        val preview = controlState.value.csvPreview ?: return
+        viewModelScope.launch {
+            controlState.update {
+                it.copy(
+                    csvPreview = null,
+                    isBusyWithFileOperation = true,
+                    fileOperationStatusLabel = "Importing transactions to ledger..."
+                )
+            }
+            val result = settingsAndBackupRepository.importTransactionsFromCsv(
+                sourceUriString = preview.sourceUriString,
+                skipDuplicates = skipDuplicates
+            )
+            result.fold(
+                onSuccess = { importResult ->
+                    controlState.update {
+                        it.copy(
+                            isBusyWithFileOperation = false,
+                            fileOperationStatusLabel = null,
+                            csvImportResult = importResult,
+                            snackbarMessage = "Imported ${importResult.importedCount} transactions"
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    controlState.update {
+                        it.copy(
+                            isBusyWithFileOperation = false,
+                            fileOperationStatusLabel = null,
+                            snackbarMessage = error.message ?: "CSV import failed"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    fun dismissCsvPreview() {
+        controlState.update { it.copy(csvPreview = null) }
+    }
+
+    fun dismissCsvImportResult() {
+        controlState.update { it.copy(csvImportResult = null) }
     }
 
     fun clearSnackbarMessage() {
