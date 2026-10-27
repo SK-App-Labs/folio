@@ -42,7 +42,7 @@ internal fun DailyDateGroupHeaderRow(
     group: DailyLedgerGroup,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    amountsAlpha: Float = 1f
+    amountsAlpha: () -> Float = { 1f }
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
@@ -91,11 +91,10 @@ internal fun DailyDateGroupHeaderRow(
                 )
             }
 
-            if (amountsAlpha > 0f) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.graphicsLayer { alpha = amountsAlpha }
-                ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.graphicsLayer { alpha = amountsAlpha() }
+            ) {
                     if (group.dailyIncome.isPositive) {
                         MoneyText(
                             money = group.dailyIncome,
@@ -121,7 +120,6 @@ internal fun DailyDateGroupHeaderRow(
             }
         }
     }
-}
 
 @Composable
 internal fun DailyGroupedTransactionsCard(
@@ -308,13 +306,15 @@ internal fun LedgerTransactionItemCard(
     scopedAccountId: Long? = null,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     DailyGroupedTransactionsCard(
         transactions = listOf(transaction),
         scopedAccountId = scopedAccountId,
         currencySpec = currencySpec,
         grouping = grouping,
-        onTransactionClick = { onClick() }
+        onTransactionClick = { onClick() },
+        modifier = modifier
     )
 }

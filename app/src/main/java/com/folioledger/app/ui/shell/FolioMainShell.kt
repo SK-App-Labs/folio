@@ -40,7 +40,9 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -54,7 +56,6 @@ import com.folioledger.app.ui.settings.SettingsScreen
 import com.folioledger.app.ui.settings.SettingsViewModel
 import com.folioledger.app.ui.stats.StatsAndBudgetsScreen
 import com.folioledger.app.ui.stats.StatsAndBudgetsViewModel
-import com.folioledger.app.ui.theme.FolioTheme
 
 enum class FolioMainTab(
     val label: String,
@@ -78,12 +79,12 @@ fun FolioMainShell(
 
     val ledgerUiState by ledgerViewModel.uiState.collectAsStateWithLifecycle()
     val accountsUiState by accountsViewModel.uiState.collectAsStateWithLifecycle()
-    val prefs = ledgerUiState.userPreferences
 
     var selectedTab by rememberSaveable { mutableStateOf(FolioMainTab.TRANSACTIONS) }
     var isEntrySheetOpen by rememberSaveable { mutableStateOf(false) }
 
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     var backPressedTime by remember { mutableLongStateOf(0L) }
 
     // 1. Back Handler for secondary tabs (STATS, ACCOUNTS, SETTINGS)
@@ -116,13 +117,8 @@ fun FolioMainShell(
         }
     }
 
-    FolioTheme(
-        themeMode = prefs.themeMode,
-        accentPalette = prefs.accentPalette,
-        dynamicColorEnabled = prefs.dynamicColorEnabled
-    ) {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             bottomBar = {
                 NavigationBar {
@@ -130,9 +126,14 @@ fun FolioMainShell(
                         NavigationBarItem(
                             selected = selectedTab == tab,
                             onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 if (selectedTab == FolioMainTab.ACCOUNTS && tab == FolioMainTab.ACCOUNTS) {
                                     // Tapping Accounts tab icon again returns to main accounts list
                                     accountsViewModel.selectAccountForInspection(null)
+                                }
+                                if (selectedTab == FolioMainTab.TRANSACTIONS && tab == FolioMainTab.TRANSACTIONS) {
+                                    // Tapping Transactions tab icon when already active jumps to today and scrolls to top
+                                    ledgerViewModel.jumpToToday()
                                 }
                                 selectedTab = tab
                             },
@@ -155,6 +156,7 @@ fun FolioMainShell(
                 ) {
                     FloatingActionButton(
                         onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             entryViewModel.resetForNewTransaction(
                                 preselectedAccountId = ledgerUiState.scopedAccountId,
                                 initialEpochDay = null
@@ -265,7 +267,6 @@ fun FolioMainShell(
                 )
             }
         }
-    }
 }
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {

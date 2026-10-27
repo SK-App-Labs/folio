@@ -328,13 +328,13 @@ fun AccountsScreenContent(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                item {
+                item(contentType = "accounts_summary_banner") {
                     ThreeColumnSummaryBanner(
                         netWorthOverview = uiState.netWorthOverview,
                         currencySpec = uiState.currencySpec,
-                    grouping = uiState.numberGrouping
-                )
-            }
+                        grouping = uiState.numberGrouping
+                    )
+                }
 
             if (orderedGroups.isEmpty()) {
                 item {
@@ -358,7 +358,7 @@ fun AccountsScreenContent(
                         }
                     }
 
-                    item(key = "group_header_${group.name}") {
+                    item(key = "group_header_${group.name}", contentType = "account_group_card") {
                         AccountGroupSectionCard(
                             group = group,
                             accounts = groupAccounts,

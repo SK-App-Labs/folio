@@ -42,11 +42,14 @@ import androidx.core.view.WindowCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.folioledger.app.di.FolioViewModelFactory
 import com.folioledger.app.ui.ledger.LedgerHomeViewModel
 import com.folioledger.app.ui.shell.FolioMainShell
 import com.folioledger.app.ui.theme.FolioTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class MainLockViewModel : ViewModel() {
     val isSessionUnlocked = mutableStateOf(false)
@@ -71,6 +74,11 @@ class MainActivity : FragmentActivity() {
 
         val appContainer = (application as FolioApplication).container
         val viewModelFactory = FolioViewModelFactory(appContainer)
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            // Warm up Room SQLite and trigger pre-migration backup on IO dispatcher
+            appContainer.database.openHelper.writableDatabase
+        }
 
         var keepSplashScreen = true
         splashScreen.setKeepOnScreenCondition { keepSplashScreen }

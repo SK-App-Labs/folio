@@ -222,7 +222,7 @@ fun StatsAndBudgetsScreen(
 
             HorizontalPager(
                 state = pagerState,
-                beyondViewportPageCount = 1,
+                beyondViewportPageCount = 0,
                 modifier = Modifier.fillMaxSize()
             ) { page ->
                 when (StatsSubTab.entries[page]) {
@@ -492,10 +492,10 @@ private fun StatsBreakdownSubTabContent(
             top = 12.dp,
             bottom = 96.dp
         ),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        item {
+        item(contentType = "stats_summary_banner") {
             ThreeColumnSummaryBanner(
                 firstLabel = "Income",
                 firstAmount = uiState.periodSummary.totalIncome,
@@ -533,7 +533,7 @@ private fun StatsBreakdownSubTabContent(
                         MaterialTheme.colorScheme.surfaceContainerLow
                     },
                     border = BorderStroke(
-                        width = if (isExpense) 1.5.dp else 1.dp,
+                        width = 1.dp,
                         color = if (isExpense) {
                             semanticColors.expenseCoral
                         } else {
@@ -582,7 +582,7 @@ private fun StatsBreakdownSubTabContent(
                         MaterialTheme.colorScheme.surfaceContainerLow
                     },
                     border = BorderStroke(
-                        width = if (isIncome) 1.5.dp else 1.dp,
+                        width = 1.dp,
                         color = if (isIncome) {
                             semanticColors.incomeEmerald
                         } else {
@@ -626,7 +626,7 @@ private fun StatsBreakdownSubTabContent(
         }
 
         // Interactive Category Donut Chart
-        item {
+        item(contentType = "donut_chart") {
             InteractiveCategoryDonutChart(
                 stats = activeStats,
                 currencySpec = uiState.currencySpec,
@@ -644,7 +644,7 @@ private fun StatsBreakdownSubTabContent(
         }
 
         // Ranked Category Breakdown List Header
-        item {
+        item(contentType = "category_list_header") {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -676,14 +676,19 @@ private fun StatsBreakdownSubTabContent(
                 )
             }
         } else {
-            items(activeStats, key = { "${uiState.selectedCategoryType}_${it.categoryId}" }) { stat ->
+            items(
+                items = activeStats,
+                key = { "${uiState.selectedCategoryType}_${it.categoryId}" },
+                contentType = { "category_stat_row" }
+            ) { stat ->
                 RankedCategoryStatRowCard(
                     stat = stat,
                     categoryType = uiState.selectedCategoryType,
                     isHighlighted = stat.categoryId == uiState.highlightedDonutCategoryId,
                     currencySpec = uiState.currencySpec,
                     grouping = uiState.numberGrouping,
-                    onClick = { onOpenCategoryDrillDown(stat) }
+                    onClick = { onOpenCategoryDrillDown(stat) },
+                    modifier = Modifier.animateItem()
                 )
             }
         }
@@ -764,7 +769,8 @@ private fun RankedCategoryStatRowCard(
     isHighlighted: Boolean,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val catColor = remember(stat.colorHex) { parseHexColorSafely(stat.colorHex) }
@@ -793,7 +799,7 @@ private fun RankedCategoryStatRowCard(
             width = if (isHighlighted) 1.5.dp else 1.dp,
             color = if (isHighlighted) catColor else semanticColors.cardStrokeSubtle
         ),
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
@@ -900,6 +906,16 @@ private fun BudgetsManagerSubTabContent(
     val overallBudget = uiState.overallBudgetProgress
     val categoryBudgets = uiState.categoryBudgetProgressList
 
+    val allActiveBudgets = remember(overallBudget, categoryBudgets) {
+        listOfNotNull(overallBudget) + categoryBudgets
+    }
+    val exceededBudgets = remember(allActiveBudgets) {
+        allActiveBudgets.filter { it.usagePercentage >= 100f || it.remainingAmount.isNegative }
+    }
+    val nearWarningBudgets = remember(allActiveBudgets, exceededBudgets) {
+        allActiveBudgets.filter { !exceededBudgets.contains(it) && it.usagePercentage >= it.alertThresholdPercent.toFloat() }
+    }
+
     LazyColumn(
         contentPadding = PaddingValues(
             start = 16.dp,
@@ -907,10 +923,10 @@ private fun BudgetsManagerSubTabContent(
             top = 12.dp,
             bottom = 96.dp
         ),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        item {
+        item(contentType = "stats_summary_banner") {
             ThreeColumnSummaryBanner(
                 firstLabel = "Income",
                 firstAmount = uiState.periodSummary.totalIncome,
@@ -921,6 +937,69 @@ private fun BudgetsManagerSubTabContent(
                 currencySpec = uiState.currencySpec,
                 grouping = uiState.numberGrouping
             )
+        }
+
+        // Proactive Budget Threshold Alert Banner
+        if (exceededBudgets.isNotEmpty() || nearWarningBudgets.isNotEmpty()) {
+            item {
+                val isCritical = exceededBudgets.isNotEmpty()
+                val semanticColors = LocalFolioSemanticColors.current
+                val bannerBg = if (isCritical) semanticColors.expenseCoralContainer else semanticColors.warningAmberContainer
+                val bannerFg = if (isCritical) semanticColors.onExpenseCoralContainer else semanticColors.onWarningAmberContainer
+                val bannerBorder = if (isCritical) semanticColors.expenseCoral else semanticColors.warningAmber
+
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = bannerBg),
+                    border = BorderStroke(1.dp, bannerBorder.copy(alpha = 0.5f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(14.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Warning,
+                            contentDescription = null,
+                            tint = bannerFg,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = if (isCritical) {
+                                    "${exceededBudgets.size} Budget${if (exceededBudgets.size > 1) "s" else ""} Exceeded!"
+                                } else {
+                                    "${nearWarningBudgets.size} Budget${if (nearWarningBudgets.size > 1) "s" else ""} Near 80% Alert Threshold"
+                                },
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = bannerFg
+                            )
+                            val summaryDetail = buildString {
+                                if (exceededBudgets.isNotEmpty()) {
+                                    append(exceededBudgets.joinToString(", ") { b ->
+                                        val name = if (b.budgetId == -1L || b.categoryId == null) "Overall" else b.categoryName
+                                        "$name (${String.format(Locale.US, "%.0f%%", b.usagePercentage)})"
+                                    })
+                                }
+                                if (nearWarningBudgets.isNotEmpty()) {
+                                    if (exceededBudgets.isNotEmpty()) append(" • ")
+                                    append(nearWarningBudgets.joinToString(", ") { b ->
+                                        val name = if (b.budgetId == -1L || b.categoryId == null) "Overall" else b.categoryName
+                                        "$name (${String.format(Locale.US, "%.0f%%", b.usagePercentage)})"
+                                    })
+                                }
+                            }
+                            Text(
+                                text = summaryDetail,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = bannerFg.copy(alpha = 0.9f)
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         // Hero Overall Monthly Budget Card or Set Monthly Budget CTA
@@ -1003,13 +1082,18 @@ private fun BudgetsManagerSubTabContent(
                 }
             }
         } else {
-            items(categoryBudgets, key = { it.budgetId }) { budget ->
+            items(
+                items = categoryBudgets,
+                key = { it.budgetId },
+                contentType = { "budget_progress_card" }
+            ) { budget ->
                 BudgetProgressCard(
                     budget = budget,
                     isHeroOverall = false,
                     currencySpec = uiState.currencySpec,
                     grouping = uiState.numberGrouping,
-                    onClick = { onOpenEditBudget(budget) }
+                    onClick = { onOpenEditBudget(budget) },
+                    modifier = Modifier.animateItem()
                 )
             }
         }
@@ -1022,7 +1106,8 @@ private fun BudgetProgressCard(
     isHeroOverall: Boolean,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val isExceeded = budget.usagePercentage >= 100f || budget.remainingAmount.isNegative
@@ -1057,7 +1142,7 @@ private fun BudgetProgressCard(
     }
 
     Card(
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isHeroOverall) {
                 MaterialTheme.colorScheme.surfaceContainer
@@ -1073,9 +1158,9 @@ private fun BudgetProgressCard(
                 else -> semanticColors.cardStrokeSubtle
             }
         ),
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
     ) {
         Column(
@@ -1136,7 +1221,11 @@ private fun BudgetProgressCard(
                                 Spacer(modifier = Modifier.width(4.dp))
                             }
                             Text(
-                                text = pctBadgeText,
+                                text = when {
+                                    isExceeded -> "OVERSPENT ($pctBadgeText)"
+                                    isNearAlert -> "NEAR LIMIT ($pctBadgeText)"
+                                    else -> "ON TRACK ($pctBadgeText)"
+                                },
                                 style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                                 fontWeight = FontWeight.Bold,
                                 color = onStatusContainerColor
@@ -1219,6 +1308,61 @@ private fun BudgetProgressCard(
                     )
                 }
             }
+
+            HorizontalDivider(color = semanticColors.cardStrokeSubtle)
+
+            // Spend Velocity / Burn Rate & Daily Safe Spend
+            val today = remember { LocalDate.now() }
+            val daysInMonth = remember(today) { today.lengthOfMonth() }
+            val currentDay = remember(today) { today.dayOfMonth }
+            val remainingDays = remember(daysInMonth, currentDay) { (daysInMonth - currentDay + 1).coerceAtLeast(1) }
+            val monthElapsedRatio = remember(daysInMonth, currentDay) { (currentDay.toFloat() / daysInMonth.toFloat()).coerceAtLeast(0.01f) }
+            val spendRatio = (budget.usagePercentage / 100f)
+            val velocityRatio = spendRatio / monthElapsedRatio
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    val (velocityText, velocityColor) = when {
+                        isExceeded -> "⚠️ Spending limit exceeded" to semanticColors.expenseCoral
+                        velocityRatio > 1.2f -> "⚡ Spending pace is ${String.format(Locale.US, "%.1f", velocityRatio)}× faster than normal" to semanticColors.warningAmber
+                        velocityRatio < 0.85f -> "🌿 Spending pace is ${String.format(Locale.US, "%.0f", (1f - velocityRatio) * 100f)}% under expected pace" to semanticColors.incomeEmerald
+                        else -> "✓ Spending pace on track" to MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                    Text(
+                        text = velocityText,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = velocityColor
+                    )
+                }
+
+                if (!isExceeded && budget.remainingAmount.isPositive) {
+                    val dailySafeMinor = budget.remainingAmount.amountMinor / remainingDays
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Daily safe spend ($remainingDays days remaining):",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        MoneyText(
+                            money = MinorMoney(dailySafeMinor),
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            colorMode = MoneyColorMode.INCOME,
+                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -1240,7 +1384,7 @@ private fun TagsAndNotesRankingsSubTabContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        item {
+        item(contentType = "stats_summary_banner") {
             ThreeColumnSummaryBanner(
                 firstLabel = "Income",
                 firstAmount = uiState.periodSummary.totalIncome,
@@ -1545,7 +1689,7 @@ private fun CategoryDrillDownBottomSheet(
                 item {
                     val budget = drillDownState.matchingBudget
                     Surface(
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerLow,
                         border = BorderStroke(1.dp, catColor.copy(alpha = 0.5f)),
                         modifier = Modifier.fillMaxWidth()
@@ -1735,14 +1879,14 @@ private fun CategoryDrillDownBottomSheet(
                         LocalDate.ofEpochDay(tx.ledgerDateEpochDay).format(dateFormatter)
                     }
                     Card(
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                         ),
                         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
+                            .clip(RoundedCornerShape(16.dp))
                             .clickable { onTransactionClick(tx) }
                     ) {
                         Row(
@@ -1808,7 +1952,7 @@ private fun BudgetEditorBottomSheet(
         containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())

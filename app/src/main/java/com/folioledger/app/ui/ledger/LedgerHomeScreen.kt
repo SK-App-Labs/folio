@@ -112,12 +112,17 @@ fun LedgerHomeScreen(
                     uiState.activePeriodRange.title
                 }
 
+                val todayEpochDay = remember { LocalDate.now().toEpochDay() }
+                val isNotToday = uiState.referenceDateEpochDay != todayEpochDay
+
                 PeriodSelectorHeader(
                     periodTitle = headerTitle,
                     periodSubtitle = null,
                     onPreviousPeriod = viewModel::navigateToPreviousPeriod,
                     onNextPeriod = viewModel::navigateToNextPeriod,
                     onPeriodTitleClick = viewModel::jumpToToday,
+                    showTodayBadge = isNotToday && !uiState.isFilterActive,
+                    onTodayClick = viewModel::jumpToToday,
                     onBookmarksClick = { showBookmarksQuickDialog = true },
                     onFilterClick = { viewModel.setFilterSheetOpen(true) },
                     activeFilterCount = uiState.activeFilterCount,
@@ -197,7 +202,7 @@ fun LedgerHomeScreen(
                 } else {
                     HorizontalPager(
                         state = pagerState,
-                        beyondViewportPageCount = 1,
+                        beyondViewportPageCount = 0,
                         modifier = Modifier.fillMaxSize()
                     ) { page ->
                         when (LedgerSubTab.entries[page]) {
@@ -249,37 +254,7 @@ fun LedgerHomeScreen(
                 }
             }
 
-            // Floating "Jump to Today ⤶" Quick Action Badge
-            val todayEpochDay = remember { LocalDate.now().toEpochDay() }
-            val isNotToday = uiState.referenceDateEpochDay != todayEpochDay
-            AnimatedVisibility(
-                visible = isNotToday && !uiState.isFilterActive,
-                enter = fadeIn() + slideInVertically { it },
-                exit = fadeOut() + slideOutVertically { it },
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 16.dp)
-            ) {
-                ExtendedFloatingActionButton(
-                    onClick = { viewModel.jumpToToday() },
-                    shape = RoundedCornerShape(16.dp),
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    elevation = FloatingActionButtonDefaults.elevation(4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Today,
-                        contentDescription = "Jump to Today",
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Jump to Today ⤶",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
+
         }
     }
 

@@ -28,6 +28,8 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import com.folioledger.app.ui.accounts.ReconcileBalanceDialogState
@@ -42,6 +44,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -53,6 +56,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+import java.util.Locale
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -173,31 +181,66 @@ internal fun AccountPassbookBottomSheet(
                     }
                 }
 
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = if (account.groupType == AccountGroup.DEBIT_CARD) {
-                            "Bank Live Balance"
-                        } else {
-                            "Live Balance"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    MoneyText(
-                        money = passbook.currentLiveBalance,
-                        currencySpec = accountCurrency,
-                        grouping = grouping,
-                        colorMode = MoneyColorMode.AUTO_SIGN,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = if (account.groupType == AccountGroup.CREDIT_CARD) {
+                                "Total Debt"
+                            } else if (account.groupType == AccountGroup.DEBIT_CARD) {
+                                "Bank Live Balance"
+                            } else {
+                                "Live Balance"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        MoneyText(
+                            money = passbook.currentLiveBalance,
+                            currencySpec = accountCurrency,
+                            grouping = grouping,
+                            colorMode = MoneyColorMode.AUTO_SIGN,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
 
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        imageVector = Icons.Filled.Close,
-                        contentDescription = "Close Passbook"
-                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    if (account.groupType == AccountGroup.CREDIT_CARD) {
+                        IconButton(
+                            onClick = onReconcileClick,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Tune,
+                                contentDescription = "Reconcile Balance",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = onEditAccountClick,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Edit,
+                                contentDescription = "Edit Card",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = "Close Passbook",
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
 
@@ -243,118 +286,159 @@ internal fun AccountPassbookBottomSheet(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Quick Actions Row (Primary Actions)
-                item {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Button(
-                            onClick = onAddTransactionClick,
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-                            modifier = Modifier.weight(1.2f)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Add,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Add Transaction",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                if (account.groupType == AccountGroup.CREDIT_CARD) {
+                    // Unified Credit Card Statement & Debt Hub Card
+                    item(contentType = "passbook_hero") {
+                        CreditCardPassbookHeroCard(
+                            account = account,
+                            passbook = passbook,
+                            referenceDateEpochDay = referenceDateEpochDay,
+                            currencySpec = accountCurrency,
+                            grouping = grouping
+                        )
+                    }
 
-                        if (account.groupType == AccountGroup.CREDIT_CARD) {
+                    // Dual Primary Actions Hub (Settle Bill + Add Expense)
+                    item(contentType = "passbook_actions") {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            val statementPayable = account.creditCardStatementPayable ?: MinorMoney.ZERO
+                            if (statementPayable.isPositive) {
+                                Button(
+                                    onClick = onSettleBillClick,
+                                    shape = RoundedCornerShape(12.dp),
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Payments,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Settle Bill",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            } else {
+                                FilledTonalButton(
+                                    onClick = onSettleBillClick,
+                                    shape = RoundedCornerShape(12.dp),
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Payments,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Settle Bill",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
                             FilledTonalButton(
-                                onClick = onSettleBillClick,
+                                onClick = onAddTransactionClick,
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Add,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Add Expense",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // Quick Actions Row for Standard Accounts
+                    item {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Button(
+                                onClick = onAddTransactionClick,
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                                modifier = Modifier.weight(1.2f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Add,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Add Transaction",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            if (account.groupType != AccountGroup.DEBIT_CARD) {
+                                FilledTonalButton(
+                                    onClick = onReconcileClick,
+                                    shape = RoundedCornerShape(12.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Tune,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Reconcile",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            OutlinedButton(
+                                onClick = onEditAccountClick,
                                 shape = RoundedCornerShape(12.dp),
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Filled.Payments,
+                                    imageVector = Icons.Filled.Edit,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = "Settle Bill",
+                                    text = "Edit Account",
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
-                            IconButton(
-                                onClick = onReconcileClick,
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Tune,
-                                    contentDescription = "Reconcile Balance",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        } else if (account.groupType != AccountGroup.DEBIT_CARD) {
-                            FilledTonalButton(
-                                onClick = onReconcileClick,
-                                shape = RoundedCornerShape(12.dp),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Tune,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Reconcile",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-
-                        OutlinedButton(
-                            onClick = onEditAccountClick,
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Edit,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Edit Account",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
-                            )
                         }
                     }
-                }
 
-                // 2-Tier Passbook Statement Summary Card (Opening -> Inflows -> Outflows -> Closing)
-                item {
-                    PassbookTwoTierSummaryCard(
-                        passbook = passbook,
-                        currencySpec = accountCurrency,
-                        grouping = grouping
-                    )
-                }
-
-                // Credit Card Statement & Cycle Breakdown Card (if Credit Card)
-                if (account.groupType == AccountGroup.CREDIT_CARD) {
-                    item {
-                        CreditCardStatementBreakdownCard(
-                            account = account,
-                            referenceDateEpochDay = referenceDateEpochDay,
+                    // 2-Tier Passbook Statement Summary Card (Opening -> Inflows -> Outflows -> Closing)
+                    item(contentType = "passbook_summary") {
+                        PassbookTwoTierSummaryCard(
+                            passbook = passbook,
                             currencySpec = accountCurrency,
                             grouping = grouping
                         )
@@ -362,7 +446,7 @@ internal fun AccountPassbookBottomSheet(
                 }
 
                 // Passbook Statement Entries Header
-                item {
+                item(contentType = "passbook_header") {
                     Text(
                         text = "${passbook.periodTitle} Statement · ${passbook.totalPeriodTransactionCount} entries",
                         style = tabularMoneyStyle(MaterialTheme.typography.titleSmall),
@@ -383,23 +467,26 @@ internal fun AccountPassbookBottomSheet(
                     }
                 } else {
                     passbook.dayGroups.forEach { dayGroup ->
-                        item(key = "pb_day_${dayGroup.epochDay}") {
+                        item(key = "pb_day_${dayGroup.epochDay}", contentType = "passbook_day_header") {
                             PassbookDayGroupHeaderRow(
                                 dayGroup = dayGroup,
                                 currencySpec = accountCurrency,
-                                grouping = grouping
+                                grouping = grouping,
+                                modifier = Modifier.animateItem()
                             )
                         }
                         items(
                             items = dayGroup.entries,
-                            key = { "pb_entry_${it.transaction.id}_${it.runningBalanceAfter.amountMinor}" }
+                            key = { "pb_entry_${it.transaction.id}_${it.runningBalanceAfter.amountMinor}" },
+                            contentType = { "passbook_entry" }
                         ) { entry ->
                             PassbookTransactionEntryRowCard(
                                 entry = entry,
                                 inspectedAccountId = account.id,
                                 currencySpec = accountCurrency,
                                 grouping = grouping,
-                                onClick = { onTransactionRowClick(entry.transaction) }
+                                onClick = { onTransactionRowClick(entry.transaction) },
+                                modifier = Modifier.animateItem()
                             )
                         }
                     }
@@ -572,12 +659,13 @@ private fun PassbookSummaryMetricCell(
 private fun PassbookDayGroupHeaderRow(
     dayGroup: AccountPassbookDayGroup,
     currencySpec: CurrencySpec,
-    grouping: NumberGroupingSystem
+    grouping: NumberGroupingSystem,
+    modifier: Modifier = Modifier
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(top = 6.dp, bottom = 2.dp)
     ) {
@@ -639,7 +727,8 @@ private fun PassbookTransactionEntryRowCard(
     inspectedAccountId: Long,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val transaction = entry.transaction
@@ -666,7 +755,7 @@ private fun PassbookTransactionEntryRowCard(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
@@ -767,9 +856,17 @@ private fun PassbookTransactionEntryRowCard(
     }
 }
 
+private data class CreditPassbookTierInfo(
+    val tierText: String,
+    val tierBg: Color,
+    val tierFg: Color,
+    val tierColor: Color
+)
+
 @Composable
-private fun CreditCardStatementBreakdownCard(
+private fun CreditCardPassbookHeroCard(
     account: AccountSummary,
+    passbook: AccountPassbookUiModel,
     referenceDateEpochDay: Long,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem
@@ -801,6 +898,53 @@ private fun CreditCardStatementBreakdownCard(
         MinorMoney.ZERO
     }
 
+    val utilizationPercent = if (creditLimit.isPositive) {
+        (totalOutstandingDebt.amountMinor.toFloat() / creditLimit.amountMinor.toFloat() * 100f).coerceIn(0f, 100f)
+    } else {
+        0f
+    }
+
+    val tierInfo = remember(utilizationPercent) {
+        when {
+            utilizationPercent > 50f -> CreditPassbookTierInfo(
+                tierText = "Risky",
+                tierBg = semanticColors.expenseCoralContainer,
+                tierFg = semanticColors.onExpenseCoralContainer,
+                tierColor = semanticColors.expenseCoral
+            )
+            utilizationPercent > 30f -> CreditPassbookTierInfo(
+                tierText = "High",
+                tierBg = semanticColors.warningAmberContainer,
+                tierFg = semanticColors.onWarningAmberContainer,
+                tierColor = semanticColors.warningAmber
+            )
+            utilizationPercent > 10f -> CreditPassbookTierInfo(
+                tierText = "Good",
+                tierBg = semanticColors.incomeEmeraldContainer,
+                tierFg = semanticColors.onIncomeEmeraldContainer,
+                tierColor = Color(0xFF00BFA5)
+            )
+            else -> CreditPassbookTierInfo(
+                tierText = "Optimal",
+                tierBg = semanticColors.incomeEmeraldContainer,
+                tierFg = semanticColors.onIncomeEmeraldContainer,
+                tierColor = semanticColors.incomeEmerald
+            )
+        }
+    }
+
+    val today = remember { LocalDate.now() }
+    val daysUntilDue = remember(today, cycleWindow.lastStatementDueDate) {
+        ChronoUnit.DAYS.between(today, cycleWindow.lastStatementDueDate)
+    }
+    val dueBadgeText = when {
+        !statementPayable.isPositive -> "Paid in Full ✓"
+        daysUntilDue < 0L -> "Overdue by ${-daysUntilDue}d (${cycleWindow.lastStatementDueShortText})"
+        daysUntilDue == 0L -> "Due Today (${cycleWindow.lastStatementDueShortText})"
+        daysUntilDue == 1L -> "Due Tomorrow (${cycleWindow.lastStatementDueShortText})"
+        else -> "Due in ${daysUntilDue} days (${cycleWindow.lastStatementDueShortText})"
+    }
+
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
@@ -809,13 +953,107 @@ private fun CreditCardStatementBreakdownCard(
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp)
+        ) {
+            // Outstanding Debt & Utilization Row
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    Text(
+                        text = "Total Outstanding Debt",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    MoneyText(
+                        money = account.currentBalance,
+                        currencySpec = currencySpec,
+                        grouping = grouping,
+                        colorMode = MoneyColorMode.AUTO_SIGN,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = tierInfo.tierBg
+                ) {
+                    Text(
+                        text = "${String.format(Locale.US, "%.1f", utilizationPercent)}% ${tierInfo.tierText}",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = tierInfo.tierFg,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            // Credit Limit Progress Bar
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                LinearProgressIndicator(
+                    progress = { (utilizationPercent / 100f).coerceIn(0f, 1f) },
+                    color = tierInfo.tierColor,
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                )
+
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Available: ",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        MoneyText(
+                            money = availableCredit,
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            colorMode = MoneyColorMode.INCOME,
+                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Limit: ",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        MoneyText(
+                            money = creditLimit,
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            colorMode = MoneyColorMode.NEUTRAL,
+                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall)
+                        )
+                    }
+                }
+            }
+
+            HorizontalDivider(color = semanticColors.cardStrokeSubtle)
+
+            // Two-Column Statement Split (Billed vs Unbilled)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(IntrinsicSize.Min)
-                    .padding(vertical = 12.dp, horizontal = 14.dp)
             ) {
                 // Column 1: Billed Statement Due Now
                 Column(
@@ -823,7 +1061,7 @@ private fun CreditCardStatementBreakdownCard(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "BILLED DUE NOW",
+                        text = "BILLED STATEMENT",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
@@ -843,15 +1081,27 @@ private fun CreditCardStatementBreakdownCard(
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(3.dp))
-                    Text(
-                        text = "Due ${cycleWindow.lastStatementDueShortText} • ${cycleWindow.lastStatementRangeShortText}",
-                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = when {
+                            !statementPayable.isPositive -> semanticColors.incomeEmeraldContainer
+                            daysUntilDue <= 3 -> semanticColors.expenseCoralContainer
+                            else -> semanticColors.warningAmberContainer
+                        }
+                    ) {
+                        Text(
+                            text = dueBadgeText,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = when {
+                                !statementPayable.isPositive -> semanticColors.onIncomeEmeraldContainer
+                                daysUntilDue <= 3 -> semanticColors.onExpenseCoralContainer
+                                else -> semanticColors.onWarningAmberContainer
+                            },
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
                 }
 
                 VerticalDivider(
@@ -883,73 +1133,61 @@ private fun CreditCardStatementBreakdownCard(
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Cycle ${cycleWindow.activeCycleRangeShortText}",
+                        text = "Closes ${cycleWindow.activeCycleEnd.format(DateTimeFormatter.ofPattern("dd MMM", Locale.US))}",
                         style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        textAlign = TextAlign.Center
                     )
                 }
             }
 
             HorizontalDivider(color = semanticColors.cardStrokeSubtle)
 
+            // Activity Ribbon (Payments vs Spends for this cycle)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "Total Debt: ",
+                        text = "Payments: ",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     MoneyText(
-                        money = account.currentBalance,
+                        money = passbook.periodInflows,
                         currencySpec = currencySpec,
                         grouping = grouping,
-                        colorMode = MoneyColorMode.AUTO_SIGN,
-                        style = MaterialTheme.typography.labelMedium,
+                        colorMode = MoneyColorMode.INCOME,
+                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                         fontWeight = FontWeight.Bold
                     )
                 }
 
-                if (creditLimit.isPositive) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Available: ",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        MoneyText(
-                            money = availableCredit,
-                            currencySpec = currencySpec,
-                            grouping = grouping,
-                            colorMode = MoneyColorMode.INCOME,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = " / ",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        MoneyText(
-                            money = creditLimit,
-                            currencySpec = currencySpec,
-                            grouping = grouping,
-                            colorMode = MoneyColorMode.NEUTRAL,
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Spends: ",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    MoneyText(
+                        money = passbook.periodOutflows,
+                        currencySpec = currencySpec,
+                        grouping = grouping,
+                        colorMode = MoneyColorMode.EXPENSE,
+                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                        fontWeight = FontWeight.Bold
+                    )
                 }
+
+                Text(
+                    text = "${passbook.totalPeriodTransactionCount} entries",
+                    style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
@@ -965,6 +1203,7 @@ fun ReconcileBalanceDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
     val isLiability = state.isLiability
     val recordedMinor = if (isLiability) state.recordedBalance.abs().amountMinor else state.recordedBalance.amountMinor
     val spec = SupportedCurrencies.fromCode(state.currencyCode)
@@ -1077,7 +1316,10 @@ fun ReconcileBalanceDialog(
         },
         confirmButton = {
             Button(
-                onClick = onConfirm,
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onConfirm()
+                },
                 enabled = parsedTarget != null
             ) {
                 Text(if (diffMinor == 0L) "Confirm Match" else "Apply Adjustment")

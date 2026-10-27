@@ -14,9 +14,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -60,10 +64,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -141,6 +152,7 @@ fun TransactionEntrySheet(
             onSaveBookmark = viewModel::saveCurrentAsBookmark,
             onDeleteBookmark = viewModel::deleteBookmark,
             onSetKeypadVisible = viewModel::setKeypadVisible,
+            onAmountInputChange = viewModel::updateAmountInput,
             onKeypadKeyPress = viewModel::onKeypadKeyPress,
             onSaveClick = { viewModel.saveTransaction(onSuccess = onTransactionSaved) },
             onSaveAndContinueClick = {
@@ -185,6 +197,7 @@ fun TransactionEntryFormContent(
     onSaveBookmark: (String) -> Unit,
     onDeleteBookmark: (Long) -> Unit,
     onSetKeypadVisible: (Boolean) -> Unit,
+    onAmountInputChange: (String) -> Unit = {},
     onKeypadKeyPress: (String) -> Unit,
     onSaveClick: () -> Unit,
     onSaveAndContinueClick: () -> Unit = onSaveClick,
@@ -193,8 +206,20 @@ fun TransactionEntryFormContent(
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val haptic = LocalHapticFeedback.current
+    val amountFocusRequester = remember { FocusRequester() }
 
-    var lowerDockContent by remember { mutableStateOf(LowerDockContent.KEYPAD) }
+    var lowerDockContent by remember { mutableStateOf(LowerDockContent.HIDDEN) }
+
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(200)
+        if (lowerDockContent == LowerDockContent.HIDDEN) {
+            amountFocusRequester.requestFocus()
+            keyboardController?.show()
+        }
+    }
+
     var showDatePickerDialog by rememberSaveable { mutableStateOf(false) }
     var showTimePickerDialog by rememberSaveable { mutableStateOf(false) }
     var showSourceAccountDialog by rememberSaveable { mutableStateOf(false) }
@@ -456,9 +481,11 @@ fun TransactionEntryFormContent(
                     .padding(horizontal = 16.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .clickable {
-                        focusManager.clearFocus()
-                        lowerDockContent = LowerDockContent.KEYPAD
-                        onSetKeypadVisible(true)
+                        if (lowerDockContent == LowerDockContent.KEYPAD) {
+                            lowerDockContent = LowerDockContent.HIDDEN
+                        }
+                        amountFocusRequester.requestFocus()
+                        keyboardController?.show()
                     }
             ) {
                 Row(
@@ -468,7 +495,7 @@ fun TransactionEntryFormContent(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         val modePrefix = if (uiState.editingTransactionId > 0L) "EDITING · " else ""
                         Text(
                             text = modePrefix + when (uiState.mode) {
@@ -484,7 +511,7 @@ fun TransactionEntryFormContent(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        if (uiState.expressionHasOperator || uiState.expressionBuffer != "0") {
+                        if (uiState.expressionHasOperator || (lowerDockContent == LowerDockContent.KEYPAD && uiState.expressionBuffer != "0")) {
                             Text(
                                 text = "${uiState.currencySpec.symbol} ${uiState.expressionBuffer}",
                                 style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
@@ -494,26 +521,107 @@ fun TransactionEntryFormContent(
                         }
                     }
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        MoneyText(
-                            money = uiState.evaluatedAmount,
-                            currencySpec = uiState.currencySpec,
-                            grouping = uiState.numberGrouping,
-                            colorMode = MoneyColorMode.fromTransactionType(uiState.mode),
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        if (lowerDockContent == LowerDockContent.KEYPAD) {
+                            MoneyText(
+                                money = uiState.evaluatedAmount,
+                                currencySpec = uiState.currencySpec,
+                                grouping = uiState.numberGrouping,
+                                colorMode = MoneyColorMode.fromTransactionType(uiState.mode),
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        } else {
+                            val amountColor = when (uiState.mode) {
+                                TransactionType.EXPENSE -> semanticColors.expenseCoral
+                                TransactionType.INCOME, TransactionType.REFUND -> semanticColors.incomeEmerald
+                                TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> semanticColors.transferBlue
+                                TransactionType.OPENING_BALANCE, TransactionType.RECONCILIATION -> MaterialTheme.colorScheme.primary
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                Text(
+                                    text = uiState.currencySpec.symbol,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = amountColor.copy(alpha = 0.8f),
+                                    modifier = Modifier.padding(end = 4.dp)
+                                )
+                                BasicTextField(
+                                    value = if (uiState.expressionBuffer == "0") "" else uiState.expressionBuffer,
+                                    onValueChange = onAmountInputChange,
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Decimal,
+                                        imeAction = ImeAction.Next
+                                    ),
+                                    keyboardActions = KeyboardActions(
+                                        onNext = {
+                                            focusManager.clearFocus()
+                                            keyboardController?.hide()
+                                            lowerDockContent = LowerDockContent.ACCOUNT_GRID
+                                        }
+                                    ),
+                                    singleLine = true,
+                                    textStyle = tabularMoneyStyle(MaterialTheme.typography.headlineMedium).copy(
+                                        color = amountColor,
+                                        fontWeight = FontWeight.Bold,
+                                        textAlign = TextAlign.End
+                                    ),
+                                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                    modifier = Modifier
+                                        .focusRequester(amountFocusRequester)
+                                        .widthIn(min = 40.dp, max = 220.dp),
+                                    decorationBox = { innerTextField ->
+                                        Box(contentAlignment = Alignment.CenterEnd) {
+                                            if (uiState.expressionBuffer == "0" || uiState.expressionBuffer.isEmpty()) {
+                                                Text(
+                                                    text = "0",
+                                                    style = tabularMoneyStyle(MaterialTheme.typography.headlineMedium),
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = amountColor.copy(alpha = 0.35f),
+                                                    textAlign = TextAlign.End
+                                                )
+                                            }
+                                            innerTextField()
+                                        }
+                                    }
+                                )
+                            }
+                        }
+
                         Spacer(modifier = Modifier.width(8.dp))
-                        Icon(
-                            imageVector = Icons.Filled.Calculate,
-                            contentDescription = "Toggle Calculator Keypad",
-                            tint = if (lowerDockContent == LowerDockContent.KEYPAD) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
+
+                        IconButton(
+                            onClick = {
+                                if (lowerDockContent == LowerDockContent.KEYPAD) {
+                                    lowerDockContent = LowerDockContent.HIDDEN
+                                    amountFocusRequester.requestFocus()
+                                    keyboardController?.show()
+                                } else {
+                                    focusManager.clearFocus()
+                                    keyboardController?.hide()
+                                    lowerDockContent = LowerDockContent.KEYPAD
+                                }
                             },
-                            modifier = Modifier.size(20.dp)
-                        )
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Calculate,
+                                contentDescription = "Toggle Calculator Keypad",
+                                tint = if (lowerDockContent == LowerDockContent.KEYPAD) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -560,6 +668,7 @@ fun TransactionEntryFormContent(
                             .clip(RoundedCornerShape(14.dp))
                             .clickable {
                                 focusManager.clearFocus()
+                                keyboardController?.hide()
                                 lowerDockContent = LowerDockContent.ACCOUNT_GRID
                             }
                     ) {
@@ -639,6 +748,7 @@ fun TransactionEntryFormContent(
                                 .clip(RoundedCornerShape(14.dp))
                                 .clickable {
                                     focusManager.clearFocus()
+                                    keyboardController?.hide()
                                     splitLineIdForCategoryPicker = null
                                     lowerDockContent = LowerDockContent.CATEGORY_TREE
                                 }
@@ -778,7 +888,10 @@ fun TransactionEntryFormContent(
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 Button(
-                    onClick = onSaveClick,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onSaveClick()
+                    },
                     enabled = !uiState.isSaving,
                     modifier = Modifier.weight(1f)
                 ) {
@@ -792,7 +905,10 @@ fun TransactionEntryFormContent(
                 }
 
                 FilledTonalButton(
-                    onClick = onSaveAndContinueClick,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onSaveAndContinueClick()
+                    },
                     enabled = !uiState.isSaving,
                     modifier = Modifier.weight(1f)
                 ) {
@@ -835,10 +951,10 @@ fun TransactionEntryFormContent(
                             if (uiState.mode != TransactionType.TRANSFER && !uiState.isSplit) {
                                 lowerDockContent = LowerDockContent.CATEGORY_TREE
                             } else {
-                                lowerDockContent = LowerDockContent.KEYPAD
+                                lowerDockContent = LowerDockContent.HIDDEN
                             }
                         },
-                        onCloseClick = { lowerDockContent = LowerDockContent.KEYPAD }
+                        onCloseClick = { lowerDockContent = LowerDockContent.HIDDEN }
                     )
                 }
 
@@ -849,10 +965,10 @@ fun TransactionEntryFormContent(
                         categoryType = if (uiState.mode == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE,
                         onCategorySelected = { category, parentName ->
                             onSelectCategory(category, parentName)
-                            lowerDockContent = LowerDockContent.KEYPAD
+                            lowerDockContent = LowerDockContent.HIDDEN
                         },
                         onCreateNewCategoryClick = { showCategorySheet = true },
-                        onCloseClick = { lowerDockContent = LowerDockContent.KEYPAD }
+                        onCloseClick = { lowerDockContent = LowerDockContent.HIDDEN }
                     )
                 }
 

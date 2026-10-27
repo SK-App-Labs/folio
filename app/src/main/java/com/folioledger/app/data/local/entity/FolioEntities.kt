@@ -232,7 +232,9 @@ data class RecurringRuleEntity(
         Index(value = ["categoryId"]),
         Index(value = ["type"]),
         Index(value = ["installmentPlanId"]),
-        Index(value = ["recurringRuleId"])
+        Index(value = ["recurringRuleId"]),
+        Index(value = ["accountId", "ledgerDateEpochDay"]),
+        Index(value = ["transferToAccountId", "ledgerDateEpochDay"])
     ]
 )
 data class TransactionEntity(

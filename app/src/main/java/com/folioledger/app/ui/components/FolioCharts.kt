@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.CategoryType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -562,6 +563,14 @@ fun SixMonthTrendBarChart(
             val incomeColor = semanticColors.incomeEmerald
             val expenseColor = semanticColors.expenseCoral
             val highlightSurface = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+            val dashEffect = remember { PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f) }
+            val density = LocalDensity.current
+            val barCornerRadius = remember(density) {
+                with(density) { CornerRadius(6.dp.toPx(), 6.dp.toPx()) }
+            }
+            val highlightCornerRadius = remember(density) {
+                with(density) { CornerRadius(8.dp.toPx(), 8.dp.toPx()) }
+            }
 
             Canvas(
                 modifier = Modifier
@@ -577,7 +586,6 @@ fun SixMonthTrendBarChart(
                     }
             ) {
                 val horizontalLines = 4
-                val dashEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
                 val usableHeight = size.height - 12.dp.toPx()
                 val topPadding = 6.dp.toPx()
 
@@ -595,7 +603,6 @@ fun SixMonthTrendBarChart(
                 if (bars.isEmpty()) return@Canvas
 
                 val slotWidth = size.width / bars.size.toFloat()
-                val cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx())
 
                 bars.forEachIndexed { index, bar ->
                     val slotLeft = index * slotWidth
@@ -606,7 +613,7 @@ fun SixMonthTrendBarChart(
                             color = highlightSurface,
                             topLeft = Offset(slotLeft + 4.dp.toPx(), 0f),
                             size = Size(slotWidth - 8.dp.toPx(), usableHeight + topPadding),
-                            cornerRadius = CornerRadius(8.dp.toPx(), 8.dp.toPx())
+                            cornerRadius = highlightCornerRadius
                         )
                     }
 
@@ -629,14 +636,14 @@ fun SixMonthTrendBarChart(
                             color = if (isSelected) incomeColor else incomeColor.copy(alpha = 0.78f),
                             topLeft = Offset(startX, baselineY - incomeHeight),
                             size = Size(barWidth, incomeHeight),
-                            cornerRadius = cornerRadius
+                            cornerRadius = barCornerRadius
                         )
 
                         drawRoundRect(
                             color = if (isSelected) expenseColor else expenseColor.copy(alpha = 0.78f),
                             topLeft = Offset(startX + barWidth + gap, baselineY - expenseHeight),
                             size = Size(barWidth, expenseHeight),
-                            cornerRadius = cornerRadius
+                            cornerRadius = barCornerRadius
                         )
                     } else {
                         val zeroY = topPadding + (usableHeight / 2f)
@@ -661,7 +668,7 @@ fun SixMonthTrendBarChart(
                             color = if (isSelected) color else color.copy(alpha = 0.8f),
                             topLeft = Offset(startX, topY),
                             size = Size(barWidth, barHeight),
-                            cornerRadius = cornerRadius
+                            cornerRadius = barCornerRadius
                         )
                     }
                 }
@@ -840,6 +847,13 @@ fun SixMonthSmoothTrendAreaChart(
 
             val gridColor = semanticColors.chartGridLine
             val highlightBg = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+            val dashEffect = remember { PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f) }
+            val strokePath = remember { Path() }
+            val fillPath = remember { Path() }
+            val density = LocalDensity.current
+            val highlightCornerRadius = remember(density) {
+                with(density) { CornerRadius(8.dp.toPx(), 8.dp.toPx()) }
+            }
 
             Canvas(
                 modifier = Modifier
@@ -855,7 +869,6 @@ fun SixMonthSmoothTrendAreaChart(
                     }
             ) {
                 val horizontalLines = 3
-                val dashEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
                 val topPadding = 12.dp.toPx()
                 val bottomPadding = 24.dp.toPx()
                 val usableHeight = size.height - topPadding - bottomPadding
@@ -892,12 +905,12 @@ fun SixMonthSmoothTrendAreaChart(
                         color = highlightBg,
                         topLeft = Offset(selX - slotWidth / 2f + 4.dp.toPx(), topPadding),
                         size = Size(slotWidth - 8.dp.toPx(), usableHeight),
-                        cornerRadius = CornerRadius(8.dp.toPx(), 8.dp.toPx())
+                        cornerRadius = highlightCornerRadius
                     )
                 }
 
-                val strokePath = Path()
-                val fillPath = Path()
+                strokePath.reset()
+                fillPath.reset()
 
                 strokePath.moveTo(points.first().x, points.first().y)
                 fillPath.moveTo(points.first().x, topPadding + usableHeight)

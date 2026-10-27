@@ -39,6 +39,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
@@ -47,6 +50,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import java.util.Locale
+import kotlin.math.cos
+import kotlin.math.sin
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
@@ -208,21 +213,32 @@ fun NetWorthGrowthCanvasChart(
                     }
                 }
 
-                // Interactive Canvas Area Chart
+                // Dynamic Scaled Canvas Area Chart with Negative Baseline Support
                 val assetColor = semanticColors.incomeEmerald
                 val liabilityColor = semanticColors.expenseCoral
                 val primaryColor = MaterialTheme.colorScheme.primary
+                val surfaceColor = MaterialTheme.colorScheme.surface
                 val gridColor = semanticColors.cardStrokeSubtle
 
-                val maxVal = remember(trendItems) {
-                    trendItems.maxOf { item ->
-                        maxOf(
-                            item.assets.amountMinor.toFloat(),
-                            item.liabilities.amountMinor.toFloat(),
-                            item.netWorth.amountMinor.toFloat().coerceAtLeast(1f)
-                        )
-                    }.coerceAtLeast(1f)
+                val maxAsset = remember(trendItems) { trendItems.maxOfOrNull { it.assets.amountMinor } ?: 0L }
+                val maxLiability = remember(trendItems) { trendItems.maxOfOrNull { it.liabilities.amountMinor } ?: 0L }
+                val maxNetWorth = remember(trendItems) { trendItems.maxOfOrNull { it.netWorth.amountMinor } ?: 0L }
+                val minNetWorth = remember(trendItems) { trendItems.minOfOrNull { it.netWorth.amountMinor } ?: 0L }
+
+                val ceiling = remember(maxAsset, maxNetWorth) {
+                    maxOf(maxAsset, maxNetWorth, 1000L).toFloat()
                 }
+                val floor = remember(maxLiability, minNetWorth) {
+                    minOf(-maxLiability, minNetWorth, 0L).toFloat()
+                }
+                val totalSpan = remember(ceiling, floor) {
+                    (ceiling - floor).coerceAtLeast(1f)
+                }
+
+                val zeroDashEffect = remember { PathEffect.dashPathEffect(floatArrayOf(6f, 6f)) }
+                val activeDashEffect = remember { PathEffect.dashPathEffect(floatArrayOf(4f, 4f)) }
+                val nwPath = remember { Path() }
+                val fillPath = remember { Path() }
 
                 Box(
                     modifier = Modifier
@@ -239,104 +255,302 @@ fun NetWorthGrowthCanvasChart(
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         val width = size.width
                         val height = size.height
+                        val padTop = 16.dp.toPx()
+                        val padBottom = 16.dp.toPx()
+                        val usableHeight = height - padTop - padBottom
                         val stepX = width / (trendItems.size - 1).coerceAtLeast(1)
-                        val zeroY = height * 0.5f
-                        val barWidth = (stepX * 0.35f).coerceAtMost(24.dp.toPx())
+                        val zeroY = padTop + usableHeight * (ceiling / totalSpan)
+                        val barWidth = (stepX * 0.32f).coerceIn(4.dp.toPx(), 20.dp.toPx())
 
-                        // Center Zero Baseline
+                        fun getY(amountMinor: Long): Float {
+                            return padTop + usableHeight * ((ceiling - amountMinor.toFloat()) / totalSpan)
+                        }
+
+                        // Dashed Zero Baseline
                         drawLine(
                             color = gridColor,
                             start = Offset(0f, zeroY),
                             end = Offset(width, zeroY),
                             strokeWidth = 1.dp.toPx(),
-                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f))
+                            pathEffect = zeroDashEffect
                         )
 
-                        fun getScaleY(amountMinor: Long): Float {
-                            val ratio = (amountMinor.toFloat() / maxVal).coerceIn(0f, 1f)
-                            return ratio * (height * 0.4f)
-                        }
-
-                        // Waterfall Bars
+                        // Waterfall Bars (Green Assets reaching UP, Red Liabilities reaching DOWN)
                         trendItems.forEachIndexed { i, item ->
                             val centerX = i * stepX
 
-                            // Green Assets Bar (Reaching UP from zero baseline)
                             if (selectedFilter == NetWorthChartMetricFilter.ALL_IN_ONE || selectedFilter == NetWorthChartMetricFilter.ASSETS) {
-                                val assetH = getScaleY(item.assets.amountMinor)
-                                drawRect(
-                                    color = assetColor.copy(alpha = 0.85f),
-                                    topLeft = Offset(centerX - barWidth, zeroY - assetH),
-                                    size = androidx.compose.ui.geometry.Size(barWidth, assetH)
-                                )
+                                val assetY = getY(item.assets.amountMinor)
+                                val assetH = (zeroY - assetY).coerceAtLeast(0f)
+                                if (assetH > 0f) {
+                                    drawRect(
+                                        color = assetColor.copy(alpha = 0.80f),
+                                        topLeft = Offset(centerX - barWidth, assetY),
+                                        size = Size(barWidth, assetH)
+                                    )
+                                }
                             }
 
-                            // Red Liabilities Bar (Reaching DOWN from zero baseline)
                             if (selectedFilter == NetWorthChartMetricFilter.ALL_IN_ONE || selectedFilter == NetWorthChartMetricFilter.LIABILITIES) {
-                                val liabilityH = getScaleY(item.liabilities.amountMinor)
-                                drawRect(
-                                    color = liabilityColor.copy(alpha = 0.85f),
-                                    topLeft = Offset(centerX, zeroY),
-                                    size = androidx.compose.ui.geometry.Size(barWidth, liabilityH)
-                                )
+                                val liabilityY = getY(-item.liabilities.amountMinor)
+                                val liabilityH = (liabilityY - zeroY).coerceAtLeast(0f)
+                                if (liabilityH > 0f) {
+                                    drawRect(
+                                        color = liabilityColor.copy(alpha = 0.80f),
+                                        topLeft = Offset(centerX, zeroY),
+                                        size = Size(barWidth, liabilityH)
+                                    )
+                                }
                             }
                         }
 
-                        // Connecting Net Worth Line & Nodes
+                        // Smooth Bezier Curve & Gradient Area Fill for Net Worth
                         if (selectedFilter == NetWorthChartMetricFilter.ALL_IN_ONE || selectedFilter == NetWorthChartMetricFilter.NET_WORTH) {
-                            val netWorthPath = Path()
+                            nwPath.reset()
+                            fillPath.reset()
+
                             trendItems.forEachIndexed { i, item ->
                                 val x = i * stepX
-                                val netH = getScaleY(item.netWorth.amountMinor.coerceAtLeast(0L))
-                                val y = zeroY - netH
-                                if (i == 0) netWorthPath.moveTo(x, y) else netWorthPath.lineTo(x, y)
+                                val y = getY(item.netWorth.amountMinor)
+                                if (i == 0) {
+                                    nwPath.moveTo(x, y)
+                                    fillPath.moveTo(x, zeroY)
+                                    fillPath.lineTo(x, y)
+                                } else {
+                                    val prevX = (i - 1) * stepX
+                                    val prevY = getY(trendItems[i - 1].netWorth.amountMinor)
+                                    val cX = (prevX + x) / 2f
+                                    nwPath.cubicTo(cX, prevY, cX, y, x, y)
+                                    fillPath.cubicTo(cX, prevY, cX, y, x, y)
+                                }
                             }
+                            val lastX = (trendItems.size - 1) * stepX
+                            fillPath.lineTo(lastX, zeroY)
+                            fillPath.close()
+
+                            // Area Gradient Fill
                             drawPath(
-                                path = netWorthPath,
-                                color = primaryColor,
-                                style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round)
+                                path = fillPath,
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(primaryColor.copy(alpha = 0.28f), primaryColor.copy(alpha = 0.02f)),
+                                    startY = padTop,
+                                    endY = zeroY.coerceAtLeast(padTop + 1f)
+                                )
                             )
 
-                            // Nodes
+                            // Stroke Curve
+                            drawPath(
+                                path = nwPath,
+                                color = primaryColor,
+                                style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+                            )
+
+                            // Marker Nodes
                             trendItems.forEachIndexed { i, item ->
                                 val x = i * stepX
-                                val netH = getScaleY(item.netWorth.amountMinor.coerceAtLeast(0L))
-                                val y = zeroY - netH
+                                val y = getY(item.netWorth.amountMinor)
+                                drawCircle(
+                                    color = surfaceColor,
+                                    radius = 4.5.dp.toPx(),
+                                    center = Offset(x, y)
+                                )
                                 drawCircle(
                                     color = primaryColor,
-                                    radius = 4.dp.toPx(),
+                                    radius = 3.dp.toPx(),
                                     center = Offset(x, y)
                                 )
                             }
                         }
 
-                        // Active Selected Month Indicator
+                        // Active Selected Month Indicator Line & Dot
                         if (selectedIndex in trendItems.indices) {
                             val activeX = selectedIndex * stepX
                             drawLine(
-                                color = primaryColor,
+                                color = primaryColor.copy(alpha = 0.6f),
                                 start = Offset(activeX, 0f),
                                 end = Offset(activeX, height),
-                                strokeWidth = 2.dp.toPx()
+                                strokeWidth = 1.5.dp.toPx(),
+                                pathEffect = activeDashEffect
+                            )
+                            val activeItem = trendItems[selectedIndex]
+                            val activeY = getY(activeItem.netWorth.amountMinor)
+                            drawCircle(
+                                color = primaryColor,
+                                radius = 6.dp.toPx(),
+                                center = Offset(activeX, activeY)
                             )
                         }
                     }
                 }
 
-                // Month X-Axis Labels
+                // Month X-Axis Labels (adaptive for 6 vs 12 months)
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)
                 ) {
                     trendItems.forEachIndexed { idx, item ->
+                        val label = if (trendItems.size > 6) {
+                            if (idx == selectedIndex) item.monthYearText.take(3) else item.monthYearText.take(1)
+                        } else {
+                            item.monthYearText.take(3)
+                        }
                         Text(
-                            text = item.monthYearText.take(3),
+                            text = label,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = if (idx == selectedIndex) FontWeight.Bold else FontWeight.Medium,
                             color = if (idx == selectedIndex) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+private data class CreditTierInfo(
+    val tierText: String,
+    val tierBg: Color,
+    val tierFg: Color,
+    val activeColor: Color
+)
+
+@Composable
+fun CreditUtilizationGauge(
+    utilizationPercent: Float,
+    modifier: Modifier = Modifier
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+    val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+
+    val tierInfo = remember(utilizationPercent) {
+        when {
+            utilizationPercent > 50f -> CreditTierInfo(
+                tierText = "Risky (>50%)",
+                tierBg = semanticColors.expenseCoralContainer,
+                tierFg = semanticColors.onExpenseCoralContainer,
+                activeColor = semanticColors.expenseCoral
+            )
+            utilizationPercent > 30f -> CreditTierInfo(
+                tierText = "High (30-50%)",
+                tierBg = semanticColors.warningAmberContainer,
+                tierFg = semanticColors.onWarningAmberContainer,
+                activeColor = semanticColors.warningAmber
+            )
+            utilizationPercent > 10f -> CreditTierInfo(
+                tierText = "Good (10-30%)",
+                tierBg = semanticColors.incomeEmeraldContainer,
+                tierFg = semanticColors.onIncomeEmeraldContainer,
+                activeColor = Color(0xFF00BFA5)
+            )
+            else -> CreditTierInfo(
+                tierText = "Optimal (<10%)",
+                tierBg = semanticColors.incomeEmeraldContainer,
+                tierFg = semanticColors.onIncomeEmeraldContainer,
+                activeColor = semanticColors.incomeEmerald
+            )
+        }
+    }
+
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(130.dp)
+    ) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth(0.72f)
+                .height(120.dp)
+        ) {
+            val strokeWidth = 14.dp.toPx()
+            val arcPadding = strokeWidth / 2f
+            val arcWidth = size.width - strokeWidth
+            val arcHeight = (size.height - arcPadding) * 2f
+
+            val arcTopLeft = Offset(arcPadding, arcPadding)
+            val arcSize = Size(arcWidth, arcHeight)
+
+            // Background Track Arc (180 to 360 degrees)
+            drawArc(
+                color = trackColor,
+                startAngle = 180f,
+                sweepAngle = 180f,
+                useCenter = false,
+                topLeft = arcTopLeft,
+                size = arcSize,
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            )
+
+            // Active Progress Arc
+            val sweep = (utilizationPercent / 100f).coerceIn(0f, 1f) * 180f
+            if (sweep > 0f) {
+                drawArc(
+                    color = tierInfo.activeColor,
+                    startAngle = 180f,
+                    sweepAngle = sweep,
+                    useCenter = false,
+                    topLeft = arcTopLeft,
+                    size = arcSize,
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                )
+            }
+
+            // Threshold tick marks at 10%, 30%, 50%
+            val cx = size.width / 2f
+            val cy = arcHeight / 2f + arcPadding
+            val r = arcWidth / 2f
+            val thresholds = floatArrayOf(0.10f, 0.30f, 0.50f)
+            for (t in thresholds) {
+                val angleDeg = 180f + t * 180f
+                val rad = Math.toRadians(angleDeg.toDouble())
+                val innerR = r - strokeWidth / 2f - 1.dp.toPx()
+                val outerR = r + strokeWidth / 2f + 1.dp.toPx()
+                val p1 = Offset(
+                    (cx + innerR * cos(rad)).toFloat(),
+                    (cy + innerR * sin(rad)).toFloat()
+                )
+                val p2 = Offset(
+                    (cx + outerR * cos(rad)).toFloat(),
+                    (cy + outerR * sin(rad)).toFloat()
+                )
+                drawLine(
+                    color = trackColor.copy(alpha = 0.9f),
+                    start = p1,
+                    end = p2,
+                    strokeWidth = 2.dp.toPx()
+                )
+            }
+        }
+
+        // Center Content Overlay (Percentage & Tier Badge)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier.padding(top = 26.dp)
+        ) {
+            Text(
+                text = "${String.format(Locale.US, "%.1f", utilizationPercent)}%",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "Credit Utilized",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = tierInfo.tierBg
+            ) {
+                Text(
+                    text = tierInfo.tierText,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = tierInfo.tierFg,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                )
             }
         }
     }
@@ -364,10 +578,10 @@ fun CreditHealthDashboardCard(
         modifier = modifier.fillMaxWidth()
     ) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.padding(16.dp)
         ) {
-            // Header
+            // Header with Live Snapshot Badge
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -390,28 +604,25 @@ fun CreditHealthDashboardCard(
                 }
 
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = when {
-                        overallUtilizationPercent > 80f -> semanticColors.expenseCoralContainer
-                        overallUtilizationPercent > 30f -> semanticColors.warningAmberContainer
-                        else -> semanticColors.incomeEmeraldContainer
-                    }
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest
                 ) {
                     Text(
-                        text = "${String.format(Locale.US, "%.1f", overallUtilizationPercent)}% Utilized",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = when {
-                            overallUtilizationPercent > 80f -> semanticColors.onExpenseCoralContainer
-                            overallUtilizationPercent > 30f -> semanticColors.onWarningAmberContainer
-                            else -> semanticColors.onIncomeEmeraldContainer
-                        },
+                        text = "⏱ Live Snapshot",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
             }
 
-            // Overall Utilization Progress Bar
+            // Semi-Circular Utilization Gauge
+            CreditUtilizationGauge(
+                utilizationPercent = overallUtilizationPercent
+            )
+
+            // Summary Numbers
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -431,21 +642,6 @@ fun CreditHealthDashboardCard(
                         fontWeight = FontWeight.Bold
                     )
                 }
-
-                LinearProgressIndicator(
-                    progress = { (overallUtilizationPercent / 100f).coerceIn(0f, 1f) },
-                    color = when {
-                        overallUtilizationPercent > 80f -> semanticColors.expenseCoral
-                        overallUtilizationPercent > 30f -> semanticColors.warningAmber
-                        else -> semanticColors.incomeEmerald
-                    },
-                    trackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    strokeCap = StrokeCap.Round,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(CircleShape)
-                )
 
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,

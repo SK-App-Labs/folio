@@ -821,47 +821,6 @@ internal fun AccountEditorBottomSheet(
                             }
                         }
                     }
-
-                    // 4. LIVE BILLING CYCLE PREVIEW
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.padding(12.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Filled.Info,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Live Billing Cycle Preview",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-
-                            Text(
-                                text = "• Current Active Billing Cycle: ${liveCycleWindow.activeCycleRangeFullText} (New expenses in this window count as Unbilled Spend).",
-                                style = tabularMoneyStyle(MaterialTheme.typography.bodySmall),
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-
-                            Text(
-                                text = "• Last Closed Statement: ${liveCycleWindow.lastStatementRangeFullText} (Payable by ${liveCycleWindow.lastStatementDueFullText}).",
-                                style = tabularMoneyStyle(MaterialTheme.typography.bodySmall),
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
                 }
 
                 else -> {}

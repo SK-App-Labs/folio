@@ -3,6 +3,7 @@ package com.folioledger.app.data.repository
 
 import com.folioledger.app.data.local.dao.AccountDao
 import com.folioledger.app.data.local.dao.CategoryAndTagDao
+import com.folioledger.app.data.local.dao.TransactionBalanceProjection
 import com.folioledger.app.data.local.dao.TransactionDao
 import com.folioledger.app.data.local.entity.AccountEntity
 import com.folioledger.app.data.local.entity.CategoryEntity
@@ -22,9 +23,11 @@ import com.folioledger.app.domain.repository.AccountRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.YearMonth
@@ -76,16 +79,16 @@ class AccountRepositoryImpl(
     override fun observeAllAccounts(referenceDateEpochDay: Long): Flow<List<AccountSummary>> {
         return combine(
             accountDao.observeAllAccounts(),
-            transactionDao.observeAllTransactions(),
+            transactionDao.observeTransactionBalanceProjections(),
             settingsRepository.observeUserPreferences()
-        ) { accountEntities, allTxWithDetails, userPrefs ->
+        ) { accountEntities, allProjections, userPrefs ->
             computeAccountSummaries(
                 accountEntities = accountEntities,
-                allTransactions = allTxWithDetails,
+                allTransactions = allProjections,
                 referenceDateEpochDay = referenceDateEpochDay,
                 monthStartDay = userPrefs.monthStartDay
             )
-        }
+        }.flowOn(Dispatchers.Default)
     }
 
     override fun observeAccountById(
@@ -300,7 +303,7 @@ class AccountRepositoryImpl(
 
     private fun computeAccountSummaries(
         accountEntities: List<AccountEntity>,
-        allTransactions: List<TransactionWithDetails>,
+        allTransactions: List<TransactionBalanceProjection>,
         referenceDateEpochDay: Long,
         monthStartDay: Int
     ): List<AccountSummary> {
@@ -341,8 +344,7 @@ class AccountRepositoryImpl(
             }
         }
 
-        for (txWithDetails in allTransactions) {
-            val tx = txWithDetails.transaction
+        for (tx in allTransactions) {
             if (tx.ledgerDateEpochDay > referenceDateEpochDay) continue
 
             val amountMinor = Math.abs(tx.amountMinor)
@@ -413,8 +415,7 @@ class AccountRepositoryImpl(
         return accountEntities.map { entity ->
             when (entity.groupType) {
                 AccountGroup.CREDIT_CARD -> {
-                    val ccTransactions = allTransactions.mapNotNull { txWithDetails ->
-                        val tx = txWithDetails.transaction
+                    val ccTransactions = allTransactions.mapNotNull { tx ->
                         val isSource = tx.accountId == entity.id
                         val isTarget = tx.transferToAccountId == entity.id
                         if (!isSource && !isTarget) {
@@ -439,15 +440,15 @@ class AccountRepositoryImpl(
                                 timestampEpochMillis = tx.timestampEpochMillis,
                                 ledgerDateEpochDay = tx.ledgerDateEpochDay,
                                 amount = MinorMoney(tx.amountMinor),
-                                currencyCode = tx.currencyCode,
+                                currencyCode = entity.currencyCode,
                                 accountId = entity.id,
                                 accountName = entity.name,
                                 transferToAccountId = tx.transferToAccountId,
                                 transferToAccountName = tx.transferToAccountId?.let { accountsById[it]?.name },
                                 transferFee = normalizedFee,
-                                categoryId = tx.categoryId,
-                                payeeOrDescription = tx.payeeOrDescription,
-                                note = tx.note
+                                categoryId = null,
+                                payeeOrDescription = "",
+                                note = ""
                             )
                         }
                     }
@@ -603,8 +604,13 @@ class TransactionRepositoryImpl(
     override fun searchAndFilterTransactions(
         filter: TransactionSearchFilter
     ): Flow<List<TransactionItem>> {
+        val rawTxFlow = if (filter.startEpochDay != null && filter.endEpochDay != null) {
+            transactionDao.observeTransactionsInRange(filter.startEpochDay, filter.endEpochDay)
+        } else {
+            transactionDao.observeAllTransactions()
+        }
         return combine(
-            transactionDao.observeAllTransactions(),
+            rawTxFlow,
             accountDao.observeAllAccounts(),
             categoryAndTagDao.observeAllCategories()
         ) { allTransactions, accounts, categories ->
@@ -678,7 +684,7 @@ class TransactionRepositoryImpl(
                     true
                 }
                 .toList()
-        }
+        }.flowOn(Dispatchers.Default)
     }
 
     override suspend fun upsertSingleTransaction(transaction: TransactionItem): Result<Long> =

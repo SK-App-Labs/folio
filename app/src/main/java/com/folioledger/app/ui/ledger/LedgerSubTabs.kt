@@ -68,12 +68,12 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable
-private fun calculateHeaderAmountsAlpha(
+private fun rememberHeaderAmountsAlpha(
     lazyListState: LazyListState,
     headerKey: String
-): Float {
+): () -> Float {
     val density = LocalDensity.current
-    return remember(lazyListState, headerKey) {
+    val alphaState = remember(lazyListState, headerKey) {
         derivedStateOf {
             val visibleItems = lazyListState.layoutInfo.visibleItemsInfo
             val headerItem = visibleItems.firstOrNull { it.key == headerKey }
@@ -90,7 +90,8 @@ private fun calculateHeaderAmountsAlpha(
                 }
             }
         }
-    }.value
+    }
+    return { alphaState.value }
 }
 
 @Composable
@@ -101,6 +102,12 @@ internal fun FilteredSearchResultsContent(
     onClearFilters: () -> Unit
 ) {
     val lazyListState = rememberLazyListState()
+
+    androidx.compose.runtime.LaunchedEffect(uiState.scrollToTopSignal) {
+        if (uiState.scrollToTopSignal > 0) {
+            lazyListState.animateScrollToItem(0)
+        }
+    }
 
     LazyColumn(
         state = lazyListState,
@@ -185,22 +192,27 @@ internal fun FilteredSearchResultsContent(
         } else {
             uiState.filteredDailyGroups.forEach { group ->
                 val headerKey = "filtered_day_${group.epochDay}"
-                stickyHeader(key = headerKey) {
-                    val alpha = calculateHeaderAmountsAlpha(lazyListState, headerKey)
+                stickyHeader(key = headerKey, contentType = "day_group_header") {
+                    val alphaProvider = rememberHeaderAmountsAlpha(lazyListState, headerKey)
                     DailyDateGroupHeaderRow(
                         group = group,
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.numberGrouping,
-                        amountsAlpha = alpha
+                        amountsAlpha = alphaProvider
                     )
                 }
-                items(group.transactions, key = { "filtered_tx_${it.id}" }) { tx ->
+                items(
+                    items = group.transactions,
+                    key = { "filtered_tx_${it.id}" },
+                    contentType = { "transaction_row" }
+                ) { tx ->
                     LedgerTransactionItemCard(
                         transaction = tx,
                         scopedAccountId = uiState.scopedAccountId,
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.numberGrouping,
-                        onClick = { onTransactionClick(tx) }
+                        onClick = { onTransactionClick(tx) },
+                        modifier = Modifier.animateItem()
                     )
                 }
             }
@@ -215,6 +227,12 @@ internal fun DailyLedgerSubTabContent(
     onAddTransactionClick: () -> Unit
 ) {
     val lazyListState = rememberLazyListState()
+
+    androidx.compose.runtime.LaunchedEffect(uiState.scrollToTopSignal) {
+        if (uiState.scrollToTopSignal > 0) {
+            lazyListState.animateScrollToItem(0)
+        }
+    }
 
     LazyColumn(
         state = lazyListState,
@@ -254,22 +272,23 @@ internal fun DailyLedgerSubTabContent(
         } else {
             uiState.dailyGroups.forEach { group ->
                 val headerKey = "day_header_${group.epochDay}"
-                stickyHeader(key = headerKey) {
-                    val alpha = calculateHeaderAmountsAlpha(lazyListState, headerKey)
+                stickyHeader(key = headerKey, contentType = "day_group_header") {
+                    val alphaProvider = rememberHeaderAmountsAlpha(lazyListState, headerKey)
                     DailyDateGroupHeaderRow(
                         group = group,
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.numberGrouping,
-                        amountsAlpha = alpha
+                        amountsAlpha = alphaProvider
                     )
                 }
-                item(key = "day_card_${group.epochDay}") {
+                item(key = "day_card_${group.epochDay}", contentType = "day_group_card") {
                     DailyGroupedTransactionsCard(
                         transactions = group.transactions,
                         scopedAccountId = uiState.scopedAccountId,
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.numberGrouping,
-                        onTransactionClick = onTransactionClick
+                        onTransactionClick = onTransactionClick,
+                        modifier = Modifier.animateItem()
                     )
                 }
             }
@@ -564,7 +583,11 @@ internal fun WeeklyLedgerSubTabContent(
             )
         }
 
-        items(uiState.weeklyBuckets, key = { it.weekIndex }) { bucket ->
+        items(
+            items = uiState.weeklyBuckets,
+            key = { it.weekIndex },
+            contentType = { "weekly_bucket_card" }
+        ) { bucket ->
             val isExpanded = bucket.weekIndex in uiState.expandedWeekIndices
 
             Card(
@@ -706,7 +729,11 @@ internal fun MonthlyLedgerSubTabContent(
             )
         }
 
-        items(uiState.yearlyMonthItems.reversed(), key = { it.monthIndex }) { monthItem ->
+        items(
+            items = uiState.yearlyMonthItems.reversed(),
+            key = { it.monthIndex },
+            contentType = { "yearly_month_card" }
+        ) { monthItem ->
             val isExpanded = monthItem.monthIndex in uiState.expandedYearlyMonths
 
             Card(

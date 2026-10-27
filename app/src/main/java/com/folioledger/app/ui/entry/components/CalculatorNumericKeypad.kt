@@ -30,6 +30,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -49,6 +51,11 @@ fun CalculatorNumericKeypad(
     modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
+    val haptic = LocalHapticFeedback.current
+    val handleKey = { key: String ->
+        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        onKeyPress(key)
+    }
     val rows = listOf(
         listOf("1", "2", "3", "÷"),
         listOf("4", "5", "6", "×"),
@@ -102,7 +109,10 @@ fun CalculatorNumericKeypad(
                 border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
-                    .clickable(onClick = onHideKeypadClick)
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onHideKeypadClick()
+                    }
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -150,7 +160,7 @@ fun CalculatorNumericKeypad(
                             .weight(1f)
                             .height(48.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .clickable { onKeyPress(key) }
+                            .clickable { handleKey(key) }
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
@@ -181,7 +191,7 @@ fun CalculatorNumericKeypad(
                     .weight(0.8f)
                     .height(50.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { onKeyPress("C") }
+                    .clickable { handleKey("C") }
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
@@ -200,7 +210,7 @@ fun CalculatorNumericKeypad(
                     .weight(0.8f)
                     .height(50.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { onKeyPress("⌫") }
+                    .clickable { handleKey("⌫") }
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -222,7 +232,7 @@ fun CalculatorNumericKeypad(
                     .weight(0.8f)
                     .height(50.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { onKeyPress("=") }
+                    .clickable { handleKey("=") }
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
@@ -239,7 +249,10 @@ fun CalculatorNumericKeypad(
             }
 
             Button(
-                onClick = onNextStepClick,
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onNextStepClick()
+                },
                 enabled = !isSaving,
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(

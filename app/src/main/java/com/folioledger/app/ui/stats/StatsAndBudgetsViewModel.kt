@@ -33,6 +33,7 @@ import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,6 +41,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -410,8 +412,13 @@ class StatsAndBudgetsViewModel(
     private val allAccountsFlow = accountRepository.observeAllAccounts(LocalDate.now().toEpochDay())
     private val netWorthWindowTxsFlow = controlState.flatMapLatest { ctrl ->
         val refDate = LocalDate.ofEpochDay(ctrl.referenceDateEpochDay)
-        val windowStartEpochDay = refDate.minusMonths(7).withDayOfMonth(1).toEpochDay()
-        val windowEndEpochDay = refDate.plusMonths(13).toEpochDay()
+        val todayEpochDay = LocalDate.now().toEpochDay()
+        val windowStartEpochDay = if (ctrl.periodGranularity == StatsPeriodGranularity.ANNUALLY) {
+            LocalDate.of(refDate.year, 1, 1).toEpochDay()
+        } else {
+            refDate.minusMonths(7).withDayOfMonth(1).toEpochDay()
+        }
+        val windowEndEpochDay = maxOf(todayEpochDay, refDate.plusMonths(13).toEpochDay())
         transactionRepository.observeTransactionsInRange(windowStartEpochDay, windowEndEpochDay)
     }
 
@@ -513,7 +520,7 @@ class StatsAndBudgetsViewModel(
                 periodTransactions = periodTxns
             )
         }
-    }
+    }.flowOn(Dispatchers.Default)
 
     val uiState: StateFlow<StatsAndBudgetsUiState> = combine(
         controlState,
@@ -525,10 +532,11 @@ class StatsAndBudgetsViewModel(
         val prefs = bundle.prefs
         val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
 
-        val netWorthTrend = computeSixMonthNetWorthTrend(
+        val netWorthTrend = computeNetWorthTrend(
             allAccounts = allAccounts,
             allTransactions = allTxs,
-            referenceDateEpochDay = ctrl.referenceDateEpochDay
+            referenceDateEpochDay = ctrl.referenceDateEpochDay,
+            periodGranularity = ctrl.periodGranularity
         )
 
         val creditHealthList = computeCreditCardHealthList(allAccounts)
@@ -646,9 +654,10 @@ class StatsAndBudgetsViewModel(
             isSavingBudget = ctrl.isSavingBudget,
             snackbarMessage = ctrl.snackbarMessage
         )
-    }.stateIn(
+    }.flowOn(Dispatchers.Default)
+    .stateIn(
         scope = viewModelScope,
-        started = SharingStarted.Eagerly,
+        started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = StatsAndBudgetsUiState()
     )
 
@@ -1053,20 +1062,25 @@ class StatsAndBudgetsViewModel(
         controlState.update { it.copy(snackbarMessage = null) }
     }
 
-    private fun computeSixMonthNetWorthTrend(
+    private fun computeNetWorthTrend(
         allAccounts: List<AccountSummary>,
         allTransactions: List<TransactionItem>,
-        referenceDateEpochDay: Long
+        referenceDateEpochDay: Long,
+        periodGranularity: StatsPeriodGranularity
     ): List<NetWorthGrowthTrendItem> {
         val refLocalDate = LocalDate.ofEpochDay(referenceDateEpochDay)
         val shortMonthFormatter = DateTimeFormatter.ofPattern("MMM yyyy", Locale.US)
-        val trendItems = ArrayList<NetWorthGrowthTrendItem>(6)
+        
+        val targetYearMonths: List<YearMonth> = if (periodGranularity == StatsPeriodGranularity.ANNUALLY) {
+            (1..12).map { month -> YearMonth.of(refLocalDate.year, month) }
+        } else {
+            (5 downTo 0).map { offset -> YearMonth.from(refLocalDate.minusMonths(offset.toLong())) }
+        }
+        val trendItems = ArrayList<NetWorthGrowthTrendItem>(targetYearMonths.size)
 
         val activeAccounts = allAccounts.filter { !it.isArchived && it.includeInNetWorth && it.groupType != AccountGroup.DEBIT_CARD }
 
-        for (monthOffset in 5 downTo 0) {
-            val targetDate = refLocalDate.minusMonths(monthOffset.toLong())
-            val targetYearMonth = YearMonth.from(targetDate)
+        for (targetYearMonth in targetYearMonths) {
             val endOfMonthEpochDay = targetYearMonth.atEndOfMonth().toEpochDay()
 
             var monthAssetsMinor = 0L

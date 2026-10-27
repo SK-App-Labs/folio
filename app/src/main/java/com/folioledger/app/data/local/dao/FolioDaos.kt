@@ -19,6 +19,7 @@ import com.folioledger.app.data.local.entity.TransactionSplitEntity
 import com.folioledger.app.data.local.entity.TransactionTagCrossRef
 import com.folioledger.app.data.local.entity.TransactionWithDetails
 import com.folioledger.app.domain.model.CategoryType
+import com.folioledger.app.domain.model.TransactionType
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -202,8 +203,28 @@ interface CategoryAndTagDao {
     suspend fun deleteAllBookmarks()
 }
 
+data class TransactionBalanceProjection(
+    val id: Long,
+    val type: TransactionType,
+    val timestampEpochMillis: Long,
+    val ledgerDateEpochDay: Long,
+    val amountMinor: Long,
+    val transferFeeMinor: Long,
+    val accountId: Long,
+    val transferToAccountId: Long?
+)
+
 @Dao
 interface TransactionDao {
+
+    @Query(
+        """
+        SELECT id, type, timestampEpochMillis, ledgerDateEpochDay, amountMinor, transferFeeMinor, accountId, transferToAccountId
+        FROM transactions
+        ORDER BY ledgerDateEpochDay ASC, timestampEpochMillis ASC, id ASC
+        """
+    )
+    fun observeTransactionBalanceProjections(): Flow<List<TransactionBalanceProjection>>
 
     @Transaction
     @Query(

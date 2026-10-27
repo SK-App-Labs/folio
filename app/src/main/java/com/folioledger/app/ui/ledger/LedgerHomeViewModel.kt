@@ -33,13 +33,19 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle as JavaTextStyle
 import java.time.temporal.TemporalAdjusters
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -241,7 +247,8 @@ data class LedgerHomeUiState(
     val inspectedTransaction: TransactionItem? = null,
     val isExportingCsv: Boolean = false,
     val snackbarMessage: String? = null,
-    val isInitialDataLoaded: Boolean = false
+    val isInitialDataLoaded: Boolean = false,
+    val scrollToTopSignal: Int = 0
 )
 
 private data class LedgerControlState(
@@ -259,7 +266,8 @@ private data class LedgerControlState(
     val isFilterSheetOpen: Boolean = false,
     val inspectedTransaction: TransactionItem? = null,
     val isExportingCsv: Boolean = false,
-    val snackbarMessage: String? = null
+    val snackbarMessage: String? = null,
+    val scrollToTopSignal: Int = 0
 )
 
 private data class PeriodDrivenBundle(
@@ -281,7 +289,7 @@ private data class ReferenceFilterBundle(
     val filteredTransactions: List<TransactionItem>
 )
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 class LedgerHomeViewModel(
     private val transactionRepository: TransactionRepository,
     private val analyticsAndBudgetRepository: AnalyticsAndBudgetRepository,
@@ -300,10 +308,10 @@ class LedgerHomeViewModel(
         )
 
     private val periodDrivenFlow: Flow<PeriodDrivenBundle> = combine(
-        controlState,
+        controlState.map { it.referenceDateEpochDay }.distinctUntilChanged(),
         settingsAndBackupRepository.observeUserPreferences()
-    ) { ctrl, prefs ->
-        ctrl.referenceDateEpochDay to prefs
+    ) { refEpochDay, prefs ->
+        refEpochDay to prefs
     }.flatMapLatest { (refEpochDay, prefs) ->
         val periodRange = LedgerPeriodCalculator.computeFinancialMonthRange(
             referenceDateEpochDay = refEpochDay,
@@ -360,38 +368,44 @@ class LedgerHomeViewModel(
                 budgets = budgets
             )
         }
-    }
+    }.flowOn(Dispatchers.Default)
+
+    private val debouncedSearchFilterFlow: Flow<Pair<TransactionSearchFilter, Boolean>> = controlState
+        .map { it.searchFilter to it.filterAllPeriods }
+        .distinctUntilChanged()
+        .debounce { (filter, _) ->
+            if (filter.queryText.isEmpty()) 0L else 150L
+        }
 
     private val referenceAndFilterFlow: Flow<ReferenceFilterBundle> = combine(
-        controlState,
-        settingsAndBackupRepository.observeUserPreferences()
-    ) { ctrl, prefs ->
-        ctrl to prefs
-    }.flatMapLatest { (ctrl, prefs) ->
+        controlState.map { it.referenceDateEpochDay to it.scopedAccountId }.distinctUntilChanged(),
+        settingsAndBackupRepository.observeUserPreferences(),
+        debouncedSearchFilterFlow
+    ) { (refEpochDay, _), prefs, (searchFilter, filterAllPeriods) ->
         val periodRange = LedgerPeriodCalculator.computeFinancialMonthRange(
-            referenceDateEpochDay = ctrl.referenceDateEpochDay,
+            referenceDateEpochDay = refEpochDay,
             monthStartDay = prefs.monthStartDay
         )
-        val effectiveFilter = if (!ctrl.filterAllPeriods) {
-            ctrl.searchFilter.copy(
+        val effectiveFilter = if (!filterAllPeriods) {
+            searchFilter.copy(
                 startEpochDay = periodRange.startEpochDay,
                 endEpochDay = periodRange.endEpochDay
             )
         } else {
-            ctrl.searchFilter.copy(
+            searchFilter.copy(
                 startEpochDay = null,
                 endEpochDay = null
             )
         }
 
-        val filteredTxFlow = if (isUserFilterNonEmpty(ctrl.searchFilter)) {
+        val filteredTxFlow = if (isUserFilterNonEmpty(searchFilter)) {
             transactionRepository.searchAndFilterTransactions(effectiveFilter)
         } else {
             MutableStateFlow(emptyList())
         }
 
         combine(
-            accountRepository.observeActiveAccounts(ctrl.referenceDateEpochDay),
+            accountRepository.observeActiveAccounts(refEpochDay),
             categoryAndTagRepository.observeAllCategoryTrees(),
             categoryAndTagRepository.observeAllTags(),
             categoryAndTagRepository.observeBookmarks(),
@@ -405,7 +419,8 @@ class LedgerHomeViewModel(
                 filteredTransactions = filteredTxns
             )
         }
-    }
+    }.flatMapLatest { it }
+    .flowOn(Dispatchers.Default)
 
     val uiState: StateFlow<LedgerHomeUiState> = combine(
         controlState,
@@ -505,12 +520,16 @@ class LedgerHomeViewModel(
                 transactions = monthTxns,
                 scopedAccountId = activeScopedAccountId
             )
-            val mWeeks = buildWeeklyBucketsForPeriod(
-                periodRange = monthRange,
-                weekStartDayIso = prefs.weekStartDayIso,
-                transactions = monthTxns,
-                scopedAccountId = activeScopedAccountId
-            )
+            val mWeeks = if (idx + 1 in ctrl.expandedYearlyMonths) {
+                buildWeeklyBucketsForPeriod(
+                    periodRange = monthRange,
+                    weekStartDayIso = prefs.weekStartDayIso,
+                    transactions = monthTxns,
+                    scopedAccountId = activeScopedAccountId
+                )
+            } else {
+                emptyList()
+            }
             YearlyMonthOverviewItem(
                 monthIndex = idx + 1,
                 periodRange = monthRange,
@@ -609,9 +628,11 @@ class LedgerHomeViewModel(
             bookmarks = refBundle.bookmarks,
             inspectedTransaction = updatedInspected,
             isExportingCsv = ctrl.isExportingCsv,
-            snackbarMessage = ctrl.snackbarMessage
+            snackbarMessage = ctrl.snackbarMessage,
+            scrollToTopSignal = ctrl.scrollToTopSignal
         )
-    }.stateIn(
+    }.flowOn(Dispatchers.Default)
+    .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = LedgerHomeUiState()
@@ -662,7 +683,8 @@ class LedgerHomeViewModel(
         controlState.update {
             it.copy(
                 referenceDateEpochDay = today,
-                selectedCalendarDayEpochDay = today
+                selectedCalendarDayEpochDay = today,
+                scrollToTopSignal = it.scrollToTopSignal + 1
             )
         }
     }

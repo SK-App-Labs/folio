@@ -24,12 +24,14 @@ import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -168,7 +170,8 @@ private object PassbookPeriodCalculator {
 
     fun computeFinancialMonthRange(
         referenceDateEpochDay: Long,
-        monthStartDay: Int
+        monthStartDay: Int,
+        isCreditCard: Boolean = false
     ): PassbookPeriodRange {
         val safeStartDay = monthStartDay.coerceIn(1, 31)
         val refDate = LocalDate.ofEpochDay(referenceDateEpochDay)
@@ -192,7 +195,16 @@ private object PassbookPeriodCalculator {
             }
         }
 
-        val periodTitle = startDate.format(shortMonthYearFormatter)
+        val periodTitle = if (isCreditCard) {
+            val today = LocalDate.now()
+            if (!endDate.isBefore(today)) {
+                "${endDate.format(shortMonthYearFormatter)} Cycle (Active)"
+            } else {
+                "${endDate.format(shortMonthYearFormatter)} Statement"
+            }
+        } else {
+            startDate.format(shortMonthYearFormatter)
+        }
         val periodSubtitle = "${startDate.format(shortDayMonthFormatter)} – ${endDate.format(fullDayMonthYearFormatter)}"
 
         return PassbookPeriodRange(
@@ -206,11 +218,12 @@ private object PassbookPeriodCalculator {
     fun stepFinancialMonth(
         currentReferenceEpochDay: Long,
         monthStartDay: Int,
-        deltaMonths: Int
+        deltaMonths: Int,
+        isCreditCard: Boolean = false
     ): Long {
         if (deltaMonths == 0) return currentReferenceEpochDay
         val safeStartDay = monthStartDay.coerceIn(1, 31)
-        val currentRange = computeFinancialMonthRange(currentReferenceEpochDay, safeStartDay)
+        val currentRange = computeFinancialMonthRange(currentReferenceEpochDay, safeStartDay, isCreditCard)
         val startLocalDate = LocalDate.ofEpochDay(currentRange.startEpochDay)
         val targetYearMonth = YearMonth.from(startLocalDate).plusMonths(deltaMonths.toLong())
         return resolveClampedDate(targetYearMonth, safeStartDay).toEpochDay()
@@ -469,9 +482,10 @@ class AccountsViewModel(
             isSaving = ctrl.isSaving,
             snackbarMessage = ctrl.snackbarMessage
         )
-    }.stateIn(
+    }.flowOn(Dispatchers.Default)
+    .stateIn(
         scope = viewModelScope,
-        started = SharingStarted.Eagerly,
+        started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = AccountsUiState()
     )
 
@@ -483,15 +497,23 @@ class AccountsViewModel(
         referenceDateEpochDay: Long,
         passbookMonthOffset: Int
     ): AccountPassbookUiModel {
-        val safeMonthStartDay = prefs.monthStartDay.coerceIn(1, 31)
+        val isCreditCard = inspectedAccount.groupType == AccountGroup.CREDIT_CARD
+        val safeMonthStartDay = if (isCreditCard) {
+            val statementDay = (inspectedAccount.settlementDayOfMonth ?: 18).coerceIn(1, 31)
+            if (statementDay >= 31) 1 else statementDay + 1
+        } else {
+            prefs.monthStartDay.coerceIn(1, 31)
+        }
         val targetRefEpochDay = PassbookPeriodCalculator.stepFinancialMonth(
             currentReferenceEpochDay = referenceDateEpochDay,
             monthStartDay = safeMonthStartDay,
-            deltaMonths = passbookMonthOffset
+            deltaMonths = passbookMonthOffset,
+            isCreditCard = isCreditCard
         )
         val periodRange = PassbookPeriodCalculator.computeFinancialMonthRange(
             referenceDateEpochDay = targetRefEpochDay,
-            monthStartDay = safeMonthStartDay
+            monthStartDay = safeMonthStartDay,
+            isCreditCard = isCreditCard
         )
 
         val parentBankAccount = if (inspectedAccount.groupType == AccountGroup.DEBIT_CARD) {

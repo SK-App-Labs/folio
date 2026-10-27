@@ -609,6 +609,21 @@ class TransactionEntryViewModel(
         formState.update { it.copy(isKeypadVisible = visible) }
     }
 
+    fun updateAmountInput(rawInput: String) {
+        val sanitized = rawInput.filter { it.isDigit() || it == '.' || it in "+-×÷*/" }
+        val cleaned = when {
+            sanitized.isEmpty() -> "0"
+            sanitized == "." -> "0."
+            sanitized.length > 1 && sanitized.startsWith("0") && !sanitized.startsWith("0.") -> {
+                sanitized.dropWhile { it == '0' }.ifEmpty { "0" }
+            }
+            else -> sanitized
+        }
+        formState.update { current ->
+            current.copy(expressionBuffer = cleaned, errorMessage = null)
+        }
+    }
+
     fun onKeypadKeyPress(key: String) {
         val selectedAccount = uiState.value.selectedAccount
         val currencyCode = selectedAccount?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode

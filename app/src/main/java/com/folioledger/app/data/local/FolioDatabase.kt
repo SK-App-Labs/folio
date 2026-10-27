@@ -44,7 +44,7 @@ import java.io.File
         RecurringRuleEntity::class,
         InstallmentPlanEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @TypeConverters(FolioTypeConverters::class)
@@ -61,6 +61,13 @@ abstract class FolioDatabase : RoomDatabase() {
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE accounts ADD COLUMN initialUnbilledMinor INTEGER DEFAULT NULL")
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_transactions_accountId_ledgerDateEpochDay` ON `transactions` (`accountId`, `ledgerDateEpochDay`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_transactions_transferToAccountId_ledgerDateEpochDay` ON `transactions` (`transferToAccountId`, `ledgerDateEpochDay`)")
             }
         }
 
@@ -93,7 +100,7 @@ abstract class FolioDatabase : RoomDatabase() {
                 FolioDatabase::class.java,
                 DATABASE_NAME
             )
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)

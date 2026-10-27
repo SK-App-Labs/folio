@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountBalanceWallet
@@ -520,6 +521,8 @@ fun PeriodSelectorHeader(
     onFilterClick: (() -> Unit)? = null,
     activeFilterCount: Int = 0,
     onBookmarksClick: (() -> Unit)? = null,
+    showTodayBadge: Boolean = false,
+    onTodayClick: (() -> Unit)? = null,
     trailingContent: (@Composable () -> Unit)? = null,
 ) {
     Surface(
@@ -600,6 +603,36 @@ fun PeriodSelectorHeader(
                         contentDescription = "Next Period",
                         tint = MaterialTheme.colorScheme.onSurface
                     )
+                }
+
+                if (showTodayBadge) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onTodayClick?.invoke() ?: onPeriodTitleClick?.invoke() }
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Today,
+                                contentDescription = "Jump to Today",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Today",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
                 }
             }
 
