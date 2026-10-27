@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
+import java.time.YearMonth
 
 class AccountRepositoryImpl(
     private val accountDao: AccountDao,
@@ -161,8 +162,12 @@ class AccountRepositoryImpl(
             currencyCode = account.currencyCode.ifBlank { "INR" },
             openingBalanceMinor = resolvedOpeningMinor,
             initialUnbilledMinor = if (account.groupType == AccountGroup.CREDIT_CARD) {
-                account.creditCardUnbilledAmount?.abs()?.amountMinor
-                    ?: (if (existing != null) existing.initialUnbilledMinor else null)
+                if (existing != null) {
+                    if (getTransactionCountForAccount(account.id) > 0) null else existing.initialUnbilledMinor
+                } else {
+                    account.creditCardUnbilledAmount?.abs()?.amountMinor
+                }
+
             } else {
                 null
             },
@@ -239,20 +244,14 @@ class AccountRepositoryImpl(
         deleteTransactions: Boolean
     ): Result<Unit> = runCatching {
         if (deleteTransactions) {
-            val accountTxList = transactionDao.observeAllTransactions().first()
-                .filter { it.transaction.accountId == accountId || it.transaction.transferToAccountId == accountId }
-            accountTxList.forEach { tx ->
-                transactionDao.deleteTransactionById(tx.transaction.id)
-            }
+            transactionDao.deleteTransactionsForAccount(accountId)
         }
         accountDao.deleteAccountById(accountId)
     }
 
-    override suspend fun getTransactionCountForAccount(accountId: Long): Int {
-        val accountTxList = transactionDao.observeAllTransactions().first()
-            .filter { it.transaction.accountId == accountId || it.transaction.transferToAccountId == accountId }
-        return accountTxList.size
-    }
+    override suspend fun getTransactionCountForAccount(accountId: Long): Int = runCatching {
+        transactionDao.getTransactionCountForAccount(accountId)
+    }.getOrDefault(0)
 
     override suspend fun settleCreditCardStatement(
         sourceAssetAccountId: Long,
@@ -276,6 +275,9 @@ class AccountRepositoryImpl(
         require(creditCardAccount.groupType == AccountGroup.CREDIT_CARD) {
             "Destination account must be a CREDIT_CARD account."
         }
+        require(sourceAccount.currencyCode == creditCardAccount.currencyCode) {
+            "Currency mismatch: Source account (${sourceAccount.currencyCode}) and Credit Card (${creditCardAccount.currencyCode}) must have the same currency."
+        }
 
         val settlementTx = TransactionEntity(
             id = 0L,
@@ -283,7 +285,7 @@ class AccountRepositoryImpl(
             timestampEpochMillis = timestampEpochMillis,
             ledgerDateEpochDay = ledgerDateEpochDay,
             amountMinor = settlementAmount.amountMinor,
-            currencyCode = sourceAccount.currencyCode,
+            currencyCode = creditCardAccount.currencyCode,
             accountId = sourceAssetAccountId,
             transferToAccountId = creditCardAccountId,
             transferFeeMinor = 0L,
@@ -452,7 +454,28 @@ class AccountRepositoryImpl(
 
                     val settlementDay = (entity.settlementDayOfMonth ?: 15).coerceIn(1, 31)
                     val creditLimitMoney = entity.creditLimitMinor?.let { MinorMoney(it) }
-                    val initialUnbilledMoney = entity.initialUnbilledMinor?.let { MinorMoney(it) }
+                    val initialUnbilledMoney = if (entity.initialUnbilledMinor != null) {
+                        val anchorEpochDay = ccTransactions.firstOrNull { it.type == TransactionType.OPENING_BALANCE }?.ledgerDateEpochDay
+                            ?: (entity.createdAtEpochMillis / 86_400_000L)
+                        val refDate = LocalDate.ofEpochDay(referenceDateEpochDay)
+                        val refYearMonth = YearMonth.from(refDate)
+                        val safeDay = settlementDay.coerceIn(1, 31)
+                        val clampedDay = minOf(safeDay, refYearMonth.lengthOfMonth())
+                        val statementInRefMonth = refYearMonth.atDay(clampedDay)
+                        val lastStatementCloseDate = if (refDate.isAfter(statementInRefMonth) || refDate.isEqual(statementInRefMonth)) {
+                            statementInRefMonth
+                        } else {
+                            val prevMonth = refYearMonth.minusMonths(1)
+                            prevMonth.atDay(minOf(safeDay, prevMonth.lengthOfMonth()))
+                        }
+                        if (anchorEpochDay <= lastStatementCloseDate.toEpochDay() || ccTransactions.isNotEmpty()) {
+                            null
+                        } else {
+                            MinorMoney(entity.initialUnbilledMinor)
+                        }
+                    } else {
+                        null
+                    }
                     val ccMetrics = AccountingRulesEngine.computeCreditCardMetrics(
                         openingBalance = MinorMoney(entity.openingBalanceMinor),
                         transactions = ccTransactions,

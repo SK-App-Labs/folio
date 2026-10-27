@@ -3,6 +3,7 @@ package com.folioledger.app
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.Arrangement
@@ -39,6 +40,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.folioledger.app.di.FolioViewModelFactory
@@ -46,7 +48,20 @@ import com.folioledger.app.ui.ledger.LedgerHomeViewModel
 import com.folioledger.app.ui.shell.FolioMainShell
 import com.folioledger.app.ui.theme.FolioTheme
 
+class MainLockViewModel : ViewModel() {
+    val isSessionUnlocked = mutableStateOf(false)
+}
+
 class MainActivity : FragmentActivity() {
+
+    private val lockViewModel: MainLockViewModel by viewModels()
+
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations) {
+            lockViewModel.isSessionUnlocked.value = false
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
@@ -107,7 +122,7 @@ class MainActivity : FragmentActivity() {
             val ledgerViewModel: LedgerHomeViewModel = viewModel(factory = viewModelFactory)
             val ledgerUiState by ledgerViewModel.uiState.collectAsStateWithLifecycle()
 
-            var isSessionUnlocked by rememberSaveable { mutableStateOf(false) }
+            var isSessionUnlocked by lockViewModel.isSessionUnlocked
             var authErrorText by rememberSaveable { mutableStateOf<String?>(null) }
 
             val activePrefs = prefs
@@ -140,16 +155,18 @@ class MainActivity : FragmentActivity() {
                 } else if (!activePrefs.biometricLockEnabled || isSessionUnlocked) {
                     FolioMainShell(viewModelFactory = viewModelFactory)
                 } else {
-                    LaunchedEffect(Unit) {
-                        triggerBiometricOrCredentialPrompt(
-                            onSuccess = {
-                                isSessionUnlocked = true
-                                authErrorText = null
-                            },
-                            onError = { msg ->
-                                authErrorText = msg
-                            }
-                        )
+                    LaunchedEffect(isSessionUnlocked) {
+                        if (!isSessionUnlocked) {
+                            triggerBiometricOrCredentialPrompt(
+                                onSuccess = {
+                                    isSessionUnlocked = true
+                                    authErrorText = null
+                                },
+                                onError = { msg ->
+                                    authErrorText = msg
+                                }
+                            )
+                        }
                     }
 
                     LockedLedgerScreen(

@@ -828,6 +828,14 @@ fun ImportCsvPreviewDialog(
                                 fontWeight = FontWeight.Medium
                             )
                         }
+                        if (preview.accountsWithOpeningBalance.isNotEmpty()) {
+                            Text(
+                                text = "• Opening Balance Anchors (${preview.accountsWithOpeningBalance.size}): ${preview.accountsWithOpeningBalance.joinToString(", ")}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                         if (preview.newAccountsToCreate.isNotEmpty()) {
                             Text(
                                 text = "• New Accounts to create (${preview.newAccountsToCreate.size}): ${preview.newAccountsToCreate.joinToString(", ")}",
@@ -885,7 +893,10 @@ fun ImportCsvPreviewDialog(
         confirmButton = {
             Button(
                 onClick = { onConfirmImport(skipDuplicates) },
-                enabled = preview.validTransactionCount > 0
+                enabled = preview.validTransactionCount > 0 ||
+                    preview.accountsWithOpeningBalance.isNotEmpty() ||
+                    preview.newAccountsToCreate.isNotEmpty() ||
+                    preview.newCategoriesToCreate.isNotEmpty()
             ) {
                 Text("Confirm & Import")
             }
@@ -935,6 +946,14 @@ fun ImportCsvResultDialog(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(text = "• Imported: ${result.importedCount} transactions")
+                        if (result.accountsConfiguredCount > 0) {
+                            Text(
+                                text = "• Accounts Configured: ${result.accountsConfiguredCount}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                         if (result.updatedCount > 0) {
                             Text(text = "• Updated: ${result.updatedCount} existing transactions")
                         }

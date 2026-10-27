@@ -288,6 +288,16 @@ internal fun AccountPassbookBottomSheet(
                                     fontWeight = FontWeight.Bold
                                 )
                             }
+                            IconButton(
+                                onClick = onReconcileClick,
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Tune,
+                                    contentDescription = "Reconcile Balance",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         } else if (account.groupType != AccountGroup.DEBIT_CARD) {
                             FilledTonalButton(
                                 onClick = onReconcileClick,
@@ -955,10 +965,17 @@ fun ReconcileBalanceDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val recordedMinor = state.recordedBalance.amountMinor
+    val isLiability = state.isLiability
+    val recordedMinor = if (isLiability) state.recordedBalance.abs().amountMinor else state.recordedBalance.amountMinor
     val spec = SupportedCurrencies.fromCode(state.currencyCode)
     val parsedTarget = parseInputToMinorOrZero(state.targetBalanceInput, spec.fractionDigits)
-    val diffMinor = parsedTarget?.let { it.amountMinor - recordedMinor }
+    val diffMinor = parsedTarget?.let {
+        if (isLiability) {
+            it.amountMinor - recordedMinor
+        } else {
+            it.amountMinor - state.recordedBalance.amountMinor
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -975,7 +992,11 @@ fun ReconcileBalanceDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Match Folio's balance against your official bank statement or physical cash.",
+                    text = if (isLiability) {
+                        "Match Folio's outstanding balance against your official credit card or loan statement."
+                    } else {
+                        "Match Folio's balance against your official bank statement or physical cash."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -990,12 +1011,13 @@ fun ReconcileBalanceDialog(
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         Text(
-                            text = "Current Recorded Balance",
+                            text = if (isLiability) "Current Recorded Outstanding Debt" else "Current Recorded Balance",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        val displayRecorded = if (isLiability) state.recordedBalance.abs() else state.recordedBalance
                         Text(
-                            text = "${state.currencyCode} ${formatMinorPlainForInput(state.recordedBalance, spec.fractionDigits)}",
+                            text = "${state.currencyCode} ${formatMinorPlainForInput(displayRecorded, spec.fractionDigits)}",
                             style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
                             fontWeight = FontWeight.Bold
                         )
@@ -1005,7 +1027,7 @@ fun ReconcileBalanceDialog(
                 OutlinedTextField(
                     value = state.targetBalanceInput,
                     onValueChange = onUpdateTargetBalance,
-                    label = { Text("Actual Statement Balance") },
+                    label = { Text(if (isLiability) "Actual Statement Outstanding Debt" else "Actual Statement Balance") },
                     placeholder = { Text("0.00") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
@@ -1016,13 +1038,20 @@ fun ReconcileBalanceDialog(
 
                 if (diffMinor != null) {
                     val adjustmentColor = when {
-                        diffMinor > 0L -> MaterialTheme.colorScheme.primary
-                        diffMinor < 0L -> MaterialTheme.colorScheme.error
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                        diffMinor == 0L -> MaterialTheme.colorScheme.onSurfaceVariant
+                        isLiability -> if (diffMinor > 0L) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                        else -> if (diffMinor > 0L) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                     }
                     val diffSign = if (diffMinor > 0L) "+" else ""
                     val diffText = if (diffMinor == 0L) {
                         "✓ Balances match. No adjustment needed."
+                    } else if (isLiability) {
+                        val formattedDiff = formatMinorPlainForInput(MinorMoney(Math.abs(diffMinor)), spec.fractionDigits)
+                        if (diffMinor > 0L) {
+                            "Adjustment: +${state.currencyCode} $formattedDiff (Increases debt)"
+                        } else {
+                            "Adjustment: -${state.currencyCode} $formattedDiff (Decreases debt)"
+                        }
                     } else {
                         val formattedDiff = formatMinorPlainForInput(MinorMoney(Math.abs(diffMinor)), spec.fractionDigits)
                         "Adjustment: $diffSign${state.currencyCode} $formattedDiff (${if (diffMinor > 0L) "Inflow adjustment" else "Outflow adjustment"})"

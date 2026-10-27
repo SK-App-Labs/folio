@@ -309,7 +309,8 @@ data class ReconcileBalanceDialogState(
     val targetBalanceInput: String = "",
     val reconcileDateEpochDay: Long = LocalDate.now().toEpochDay(),
     val note: String = "",
-    val validationError: String? = null
+    val validationError: String? = null,
+    val isLiability: Boolean = false
 )
 
 @Immutable
@@ -339,6 +340,7 @@ data class AccountsUiState(
     val pendingDeletionAccountId: Long? = null,
     val pendingDeletionAccountName: String? = null,
     val pendingDeletionTxCount: Int = 0,
+    val pendingDeletionLinkedCardsCount: Int = 0,
     val isSaving: Boolean = false,
     val snackbarMessage: String? = null
 )
@@ -355,6 +357,7 @@ private data class AccountsInternalControlState(
     val pendingDeletionAccountId: Long? = null,
     val pendingDeletionAccountName: String? = null,
     val pendingDeletionTxCount: Int = 0,
+    val pendingDeletionLinkedCardsCount: Int = 0,
     val isSaving: Boolean = false,
     val snackbarMessage: String? = null
 )
@@ -462,6 +465,7 @@ class AccountsViewModel(
             pendingDeletionAccountId = ctrl.pendingDeletionAccountId,
             pendingDeletionAccountName = ctrl.pendingDeletionAccountName,
             pendingDeletionTxCount = ctrl.pendingDeletionTxCount,
+            pendingDeletionLinkedCardsCount = ctrl.pendingDeletionLinkedCardsCount,
             isSaving = ctrl.isSaving,
             snackbarMessage = ctrl.snackbarMessage
         )
@@ -739,7 +743,9 @@ class AccountsViewModel(
 
     fun openReconcileDialog(account: AccountSummary) {
         val spec = SupportedCurrencies.fromCode(account.currencyCode)
-        val initialInput = formatMinorPlainForInput(account.currentBalance, spec.fractionDigits)
+        val isLiability = account.groupType.isLiabilityByDefault
+        val initialAmount = if (isLiability) account.currentBalance.abs() else account.currentBalance
+        val initialInput = formatMinorPlainForInput(initialAmount, spec.fractionDigits)
         controlState.update {
             it.copy(
                 reconcileDialogState = ReconcileBalanceDialogState(
@@ -749,7 +755,8 @@ class AccountsViewModel(
                     recordedBalance = account.currentBalance,
                     targetBalanceInput = initialInput,
                     reconcileDateEpochDay = LocalDate.now().toEpochDay(),
-                    note = ""
+                    note = "",
+                    isLiability = isLiability
                 )
             )
         }
@@ -775,11 +782,17 @@ class AccountsViewModel(
             return
         }
 
+        val targetBalance = if (dialog.isLiability) {
+            parsed.abs().unaryMinus()
+        } else {
+            parsed
+        }
+
         viewModelScope.launch {
             controlState.update { it.copy(isSaving = true) }
             val result = accountRepository.reconcileAccountBalance(
                 accountId = dialog.accountId,
-                reconciledBalance = parsed,
+                reconciledBalance = targetBalance,
                 reconciledDateEpochDay = dialog.reconcileDateEpochDay,
                 note = dialog.note
             )
@@ -919,13 +932,16 @@ class AccountsViewModel(
     fun requestAccountDeletion(accountId: Long) {
         viewModelScope.launch {
             val txCount = accountRepository.getTransactionCountForAccount(accountId)
-            val account = uiState.value.allAccounts.firstOrNull { it.id == accountId }
+            val all = uiState.value.allAccounts
+            val account = all.firstOrNull { it.id == accountId }
+            val linkedCardsCount = all.count { it.parentAccountId == accountId }
             controlState.update {
                 it.copy(
                     editorDialogState = null,
                     pendingDeletionAccountId = accountId,
                     pendingDeletionAccountName = account?.name ?: "Account #$accountId",
-                    pendingDeletionTxCount = txCount
+                    pendingDeletionTxCount = txCount,
+                    pendingDeletionLinkedCardsCount = linkedCardsCount
                 )
             }
         }
@@ -943,6 +959,7 @@ class AccountsViewModel(
                     pendingDeletionAccountId = null,
                     pendingDeletionAccountName = null,
                     pendingDeletionTxCount = 0,
+                    pendingDeletionLinkedCardsCount = 0,
                     snackbarMessage = if (result.isSuccess) "Account deleted successfully." else "Failed to delete account: ${result.exceptionOrNull()?.message}"
                 )
             }
@@ -954,7 +971,8 @@ class AccountsViewModel(
             it.copy(
                 pendingDeletionAccountId = null,
                 pendingDeletionAccountName = null,
-                pendingDeletionTxCount = 0
+                pendingDeletionTxCount = 0,
+                pendingDeletionLinkedCardsCount = 0
             )
         }
     }
@@ -978,7 +996,7 @@ class AccountsViewModel(
         }
 
         val statementPayable = if (editor.groupType == AccountGroup.CREDIT_CARD &&
-            editor.statementPayableInput.isNotBlank()
+            !editor.isEditing && editor.statementPayableInput.isNotBlank()
         ) {
             val parsed = parseInputToMinorOrZero(editor.statementPayableInput, fractionDigits)
             if (parsed == null) {
@@ -993,7 +1011,7 @@ class AccountsViewModel(
         }
 
         val unbilledAmount = if (editor.groupType == AccountGroup.CREDIT_CARD &&
-            editor.unbilledAmountInput.isNotBlank()
+            !editor.isEditing && editor.unbilledAmountInput.isNotBlank()
         ) {
             val parsed = parseInputToMinorOrZero(editor.unbilledAmountInput, fractionDigits)
             if (parsed == null) {
@@ -1019,7 +1037,7 @@ class AccountsViewModel(
         }
 
         val effectiveOpeningMagnitude = if (editor.groupType == AccountGroup.CREDIT_CARD) {
-            (statementPayable ?: MinorMoney.ZERO) + (unbilledAmount ?: MinorMoney.ZERO)
+            if (editor.isEditing) parsedOpeningBalance else (statementPayable ?: MinorMoney.ZERO) + (unbilledAmount ?: MinorMoney.ZERO)
         } else {
             parsedOpeningBalance
         }
@@ -1140,7 +1158,10 @@ class AccountsViewModel(
 
     fun openSettlementSheet(creditCard: AccountSummary) {
         val currentState = uiState.value
-        val defaultSourceId = currentState.assetAccountsForSettlement.firstOrNull()?.id
+        val eligibleSource = currentState.assetAccountsForSettlement.firstOrNull {
+            it.currencyCode == creditCard.currencyCode
+        }
+        val defaultSourceId = eligibleSource?.id
         val spec = SupportedCurrencies.fromCode(creditCard.currencyCode)
 
         val statementDue = creditCard.creditCardStatementPayable ?: MinorMoney.ZERO
@@ -1205,6 +1226,14 @@ class AccountsViewModel(
         if (sourceId == null) {
             updateSettlementSheetState {
                 it.copy(validationError = "Select a source Bank or Cash account to pay from.")
+            }
+            return
+        }
+
+        val sourceAccount = uiState.value.allAccounts.firstOrNull { it.id == sourceId }
+        if (sourceAccount != null && sourceAccount.currencyCode != sheet.creditCardAccount.currencyCode) {
+            updateSettlementSheetState {
+                it.copy(validationError = "Source account currency (${sourceAccount.currencyCode}) must match credit card currency (${sheet.creditCardAccount.currencyCode}).")
             }
             return
         }

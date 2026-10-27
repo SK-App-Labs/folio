@@ -37,12 +37,17 @@ class AnalyticsAndBudgetRepositoryImpl(
         endEpochDay: Long,
         includeCarryOver: Boolean
     ): Flow<PeriodLedgerSummary> {
-        return transactionDao.observeAllTransactions().map { allTransactions ->
+        val transactionsFlow = if (includeCarryOver) {
+            transactionDao.observeTransactionsInRange(0L, endEpochDay)
+        } else {
+            transactionDao.observeTransactionsInRange(startEpochDay, endEpochDay)
+        }
+        return transactionsFlow.map { transactions ->
             var priorNetMinor = 0L
             var periodIncomeMinor = 0L
             var periodExpenseRawMinor = 0L
 
-            for (txWithDetails in allTransactions) {
+            for (txWithDetails in transactions) {
                 val tx = txWithDetails.transaction
                 val day = tx.ledgerDateEpochDay
 
@@ -81,8 +86,12 @@ class AnalyticsAndBudgetRepositoryImpl(
                 }
             }
 
-            val totalIncome = MinorMoney(periodIncomeMinor)
-            val totalExpense = MinorMoney(periodExpenseRawMinor.coerceAtLeast(0L))
+            val excessRefundMinor = if (periodExpenseRawMinor < 0L) Math.abs(periodExpenseRawMinor) else 0L
+            val adjustedIncomeMinor = Math.addExact(periodIncomeMinor, excessRefundMinor)
+            val effectiveExpenseMinor = periodExpenseRawMinor.coerceAtLeast(0L)
+
+            val totalIncome = MinorMoney(adjustedIncomeMinor)
+            val totalExpense = MinorMoney(effectiveExpenseMinor)
             val carryOver = if (includeCarryOver) MinorMoney(priorNetMinor) else MinorMoney.ZERO
             val netCashflow = (totalIncome - totalExpense) + carryOver
 
@@ -225,17 +234,17 @@ class AnalyticsAndBudgetRepositoryImpl(
         monthStartDay: Int
     ): Flow<List<MonthlyTrendBar>> {
         val safeStartDay = monthStartDay.coerceIn(1, 31)
-        val (currentCycleStartEpochDay, _) = AccountingRulesEngine.computeFinancialMonthRange(
-            referenceDateEpochDay = referenceDateEpochDay,
-            monthStartDay = safeStartDay
-        )
-        val currentCycleStartDate = LocalDate.ofEpochDay(currentCycleStartEpochDay)
-
-        val sixCycles: List<Pair<LocalDate, LocalDate>> = (5 downTo 0).map { monthsBack ->
-            val start = currentCycleStartDate.minusMonths(monthsBack.toLong())
-            val end = start.plusMonths(1).minusDays(1)
-            start to end
+        val cyclesReversed = mutableListOf<Pair<LocalDate, LocalDate>>()
+        var cursorEpochDay = referenceDateEpochDay
+        repeat(6) {
+            val (startEpoch, endEpoch) = AccountingRulesEngine.computeFinancialMonthRange(
+                referenceDateEpochDay = cursorEpochDay,
+                monthStartDay = safeStartDay
+            )
+            cyclesReversed.add(LocalDate.ofEpochDay(startEpoch) to LocalDate.ofEpochDay(endEpoch))
+            cursorEpochDay = startEpoch - 1L
         }
+        val sixCycles: List<Pair<LocalDate, LocalDate>> = cyclesReversed.reversed()
 
         val overallStartEpochDay = sixCycles.first().first.toEpochDay()
         val overallEndEpochDay = sixCycles.last().second.toEpochDay()
@@ -282,8 +291,12 @@ class AnalyticsAndBudgetRepositoryImpl(
                     }
                 }
 
-                val totalIncome = MinorMoney(incomeMinor)
-                val totalExpense = MinorMoney(expenseRawMinor.coerceAtLeast(0L))
+                val excessRefundMinor = if (expenseRawMinor < 0L) Math.abs(expenseRawMinor) else 0L
+                val adjustedIncomeMinor = Math.addExact(incomeMinor, excessRefundMinor)
+                val effectiveExpenseMinor = expenseRawMinor.coerceAtLeast(0L)
+
+                val totalIncome = MinorMoney(adjustedIncomeMinor)
+                val totalExpense = MinorMoney(effectiveExpenseMinor)
                 val netSavings = totalIncome - totalExpense
 
                 MonthlyTrendBar(

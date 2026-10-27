@@ -25,6 +25,7 @@ import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
+import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -174,33 +175,19 @@ object StatsPeriodCalculator {
         monthStartDay: Int
     ): StatsPeriodRange {
         val safeStartDay = monthStartDay.coerceIn(1, 31)
-        val refDate = LocalDate.ofEpochDay(referenceDateEpochDay)
-        val refYearMonth = YearMonth.from(refDate)
-
-        val startDate: LocalDate
-        val endDate: LocalDate
-
-        if (safeStartDay == 1) {
-            startDate = refYearMonth.atDay(1)
-            endDate = refYearMonth.atEndOfMonth()
-        } else {
-            val startInRefMonth = resolveClampedDate(refYearMonth, safeStartDay)
-            if (!refDate.isBefore(startInRefMonth)) {
-                startDate = startInRefMonth
-                val nextMonthStart = resolveClampedDate(refYearMonth.plusMonths(1), safeStartDay)
-                endDate = nextMonthStart.minusDays(1)
-            } else {
-                startDate = resolveClampedDate(refYearMonth.minusMonths(1), safeStartDay)
-                endDate = startInRefMonth.minusDays(1)
-            }
-        }
+        val (startEpoch, endEpoch) = AccountingRulesEngine.computeFinancialMonthRange(
+            referenceDateEpochDay = referenceDateEpochDay,
+            monthStartDay = safeStartDay
+        )
+        val startDate = LocalDate.ofEpochDay(startEpoch)
+        val endDate = LocalDate.ofEpochDay(endEpoch)
 
         val title = startDate.format(shortMonthYearFormatter)
         val subtitle = "${startDate.format(shortDayMonthFormatter)} – ${endDate.format(fullDayMonthYearFormatter)}"
 
         return StatsPeriodRange(
-            startEpochDay = startDate.toEpochDay(),
-            endEpochDay = endDate.toEpochDay(),
+            startEpochDay = startEpoch,
+            endEpochDay = endEpoch,
             title = title,
             subtitle = subtitle,
             anchorYear = startDate.year
@@ -413,8 +400,20 @@ class StatsAndBudgetsViewModel(
 
     private val controlState = MutableStateFlow(StatsInternalControlState())
 
+    private val userPreferencesFlow = settingsAndBackupRepository.observeUserPreferences()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = UserPreferences()
+        )
+
     private val allAccountsFlow = accountRepository.observeAllAccounts(LocalDate.now().toEpochDay())
-    private val allTxsFlow = transactionRepository.observeTransactionsInRange(0L, LocalDate.now().plusMonths(12).toEpochDay())
+    private val netWorthWindowTxsFlow = controlState.flatMapLatest { ctrl ->
+        val refDate = LocalDate.ofEpochDay(ctrl.referenceDateEpochDay)
+        val windowStartEpochDay = refDate.minusMonths(7).withDayOfMonth(1).toEpochDay()
+        val windowEndEpochDay = refDate.plusMonths(13).toEpochDay()
+        transactionRepository.observeTransactionsInRange(windowStartEpochDay, windowEndEpochDay)
+    }
 
     private val categoryTreesFlow: Flow<Pair<List<CategoryNode>, List<CategoryNode>>> = combine(
         categoryAndTagRepository.observeCategoryTree(CategoryType.EXPENSE),
@@ -521,7 +520,7 @@ class StatsAndBudgetsViewModel(
         periodAnalyticsFlow,
         categoryTreesFlow,
         allAccountsFlow,
-        allTxsFlow
+        netWorthWindowTxsFlow
     ) { ctrl, bundle, (expenseTree, incomeTree), allAccounts, allTxs ->
         val prefs = bundle.prefs
         val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
@@ -658,22 +657,25 @@ class StatsAndBudgetsViewModel(
     }
 
     fun selectPeriodGranularity(granularity: StatsPeriodGranularity) {
-        val currentRange = uiState.value.activePeriodRange
+        val prefs = userPreferencesFlow.value
         controlState.update { current ->
             val shouldInitCustomFromCurrent = granularity == StatsPeriodGranularity.CUSTOM &&
                     current.periodGranularity != StatsPeriodGranularity.CUSTOM
+            val currentRange = if (shouldInitCustomFromCurrent) {
+                StatsPeriodCalculator.computePeriodRange(
+                    granularity = current.periodGranularity,
+                    referenceDateEpochDay = current.referenceDateEpochDay,
+                    monthStartDay = prefs.monthStartDay,
+                    weekStartDayIso = prefs.weekStartDayIso,
+                    customStartEpochDay = current.customStartEpochDay,
+                    customEndEpochDay = current.customEndEpochDay
+                )
+            } else null
+
             current.copy(
                 periodGranularity = granularity,
-                customStartEpochDay = if (shouldInitCustomFromCurrent) {
-                    currentRange.startEpochDay
-                } else {
-                    current.customStartEpochDay
-                },
-                customEndEpochDay = if (shouldInitCustomFromCurrent) {
-                    currentRange.endEpochDay
-                } else {
-                    current.customEndEpochDay
-                },
+                customStartEpochDay = currentRange?.startEpochDay ?: current.customStartEpochDay,
+                customEndEpochDay = currentRange?.endEpochDay ?: current.customEndEpochDay,
                 isCustomDatePickerOpen = granularity == StatsPeriodGranularity.CUSTOM &&
                         current.periodGranularity != StatsPeriodGranularity.CUSTOM,
                 highlightedDonutCategoryId = null,
@@ -717,7 +719,7 @@ class StatsAndBudgetsViewModel(
     }
 
     fun navigateToPreviousPeriod() {
-        val prefs = uiState.value.userPreferences
+        val prefs = userPreferencesFlow.value
         controlState.update { current ->
             when (current.periodGranularity) {
                 StatsPeriodGranularity.WEEKLY -> {
@@ -769,7 +771,7 @@ class StatsAndBudgetsViewModel(
     }
 
     fun navigateToNextPeriod() {
-        val prefs = uiState.value.userPreferences
+        val prefs = userPreferencesFlow.value
         controlState.update { current ->
             when (current.periodGranularity) {
                 StatsPeriodGranularity.WEEKLY -> {
@@ -931,8 +933,8 @@ class StatsAndBudgetsViewModel(
     }
 
     fun openEditBudgetDialog(budget: BudgetProgress) {
-        val fractionDigits = uiState.value.currencySpec.fractionDigits
-        val formattedLimit = formatMinorPlainForInput(budget.limitAmount, fractionDigits)
+        val currencySpec = SupportedCurrencies.fromCode(userPreferencesFlow.value.primaryCurrencyCode)
+        val formattedLimit = formatMinorPlainForInput(budget.limitAmount, currencySpec.fractionDigits)
 
         controlState.update {
             it.copy(
@@ -966,7 +968,7 @@ class StatsAndBudgetsViewModel(
 
     fun saveBudgetFromDialog() {
         val editor = controlState.value.budgetEditorDialogState ?: return
-        val currencySpec = uiState.value.currencySpec
+        val currencySpec = SupportedCurrencies.fromCode(userPreferencesFlow.value.primaryCurrencyCode)
 
         if (!editor.isOverallMonthlyBudget && editor.selectedCategoryId == null) {
             updateBudgetEditorState {

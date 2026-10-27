@@ -16,6 +16,7 @@ import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.repository.AccountRepository
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
@@ -269,10 +270,17 @@ class TransactionEntryViewModel(
         )
     }
 
+    private val userPreferencesFlow = settingsAndBackupRepository.observeUserPreferences()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = UserPreferences()
+        )
+
     val uiState: StateFlow<TransactionEntryUiState> = combine(
         formState,
         referenceDataFlow,
-        settingsAndBackupRepository.observeUserPreferences()
+        userPreferencesFlow
     ) { form, refs, prefs ->
         val selectedAccount = refs.accounts.firstOrNull { it.id == form.selectedAccountId }
             ?: refs.accounts.firstOrNull()
@@ -602,9 +610,11 @@ class TransactionEntryViewModel(
     }
 
     fun onKeypadKeyPress(key: String) {
+        val selectedAccount = uiState.value.selectedAccount
+        val currencyCode = selectedAccount?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode
+        val fractionDigits = SupportedCurrencies.fromCode(currencyCode).fractionDigits
         formState.update { current ->
             val buf = current.expressionBuffer
-            val fractionDigits = uiState.value.currencySpec.fractionDigits
             val nextBuffer = when (key) {
                 "C" -> "0"
                 "⌫" -> {
@@ -917,15 +927,26 @@ class TransactionEntryViewModel(
             formState.update { it.copy(isSaving = true, errorMessage = null) }
 
             val existingId = state.editingTransactionId
-            if (existingId > 0L) {
-                transactionRepository.deleteTransaction(existingId)
-            }
-
             val isTransferMode = state.mode == TransactionType.TRANSFER || state.mode == TransactionType.CC_SETTLEMENT
             val isExpenseOrIncome = state.mode == TransactionType.EXPENSE || state.mode == TransactionType.INCOME
 
+            val transferFee = if (isTransferMode) {
+                evaluateBufferSafely(
+                    rawExpression = state.transferFeeInput,
+                    fractionDigits = state.currencySpec.fractionDigits
+                )
+            } else {
+                MinorMoney.ZERO
+            }
+
+            val defaultPayee = when {
+                isTransferMode -> "${sourceAccount.name} → ${state.transferToAccount?.name ?: ""}"
+                state.mode == TransactionType.REFUND -> "Refund"
+                else -> ""
+            }
+
             val baseTx = TransactionItem(
-                id = 0L,
+                id = existingId,
                 type = state.mode,
                 timestampEpochMillis = state.timestampEpochMillis,
                 ledgerDateEpochDay = state.ledgerDateEpochDay,
@@ -935,6 +956,7 @@ class TransactionEntryViewModel(
                 accountName = sourceAccount.name,
                 transferToAccountId = if (isTransferMode) state.transferToAccount?.id else null,
                 transferToAccountName = if (isTransferMode) state.transferToAccount?.name else null,
+                transferFee = transferFee,
                 categoryId = if (isTransferMode) null else state.selectedCategoryId,
                 categoryName = if (isTransferMode) null else state.selectedCategoryName,
                 parentCategoryName = if (isTransferMode) null else state.selectedParentCategoryName,
@@ -955,47 +977,20 @@ class TransactionEntryViewModel(
                     emptyList()
                 },
                 tags = state.selectedTags,
-                payeeOrDescription = state.payeeOrDescription.trim(),
+                payeeOrDescription = state.payeeOrDescription.trim().ifEmpty { defaultPayee },
                 note = state.note.trim()
             )
 
             val saveResult: Result<Any> = when {
                 state.isInstallmentEnabled && state.isCreditCardExpense -> {
+                    if (existingId > 0L) {
+                        transactionRepository.deleteTransaction(existingId)
+                    }
                     transactionRepository.createInstallmentPlanTransactions(
                         baseTransaction = baseTx,
                         totalInstallmentAmount = amount,
                         monthsCount = state.installmentMonthsCount,
                         startDateEpochDay = state.ledgerDateEpochDay
-                    )
-                }
-
-                state.mode == TransactionType.TRANSFER || state.mode == TransactionType.CC_SETTLEMENT -> {
-                    val feeMinor = evaluateBufferSafely(
-                        rawExpression = state.transferFeeInput,
-                        fractionDigits = state.currencySpec.fractionDigits
-                    )
-                    transactionRepository.recordTransfer(
-                        fromAccountId = sourceAccount.id,
-                        toAccountId = state.transferToAccount!!.id,
-                        amount = amount,
-                        transferFee = feeMinor,
-                        timestampEpochMillis = state.timestampEpochMillis,
-                        ledgerDateEpochDay = state.ledgerDateEpochDay,
-                        note = state.note.trim().ifBlank { state.payeeOrDescription.trim() },
-                        tags = state.selectedTags
-                    )
-                }
-
-                state.mode == TransactionType.REFUND -> {
-                    transactionRepository.recordRefund(
-                        accountId = sourceAccount.id,
-                        categoryId = state.selectedCategoryId,
-                        refundAmount = amount,
-                        timestampEpochMillis = state.timestampEpochMillis,
-                        ledgerDateEpochDay = state.ledgerDateEpochDay,
-                        originalTransactionId = null,
-                        payeeOrDescription = state.payeeOrDescription.trim(),
-                        note = state.note.trim()
                     )
                 }
 

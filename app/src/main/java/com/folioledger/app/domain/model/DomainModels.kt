@@ -163,7 +163,8 @@ data class ImportCsvPreview(
     val duplicateCount: Int,
     val newAccountsToCreate: List<String>,
     val newCategoriesToCreate: List<String>,
-    val warningMessages: List<String>
+    val warningMessages: List<String>,
+    val accountsWithOpeningBalance: List<String> = emptyList()
 )
 
 data class ImportCsvResult(
@@ -173,5 +174,6 @@ data class ImportCsvResult(
     val skippedCount: Int,
     val newAccountsCreated: List<String>,
     val newCategoriesCreated: List<String>,
-    val errorMessages: List<String>
+    val errorMessages: List<String>,
+    val accountsConfiguredCount: Int = 0
 )

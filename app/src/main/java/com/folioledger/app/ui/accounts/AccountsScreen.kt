@@ -173,6 +173,8 @@ fun AccountsScreen(
                 Text(
                     text = if (hasTransactions) {
                         "This account has $txCount linked transaction(s). To protect your historical reports and ledger logs, accounts with transaction history cannot be permanently deleted.\n\nWould you like to Archive this account instead? Archived accounts are hidden from active views while preserving all past transaction history."
+                    } else if (uiState.pendingDeletionLinkedCardsCount > 0) {
+                        "Are you sure you want to permanently delete $pendingName?\n\nWarning: This account has ${uiState.pendingDeletionLinkedCardsCount} linked debit card(s). Deleting it will unlink those card(s). This action cannot be undone."
                     } else {
                         "Are you sure you want to permanently delete $pendingName? This action cannot be undone."
                     },

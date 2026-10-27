@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Unarchive
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -650,7 +651,34 @@ internal fun AccountEditorBottomSheet(
                         }
                     }
 
+                    if (state.settlementDayOfMonth == state.paymentDueDayOfMonth) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = semanticColors.warningAmberContainer,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Warning,
+                                    contentDescription = null,
+                                    tint = semanticColors.warningAmber,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Statement closing day and payment due day are set to the same day.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = semanticColors.warningAmber
+                                )
+                            }
+                        }
+                    }
+
                     // 3. SIDE-BY-SIDE STARTING DEBT FIELDS
+                    if (!state.isEditing) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -672,6 +700,62 @@ internal fun AccountEditorBottomSheet(
                             singleLine = true,
                             modifier = Modifier.weight(1f)
                         )
+                    }
+
+                    } else {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerLow,
+                            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "Live Ledger Balances",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = "Billed Statement Due",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = "${state.currencyCode} ${state.statementPayableInput}",
+                                            style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text(
+                                            text = "Active Unbilled Spend",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = "${state.currencyCode} ${state.unbilledAmountInput}",
+                                            style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = "Statement Due and Unbilled Spend are calculated dynamically from your transactions. To adjust balances, use Reconcile in the Passbook.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
 
                     // 4. COMPACT SUMMARY CARD

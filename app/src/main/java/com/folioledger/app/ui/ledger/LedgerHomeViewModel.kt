@@ -24,6 +24,7 @@ import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
+import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -70,33 +71,19 @@ object LedgerPeriodCalculator {
         monthStartDay: Int
     ): FinancialPeriodRange {
         val safeStartDay = monthStartDay.coerceIn(1, 31)
-        val refDate = LocalDate.ofEpochDay(referenceDateEpochDay)
-        val refYearMonth = YearMonth.from(refDate)
-
-        val startDate: LocalDate
-        val endDate: LocalDate
-
-        if (safeStartDay == 1) {
-            startDate = refYearMonth.atDay(1)
-            endDate = refYearMonth.atEndOfMonth()
-        } else {
-            val startInRefMonth = resolveClampedDate(refYearMonth, safeStartDay)
-            if (!refDate.isBefore(startInRefMonth)) {
-                startDate = startInRefMonth
-                val nextMonthStart = resolveClampedDate(refYearMonth.plusMonths(1), safeStartDay)
-                endDate = nextMonthStart.minusDays(1)
-            } else {
-                startDate = resolveClampedDate(refYearMonth.minusMonths(1), safeStartDay)
-                endDate = startInRefMonth.minusDays(1)
-            }
-        }
+        val (startEpoch, endEpoch) = AccountingRulesEngine.computeFinancialMonthRange(
+            referenceDateEpochDay = referenceDateEpochDay,
+            monthStartDay = safeStartDay
+        )
+        val startDate = LocalDate.ofEpochDay(startEpoch)
+        val endDate = LocalDate.ofEpochDay(endEpoch)
 
         val title = startDate.format(shortMonthYearFormatter)
         val subtitle = "${startDate.format(shortDayMonthFormatter)} – ${endDate.format(fullDayMonthYearFormatter)}"
 
         return FinancialPeriodRange(
-            startEpochDay = startDate.toEpochDay(),
-            endEpochDay = endDate.toEpochDay(),
+            startEpochDay = startEpoch,
+            endEpochDay = endEpoch,
             title = title,
             subtitle = subtitle,
             anchorYear = startDate.year,
@@ -304,6 +291,13 @@ class LedgerHomeViewModel(
 ) : ViewModel() {
 
     private val controlState = MutableStateFlow(LedgerControlState())
+
+    private val userPreferencesFlow = settingsAndBackupRepository.observeUserPreferences()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = UserPreferences()
+        )
 
     private val periodDrivenFlow: Flow<PeriodDrivenBundle> = combine(
         controlState,
@@ -632,7 +626,7 @@ class LedgerHomeViewModel(
     }
 
     fun navigateToPreviousPeriod() {
-        val monthStartDay = uiState.value.userPreferences.monthStartDay
+        val monthStartDay = userPreferencesFlow.value.monthStartDay
         controlState.update { current ->
             val deltaMonths = if (current.selectedSubTab == LedgerSubTab.MONTHLY) -12L else -1L
             val prevEpochDay = LedgerPeriodCalculator.stepFinancialMonth(
@@ -648,7 +642,7 @@ class LedgerHomeViewModel(
     }
 
     fun navigateToNextPeriod() {
-        val monthStartDay = uiState.value.userPreferences.monthStartDay
+        val monthStartDay = userPreferencesFlow.value.monthStartDay
         controlState.update { current ->
             val deltaMonths = if (current.selectedSubTab == LedgerSubTab.MONTHLY) 12L else 1L
             val nextEpochDay = LedgerPeriodCalculator.stepFinancialMonth(
@@ -689,9 +683,14 @@ class LedgerHomeViewModel(
     }
 
     fun toggleYearlyMonthExpanded(monthIndex: Int) {
+        val monthStartDay = userPreferencesFlow.value.monthStartDay
         controlState.update { current ->
+            val currentRange = LedgerPeriodCalculator.computeFinancialMonthRange(
+                referenceDateEpochDay = current.referenceDateEpochDay,
+                monthStartDay = monthStartDay
+            )
             val baseSet = current.expandedYearlyMonths.ifEmpty {
-                setOf(uiState.value.activePeriodRange.anchorMonthValue)
+                setOf(currentRange.anchorMonthValue)
             }
             val next = if (monthIndex in baseSet) {
                 baseSet - monthIndex
@@ -911,7 +910,7 @@ class LedgerHomeViewModel(
                     if (scopedAccountId != null) {
                         incomeMinor = Math.addExact(incomeMinor, tx.amount.amountMinor)
                     } else {
-                        expenseMinor = (expenseMinor - tx.amount.amountMinor).coerceAtLeast(0L)
+                        expenseMinor = Math.subtractExact(expenseMinor, tx.amount.amountMinor)
                     }
                 }
                 TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> {
@@ -933,6 +932,11 @@ class LedgerHomeViewModel(
                     // Capital events do not count toward operating income or expense totals
                 }
             }
+        }
+        if (scopedAccountId == null && expenseMinor < 0L) {
+            val excessRefund = Math.abs(expenseMinor)
+            incomeMinor = Math.addExact(incomeMinor, excessRefund)
+            expenseMinor = 0L
         }
         return MinorMoney(incomeMinor) to MinorMoney(expenseMinor)
     }
@@ -1084,19 +1088,33 @@ class LedgerHomeViewModel(
         transactions: List<TransactionItem>
     ): List<AccountPeriodFlowSummary> {
         if (transactions.isEmpty()) return emptyList()
-        return transactions
-            .groupBy { it.accountId to it.accountName }
-            .map { (key, txns) ->
-                val (inc, exp) = computeIncomeAndExpenseTotals(txns, key.first)
-                AccountPeriodFlowSummary(
-                    accountId = key.first,
-                    accountName = key.second,
-                    incomeTotal = inc,
-                    expenseTotal = exp,
-                    netChange = inc - exp,
-                    transactionCount = txns.size
-                )
+
+        val accountNamesById = mutableMapOf<Long, String>()
+        val txnsByAccountId = mutableMapOf<Long, MutableList<TransactionItem>>()
+
+        for (tx in transactions) {
+            accountNamesById.putIfAbsent(tx.accountId, tx.accountName)
+            txnsByAccountId.getOrPut(tx.accountId) { mutableListOf() }.add(tx)
+
+            val destId = tx.transferToAccountId
+            val destName = tx.transferToAccountName
+            if (destId != null && destName != null) {
+                accountNamesById.putIfAbsent(destId, destName)
+                txnsByAccountId.getOrPut(destId) { mutableListOf() }.add(tx)
             }
-            .sortedByDescending { it.transactionCount }
+        }
+
+        return txnsByAccountId.map { (accId, txns) ->
+            val accName = accountNamesById[accId] ?: "Account #$accId"
+            val (inc, exp) = computeIncomeAndExpenseTotals(txns, accId)
+            AccountPeriodFlowSummary(
+                accountId = accId,
+                accountName = accName,
+                incomeTotal = inc,
+                expenseTotal = exp,
+                netChange = inc - exp,
+                transactionCount = txns.size
+            )
+        }.sortedByDescending { it.transactionCount }
     }
 }

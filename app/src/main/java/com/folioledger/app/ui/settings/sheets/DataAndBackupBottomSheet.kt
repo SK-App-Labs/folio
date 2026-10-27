@@ -176,7 +176,7 @@ fun DataAndBackupBottomSheet(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Spreadsheet compatible file with all transactions",
+                            text = "Multi-section spreadsheet with accounts, categories, and ledger entries",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -213,7 +213,7 @@ fun DataAndBackupBottomSheet(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Spreadsheet transactions import with duplicate detection",
+                            text = "Supports standard CSVs or multi-section sheets with accounts, opening balances & categories",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

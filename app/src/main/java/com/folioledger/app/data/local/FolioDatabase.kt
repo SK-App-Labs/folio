@@ -103,15 +103,6 @@ abstract class FolioDatabase : RoomDatabase() {
                             }
                         }
                     }
-
-                    override fun onOpen(db: SupportSQLiteDatabase) {
-                        super.onOpen(db)
-                        databaseWriteScope.launch {
-                            INSTANCE?.let { folioDb ->
-                                DefaultCategorySeeder.seedIfEmpty(folioDb.categoryAndTagDao())
-                            }
-                        }
-                    }
                 })
 
             if (BuildConfig.DEBUG) {

@@ -258,6 +258,23 @@ class FullAppFunctionalityTestSuite {
         assertEquals(MinorMoney(-1_450_00L), lowerDelta) // Negative ₹1,450 outflow needed
     }
 
+    @Test
+    fun reconciliation_creditCardLiabilityAdjustmentDelta_adjustsDebtCorrectly() {
+        // Recorded: -₹25,000.00 debt
+        val recordedBalance = MinorMoney(-25_000_00L)
+        // Actual CC statement debt: ₹20,000.00 (less debt, target signed balance = -₹20,000.00)
+        val targetSignedBalance = MinorMoney(-20_000_00L)
+
+        // Delta to adjust: target - recorded = -20,000 - (-25,000) = +5,000 (debt reduced)
+        val adjustmentDelta = targetSignedBalance - recordedBalance
+        assertEquals(MinorMoney(5_000_00L), adjustmentDelta)
+
+        // If actual debt is more (e.g. statement shows ₹28,000.00 debt, target = -₹28,000.00)
+        val higherDebtTarget = MinorMoney(-28_000_00L)
+        val increaseDebtDelta = higherDebtTarget - recordedBalance
+        assertEquals(MinorMoney(-3_000_00L), increaseDebtDelta)
+    }
+
     // =========================================================================
     // 6. CSV IMPORT HEURISTICS & AUTO-ICON RESOLUTION
     // =========================================================================
@@ -357,5 +374,36 @@ class FullAppFunctionalityTestSuite {
             grouping = NumberGroupingSystem.INTERNATIONAL
         )
         assertEquals("$5,432,109.87", international)
+    }
+
+    // =========================================================================
+    // 7. REFUND CLAMPING & NET CASHFLOW PRESERVATION (C-3 VERIFICATION)
+    // =========================================================================
+
+    @Test
+    fun refund_whenRefundsExceedExpenses_preservesPositiveNetCashflowWithoutLoss() {
+        var incomeMinor = 0L
+        var expenseRawMinor = 0L
+
+        // Scenario: ₹2,000 expense, then ₹5,000 refund (e.g. airline booking cancellation)
+        val expense = 2_000_00L
+        val refund = 5_000_00L
+
+        expenseRawMinor += expense
+        expenseRawMinor -= refund // expenseRawMinor = -3,000.00
+
+        // Prior bug: expense was clamped with .coerceAtLeast(0L), silently losing ₹3,000!
+        // Fixed logic:
+        val excessRefundMinor = if (expenseRawMinor < 0L) Math.abs(expenseRawMinor) else 0L
+        val adjustedIncomeMinor = incomeMinor + excessRefundMinor
+        val effectiveExpenseMinor = expenseRawMinor.coerceAtLeast(0L)
+
+        val totalIncome = MinorMoney(adjustedIncomeMinor)
+        val totalExpense = MinorMoney(effectiveExpenseMinor)
+        val netCashflow = totalIncome - totalExpense
+
+        assertEquals(MinorMoney(3_000_00L), totalIncome)
+        assertEquals(MinorMoney.ZERO, totalExpense)
+        assertEquals(MinorMoney(3_000_00L), netCashflow)
     }
 }

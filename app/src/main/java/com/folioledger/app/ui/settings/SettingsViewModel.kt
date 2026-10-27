@@ -245,13 +245,13 @@ class SettingsViewModel(
 
     fun setCategoryManagerOpen(
         open: Boolean,
-        initialType: CategoryType = uiState.value.selectedCategoryManagerType
+        initialType: CategoryType? = null
     ) {
-        controlState.update {
-            it.copy(
+        controlState.update { current ->
+            current.copy(
                 isCategoryManagerOpen = open,
-                selectedCategoryManagerType = initialType,
-                categoryEditorState = if (!open) null else it.categoryEditorState
+                selectedCategoryManagerType = initialType ?: current.selectedCategoryManagerType,
+                categoryEditorState = if (!open) null else current.categoryEditorState
             )
         }
     }
@@ -261,17 +261,18 @@ class SettingsViewModel(
     }
 
     fun openCreateMainCategoryDialog(
-        type: CategoryType = uiState.value.selectedCategoryManagerType
+        type: CategoryType? = null
     ) {
-        val defaultColor = if (type == CategoryType.EXPENSE) "#E11D48" else "#059669"
-        val defaultIcon = if (type == CategoryType.EXPENSE) "shopping_cart" else "payments"
-        controlState.update {
-            it.copy(
+        controlState.update { current ->
+            val resolvedType = type ?: current.selectedCategoryManagerType
+            val defaultColor = if (resolvedType == CategoryType.EXPENSE) "#E11D48" else "#059669"
+            val defaultIcon = if (resolvedType == CategoryType.EXPENSE) "shopping_cart" else "payments"
+            current.copy(
                 categoryEditorState = CategoryEditorDialogState(
                     isEditing = false,
                     categoryId = 0L,
                     name = "",
-                    type = type,
+                    type = resolvedType,
                     parentId = null,
                     parentCategoryName = null,
                     iconName = defaultIcon,

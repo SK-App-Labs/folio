@@ -73,7 +73,8 @@ interface AccountDao {
     ): Long {
         val newAccountId = insertAccount(account)
         if (initialTransaction != null && initialTransaction.amountMinor > 0L) {
-            insertInitialTransactionRaw(initialTransaction.copy(accountId = newAccountId))
+            val validTransferTarget = if (initialTransaction.transferToAccountId != null) newAccountId else null
+            insertInitialTransactionRaw(initialTransaction.copy(accountId = newAccountId, transferToAccountId = validTransferTarget))
         }
         return newAccountId
     }
@@ -271,6 +272,12 @@ interface TransactionDao {
 
     @Query("SELECT * FROM transactions WHERE id = :transactionId LIMIT 1")
     suspend fun getTransactionEntityByIdOnce(transactionId: Long): TransactionEntity?
+
+    @Query("SELECT COUNT(*) FROM transactions WHERE accountId = :accountId OR transferToAccountId = :accountId")
+    suspend fun getTransactionCountForAccount(accountId: Long): Int
+
+    @Query("DELETE FROM transactions WHERE accountId = :accountId OR transferToAccountId = :accountId")
+    suspend fun deleteTransactionsForAccount(accountId: Long): Int
 
     @Transaction
     @Query(

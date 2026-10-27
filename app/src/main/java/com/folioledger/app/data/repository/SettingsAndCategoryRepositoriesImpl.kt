@@ -147,8 +147,15 @@ class SettingsAndBackupRepositoryImpl(
         sourceUriString: String
     ): Result<ImportCsvPreview> = withContext(Dispatchers.IO) {
         runCatching {
-            openInputStreamForLocation(sourceUriString).use { rawStream ->
-                previewCsvStream(rawStream, sourceUriString)
+            // Cache incoming file locally to prevent Android Scoped Storage URI permission expiration
+            val cachedFile = File(context.cacheDir, "pending_import_${System.currentTimeMillis()}.csv")
+            openInputStreamForLocation(sourceUriString).use { input ->
+                cachedFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            cachedFile.inputStream().use { cachedStream ->
+                previewCsvStream(cachedStream, cachedFile.absolutePath)
             }
         }
     }
@@ -161,6 +168,11 @@ class SettingsAndBackupRepositoryImpl(
             openInputStreamForLocation(sourceUriString).use { rawStream ->
                 importCsvStream(rawStream, skipDuplicates)
             }
+        }.also {
+            // Clean up cached pending import file if source was in cacheDir
+            if (sourceUriString.contains("pending_import_")) {
+                runCatching { File(sourceUriString).delete() }
+            }
         }
     }
 
@@ -169,15 +181,16 @@ class SettingsAndBackupRepositoryImpl(
         startEpochDay: Long? = null,
         endEpochDay: Long? = null
     ): Int = withContext(Dispatchers.IO) {
-        val accountsById = database.accountDao()
-            .getAllAccountsOnce()
-            .associateBy { it.id }
+        val allAccounts = database.accountDao().getAllAccountsOnce()
+        val accountsById = allAccounts.associateBy { it.id }
 
-        val categoriesById = database.categoryAndTagDao()
-            .getAllCategoriesOnce()
-            .associateBy { it.id }
+        val allCategories = database.categoryAndTagDao().getAllCategoriesOnce()
+        val categoriesById = allCategories.associateBy { it.id }
 
         val allTransactions = database.transactionDao().getAllTransactionsWithDetailsOnce()
+        val openingDatesByAccountId = allTransactions
+            .filter { it.transaction.type == TransactionType.OPENING_BALANCE }
+            .associate { it.transaction.accountId to it.transaction.ledgerDateEpochDay }
         val filteredTransactions = allTransactions.filter { txWithDetails ->
             val day = txWithDetails.transaction.ledgerDateEpochDay
             val afterStart = startEpochDay == null || day >= startEpochDay
@@ -188,9 +201,66 @@ class SettingsAndBackupRepositoryImpl(
         // Write UTF-8 BOM so Microsoft Excel opens the CSV seamlessly with UTF-8 characters
         outputStream.write(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()))
         val writer = BufferedWriter(OutputStreamWriter(outputStream, StandardCharsets.UTF_8))
+
+        // 1. ACCOUNTS & STARTING BALANCES SECTION
+        writer.write("[ACCOUNTS]")
+        writer.newLine()
+        writer.write("Name,Group,Currency,StartingBalance,AnchorDate,CreditLimit,SettlementDay")
+        writer.newLine()
+        writer.write("# Hint: (Account Name),(BANK_ACCOUNT|CREDIT_CARD|CASH|SAVINGS|PREPAID_WALLET|LOAN),(Currency ISO),(Starting Balance e.g. 50000.00),(Anchor Date YYYY-MM-DD),(Credit Limit),(Settlement Day 1-31)")
+        writer.newLine()
+        for (acc in allAccounts) {
+            val spec = SupportedCurrencies.fromCode(acc.currencyCode)
+            val balanceStr = formatDecimalAmountPlain(acc.openingBalanceMinor, spec.fractionDigits)
+            val anchorEpochDay = openingDatesByAccountId[acc.id] ?: (acc.createdAtEpochMillis / 86400000L)
+            val anchorDateStr = LocalDate.ofEpochDay(anchorEpochDay).toString()
+            val limitStr = acc.creditLimitMinor?.let { formatDecimalAmountPlain(it, spec.fractionDigits) } ?: ""
+            val billDayStr = acc.settlementDayOfMonth?.toString() ?: ""
+            val row = listOf(
+                escapeCsvField(acc.name),
+                acc.groupType.name,
+                acc.currencyCode,
+                balanceStr,
+                anchorDateStr,
+                limitStr,
+                billDayStr
+            )
+            writer.write(row.joinToString(","))
+            writer.newLine()
+        }
+        writer.newLine()
+
+        // 2. CATEGORIES & SUBCATEGORIES SECTION
+        writer.write("[CATEGORIES]")
+        writer.newLine()
+        writer.write("MainCategory,Subcategory,Type,Icon,Color")
+        writer.newLine()
+        writer.write("# Hint: (Main Category Name),(Optional Subcategory),(EXPENSE|INCOME),(Icon Name e.g. restaurant),(Hex Color e.g. #FF5722)")
+        writer.newLine()
+        for (cat in allCategories) {
+            val parent = cat.parentId?.let { categoriesById[it] }
+            val mainName = parent?.name ?: cat.name
+            val subName = if (parent != null) cat.name else ""
+            val row = listOf(
+                escapeCsvField(mainName),
+                escapeCsvField(subName),
+                cat.type.name,
+                escapeCsvField(cat.iconName),
+                escapeCsvField(cat.colorHex)
+            )
+            writer.write(row.joinToString(","))
+            writer.newLine()
+        }
+        writer.newLine()
+
+        // 3. TRANSACTIONS SECTION
+        writer.write("[TRANSACTIONS]")
+        writer.newLine()
         writer.write(
             "ID,Date,Type,Amount,Currency,Account,TransferToAccount,Category,Subcategory,TransferFee,PayeeOrDescription,Note,Tags"
         )
+        writer.newLine()
+        writer.write("# Hint: (Optional ID),(YYYY-MM-DD),(EXPENSE|INCOME|TRANSFER|CC_SETTLEMENT|REFUND),(Amount e.g. 250.50),(Currency),(Source Account),(Destination Account if Transfer),(Leave blank if Transfer),(Subcategory),(Transfer Fee),(Payee/Description),(Note),(Tags semicolon separated)")
         writer.newLine()
 
         for (item in filteredTransactions) {
@@ -199,7 +269,8 @@ class SettingsAndBackupRepositoryImpl(
             val accountName = accountsById[tx.accountId]?.name ?: ""
             val transferAccountName = tx.transferToAccountId?.let { accountsById[it]?.name } ?: ""
 
-            val categoryEntity = tx.categoryId?.let { categoriesById[it] }
+            val isTransfer = tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT
+            val categoryEntity = if (isTransfer) null else tx.categoryId?.let { categoriesById[it] }
             val parentCategoryEntity = categoryEntity?.parentId?.let { categoriesById[it] }
             val mainCategoryName = when {
                 tx.isSplit -> "Split Transaction"
@@ -760,6 +831,10 @@ class SettingsAndBackupRepositoryImpl(
     }
 
     private fun openInputStreamForLocation(sourceUriString: String): InputStream {
+        val localFile = File(sourceUriString)
+        if (localFile.exists()) {
+            return FileInputStream(localFile)
+        }
         if (sourceUriString.startsWith("content://") || sourceUriString.startsWith("file://")) {
             val uri = Uri.parse(sourceUriString)
             return context.contentResolver.openInputStream(uri)
@@ -1025,27 +1100,25 @@ class SettingsAndBackupRepositoryImpl(
         }
     }
 
+
+
+
+
     private suspend fun previewCsvStream(
         inputStream: java.io.InputStream,
         sourceUriString: String
     ): ImportCsvPreview {
         val reader = java.io.BufferedReader(java.io.InputStreamReader(inputStream, java.nio.charset.StandardCharsets.UTF_8))
-        var rawHeader = reader.readLine() ?: throw IllegalArgumentException("The selected CSV file is empty.")
-        if (rawHeader.startsWith("﻿")) {
-            rawHeader = rawHeader.substring(1)
+        var firstLine: String? = null
+        while (true) {
+            val raw = reader.readLine() ?: break
+            val clean = raw.trim().removePrefix("\uFEFF").removePrefix("ï»¿")
+            if (clean.isNotEmpty() && !clean.startsWith("#") && !clean.startsWith("//")) {
+                firstLine = clean
+                break
+            }
         }
-
-        val headerTokens = parseCsvLine(rawHeader)
-        val colMap = headerTokens.mapIndexed { idx, name ->
-            name.trim().lowercase().replace("_", "").replace(" ", "") to idx
-        }.toMap()
-
-        val dateIdx = colMap["date"]
-            ?: throw IllegalArgumentException("Missing required 'Date' column in CSV header.")
-        val amountIdx = colMap["amount"] ?: colMap["amountformatted"] ?: colMap["amountminor"]
-            ?: throw IllegalArgumentException("Missing required 'Amount' column in CSV header.")
-        val accountIdx = colMap["account"] ?: colMap["accountname"]
-            ?: throw IllegalArgumentException("Missing required 'Account' column in CSV header.")
+        if (firstLine == null) throw IllegalArgumentException("The selected CSV file is empty.")
 
         val existingAccounts = database.accountDao().getAllAccountsOnce()
         val existingAccountNames = existingAccounts.map { it.name.trim().lowercase() }.toSet()
@@ -1058,11 +1131,25 @@ class SettingsAndBackupRepositoryImpl(
             "${tx.ledgerDateEpochDay}|${tx.accountId}|${tx.type.name}|${tx.amountMinor}|${tx.payeeOrDescription.trim().lowercase()}"
         }.toMutableSet()
 
+        var currentSection = CsvSectionState.LEGACY
+        var colMap: Map<String, Int> = emptyMap()
+
+        val detectedFirst = detectSectionHeader(firstLine)
+        if (detectedFirst != null) {
+            currentSection = detectedFirst
+        } else {
+            val headerTokens = parseCsvLine(firstLine)
+            colMap = headerTokens.mapIndexed { idx, name ->
+                name.trim().lowercase().replace("_", "").replace(" ", "") to idx
+            }.toMap()
+        }
+
         var totalRows = 0
         var validCount = 0
         var duplicateCount = 0
         val newAccounts = mutableSetOf<String>()
         val newCategories = mutableSetOf<String>()
+        val accountsWithOpeningBalance = mutableListOf<String>()
         val warnings = mutableListOf<String>()
 
         var line = reader.readLine()
@@ -1070,69 +1157,141 @@ class SettingsAndBackupRepositoryImpl(
         while (line != null) {
             lineNum++
             val trimmed = line.trim()
-            if (trimmed.isNotEmpty()) {
+            if (trimmed.isNotEmpty() && !trimmed.all { it == ',' || it.isWhitespace() }) {
+                val sec = detectSectionHeader(trimmed)
+                if (sec != null) {
+                    currentSection = sec
+                    colMap = emptyMap()
+                    line = reader.readLine()
+                    continue
+                }
+
+                if (trimmed.startsWith("#") || trimmed.startsWith("//")) {
+                    line = reader.readLine()
+                    continue
+                }
+
+                if (colMap.isEmpty()) {
+                    val tokens = parseCsvLine(trimmed)
+                    colMap = tokens.mapIndexed { idx, name ->
+                        name.trim().lowercase().replace("_", "").replace(" ", "") to idx
+                    }.toMap()
+                    line = reader.readLine()
+                    continue
+                }
+
                 totalRows++
-                val tokens = parseCsvLine(line)
-                val rawDate = tokens.getOrNull(dateIdx) ?: ""
-                val epochDay = parseDateStringToEpochDay(rawDate)
-                val rawAmount = tokens.getOrNull(amountIdx) ?: ""
-                val amountMinor = parseAmountDecimalToMinor(rawAmount, 2)
-                val accountName = tokens.getOrNull(accountIdx)?.trim() ?: ""
+                val tokens = parseCsvLine(trimmed)
 
-                if (epochDay == null) {
-                    if (warnings.size < 5) warnings.add("Row $lineNum: Unrecognized date format '$rawDate'")
-                } else if (amountMinor == null) {
-                    if (warnings.size < 5) warnings.add("Row $lineNum: Invalid amount '$rawAmount'")
-                } else if (accountName.isEmpty()) {
-                    if (warnings.size < 5) warnings.add("Row $lineNum: Missing account name")
-                } else {
-                    if (!existingAccountNames.contains(accountName.lowercase())) {
-                        newAccounts.add(accountName)
+                when (currentSection) {
+                    CsvSectionState.ACCOUNTS -> {
+                        val nameIdx = colMap["name"] ?: colMap["account"] ?: colMap["accountname"] ?: 0
+                        val name = tokens.getOrNull(nameIdx)?.trim() ?: ""
+                        if (name.isNotEmpty()) {
+                            if (!existingAccountNames.contains(name.lowercase())) {
+                                newAccounts.add(name)
+                            }
+                            val balIdx = colMap["startingbalance"] ?: colMap["openingbalance"] ?: colMap["balance"]
+                            val dateIdx = colMap["anchordate"] ?: colMap["openingdate"] ?: colMap["date"]
+                            val rawBal = balIdx?.let { tokens.getOrNull(it)?.trim() }
+                            val rawDate = dateIdx?.let { tokens.getOrNull(it)?.trim() }
+                            if (!rawBal.isNullOrEmpty() && rawBal != "0" && rawBal != "0.00") {
+                                val anchorStr = if (!rawDate.isNullOrEmpty()) " as of $rawDate" else ""
+                                accountsWithOpeningBalance.add("$name: Starting $rawBal$anchorStr")
+                            }
+                        }
                     }
-
-                    val transferAccountIdx = colMap["transfertoaccount"] ?: colMap["transferto"]
-                    val transferAccountName = transferAccountIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
-                    if (transferAccountName != null && !existingAccountNames.contains(transferAccountName.lowercase())) {
-                        newAccounts.add(transferAccountName)
+                    CsvSectionState.CATEGORIES -> {
+                        val mainIdx = colMap["maincategory"] ?: colMap["category"] ?: colMap["name"] ?: 0
+                        val subIdx = colMap["subcategory"] ?: colMap["subname"] ?: colMap["sub"]
+                        val mainName = tokens.getOrNull(mainIdx)?.trim() ?: ""
+                        val subName = subIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
+                        if (mainName.isNotEmpty()) {
+                            if (!existingCategoryNames.contains(mainName.lowercase())) {
+                                newCategories.add(mainName)
+                            }
+                            if (subName != null) {
+                                newCategories.add("$mainName â€º $subName")
+                            }
+                        }
                     }
+                    CsvSectionState.TRANSACTIONS,
+                    CsvSectionState.LEGACY -> {
+                        val dateIdx = colMap["date"] ?: colMap["txdate"] ?: colMap["transactiondate"] ?: colMap["txndate"] ?: colMap["postingdate"] ?: colMap["valuedate"]
+                        val amountIdx = colMap["amount"] ?: colMap["amountformatted"] ?: colMap["amountminor"] ?: colMap["txnamount"] ?: colMap["transactionamount"] ?: colMap["total"] ?: colMap["netamount"] ?: colMap["value"]
+                        val accountIdx = colMap["account"] ?: colMap["accountname"] ?: colMap["fromaccount"] ?: colMap["sourceaccount"] ?: colMap["bank"] ?: colMap["wallet"]
 
-                    val catIdx = colMap["category"]
-                    val categoryName = catIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
-                    if (categoryName != null && !existingCategoryNames.contains(categoryName.lowercase())) {
-                        newCategories.add(categoryName)
-                    }
+                        if (dateIdx == null || amountIdx == null || accountIdx == null) {
+                            val missingCols = mutableListOf<String>()
+                            if (dateIdx == null) missingCols.add("Date")
+                            if (amountIdx == null) missingCols.add("Amount")
+                            if (accountIdx == null) missingCols.add("Account")
+                            if (warnings.size < 5) warnings.add("Row $lineNum: Missing column(s) in header: ${missingCols.joinToString(", ")}.")
+                        } else {
+                            val rawDate = tokens.getOrNull(dateIdx) ?: ""
+                            val epochDay = parseDateStringToEpochDay(rawDate)
+                            val rawAmount = tokens.getOrNull(amountIdx) ?: ""
+                            val amountMinor = parseAmountDecimalToMinor(rawAmount, 2)
+                            val accountName = tokens.getOrNull(accountIdx)?.trim() ?: ""
 
-                    val typeIdx = colMap["type"]
-                    val rawType = typeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
-                    val type = when {
-                        rawType.equals("TRANSFER", ignoreCase = true) -> TransactionType.TRANSFER
-                        rawType.equals("CC_SETTLEMENT", ignoreCase = true) || rawType.contains("SETTLEMENT", ignoreCase = true) -> TransactionType.CC_SETTLEMENT
-                        rawType.equals("EXPENSE", ignoreCase = true) -> TransactionType.EXPENSE
-                        rawType.equals("INCOME", ignoreCase = true) -> TransactionType.INCOME
-                        rawType.equals("REFUND", ignoreCase = true) -> TransactionType.REFUND
-                        rawType.equals("OPENING_BALANCE", ignoreCase = true) -> TransactionType.OPENING_BALANCE
-                        rawType.equals("RECONCILIATION", ignoreCase = true) -> TransactionType.RECONCILIATION
-                        transferAccountName != null -> TransactionType.TRANSFER
-                        amountMinor < 0L -> TransactionType.EXPENSE
-                        else -> TransactionType.INCOME
-                    }
+                            if (epochDay == null) {
+                                if (warnings.size < 5) warnings.add("Row $lineNum: Unrecognized date format '$rawDate'")
+                            } else if (amountMinor == null) {
+                                if (warnings.size < 5) warnings.add("Row $lineNum: Invalid amount '$rawAmount'")
+                            } else if (accountName.isEmpty()) {
+                                if (warnings.size < 5) warnings.add("Row $lineNum: Missing account name")
+                            } else {
+                                if (!existingAccountNames.contains(accountName.lowercase())) {
+                                    newAccounts.add(accountName)
+                                }
 
-                    val payeeIdx = colMap["payeeordescription"] ?: colMap["payee"] ?: colMap["description"]
-                    val payee = payeeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                                val transferAccountIdx = colMap["transfertoaccount"] ?: colMap["transferto"]
+                                val transferAccountName = transferAccountIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
+                                if (transferAccountName != null && !existingAccountNames.contains(transferAccountName.lowercase())) {
+                                    newAccounts.add(transferAccountName)
+                                }
 
-                    val existingAcc = accountMap[accountName.lowercase()]
-                    val fingerprint = if (existingAcc != null) {
-                        "${epochDay}|${existingAcc.id}|${type.name}|${Math.abs(amountMinor)}|${payee.lowercase()}"
-                    } else {
-                        null
-                    }
+                                val typeIdx = colMap["type"]
+                                val rawType = typeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                                val type = when {
+                                    rawType.equals("TRANSFER", ignoreCase = true) -> TransactionType.TRANSFER
+                                    rawType.equals("CC_SETTLEMENT", ignoreCase = true) || rawType.contains("SETTLEMENT", ignoreCase = true) -> TransactionType.CC_SETTLEMENT
+                                    rawType.equals("EXPENSE", ignoreCase = true) -> TransactionType.EXPENSE
+                                    rawType.equals("INCOME", ignoreCase = true) -> TransactionType.INCOME
+                                    rawType.equals("REFUND", ignoreCase = true) -> TransactionType.REFUND
+                                    rawType.equals("OPENING_BALANCE", ignoreCase = true) -> TransactionType.OPENING_BALANCE
+                                    rawType.equals("RECONCILIATION", ignoreCase = true) -> TransactionType.RECONCILIATION
+                                    transferAccountName != null -> TransactionType.TRANSFER
+                                    amountMinor < 0L -> TransactionType.EXPENSE
+                                    else -> TransactionType.INCOME
+                                }
 
-                    if (fingerprint != null && existingFingerprints.contains(fingerprint)) {
-                        duplicateCount++
-                    } else {
-                        validCount++
-                        if (fingerprint != null) {
-                            existingFingerprints.add(fingerprint)
+                                val isTransfer = type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT
+                                val catIdx = colMap["category"]
+                                val categoryName = if (isTransfer) null else catIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
+                                if (categoryName != null && !existingCategoryNames.contains(categoryName.lowercase())) {
+                                    newCategories.add(categoryName)
+                                }
+
+                                val payeeIdx = colMap["payeeordescription"] ?: colMap["payee"] ?: colMap["description"]
+                                val payee = payeeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+
+                                val existingAcc = accountMap[accountName.lowercase()]
+                                val fingerprint = if (existingAcc != null) {
+                                    "${epochDay}|${existingAcc.id}|${type.name}|${Math.abs(amountMinor)}|${payee.lowercase()}"
+                                } else {
+                                    null
+                                }
+
+                                if (fingerprint != null && existingFingerprints.contains(fingerprint)) {
+                                    duplicateCount++
+                                } else {
+                                    validCount++
+                                    if (fingerprint != null) {
+                                        existingFingerprints.add(fingerprint)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -1147,7 +1306,8 @@ class SettingsAndBackupRepositoryImpl(
             duplicateCount = duplicateCount,
             newAccountsToCreate = newAccounts.toList(),
             newCategoriesToCreate = newCategories.toList(),
-            warningMessages = warnings
+            warningMessages = warnings,
+            accountsWithOpeningBalance = accountsWithOpeningBalance
         )
     }
 
@@ -1156,31 +1316,16 @@ class SettingsAndBackupRepositoryImpl(
         skipDuplicates: Boolean
     ): ImportCsvResult = database.withTransaction {
         val reader = java.io.BufferedReader(java.io.InputStreamReader(inputStream, java.nio.charset.StandardCharsets.UTF_8))
-        var rawHeader = reader.readLine() ?: throw IllegalArgumentException("The selected CSV file is empty.")
-        if (rawHeader.startsWith("﻿")) {
-            rawHeader = rawHeader.substring(1)
+        var firstLine: String? = null
+        while (true) {
+            val raw = reader.readLine() ?: break
+            val clean = raw.trim().removePrefix("\uFEFF").removePrefix("ï»¿")
+            if (clean.isNotEmpty() && !clean.startsWith("#") && !clean.startsWith("//")) {
+                firstLine = clean
+                break
+            }
         }
-
-        val headerTokens = parseCsvLine(rawHeader)
-        val colMap = headerTokens.mapIndexed { idx, name ->
-            name.trim().lowercase().replace("_", "").replace(" ", "") to idx
-        }.toMap()
-
-        val idIdx = colMap["id"]
-        val dateIdx = colMap["date"] ?: throw IllegalArgumentException("Missing 'Date' column")
-        val amountIdx = colMap["amount"] ?: colMap["amountformatted"] ?: colMap["amountminor"]
-            ?: throw IllegalArgumentException("Missing 'Amount' column")
-        val currencyIdx = colMap["currency"]
-        val accountIdx = colMap["account"] ?: colMap["accountname"]
-            ?: throw IllegalArgumentException("Missing 'Account' column")
-        val transferAccountIdx = colMap["transfertoaccount"] ?: colMap["transferto"]
-        val categoryIdx = colMap["category"]
-        val subcategoryIdx = colMap["subcategory"]
-        val transferFeeIdx = colMap["transferfee"] ?: colMap["transferfeeminor"]
-        val payeeIdx = colMap["payeeordescription"] ?: colMap["payee"] ?: colMap["description"]
-        val noteIdx = colMap["note"]
-        val tagsIdx = colMap["tags"]
-        val typeIdx = colMap["type"]
+        if (firstLine == null) throw IllegalArgumentException("The selected CSV file is empty.")
 
         val accountDao = database.accountDao()
         val catTagDao = database.categoryAndTagDao()
@@ -1199,64 +1344,71 @@ class SettingsAndBackupRepositoryImpl(
             .associateBy { it.name.trim().lowercase() }
             .toMutableMap()
 
-        val existingTxById = txDao.getAllTransactionsRawOnce()
-            .associateBy { it.id }
+        val rawTxs = txDao.getAllTransactionsRawOnce()
+        val existingTxById = rawTxs.associateBy { it.id }
 
-        val existingFingerprints = txDao.getAllTransactionsRawOnce().map { tx ->
+        val existingFingerprints = rawTxs.map { tx ->
             "${tx.ledgerDateEpochDay}|${tx.accountId}|${tx.type.name}|${tx.amountMinor}|${tx.payeeOrDescription.trim().lowercase()}"
         }.toMutableSet()
 
-        var totalRows = 0
-        var importedCount = 0
-        var updatedCount = 0
-        var skippedCount = 0
-        val newAccountsCreated = mutableListOf<String>()
-        val newCategoriesCreated = mutableListOf<String>()
-        val errorMessages = mutableListOf<String>()
+        val existingAnchorKeys = rawTxs
+            .filter { it.type == TransactionType.OPENING_BALANCE }
+            .map { "${it.accountId}|${it.ledgerDateEpochDay}" }
+            .toMutableSet()
 
-        suspend fun getOrCreateAccount(name: String, currency: String): AccountEntity {
+        suspend fun getOrCreateAccount(
+            name: String,
+            currency: String,
+            groupOverride: AccountGroup? = null,
+            limitMinor: Long? = null,
+            billDay: Int? = null,
+            anchorDateEpochDay: Long? = null
+        ): AccountEntity {
             val key = name.trim().lowercase()
             accountNameToEntity[key]?.let { return it }
 
-            val lower = key
-            val group = when {
-                lower.contains("card") || lower.contains("cc") -> AccountGroup.CREDIT_CARD
-                lower.contains("cash") || lower.contains("wallet") -> AccountGroup.CASH
-                lower.contains("bank") || lower.contains("savings") || lower.contains("a/c") || lower.contains("checking") -> AccountGroup.BANK_ACCOUNT
-                lower.contains("loan") -> AccountGroup.LOAN
-                else -> AccountGroup.OTHER
-            }
+            val group = groupOverride ?: parseAccountGroupFromTokens(null, name)
             val defaultColor = when (group) {
                 AccountGroup.CREDIT_CARD -> "#E11D48"
                 AccountGroup.CASH -> "#D97706"
                 AccountGroup.BANK_ACCOUNT -> "#059669"
+                AccountGroup.LOAN -> "#BE123C"
                 else -> "#475569"
             }
             val defaultIcon = when (group) {
                 AccountGroup.CREDIT_CARD -> "credit_card"
                 AccountGroup.CASH -> "account_balance_wallet"
                 AccountGroup.BANK_ACCOUNT -> "account_balance"
+                AccountGroup.LOAN -> "trending_down"
                 else -> "payments"
             }
 
+            val anchorMillis = anchorDateEpochDay?.let { it * 86400000L + 12 * 3600 * 1000L } ?: System.currentTimeMillis()
             val newEntity = AccountEntity(
                 id = 0L,
                 name = name.trim(),
                 groupType = group,
                 currencyCode = currency.ifBlank { "INR" },
                 openingBalanceMinor = 0L,
+                creditLimitMinor = limitMinor,
+                settlementDayOfMonth = billDay,
                 colorHex = defaultColor,
                 iconName = defaultIcon,
-                createdAtEpochMillis = System.currentTimeMillis()
+                createdAtEpochMillis = anchorMillis
             )
             val newId = accountDao.insertNewAccountRaw(newEntity)
             val created = newEntity.copy(id = newId)
             accountNameToEntity[key] = created
-            newAccountsCreated.add(name.trim())
             return created
         }
 
-        suspend fun getOrCreateCategory(name: String?, subName: String?, type: CategoryType): CategoryEntity? {
+        suspend fun getOrCreateCategory(
+            name: String?,
+            subName: String?,
+            type: CategoryType,
+            iconOverride: String? = null,
+            colorOverride: String? = null
+        ): CategoryEntity? {
             val mainTrimmed = name?.trim()?.ifEmpty { null } ?: return null
             val subTrimmed = subName?.trim()?.ifEmpty { null }
 
@@ -1269,14 +1421,13 @@ class SettingsAndBackupRepositoryImpl(
                     name = mainTrimmed,
                     type = type,
                     parentId = null,
-                    iconName = suggestion?.first ?: if (type == CategoryType.EXPENSE) "shopping_bag" else "payments",
-                    colorHex = suggestion?.second ?: if (type == CategoryType.EXPENSE) "#E11D48" else "#059669"
+                    iconName = iconOverride ?: suggestion?.first ?: if (type == CategoryType.EXPENSE) "shopping_bag" else "payments",
+                    colorHex = colorOverride ?: suggestion?.second ?: if (type == CategoryType.EXPENSE) "#E11D48" else "#059669"
                 )
                 val newId = catTagDao.insertNewCategoryRaw(newMain)
                 parent = newMain.copy(id = newId)
                 categoryNameToEntity[mainKey] = parent
                 allCategories.add(parent)
-                newCategoriesCreated.add(mainTrimmed)
             }
 
             if (subTrimmed == null) return parent
@@ -1292,13 +1443,12 @@ class SettingsAndBackupRepositoryImpl(
                 name = subTrimmed,
                 type = type,
                 parentId = parent.id,
-                iconName = subSuggestion?.first ?: parent.iconName,
-                colorHex = subSuggestion?.second ?: parent.colorHex
+                iconName = iconOverride ?: subSuggestion?.first ?: parent.iconName,
+                colorHex = colorOverride ?: subSuggestion?.second ?: parent.colorHex
             )
             val subId = catTagDao.insertNewCategoryRaw(newSub)
             val createdSub = newSub.copy(id = subId)
             allCategories.add(createdSub)
-            newCategoriesCreated.add("$mainTrimmed › $subTrimmed")
             return createdSub
         }
 
@@ -1318,125 +1468,322 @@ class SettingsAndBackupRepositoryImpl(
             return created
         }
 
+        var currentSection = CsvSectionState.LEGACY
+        var colMap: Map<String, Int> = emptyMap()
+
+        val detectedFirst = detectSectionHeader(firstLine)
+        if (detectedFirst != null) {
+            currentSection = detectedFirst
+        } else {
+            val headerTokens = parseCsvLine(firstLine)
+            colMap = headerTokens.mapIndexed { idx, name ->
+                name.trim().lowercase().replace("_", "").replace(" ", "") to idx
+            }.toMap()
+        }
+
+        var totalRows = 0
+        var importedCount = 0
+        var updatedCount = 0
+        var skippedCount = 0
+        var accountsConfiguredCount = 0
+        val newAccountsCreated = mutableListOf<String>()
+        val newCategoriesCreated = mutableListOf<String>()
+        val errorMessages = mutableListOf<String>()
+
         var line = reader.readLine()
         var lineNum = 1
         while (line != null) {
             lineNum++
             val trimmed = line.trim()
-            if (trimmed.isNotEmpty()) {
-                totalRows++
-                val tokens = parseCsvLine(line)
-
-                val rawId = idIdx?.let { tokens.getOrNull(it)?.trim() }?.toLongOrNull()
-                val rawDate = tokens.getOrNull(dateIdx) ?: ""
-                val epochDay = parseDateStringToEpochDay(rawDate)
-                val currency = currencyIdx?.let { tokens.getOrNull(it)?.trim() }?.ifBlank { "INR" } ?: "INR"
-                val spec = SupportedCurrencies.fromCode(currency)
-                val rawAmount = tokens.getOrNull(amountIdx) ?: ""
-                val amountMinor = parseAmountDecimalToMinor(rawAmount, spec.fractionDigits)
-                val accountName = tokens.getOrNull(accountIdx)?.trim() ?: ""
-
-                if (epochDay == null || amountMinor == null || accountName.isEmpty()) {
-                    if (errorMessages.size < 10) {
-                        errorMessages.add("Row $lineNum: Skipped due to invalid date, amount, or missing account.")
-                    }
-                    skippedCount++
+            if (trimmed.isNotEmpty() && !trimmed.all { it == ',' || it.isWhitespace() }) {
+                val sec = detectSectionHeader(trimmed)
+                if (sec != null) {
+                    currentSection = sec
+                    colMap = emptyMap()
                     line = reader.readLine()
                     continue
                 }
 
-                val sourceAccount = getOrCreateAccount(accountName, currency)
-                val transferAccountName = transferAccountIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
-                val rawType = typeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
-                val type = when {
-                    rawType.equals("TRANSFER", ignoreCase = true) -> TransactionType.TRANSFER
-                    rawType.equals("CC_SETTLEMENT", ignoreCase = true) || rawType.contains("SETTLEMENT", ignoreCase = true) -> TransactionType.CC_SETTLEMENT
-                    rawType.equals("EXPENSE", ignoreCase = true) -> TransactionType.EXPENSE
-                    rawType.equals("INCOME", ignoreCase = true) -> TransactionType.INCOME
-                    rawType.equals("REFUND", ignoreCase = true) -> TransactionType.REFUND
-                    rawType.equals("OPENING_BALANCE", ignoreCase = true) -> TransactionType.OPENING_BALANCE
-                    rawType.equals("RECONCILIATION", ignoreCase = true) -> TransactionType.RECONCILIATION
-                    transferAccountName != null -> TransactionType.TRANSFER
-                    amountMinor < 0L -> TransactionType.EXPENSE
-                    else -> TransactionType.INCOME
+                if (trimmed.startsWith("#") || trimmed.startsWith("//")) {
+                    line = reader.readLine()
+                    continue
                 }
 
-                val transferAccount = if (transferAccountName != null && (type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT)) {
-                    getOrCreateAccount(transferAccountName, currency)
-                } else {
-                    null
+                if (colMap.isEmpty()) {
+                    val tokens = parseCsvLine(trimmed)
+                    colMap = tokens.mapIndexed { idx, name ->
+                        name.trim().lowercase().replace("_", "").replace(" ", "") to idx
+                    }.toMap()
+                    line = reader.readLine()
+                    continue
                 }
 
-                val rawFee = transferFeeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
-                val feeMinor = parseAmountDecimalToMinor(rawFee, spec.fractionDigits) ?: 0L
+                totalRows++
+                val tokens = parseCsvLine(trimmed)
 
-                val categoryType = if (type == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE
-                val rawCat = categoryIdx?.let { tokens.getOrNull(it)?.trim() }
-                val rawSubcat = subcategoryIdx?.let { tokens.getOrNull(it)?.trim() }
-                val categoryEntity = getOrCreateCategory(rawCat, rawSubcat, categoryType)
+                when (currentSection) {
+                    CsvSectionState.ACCOUNTS -> {
+                        val nameIdx = colMap["name"] ?: colMap["account"] ?: colMap["accountname"] ?: 0
+                        val name = tokens.getOrNull(nameIdx)?.trim() ?: ""
+                        if (name.isNotEmpty()) {
+                            val rawGroup = colMap["group"]?.let { tokens.getOrNull(it)?.trim() }
+                                ?: colMap["grouptype"]?.let { tokens.getOrNull(it)?.trim() }
+                            val group = parseAccountGroupFromTokens(rawGroup, name)
 
-                val payee = payeeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
-                val note = noteIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
-                val tagsStr = tagsIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
-                val tagList = tagsStr.split(";", ",").map { it.trim() }.filter { it.isNotEmpty() }
+                            val currency = colMap["currency"]?.let { tokens.getOrNull(it)?.trim() }?.ifBlank { "INR" }
+                                ?: "INR"
+                            val spec = SupportedCurrencies.fromCode(currency)
 
-                val absAmount = Math.abs(amountMinor)
-                val fingerprint = "${epochDay}|${sourceAccount.id}|${type.name}|${absAmount}|${payee.lowercase()}"
+                            val rawBal = colMap["startingbalance"]?.let { tokens.getOrNull(it)?.trim() }
+                                ?: colMap["openingbalance"]?.let { tokens.getOrNull(it)?.trim() }
+                                ?: colMap["balance"]?.let { tokens.getOrNull(it)?.trim() }
+                                ?: ""
+                            val balMinor = parseAmountDecimalToMinor(rawBal, spec.fractionDigits) ?: 0L
 
-                if (rawId != null && rawId > 0L && existingTxById.containsKey(rawId)) {
-                    val existingTx = existingTxById[rawId]!!
-                    val updatedTx = existingTx.copy(
-                        type = type,
-                        ledgerDateEpochDay = epochDay,
-                        timestampEpochMillis = epochDay * 86_400_000L + 12 * 3600 * 1000L,
-                        amountMinor = absAmount,
-                        currencyCode = currency,
-                        accountId = sourceAccount.id,
-                        transferToAccountId = transferAccount?.id,
-                        transferFeeMinor = Math.abs(feeMinor),
-                        categoryId = categoryEntity?.id,
-                        payeeOrDescription = payee,
-                        note = note
-                    )
-                    txDao.updateTransactionRaw(updatedTx)
+                            val rawDate = colMap["anchordate"]?.let { tokens.getOrNull(it)?.trim() }
+                                ?: colMap["openingdate"]?.let { tokens.getOrNull(it)?.trim() }
+                                ?: colMap["date"]?.let { tokens.getOrNull(it)?.trim() }
+                                ?: ""
+                            val anchorEpochDay = parseDateStringToEpochDay(rawDate) ?: LocalDate.now().toEpochDay()
 
-                    txDao.deleteTagCrossRefsForTransaction(rawId)
-                    if (tagList.isNotEmpty()) {
-                        val refs = tagList.map { tagName ->
-                            val tag = getOrCreateTag(tagName)
-                            TransactionTagCrossRef(transactionId = rawId, tagId = tag.id)
+                            val rawLimit = colMap["creditlimit"]?.let { tokens.getOrNull(it)?.trim() }
+                                ?: colMap["limit"]?.let { tokens.getOrNull(it)?.trim() }
+                                ?: ""
+                            val limitMinor = parseAmountDecimalToMinor(rawLimit, spec.fractionDigits)
+
+                            val billDay = colMap["settlementday"]?.let { tokens.getOrNull(it)?.trim() }
+                                ?: colMap["billday"]?.let { tokens.getOrNull(it)?.trim() }
+                                ?: colMap["statementday"]?.let { tokens.getOrNull(it)?.trim() }
+
+                            val isNew = !accountNameToEntity.containsKey(name.lowercase())
+                            val acc = getOrCreateAccount(
+                                name = name,
+                                currency = currency,
+                                groupOverride = group,
+                                limitMinor = limitMinor,
+                                billDay = billDay?.toIntOrNull(),
+                                anchorDateEpochDay = anchorEpochDay
+                            )
+                            if (isNew) {
+                                newAccountsCreated.add(name)
+                            }
+
+                            if (balMinor != 0L) {
+                                if (acc.groupType == AccountGroup.CREDIT_CARD) {
+                                    val updatedAcc = acc.copy(openingBalanceMinor = Math.abs(balMinor))
+                                    accountDao.updateAccount(updatedAcc)
+                                    accountNameToEntity[name.lowercase()] = updatedAcc
+                                    accountsConfiguredCount++
+                                } else {
+                                    val isOutflow = balMinor < 0L || acc.groupType.isLiabilityByDefault
+                                    val anchorKey = "${acc.id}|$anchorEpochDay"
+                                    val alreadyHasAnchor = anchorKey in existingAnchorKeys
+                                    if (!alreadyHasAnchor) {
+                                        existingAnchorKeys.add(anchorKey)
+                                        val anchorTx = TransactionEntity(
+                                            id = 0L,
+                                            type = TransactionType.OPENING_BALANCE,
+                                            timestampEpochMillis = anchorEpochDay * 86400000L + 12 * 3600 * 1000L,
+                                            ledgerDateEpochDay = anchorEpochDay,
+                                            amountMinor = Math.abs(balMinor),
+                                            currencyCode = currency,
+                                            accountId = acc.id,
+                                            transferToAccountId = if (isOutflow) acc.id else null,
+                                            payeeOrDescription = "Opening Balance",
+                                            note = "Initial starting balance"
+                                        )
+                                        txDao.insertNewTransactionRaw(anchorTx)
+                                        accountsConfiguredCount++
+                                    }
+                                }
+                            }
                         }
-                        txDao.insertTagCrossRefs(refs)
                     }
-                    updatedCount++
-                } else if (skipDuplicates && existingFingerprints.contains(fingerprint)) {
-                    skippedCount++
-                } else {
-                    val newTx = TransactionEntity(
-                        id = 0L,
-                        type = type,
-                        timestampEpochMillis = epochDay * 86_400_000L + 12 * 3600 * 1000L,
-                        ledgerDateEpochDay = epochDay,
-                        amountMinor = absAmount,
-                        currencyCode = currency,
-                        accountId = sourceAccount.id,
-                        transferToAccountId = transferAccount?.id,
-                        transferFeeMinor = Math.abs(feeMinor),
-                        categoryId = categoryEntity?.id,
-                        isSplit = false,
-                        payeeOrDescription = payee,
-                        note = note
-                    )
-                    val insertedId = txDao.insertNewTransactionRaw(newTx)
-                    if (tagList.isNotEmpty()) {
-                        val refs = tagList.map { tagName ->
-                            val tag = getOrCreateTag(tagName)
-                            TransactionTagCrossRef(transactionId = insertedId, tagId = tag.id)
+                    CsvSectionState.CATEGORIES -> {
+                        val mainIdx = colMap["maincategory"] ?: colMap["category"] ?: colMap["name"] ?: 0
+                        val subIdx = colMap["subcategory"] ?: colMap["subname"] ?: colMap["sub"]
+                        val mainName = tokens.getOrNull(mainIdx)?.trim() ?: ""
+                        val subName = subIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
+                        val rawType = colMap["type"]?.let { tokens.getOrNull(it)?.trim() } ?: "EXPENSE"
+                        val catType = if (rawType.equals("INCOME", ignoreCase = true)) CategoryType.INCOME else CategoryType.EXPENSE
+                        val iconOverride = colMap["icon"]?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
+                        val colorOverride = colMap["color"]?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
+
+                        if (mainName.isNotEmpty()) {
+                            val beforeMain = categoryNameToEntity.containsKey("${mainName.lowercase()}|${catType.name}")
+                            val createdCat = getOrCreateCategory(mainName, subName, catType, iconOverride, colorOverride)
+                            if (createdCat != null) {
+                                if (!beforeMain) {
+                                    newCategoriesCreated.add(mainName)
+                                }
+                                if (subName != null) {
+                                    newCategoriesCreated.add("$mainName â€º $subName")
+                                }
+                            }
                         }
-                        txDao.insertTagCrossRefs(refs)
                     }
-                    existingFingerprints.add(fingerprint)
-                    importedCount++
+                    CsvSectionState.TRANSACTIONS,
+                    CsvSectionState.LEGACY -> {
+                        val dateIdx = colMap["date"] ?: colMap["txdate"] ?: colMap["transactiondate"] ?: colMap["txndate"] ?: colMap["postingdate"] ?: colMap["valuedate"]
+                        val amountIdx = colMap["amount"] ?: colMap["amountformatted"] ?: colMap["amountminor"] ?: colMap["txnamount"] ?: colMap["transactionamount"] ?: colMap["total"] ?: colMap["netamount"] ?: colMap["value"]
+                        val accountIdx = colMap["account"] ?: colMap["accountname"] ?: colMap["fromaccount"] ?: colMap["sourceaccount"] ?: colMap["bank"] ?: colMap["wallet"]
+
+                        if (dateIdx == null || amountIdx == null || accountIdx == null) {
+                            val missingCols = mutableListOf<String>()
+                            if (dateIdx == null) missingCols.add("Date")
+                            if (amountIdx == null) missingCols.add("Amount")
+                            if (accountIdx == null) missingCols.add("Account")
+                            if (errorMessages.size < 10) {
+                                errorMessages.add("Row $lineNum: Missing column(s) in header: ${missingCols.joinToString(", ")}.")
+                            }
+                            skippedCount++
+                            line = reader.readLine()
+                            continue
+                        }
+
+                        val rawDate = tokens.getOrNull(dateIdx) ?: ""
+                        val epochDay = parseDateStringToEpochDay(rawDate)
+                        val currencyIdx = colMap["currency"]
+                        val currency = currencyIdx?.let { tokens.getOrNull(it)?.trim() }?.ifBlank { "INR" } ?: "INR"
+                        val spec = SupportedCurrencies.fromCode(currency)
+                        val rawAmount = tokens.getOrNull(amountIdx) ?: ""
+                        val amountMinor = parseAmountDecimalToMinor(rawAmount, spec.fractionDigits)
+                        val accountName = tokens.getOrNull(accountIdx)?.trim() ?: ""
+
+                        if (epochDay == null || amountMinor == null || accountName.isEmpty()) {
+                            val reasons = mutableListOf<String>()
+                            if (epochDay == null) reasons.add("Invalid date '$rawDate'")
+                            if (amountMinor == null) reasons.add("Invalid amount '$rawAmount'")
+                            if (accountName.isEmpty()) reasons.add("Missing account name")
+                            if (errorMessages.size < 10) {
+                                errorMessages.add("Row $lineNum: ${reasons.joinToString(", ")}.")
+                            }
+                            skippedCount++
+                            line = reader.readLine()
+                            continue
+                        }
+
+                        val isNewAcc = !accountNameToEntity.containsKey(accountName.lowercase())
+                        val sourceAccount = getOrCreateAccount(accountName, currency)
+                        if (isNewAcc) {
+                            newAccountsCreated.add(accountName)
+                        }
+
+                        val transferAccountIdx = colMap["transfertoaccount"] ?: colMap["transferto"]
+                        val transferAccountName = transferAccountIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
+                        val rawType = colMap["type"]?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                        val type = when {
+                            rawType.equals("TRANSFER", ignoreCase = true) -> TransactionType.TRANSFER
+                            rawType.equals("CC_SETTLEMENT", ignoreCase = true) || rawType.contains("SETTLEMENT", ignoreCase = true) -> TransactionType.CC_SETTLEMENT
+                            rawType.equals("EXPENSE", ignoreCase = true) -> TransactionType.EXPENSE
+                            rawType.equals("INCOME", ignoreCase = true) -> TransactionType.INCOME
+                            rawType.equals("REFUND", ignoreCase = true) -> TransactionType.REFUND
+                            rawType.equals("OPENING_BALANCE", ignoreCase = true) -> TransactionType.OPENING_BALANCE
+                            rawType.equals("RECONCILIATION", ignoreCase = true) -> TransactionType.RECONCILIATION
+                            transferAccountName != null -> TransactionType.TRANSFER
+                            amountMinor < 0L -> TransactionType.EXPENSE
+                            else -> TransactionType.INCOME
+                        }
+
+                        val transferAccount = if (transferAccountName != null && (type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT)) {
+                            val isNewTransferAcc = !accountNameToEntity.containsKey(transferAccountName.lowercase())
+                            val createdTransferAcc = getOrCreateAccount(transferAccountName, currency)
+                            if (isNewTransferAcc) {
+                                newAccountsCreated.add(transferAccountName)
+                            }
+                            createdTransferAcc
+                        } else {
+                            null
+                        }
+
+                        val transferFeeIdx = colMap["transferfee"] ?: colMap["transferfeeminor"]
+                        val rawFee = transferFeeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                        val feeMinor = parseAmountDecimalToMinor(rawFee, spec.fractionDigits) ?: 0L
+
+                        val isTransfer = type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT
+                        val categoryEntity = if (isTransfer) {
+                            null // Strictly suppress category creation for transfers!
+                        } else {
+                            val categoryType = if (type == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE
+                            val rawCat = colMap["category"]?.let { tokens.getOrNull(it)?.trim() }
+                            val rawSubcat = colMap["subcategory"]?.let { tokens.getOrNull(it)?.trim() }
+                            val created = getOrCreateCategory(rawCat, rawSubcat, categoryType)
+                            if (created != null && rawCat != null && !allCategories.any { it.name.equals(rawCat, ignoreCase = true) }) {
+                                newCategoriesCreated.add(rawCat)
+                            }
+                            created
+                        }
+
+                        val payeeIdx = colMap["payeeordescription"] ?: colMap["payee"] ?: colMap["description"]
+                        val payee = payeeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                        val noteIdx = colMap["note"]
+                        val note = noteIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                        val tagsIdx = colMap["tags"]
+                        val tagsStr = tagsIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                        val tagList = tagsStr.split(";", ",").map { it.trim() }.filter { it.isNotEmpty() }
+
+                        val absAmount = Math.abs(amountMinor)
+                        val fingerprint = "${epochDay}|${sourceAccount.id}|${type.name}|${absAmount}|${payee.lowercase()}"
+
+                        val idIdx = colMap["id"]
+                        val rawId = idIdx?.let { tokens.getOrNull(it)?.trim() }?.toLongOrNull()
+
+                        if (rawId != null && rawId > 0L && existingTxById.containsKey(rawId)) {
+                            val existingTx = existingTxById[rawId]!!
+                            val updatedTx = existingTx.copy(
+                                type = type,
+                                ledgerDateEpochDay = epochDay,
+                                timestampEpochMillis = epochDay * 86_400_000L + 12 * 3600 * 1000L,
+                                amountMinor = absAmount,
+                                currencyCode = currency,
+                                accountId = sourceAccount.id,
+                                transferToAccountId = transferAccount?.id,
+                                transferFeeMinor = Math.abs(feeMinor),
+                                categoryId = categoryEntity?.id,
+                                payeeOrDescription = payee,
+                                note = note
+                            )
+                            txDao.updateTransactionRaw(updatedTx)
+
+                            txDao.deleteTagCrossRefsForTransaction(rawId)
+                            if (tagList.isNotEmpty()) {
+                                val refs = tagList.map { tagName ->
+                                    val tag = getOrCreateTag(tagName)
+                                    TransactionTagCrossRef(transactionId = rawId, tagId = tag.id)
+                                }
+                                txDao.insertTagCrossRefs(refs)
+                            }
+                            updatedCount++
+                        } else if (skipDuplicates && existingFingerprints.contains(fingerprint)) {
+                            skippedCount++
+                        } else {
+                            val newTx = TransactionEntity(
+                                id = 0L,
+                                type = type,
+                                timestampEpochMillis = epochDay * 86_400_000L + 12 * 3600 * 1000L,
+                                ledgerDateEpochDay = epochDay,
+                                amountMinor = absAmount,
+                                currencyCode = currency,
+                                accountId = sourceAccount.id,
+                                transferToAccountId = transferAccount?.id,
+                                transferFeeMinor = Math.abs(feeMinor),
+                                categoryId = categoryEntity?.id,
+                                isSplit = false,
+                                payeeOrDescription = payee,
+                                note = note
+                            )
+                            val insertedId = txDao.insertNewTransactionRaw(newTx)
+                            if (tagList.isNotEmpty()) {
+                                val refs = tagList.map { tagName ->
+                                    val tag = getOrCreateTag(tagName)
+                                    TransactionTagCrossRef(transactionId = insertedId, tagId = tag.id)
+                                }
+                                txDao.insertTagCrossRefs(refs)
+                            }
+                            existingFingerprints.add(fingerprint)
+                            importedCount++
+                        }
+                    }
                 }
             }
             line = reader.readLine()
@@ -1449,7 +1796,8 @@ class SettingsAndBackupRepositoryImpl(
             skippedCount = skippedCount,
             newAccountsCreated = newAccountsCreated.distinct(),
             newCategoriesCreated = newCategoriesCreated.distinct(),
-            errorMessages = errorMessages
+            errorMessages = errorMessages,
+            accountsConfiguredCount = accountsConfiguredCount
         )
     }
 
@@ -1465,27 +1813,7 @@ class SettingsAndBackupRepositoryImpl(
         return if (isNeg) "-$res" else res
     }
 
-    private fun parseAmountDecimalToMinor(raw: String, fractionDigits: Int): Long? {
-        val cleaned = raw.replace(",", "").replace("$", "").replace("₹", "").replace("€", "").replace("£", "").trim()
-        if (cleaned.isEmpty()) return null
-        return try {
-            val bd = BigDecimal(cleaned)
-            bd.movePointRight(fractionDigits).setScale(0, RoundingMode.HALF_UP).toLong()
-        } catch (e: Exception) {
-            null
-        }
-    }
 
-    private fun parseDateStringToEpochDay(raw: String): Long? {
-        val cleaned = raw.trim()
-        if (cleaned.isEmpty()) return null
-        runCatching { return LocalDate.parse(cleaned, DateTimeFormatter.ISO_LOCAL_DATE).toEpochDay() }
-        runCatching { return LocalDate.parse(cleaned, DateTimeFormatter.ofPattern("dd/MM/yyyy")).toEpochDay() }
-        runCatching { return LocalDate.parse(cleaned, DateTimeFormatter.ofPattern("dd-MM-yyyy")).toEpochDay() }
-        runCatching { return LocalDate.parse(cleaned, DateTimeFormatter.ofPattern("MM/dd/yyyy")).toEpochDay() }
-        runCatching { return LocalDate.parse(cleaned, DateTimeFormatter.ofPattern("yyyy/MM/dd")).toEpochDay() }
-        return null
-    }
 
     companion object {
         private const val BACKUP_SCHEMA_VERSION = 1
@@ -1692,3 +2020,86 @@ internal fun parseCsvLine(line: String): List<String> {
     tokens.add(sb.toString())
     return tokens
 }
+
+internal enum class CsvSectionState {
+    LEGACY,
+    ACCOUNTS,
+    CATEGORIES,
+    TRANSACTIONS
+}
+
+internal fun detectSectionHeader(line: String): CsvSectionState? {
+    val trimmed = line.trim().uppercase()
+    if (trimmed.startsWith("# HINT") ||
+        trimmed.startsWith("# FORMAT") ||
+        trimmed.startsWith("# EXAMPLE") ||
+        trimmed.startsWith("# NOTE") ||
+        trimmed.startsWith("//")
+    ) {
+        return null
+    }
+
+    val clean = trimmed
+        .replace("=", "")
+        .replace("[", "")
+        .replace("]", "")
+        .replace("#", "")
+        .replace(",", "")
+        .trim()
+
+    return when {
+        clean.startsWith("ACCOUNT") -> CsvSectionState.ACCOUNTS
+        clean.startsWith("CATEGOR") -> CsvSectionState.CATEGORIES
+        clean.startsWith("TRANSACTION") -> CsvSectionState.TRANSACTIONS
+        else -> null
+    }
+}
+
+internal fun parseAccountGroupFromTokens(rawGroup: String?, accountName: String): AccountGroup {
+    val clean = rawGroup?.trim()?.uppercase()?.replace(" ", "_") ?: ""
+    if (clean.isNotEmpty()) {
+        if (clean == "BANK") return AccountGroup.BANK_ACCOUNT
+        if (clean == "WALLET") return AccountGroup.PREPAID_WALLET
+        if (clean == "CC" || clean == "CREDIT" || clean == "CARD") return AccountGroup.CREDIT_CARD
+        if (clean == "DEBIT") return AccountGroup.DEBIT_CARD
+        if (clean == "OD" || clean == "OVERDRAFT") return AccountGroup.OVERDRAFT
+        runCatching { return AccountGroup.valueOf(clean) }
+    }
+    val lower = accountName.lowercase()
+    val ccRegex = Regex("""\b(cc|credit|credit\s*card)\b""")
+    val odRegex = Regex("""\b(od|overdraft)\b""")
+    return when {
+        ccRegex.containsMatchIn(lower) -> AccountGroup.CREDIT_CARD
+        lower.contains("debit") -> AccountGroup.DEBIT_CARD
+        lower.contains("cash") || lower.contains("wallet") -> AccountGroup.CASH
+        lower.contains("savings") -> AccountGroup.SAVINGS
+        lower.contains("bank") || lower.contains("a/c") || lower.contains("checking") -> AccountGroup.BANK_ACCOUNT
+        lower.contains("loan") || lower.contains("emi") || lower.contains("mortgage") || lower.contains("borrow") -> AccountGroup.LOAN
+        odRegex.containsMatchIn(lower) -> AccountGroup.OVERDRAFT
+        lower.contains("invest") || lower.contains("mutual") || lower.contains("stock") -> AccountGroup.INVESTMENT
+        else -> AccountGroup.OTHER
+    }
+}
+
+internal fun parseAmountDecimalToMinor(raw: String, fractionDigits: Int): Long? {
+    val cleaned = raw.replace(",", "").replace("$", "").replace("₹", "").replace("€", "").replace("£", "").trim()
+    if (cleaned.isEmpty()) return null
+    return try {
+        val bd = BigDecimal(cleaned)
+        bd.movePointRight(fractionDigits).setScale(0, RoundingMode.HALF_UP).toLong()
+    } catch (e: Exception) {
+        null
+    }
+}
+
+internal fun parseDateStringToEpochDay(raw: String): Long? {
+    val cleaned = raw.trim()
+    if (cleaned.isEmpty()) return null
+    runCatching { return LocalDate.parse(cleaned, DateTimeFormatter.ISO_LOCAL_DATE).toEpochDay() }
+    runCatching { return LocalDate.parse(cleaned, DateTimeFormatter.ofPattern("dd/MM/yyyy")).toEpochDay() }
+    runCatching { return LocalDate.parse(cleaned, DateTimeFormatter.ofPattern("dd-MM-yyyy")).toEpochDay() }
+    runCatching { return LocalDate.parse(cleaned, DateTimeFormatter.ofPattern("MM/dd/yyyy")).toEpochDay() }
+    runCatching { return LocalDate.parse(cleaned, DateTimeFormatter.ofPattern("yyyy/MM/dd")).toEpochDay() }
+    return null
+}
+

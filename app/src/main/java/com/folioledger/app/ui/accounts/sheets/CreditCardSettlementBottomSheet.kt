@@ -16,22 +16,30 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +55,11 @@ import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -209,15 +222,94 @@ internal fun CreditCardSettlementBottomSheet(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            var showDatePickerDialog by remember { mutableStateOf(false) }
+            val formattedDate = remember(state.ledgerDateEpochDay) {
+                LocalDate.ofEpochDay(state.ledgerDateEpochDay)
+                    .format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US))
+            }
+
+            OutlinedCard(
+                onClick = { showDatePickerDialog = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = "Settlement Date",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = formattedDate,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Filled.CalendarToday,
+                        contentDescription = "Select settlement date",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            if (showDatePickerDialog) {
+                val initialMillis = remember(state.ledgerDateEpochDay) {
+                    LocalDate.ofEpochDay(state.ledgerDateEpochDay)
+                        .atStartOfDay(ZoneOffset.UTC)
+                        .toInstant()
+                        .toEpochMilli()
+                }
+                val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+                DatePickerDialog(
+                    onDismissRequest = { showDatePickerDialog = false },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                val selectedMillis = datePickerState.selectedDateMillis
+                                if (selectedMillis != null) {
+                                    val selectedEpochDay = Instant.ofEpochMilli(selectedMillis)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toLocalDate()
+                                        .toEpochDay()
+                                    onUpdateState { it.copy(ledgerDateEpochDay = selectedEpochDay) }
+                                }
+                                showDatePickerDialog = false
+                            }
+                        ) {
+                            Text("Confirm")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDatePickerDialog = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                ) {
+                    DatePicker(state = datePickerState)
+                }
+            }
+
+            val eligibleAssets = remember(assetAccounts, state.creditCardAccount.currencyCode) {
+                assetAccounts.filter { it.currencyCode == state.creditCardAccount.currencyCode }
+            }
+
             Text(
                 text = "Pay From Asset Account",
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold
             )
 
-            if (assetAccounts.isEmpty()) {
+            if (eligibleAssets.isEmpty()) {
                 Text(
-                    text = "No active Bank or Cash account available.",
+                    text = "No active Bank or Cash account available in ${cardSpec.code} (${cardSpec.symbol}).",
                     style = MaterialTheme.typography.bodySmall,
                     color = LocalFolioSemanticColors.current.expenseCoral
                 )
@@ -226,7 +318,7 @@ internal fun CreditCardSettlementBottomSheet(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    assetAccounts.forEach { asset ->
+                    eligibleAssets.forEach { asset ->
                         val isSelected = state.selectedSourceAccountId == asset.id
                         FilterChip(
                             selected = isSelected,
@@ -270,7 +362,7 @@ internal fun CreditCardSettlementBottomSheet(
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(
                     onClick = onConfirmSettlement,
-                    enabled = !isSaving && assetAccounts.isNotEmpty()
+                    enabled = !isSaving && eligibleAssets.isNotEmpty()
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Check,
