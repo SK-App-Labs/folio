@@ -117,7 +117,11 @@ internal fun AccountPassbookBottomSheet(
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.92f)
+        ) {
             // Top Passbook Account Header
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -284,7 +288,9 @@ internal fun AccountPassbookBottomSheet(
                     bottom = 36.dp
                 ),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
             ) {
                 if (account.groupType == AccountGroup.CREDIT_CARD) {
                     // Unified Credit Card Statement & Debt Hub Card
