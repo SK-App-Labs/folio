@@ -496,7 +496,7 @@ internal fun CalendarLedgerSubTabContent(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "No transactions recorded on this date. Tap \"+ Add on this date\" above to log an entry.",
+                        text = "No transactions recorded on this date.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,

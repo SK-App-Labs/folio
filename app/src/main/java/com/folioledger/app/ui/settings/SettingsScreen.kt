@@ -145,21 +145,14 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
-                    verticalAlignment = Alignment.Top
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Settings & Data Management",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Customize themes, regional accounting rules, categories, backups & app security",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Text(
+                        text = "Settings & Data Management",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
                 if (uiState.isBusyWithFileOperation) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
@@ -291,7 +284,7 @@ fun SettingsScreen(
                         SettingsNavigationRow(
                             icon = Icons.AutoMirrored.Filled.MenuBook,
                             title = "Folio User Guide & FAQs",
-                            valueText = "Guide",
+                            valueText = null,
                             enabled = isNotBusy,
                             onClick = { showUserGuideSheet = true }
                         )
@@ -302,7 +295,7 @@ fun SettingsScreen(
                         SettingsNavigationRow(
                             icon = Icons.Default.LocalCafe,
                             title = "Support Folio (Tip Jar) ☕",
-                            valueText = "Tip Jar",
+                            valueText = null,
                             enabled = isNotBusy,
                             onClick = { showTipJarSheet = true }
                         )

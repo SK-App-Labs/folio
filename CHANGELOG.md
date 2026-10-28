@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.4.0] - Unreleased
 ### Added
+- **UI De-Cluttering & Text Polish**: Streamlined screen headers, empty states, and settings items by removing redundant micro-copy ("Tap to open passbook • Long press to edit", "Customize themes...", "Tap row to drill down", and redundant button quotes in empty states) and eliminating repetitive right-side badges in Settings.
 - **LeakCanary Memory Diagnostics (`debugImplementation`)**: Added Square's LeakCanary 2.14 in debug builds for automated, passive detection of retained Activities, unclosed bottom sheet coroutine scopes, and ViewModel lifecycle leaks with zero overhead on release builds.
 - **Spotless & ktlint Code Hygiene Engine**: Integrated the Spotless code formatting plugin with ktlint rules, automating whitespace trimming, trailing line normalization, and style consistency across all Kotlin source files via `./gradlew spotlessApply`.
 - **Passbook Bottom Sheet Height Anchoring**: Fixed the `AccountPassbookBottomSheet` container height to a stable 92% viewport height (`0.92f`) and weighted scroll list (`weight(1f)`), eliminating visual jumping and moving pagination touch targets when switching between empty and active transaction months.

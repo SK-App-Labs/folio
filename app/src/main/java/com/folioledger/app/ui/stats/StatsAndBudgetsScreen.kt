@@ -654,26 +654,16 @@ private fun StatsBreakdownSubTabContent(
 
         // Ranked Category Breakdown List Header
         item(contentType = "category_list_header") {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+            Text(
+                text = if (uiState.selectedCategoryType == CategoryType.EXPENSE) {
+                    "Expense Categories (${activeStats.size})"
+                } else {
+                    "Income Categories (${activeStats.size})"
+                },
+                style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
+                fontWeight = FontWeight.Bold,
                 modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = if (uiState.selectedCategoryType == CategoryType.EXPENSE) {
-                        "Expense Categories (${activeStats.size})"
-                    } else {
-                        "Income Categories (${activeStats.size})"
-                    },
-                    style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "Tap row to drill down",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            )
         }
 
         if (activeStats.isEmpty()) {
