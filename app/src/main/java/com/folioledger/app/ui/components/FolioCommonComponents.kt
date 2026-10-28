@@ -494,7 +494,8 @@ fun MoneyText(
         MoneyColorMode.NEUTRAL -> LocalContentColor.current
     }
 
-    val tabularStyle = tabularMoneyStyle(style).let { base ->
+    val tabularStyle = remember(style, fontWeight) {
+        val base = tabularMoneyStyle(style)
         if (fontWeight != null) base.copy(fontWeight = fontWeight) else base
     }
 
@@ -920,23 +921,27 @@ private fun SummaryColumnCell(
     }
 }
 
+private val hexColorCache = java.util.concurrent.ConcurrentHashMap<String, Color>()
+private val folioIconCache = java.util.concurrent.ConcurrentHashMap<String, ImageVector>()
+
 fun parseHexColorSafely(colorHex: String?, fallback: Color = Color(0xFF059669)): Color {
     if (colorHex.isNullOrBlank()) return fallback
-    val normalized = if (colorHex.trim().startsWith("#")) {
-        colorHex.trim()
-    } else {
-        "#${colorHex.trim()}"
-    }
-    return try {
-        Color(normalized.toColorInt())
-    } catch (_: IllegalArgumentException) {
-        fallback
+    return hexColorCache.getOrPut(colorHex) {
+        val trimmed = colorHex.trim()
+        val normalized = if (trimmed.startsWith("#")) trimmed else "#$trimmed"
+        try {
+            Color(normalized.toColorInt())
+        } catch (_: IllegalArgumentException) {
+            fallback
+        }
     }
 }
 
 fun resolveFolioIcon(iconName: String?): ImageVector {
-    val key = iconName?.trim()?.lowercase(Locale.US) ?: return Icons.Filled.Category
-    return when (key) {
+    if (iconName.isNullOrBlank()) return Icons.Filled.Category
+    return folioIconCache.getOrPut(iconName) {
+        val key = iconName.trim().lowercase(Locale.US)
+        when (key) {
         // Food & Dining
         "restaurant", "food", "dining", "utensils" -> Icons.Filled.Restaurant
         "fastfood", "snacks", "street_food", "burger" -> Icons.Filled.Fastfood
@@ -1043,6 +1048,7 @@ fun resolveFolioIcon(iconName: String?): ImageVector {
         "more_horiz", "other", "miscellaneous" -> Icons.Filled.MoreHoriz
         else -> Icons.Filled.Category
     }
+}
 }
 
 @Composable

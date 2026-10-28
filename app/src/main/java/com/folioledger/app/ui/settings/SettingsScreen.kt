@@ -1,6 +1,8 @@
 // File: app/src/main/java/com/folioledger/app/ui/settings/SettingsScreen.kt
 package com.folioledger.app.ui.settings
 
+import com.folioledger.app.BuildConfig
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -316,7 +318,7 @@ fun SettingsScreen(
                             .padding(top = 16.dp, bottom = 24.dp)
                     ) {
                         Text(
-                            text = "Folio Ledger v1.0.1 • 100% Offline SQLite",
+                            text = "Folio Ledger v${BuildConfig.VERSION_NAME} • 100% Offline SQLite",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center

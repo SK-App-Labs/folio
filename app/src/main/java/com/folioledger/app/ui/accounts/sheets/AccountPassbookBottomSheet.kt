@@ -471,8 +471,7 @@ internal fun AccountPassbookBottomSheet(
                             PassbookDayGroupHeaderRow(
                                 dayGroup = dayGroup,
                                 currencySpec = accountCurrency,
-                                grouping = grouping,
-                                modifier = Modifier.animateItem()
+                                grouping = grouping
                             )
                         }
                         items(
@@ -485,8 +484,7 @@ internal fun AccountPassbookBottomSheet(
                                 inspectedAccountId = account.id,
                                 currencySpec = accountCurrency,
                                 grouping = grouping,
-                                onClick = { onTransactionRowClick(entry.transaction) },
-                                modifier = Modifier.animateItem()
+                                onClick = { onTransactionRowClick(entry.transaction) }
                             )
                         }
                     }

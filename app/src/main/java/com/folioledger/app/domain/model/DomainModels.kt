@@ -1,6 +1,9 @@
 // File: app/src/main/java/com/folioledger/app/domain/model/DomainModels.kt
 package com.folioledger.app.domain.model
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class AccountSummary(
     val id: Long,
     val name: String,
@@ -20,6 +23,7 @@ data class AccountSummary(
     val iconName: String = "account_balance_wallet"
 )
 
+@Immutable
 data class NetWorthOverview(
     val totalAssets: MinorMoney,
     val totalLiabilities: MinorMoney,
@@ -27,6 +31,7 @@ data class NetWorthOverview(
     val accountsByGroup: Map<AccountGroup, List<AccountSummary>>
 )
 
+@Immutable
 data class CategoryNode(
     val id: Long,
     val name: String,
@@ -37,6 +42,7 @@ data class CategoryNode(
     val subcategories: List<CategoryNode> = emptyList()
 )
 
+@Immutable
 data class SplitLineItem(
     val id: Long = 0L,
     val categoryId: Long,
@@ -45,6 +51,7 @@ data class SplitLineItem(
     val note: String = ""
 )
 
+@Immutable
 data class TransactionItem(
     val id: Long,
     val type: TransactionType,
@@ -71,6 +78,7 @@ data class TransactionItem(
     val installmentTotalCount: Int? = null
 )
 
+@Immutable
 data class PeriodLedgerSummary(
     val startEpochDay: Long,
     val endEpochDay: Long,
@@ -80,6 +88,7 @@ data class PeriodLedgerSummary(
     val carryOverFromPreviousPeriod: MinorMoney
 )
 
+@Immutable
 data class CategorySpendStat(
     val categoryId: Long,
     val categoryName: String,
@@ -90,6 +99,7 @@ data class CategorySpendStat(
     val transactionCount: Int
 )
 
+@Immutable
 data class BudgetProgress(
     val budgetId: Long,
     val categoryId: Long?, // null = Overall Monthly Budget
@@ -102,6 +112,7 @@ data class BudgetProgress(
     val alertThresholdPercent: Int
 )
 
+@Immutable
 data class UserPreferences(
     val primaryCurrencyCode: String = "INR",
     val numberGrouping: NumberGroupingSystem = NumberGroupingSystem.INDIAN,
@@ -115,6 +126,7 @@ data class UserPreferences(
     val biometricLockEnabled: Boolean = false
 )
 
+@Immutable
 data class MonthlyTrendBar(
     val periodLabel: String,
     val startEpochDay: Long,
@@ -124,6 +136,7 @@ data class MonthlyTrendBar(
     val netSavings: MinorMoney
 )
 
+@Immutable
 data class SpendRankingItem(
     val label: String,
     val totalAmount: MinorMoney,
@@ -131,6 +144,7 @@ data class SpendRankingItem(
     val percentageOfTotal: Float
 )
 
+@Immutable
 data class TransactionBookmark(
     val id: Long = 0L,
     val title: String,
@@ -144,6 +158,7 @@ data class TransactionBookmark(
     val tags: List<String> = emptyList()
 )
 
+@Immutable
 data class TransactionSearchFilter(
     val queryText: String = "",
     val startEpochDay: Long? = null,

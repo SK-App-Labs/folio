@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -92,34 +93,33 @@ internal fun DailyDateGroupHeaderRow(
             }
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.graphicsLayer { alpha = amountsAlpha() }
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                    if (group.dailyIncome.isPositive) {
-                        MoneyText(
-                            money = group.dailyIncome,
-                            currencySpec = currencySpec,
-                            grouping = grouping,
-                            colorMode = MoneyColorMode.INCOME,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            showPlusSignForPositive = true
-                        )
-                    }
-                    if (group.dailyExpense.isPositive) {
-                        MoneyText(
-                            money = group.dailyExpense,
-                            currencySpec = currencySpec,
-                            grouping = grouping,
-                            colorMode = MoneyColorMode.EXPENSE,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
+                if (group.dailyIncome.isPositive) {
+                    MoneyText(
+                        money = group.dailyIncome,
+                        currencySpec = currencySpec,
+                        grouping = grouping,
+                        colorMode = MoneyColorMode.INCOME,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        showPlusSignForPositive = true
+                    )
+                }
+                if (group.dailyExpense.isPositive) {
+                    MoneyText(
+                        money = group.dailyExpense,
+                        currencySpec = currencySpec,
+                        grouping = grouping,
+                        colorMode = MoneyColorMode.EXPENSE,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
         }
     }
+}
 
 @Composable
 internal fun DailyGroupedTransactionsCard(
@@ -140,19 +140,21 @@ internal fun DailyGroupedTransactionsCard(
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             transactions.forEachIndexed { index, tx ->
-                if (index > 0) {
-                    HorizontalDivider(
-                        color = semanticColors.cardStrokeSubtle,
-                        modifier = Modifier.padding(horizontal = 12.dp)
+                key(tx.id) {
+                    if (index > 0) {
+                        HorizontalDivider(
+                            color = semanticColors.cardStrokeSubtle,
+                            modifier = Modifier.padding(horizontal = 12.dp)
+                        )
+                    }
+                    LedgerTransactionRow(
+                        transaction = tx,
+                        scopedAccountId = scopedAccountId,
+                        currencySpec = currencySpec,
+                        grouping = grouping,
+                        onClick = { onTransactionClick(tx) }
                     )
                 }
-                LedgerTransactionRow(
-                    transaction = tx,
-                    scopedAccountId = scopedAccountId,
-                    currencySpec = currencySpec,
-                    grouping = grouping,
-                    onClick = { onTransactionClick(tx) }
-                )
             }
         }
     }
@@ -171,16 +173,52 @@ internal fun LedgerTransactionRow(
         SupportedCurrencies.getByCode(transaction.currencyCode) ?: currencySpec
     }
 
-    val resolvedColorMode = when {
-        scopedAccountId != null &&
-                (transaction.type == TransactionType.TRANSFER || transaction.type == TransactionType.CC_SETTLEMENT) -> {
-            if (transaction.transferToAccountId == scopedAccountId) {
-                MoneyColorMode.INCOME
-            } else {
-                MoneyColorMode.EXPENSE
+    val resolvedColorMode = remember(transaction.type, scopedAccountId, transaction.transferToAccountId) {
+        when {
+            scopedAccountId != null &&
+                    (transaction.type == TransactionType.TRANSFER || transaction.type == TransactionType.CC_SETTLEMENT) -> {
+                if (transaction.transferToAccountId == scopedAccountId) {
+                    MoneyColorMode.INCOME
+                } else {
+                    MoneyColorMode.EXPENSE
+                }
             }
+            else -> MoneyColorMode.fromTransactionType(transaction.type)
         }
-        else -> MoneyColorMode.fromTransactionType(transaction.type)
+    }
+
+    val titleText = remember(
+        transaction.type,
+        transaction.accountName,
+        transaction.transferToAccountName,
+        transaction.isSplit,
+        transaction.splits.size,
+        transaction.parentCategoryName,
+        transaction.categoryName
+    ) {
+        when {
+            transaction.type == TransactionType.OPENING_BALANCE -> "Opening Balance"
+            transaction.type == TransactionType.RECONCILIATION -> "Balance Reconciliation"
+            transaction.type == TransactionType.TRANSFER ||
+                    transaction.type == TransactionType.CC_SETTLEMENT -> {
+                "${transaction.accountName} → ${transaction.transferToAccountName ?: "Account"}"
+            }
+            transaction.isSplit -> {
+                "Split (${transaction.splits.size} categories)"
+            }
+            !transaction.parentCategoryName.isNullOrBlank() -> {
+                "${transaction.parentCategoryName} › ${transaction.categoryName ?: ""}"
+            }
+            else -> transaction.categoryName ?: "Uncategorized"
+        }
+    }
+
+    val secondaryDescription = remember(transaction.payeeOrDescription, transaction.note) {
+        transaction.payeeOrDescription.ifBlank { transaction.note }
+    }
+
+    val tagsText = remember(transaction.tags) {
+        if (transaction.tags.isEmpty()) "" else transaction.tags.joinToString(" ") { "#$it" }
     }
 
     Row(
@@ -210,22 +248,6 @@ internal fun LedgerTransactionRow(
         Spacer(modifier = Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            val titleText = when {
-                transaction.type == TransactionType.OPENING_BALANCE -> "Opening Balance"
-                transaction.type == TransactionType.RECONCILIATION -> "Balance Reconciliation"
-                transaction.type == TransactionType.TRANSFER ||
-                        transaction.type == TransactionType.CC_SETTLEMENT -> {
-                    "${transaction.accountName} → ${transaction.transferToAccountName ?: "Account"}"
-                }
-                transaction.isSplit -> {
-                    "Split (${transaction.splits.size} categories)"
-                }
-                !transaction.parentCategoryName.isNullOrBlank() -> {
-                    "${transaction.parentCategoryName} › ${transaction.categoryName ?: ""}"
-                }
-                else -> transaction.categoryName ?: "Uncategorized"
-            }
-
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = titleText,
@@ -254,7 +276,6 @@ internal fun LedgerTransactionRow(
                 }
             }
 
-            val secondaryDescription = transaction.payeeOrDescription.ifBlank { transaction.note }
             if (secondaryDescription.isNotBlank()) {
                 Text(
                     text = secondaryDescription,
@@ -275,9 +296,9 @@ internal fun LedgerTransactionRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                if (transaction.tags.isNotEmpty()) {
+                if (tagsText.isNotEmpty()) {
                     Text(
-                        text = transaction.tags.joinToString(" ") { "#$it" },
+                        text = tagsText,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                         maxLines = 1,

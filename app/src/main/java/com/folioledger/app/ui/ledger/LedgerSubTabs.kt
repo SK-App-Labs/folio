@@ -50,8 +50,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.ui.platform.LocalDensity
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
@@ -66,33 +64,6 @@ import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-
-@Composable
-private fun rememberHeaderAmountsAlpha(
-    lazyListState: LazyListState,
-    headerKey: String
-): () -> Float {
-    val density = LocalDensity.current
-    val alphaState = remember(lazyListState, headerKey) {
-        derivedStateOf {
-            val visibleItems = lazyListState.layoutInfo.visibleItemsInfo
-            val headerItem = visibleItems.firstOrNull { it.key == headerKey }
-            if (headerItem == null || headerItem.offset > 0) {
-                1f
-            } else {
-                val nextItem = visibleItems.firstOrNull { it.index == headerItem.index + 1 }
-                if (nextItem == null) {
-                    0f
-                } else {
-                    val scrolledPastPx = (headerItem.size - nextItem.offset).coerceAtLeast(0)
-                    val thresholdPx = with(density) { 100.dp.toPx() }
-                    (1f - (scrolledPastPx / thresholdPx)).coerceIn(0f, 1f)
-                }
-            }
-        }
-    }
-    return { alphaState.value }
-}
 
 @Composable
 internal fun FilteredSearchResultsContent(
@@ -193,12 +164,10 @@ internal fun FilteredSearchResultsContent(
             uiState.filteredDailyGroups.forEach { group ->
                 val headerKey = "filtered_day_${group.epochDay}"
                 stickyHeader(key = headerKey, contentType = "day_group_header") {
-                    val alphaProvider = rememberHeaderAmountsAlpha(lazyListState, headerKey)
                     DailyDateGroupHeaderRow(
                         group = group,
                         currencySpec = uiState.currencySpec,
-                        grouping = uiState.numberGrouping,
-                        amountsAlpha = alphaProvider
+                        grouping = uiState.numberGrouping
                     )
                 }
                 items(
@@ -211,8 +180,7 @@ internal fun FilteredSearchResultsContent(
                         scopedAccountId = uiState.scopedAccountId,
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.numberGrouping,
-                        onClick = { onTransactionClick(tx) },
-                        modifier = Modifier.animateItem()
+                        onClick = { onTransactionClick(tx) }
                     )
                 }
             }
@@ -273,12 +241,10 @@ internal fun DailyLedgerSubTabContent(
             uiState.dailyGroups.forEach { group ->
                 val headerKey = "day_header_${group.epochDay}"
                 stickyHeader(key = headerKey, contentType = "day_group_header") {
-                    val alphaProvider = rememberHeaderAmountsAlpha(lazyListState, headerKey)
                     DailyDateGroupHeaderRow(
                         group = group,
                         currencySpec = uiState.currencySpec,
-                        grouping = uiState.numberGrouping,
-                        amountsAlpha = alphaProvider
+                        grouping = uiState.numberGrouping
                     )
                 }
                 item(key = "day_card_${group.epochDay}", contentType = "day_group_card") {
@@ -287,8 +253,7 @@ internal fun DailyLedgerSubTabContent(
                         scopedAccountId = uiState.scopedAccountId,
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.numberGrouping,
-                        onTransactionClick = onTransactionClick,
-                        modifier = Modifier.animateItem()
+                        onTransactionClick = onTransactionClick
                     )
                 }
             }

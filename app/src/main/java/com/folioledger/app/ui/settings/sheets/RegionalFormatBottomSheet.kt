@@ -71,37 +71,22 @@ fun RegionalFormatBottomSheet(
     val semanticColors = LocalFolioSemanticColors.current
 
     var searchCurrencyQuery by rememberSaveable { mutableStateOf("") }
+    var isBrowseAllExpanded by rememberSaveable { mutableStateOf(false) }
 
-    // Currencies list: INR, USD, EUR, GBP, JPY, AED, SGD, AUD, CAD, CHF, CNY, SAR
-    val supportedCodes = listOf("INR", "USD", "EUR", "GBP", "JPY", "AED", "SGD", "AUD", "CAD", "CHF", "CNY", "SAR")
-    val allCurrencies = remember {
-        supportedCodes.map { code ->
-            SupportedCurrencies.getByCode(code) ?: CurrencySpec(
-                code = code,
-                symbol = code,
-                displayName = when (code) {
-                    "SAR" -> "Saudi Riyal"
-                    else -> code
-                },
-                fractionDigits = 2,
-                defaultGrouping = NumberGroupingSystem.INTERNATIONAL
-            )
-        }
-    }
+    val allCurrencies = remember { SupportedCurrencies.ALL }
+    val popularCurrencies = remember { SupportedCurrencies.POPULAR }
 
-    val popularCurrencies = remember(allCurrencies) {
-        allCurrencies.filter { it.code in listOf("INR", "USD", "EUR", "GBP", "AED", "SAR") }
-    }
-
-    val filteredCurrencies = remember(allCurrencies, searchCurrencyQuery) {
-        if (searchCurrencyQuery.isBlank()) {
-            allCurrencies
-        } else {
+    val filteredCurrencies = remember(allCurrencies, popularCurrencies, searchCurrencyQuery, isBrowseAllExpanded) {
+        if (searchCurrencyQuery.isNotBlank()) {
             allCurrencies.filter { currency ->
                 currency.code.contains(searchCurrencyQuery, ignoreCase = true) ||
                 currency.displayName.contains(searchCurrencyQuery, ignoreCase = true) ||
                 currency.symbol.contains(searchCurrencyQuery, ignoreCase = true)
             }
+        } else if (isBrowseAllExpanded) {
+            allCurrencies
+        } else {
+            popularCurrencies
         }
     }
 
@@ -334,6 +319,35 @@ fun RegionalFormatBottomSheet(
                                             modifier = Modifier.size(22.dp)
                                         )
                                     }
+                                }
+                            }
+                        }
+
+                        if (searchCurrencyQuery.isBlank()) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { isBrowseAllExpanded = !isBrowseAllExpanded }
+                                    .padding(vertical = 12.dp, horizontal = 14.dp)
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = if (isBrowseAllExpanded) {
+                                            "Show Top Currencies Only"
+                                        } else {
+                                            "Browse All ${allCurrencies.size} World Currencies ⌄"
+                                        },
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
                                 }
                             }
                         }

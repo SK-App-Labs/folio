@@ -657,7 +657,7 @@ class StatsAndBudgetsViewModel(
     }.flowOn(Dispatchers.Default)
     .stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000L),
+        started = SharingStarted.Eagerly,
         initialValue = StatsAndBudgetsUiState()
     )
 

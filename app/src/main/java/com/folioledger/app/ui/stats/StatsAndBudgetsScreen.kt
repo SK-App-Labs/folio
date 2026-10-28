@@ -1,10 +1,12 @@
 // File: app/src/main/java/com/folioledger/app/ui/stats/StatsAndBudgetsScreen.kt
 package com.folioledger.app.ui.stats
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,6 +43,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Warning
@@ -77,17 +81,22 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -129,7 +138,7 @@ fun StatsAndBudgetsScreen(
     contentPadding: PaddingValues = PaddingValues(0.dp),
     onInspectTransaction: (TransactionItem) -> Unit = {},
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     val coroutineScope = rememberCoroutineScope()
@@ -676,19 +685,14 @@ private fun StatsBreakdownSubTabContent(
                 )
             }
         } else {
-            items(
-                items = activeStats,
-                key = { "${uiState.selectedCategoryType}_${it.categoryId}" },
-                contentType = { "category_stat_row" }
-            ) { stat ->
-                RankedCategoryStatRowCard(
-                    stat = stat,
+            item(key = "ranked_categories_grouped_card_${uiState.selectedCategoryType}", contentType = "ranked_categories_card") {
+                RankedCategoryBreakdownGroupedCard(
+                    stats = activeStats,
                     categoryType = uiState.selectedCategoryType,
-                    isHighlighted = stat.categoryId == uiState.highlightedDonutCategoryId,
+                    highlightedCategoryId = uiState.highlightedDonutCategoryId,
                     currencySpec = uiState.currencySpec,
                     grouping = uiState.numberGrouping,
-                    onClick = { onOpenCategoryDrillDown(stat) },
-                    modifier = Modifier.animateItem()
+                    onCategoryClick = onOpenCategoryDrillDown
                 )
             }
         }
@@ -763,14 +767,99 @@ private fun StatsBreakdownSubTabContent(
 }
 
 @Composable
-private fun RankedCategoryStatRowCard(
+private fun RankedCategoryBreakdownGroupedCard(
+    stats: List<CategorySpendStat>,
+    categoryType: CategoryType,
+    highlightedCategoryId: Long?,
+    currencySpec: CurrencySpec,
+    grouping: NumberGroupingSystem,
+    onCategoryClick: (CategorySpendStat) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+    val haptic = LocalHapticFeedback.current
+    var isExpanded by rememberSaveable(categoryType) { mutableStateOf(false) }
+
+    val hasMore = stats.size > 5
+    val visibleStats = if (isExpanded || !hasMore) stats else stats.take(5)
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+        modifier = modifier
+            .fillMaxWidth()
+            .animateContentSize()
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            visibleStats.forEachIndexed { index, stat ->
+                if (index > 0) {
+                    HorizontalDivider(
+                        color = semanticColors.cardStrokeSubtle,
+                        modifier = Modifier.padding(horizontal = 14.dp)
+                    )
+                }
+                RankedCategoryStatRowItem(
+                    stat = stat,
+                    categoryType = categoryType,
+                    isHighlighted = stat.categoryId == highlightedCategoryId,
+                    currencySpec = currencySpec,
+                    grouping = grouping,
+                    onClick = { onCategoryClick(stat) }
+                )
+            }
+
+            if (hasMore) {
+                HorizontalDivider(color = semanticColors.cardStrokeSubtle)
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.45f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            isExpanded = !isExpanded
+                        }
+                        .padding(vertical = 10.dp)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = if (isExpanded) {
+                                "Show Top 5 Only"
+                            } else {
+                                "Show All ${stats.size} Categories (${stats.size - 5} more)"
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = if (isExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RankedCategoryStatRowItem(
     stat: CategorySpendStat,
     categoryType: CategoryType,
     isHighlighted: Boolean,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onClick: () -> Unit
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val catColor = remember(stat.colorHex) { parseHexColorSafely(stat.colorHex) }
@@ -778,7 +867,7 @@ private fun RankedCategoryStatRowCard(
     val targetFraction = (stat.percentageOfTotal / 100f).coerceIn(0f, 1f)
     val animatedProgress by animateFloatAsState(
         targetValue = targetFraction,
-        animationSpec = tween(durationMillis = 550, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
         label = "CategoryBarProgress"
     )
 
@@ -786,113 +875,88 @@ private fun RankedCategoryStatRowCard(
         String.format(Locale.US, "%.1f%%", stat.percentageOfTotal)
     }
 
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isHighlighted) {
-                MaterialTheme.colorScheme.surfaceContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerLow
-            }
-        ),
-        border = BorderStroke(
-            width = if (isHighlighted) 1.5.dp else 1.dp,
-            color = if (isHighlighted) catColor else semanticColors.cardStrokeSubtle
-        ),
-        modifier = modifier
+    Column(
+        modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
+            .background(if (isHighlighted) MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f) else Color.Transparent)
+            .padding(horizontal = 14.dp, vertical = 10.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+            CategoryIconBadge(
+                iconName = stat.iconName,
+                colorHex = stat.colorHex,
+                size = 32.dp,
+                iconSize = 16.dp
+            )
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Text(
+                text = "${stat.categoryName} (${stat.transactionCount})",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = catColor.copy(alpha = 0.16f)
             ) {
-                CategoryIconBadge(
-                    iconName = stat.iconName,
-                    colorHex = stat.colorHex,
-                    size = 40.dp,
-                    iconSize = 20.dp
-                )
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = stat.categoryName,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = catColor.copy(alpha = 0.16f)
-                        ) {
-                            Text(
-                                text = pctFormatted,
-                                style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                                fontWeight = FontWeight.Bold,
-                                color = catColor,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-
-                    Text(
-                        text = "${stat.transactionCount} transactions in period",
-                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                MoneyText(
-                    money = stat.netAmount,
-                    currencySpec = currencySpec,
-                    grouping = grouping,
-                    colorMode = if (categoryType == CategoryType.EXPENSE) {
-                        MoneyColorMode.EXPENSE
-                    } else {
-                        MoneyColorMode.INCOME
-                    },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.width(4.dp))
-
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = "Inspect Category",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp)
+                Text(
+                    text = pctFormatted,
+                    style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                    fontWeight = FontWeight.Bold,
+                    color = catColor,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
-            LinearProgressIndicator(
-                progress = { animatedProgress },
-                color = catColor,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                strokeCap = StrokeCap.Round,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp))
+            MoneyText(
+                money = stat.netAmount,
+                currencySpec = currencySpec,
+                grouping = grouping,
+                colorMode = if (categoryType == CategoryType.EXPENSE) {
+                    MoneyColorMode.EXPENSE
+                } else {
+                    MoneyColorMode.INCOME
+                },
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.width(4.dp))
+
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "Inspect Category",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(16.dp)
             )
         }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        LinearProgressIndicator(
+            progress = { animatedProgress },
+            color = catColor,
+            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            strokeCap = StrokeCap.Round,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(3.dp)
+                .clip(RoundedCornerShape(1.5.dp))
+        )
     }
 }
 
@@ -1092,8 +1156,7 @@ private fun BudgetsManagerSubTabContent(
                     isHeroOverall = false,
                     currencySpec = uiState.currencySpec,
                     grouping = uiState.numberGrouping,
-                    onClick = { onOpenEditBudget(budget) },
-                    modifier = Modifier.animateItem()
+                    onClick = { onOpenEditBudget(budget) }
                 )
             }
         }

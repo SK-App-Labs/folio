@@ -79,6 +79,7 @@ fun FolioMainShell(
 
     val ledgerUiState by ledgerViewModel.uiState.collectAsStateWithLifecycle()
     val accountsUiState by accountsViewModel.uiState.collectAsStateWithLifecycle()
+    val statsUiState by statsViewModel.uiState.collectAsStateWithLifecycle()
 
     var selectedTab by rememberSaveable { mutableStateOf(FolioMainTab.TRANSACTIONS) }
     var isEntrySheetOpen by rememberSaveable { mutableStateOf(false) }

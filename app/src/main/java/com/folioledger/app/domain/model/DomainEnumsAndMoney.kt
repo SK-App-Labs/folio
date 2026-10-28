@@ -1,6 +1,9 @@
 // File: app/src/main/java/com/folioledger/app/domain/model/DomainEnumsAndMoney.kt
 package com.folioledger.app.domain.model
 
+import java.util.Locale
+import java.util.Currency as JavaCurrency
+
 @JvmInline
 value class MinorMoney(val amountMinor: Long) : Comparable<MinorMoney> {
     operator fun plus(other: MinorMoney): MinorMoney =
@@ -131,29 +134,128 @@ object SupportedCurrencies {
         fractionDigits = 2,
         defaultGrouping = NumberGroupingSystem.INTERNATIONAL
     )
+    val SAR = CurrencySpec(
+        code = "SAR",
+        symbol = "SAR",
+        displayName = "Saudi Riyal",
+        fractionDigits = 2,
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+    )
+    val QAR = CurrencySpec(
+        code = "QAR",
+        symbol = "QR",
+        displayName = "Qatari Riyal",
+        fractionDigits = 2,
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+    )
+    val OMR = CurrencySpec(
+        code = "OMR",
+        symbol = "RO",
+        displayName = "Omani Rial",
+        fractionDigits = 3,
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+    )
+    val BHD = CurrencySpec(
+        code = "BHD",
+        symbol = "BD",
+        displayName = "Bahraini Dinar",
+        fractionDigits = 3,
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+    )
+    val MYR = CurrencySpec(
+        code = "MYR",
+        symbol = "RM",
+        displayName = "Malaysian Ringgit",
+        fractionDigits = 2,
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+    )
+    val THB = CurrencySpec(
+        code = "THB",
+        symbol = "฿",
+        displayName = "Thai Baht",
+        fractionDigits = 2,
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+    )
 
-    val ALL: List<CurrencySpec> = listOf(
+    val POPULAR: List<CurrencySpec> = listOf(
         INR,
         USD,
         EUR,
         GBP,
-        JPY,
-        KWD,
         AED,
+        SAR,
         SGD,
-        AUD,
         CAD,
+        AUD,
+        QAR,
+        OMR,
+        BHD,
+        KWD,
+        JPY,
+        MYR,
+        THB,
         CHF,
         CNY
     )
 
-    val BY_CODE: Map<String, CurrencySpec> = ALL.associateBy { it.code }
+    private val PREDEFINED: Map<String, CurrencySpec> = listOf(
+        INR, USD, EUR, GBP, JPY, KWD, AED, SAR, QAR, OMR, BHD, SGD, AUD, CAD, CHF, CNY, MYR, THB
+    ).associateBy { it.code }
+
+    val ALL: List<CurrencySpec> by lazy {
+        val isoCurrencies = runCatching {
+            JavaCurrency.getAvailableCurrencies()
+                .filter { curr ->
+                    val code = curr.currencyCode
+                    code.length == 3 &&
+                    curr.defaultFractionDigits >= 0 &&
+                    code != "XXX" && code != "XTS" && code != "XUA" &&
+                    code != "XBA" && code != "XBB" && code != "XBC" && code != "XBD"
+                }
+                .map { curr ->
+                    PREDEFINED[curr.currencyCode] ?: CurrencySpec(
+                        code = curr.currencyCode,
+                        symbol = curr.getSymbol(Locale.US).ifBlank { curr.currencyCode },
+                        displayName = curr.getDisplayName(Locale.US).ifBlank { curr.currencyCode },
+                        fractionDigits = curr.defaultFractionDigits.coerceAtLeast(0),
+                        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+                    )
+                }
+                .sortedBy { it.code }
+        }.getOrNull()
+
+        if (!isoCurrencies.isNullOrEmpty()) {
+            val popularCodes = POPULAR.map { it.code }.toSet()
+            val others = isoCurrencies.filterNot { popularCodes.contains(it.code) }
+            POPULAR + others
+        } else {
+            POPULAR
+        }
+    }
+
+    val BY_CODE: Map<String, CurrencySpec> by lazy {
+        ALL.associateBy { it.code }
+    }
 
     fun fromCode(code: String): CurrencySpec =
-        BY_CODE[code.trim().uppercase()] ?: INR
+        getByCode(code) ?: INR
 
-    fun getByCode(code: String): CurrencySpec? =
-        BY_CODE[code.trim().uppercase()]
+    fun getByCode(code: String): CurrencySpec? {
+        val normalized = code.trim().uppercase()
+        val existing = PREDEFINED[normalized] ?: BY_CODE[normalized]
+        if (existing != null) return existing
+
+        return runCatching {
+            val curr = JavaCurrency.getInstance(normalized)
+            CurrencySpec(
+                code = curr.currencyCode,
+                symbol = curr.getSymbol(Locale.US).ifBlank { curr.currencyCode },
+                displayName = curr.getDisplayName(Locale.US).ifBlank { curr.currencyCode },
+                fractionDigits = curr.defaultFractionDigits.coerceAtLeast(0),
+                defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+            )
+        }.getOrNull()
+    }
 }
 
 enum class AccountGroup(val isLiabilityByDefault: Boolean) {

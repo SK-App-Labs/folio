@@ -634,7 +634,7 @@ class LedgerHomeViewModel(
     }.flowOn(Dispatchers.Default)
     .stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000L),
+        started = SharingStarted.Eagerly,
         initialValue = LedgerHomeUiState()
     )
 

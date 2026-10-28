@@ -1,6 +1,7 @@
 package com.folioledger.app.ui.accounts.sheets
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -76,8 +77,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
@@ -114,14 +118,55 @@ internal fun AccountEditorBottomSheet(
     var isForeignCurrencyExpanded by rememberSaveable { mutableStateOf(state.currencyCode != "INR") }
     var isAppearanceCustomizerExpanded by rememberSaveable { mutableStateOf(false) }
 
-    var selectedSegmentIndex by rememberSaveable {
-        mutableIntStateOf(
-            when (state.groupType) {
-                AccountGroup.CASH, AccountGroup.BANK_ACCOUNT, AccountGroup.PREPAID_WALLET -> 0
-                AccountGroup.DEBIT_CARD, AccountGroup.CREDIT_CARD -> 1
-                else -> 2
-            }
+    val top4Groups = remember {
+        listOf(
+            AccountGroup.BANK_ACCOUNT,
+            AccountGroup.CREDIT_CARD,
+            AccountGroup.CASH,
+            AccountGroup.DEBIT_CARD
         )
+    }
+    val secondaryGroups = remember {
+        listOf(
+            AccountGroup.SAVINGS,
+            AccountGroup.PREPAID_WALLET,
+            AccountGroup.INVESTMENT,
+            AccountGroup.OVERDRAFT,
+            AccountGroup.LOAN,
+            AccountGroup.OTHER
+        )
+    }
+    var isMoreTypesExpanded by rememberSaveable {
+        mutableStateOf(secondaryGroups.contains(state.groupType))
+    }
+    val haptic = LocalHapticFeedback.current
+
+    val handleGroupSelection: (AccountGroup) -> Unit = { group ->
+        onUpdateState { current ->
+            val updatedAnchorEpochDay = if (group == AccountGroup.CREDIT_CARD) {
+                CreditCardCycleCalculator.computeCycleWindow(
+                    referenceDateEpochDay = referenceDateEpochDay,
+                    settlementDayOfMonth = current.settlementDayOfMonth,
+                    paymentDueDayOfMonth = current.paymentDueDayOfMonth
+                ).lastStatementEnd.toEpochDay()
+            } else if (current.groupType == AccountGroup.CREDIT_CARD) {
+                LocalDate.now().toEpochDay()
+            } else {
+                current.openingDateEpochDay
+            }
+
+            current.copy(
+                groupType = group,
+                openingDateEpochDay = updatedAnchorEpochDay,
+                iconName = AccountsViewModel.defaultIconForGroup(group),
+                colorHex = AccountsViewModel.defaultColorForGroup(group),
+                parentAccountId = if (group == AccountGroup.DEBIT_CARD) {
+                    current.parentAccountId ?: parentBankCandidates.firstOrNull()?.id
+                } else {
+                    null
+                }
+            )
+        }
     }
 
     val swatchPresets = remember {
@@ -206,265 +251,131 @@ internal fun AccountEditorBottomSheet(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // 2. Opening Balance / Credit Limit (Moved directly below Account Name!)
-            if (state.groupType == AccountGroup.CREDIT_CARD) {
-                OutlinedTextField(
-                    value = state.creditLimitInput,
-                    onValueChange = { v -> onUpdateState { it.copy(creditLimitInput = v) } },
-                    label = { Text("Credit Limit") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            } else if (state.isEditing) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                    modifier = Modifier.fillMaxWidth()
+            // 2. Account Group Selector (Option A - Smart Quick-Pick 2×2 Grid + More Types Expander)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize()
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = if (state.groupType.isLiabilityByDefault) "Current Outstanding Balance" else "Current Live Balance",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "${state.currencyCode} ${state.openingBalanceInput}",
-                            style = tabularMoneyStyle(MaterialTheme.typography.titleLarge),
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "To adjust or reconcile this balance against your bank statement, use the Reconcile tool in the Passbook.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            } else {
-                OutlinedTextField(
-                    value = state.openingBalanceInput,
-                    onValueChange = { v -> onUpdateState { it.copy(openingBalanceInput = v) } },
-                    label = {
-                        Text(
-                            if (state.groupType.isLiabilityByDefault) {
-                                "Starting Outstanding Balance"
-                            } else {
-                                "Starting Balance"
-                            }
-                        )
-                    },
-                    supportingText = {
-                        Text(
-                            if (state.groupType.isLiabilityByDefault) {
-                                "Initial debt as of the starting date"
-                            } else {
-                                "Initial starting balance as of the starting date"
-                            }
-                        )
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                var showDatePickerDialog by remember { mutableStateOf(false) }
-                val formattedAnchorDate = remember(state.openingDateEpochDay) {
-                    LocalDate.ofEpochDay(state.openingDateEpochDay)
-                        .format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US))
-                }
-
-                OutlinedCard(
-                    onClick = { showDatePickerDialog = true },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
-                            Text(
-                                text = "Starting Balance Date",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = formattedAnchorDate,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        Icon(
-                            imageVector = Icons.Filled.CalendarToday,
-                            contentDescription = "Select starting date",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-
-                if (showDatePickerDialog) {
-                    val initialMillis = remember(state.openingDateEpochDay) {
-                        LocalDate.ofEpochDay(state.openingDateEpochDay)
-                            .atStartOfDay(ZoneOffset.UTC)
-                            .toInstant()
-                            .toEpochMilli()
-                    }
-                    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
-                    DatePickerDialog(
-                        onDismissRequest = { showDatePickerDialog = false },
-                        confirmButton = {
-                            TextButton(
-                                onClick = {
-                                    val selectedMillis = datePickerState.selectedDateMillis
-                                    if (selectedMillis != null) {
-                                        val selectedEpochDay = Instant.ofEpochMilli(selectedMillis)
-                                            .atZone(ZoneOffset.UTC)
-                                            .toLocalDate()
-                                            .toEpochDay()
-                                        onUpdateState { it.copy(openingDateEpochDay = selectedEpochDay) }
-                                    }
-                                    showDatePickerDialog = false
-                                }
-                            ) {
-                                Text("Confirm")
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showDatePickerDialog = false }) {
-                                Text("Cancel")
-                            }
-                        }
-                    ) {
-                        DatePicker(state = datePickerState)
-                    }
-                }
-            }
-
-            // 3. Segmented Account Group Selector
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "Account Group",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                PrimaryTabRow(
-                    selectedTabIndex = selectedSegmentIndex,
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    divider = {}
-                ) {
-                    Tab(
-                        selected = selectedSegmentIndex == 0,
-                        onClick = { selectedSegmentIndex = 0 },
-                        text = { Text("Liquid", fontWeight = FontWeight.Bold) }
-                    )
-                    Tab(
-                        selected = selectedSegmentIndex == 1,
-                        onClick = { selectedSegmentIndex = 1 },
-                        text = { Text("Cards", fontWeight = FontWeight.Bold) }
-                    )
-                    Tab(
-                        selected = selectedSegmentIndex == 2,
-                        onClick = { selectedSegmentIndex = 2 },
-                        text = { Text("Savings & Debt", fontWeight = FontWeight.Bold) }
-                    )
-                }
-
-                val activeGroups = when (selectedSegmentIndex) {
-                    0 -> listOf(AccountGroup.CASH, AccountGroup.BANK_ACCOUNT, AccountGroup.PREPAID_WALLET)
-                    1 -> listOf(AccountGroup.DEBIT_CARD, AccountGroup.CREDIT_CARD)
-                    else -> listOf(
-                        AccountGroup.SAVINGS,
-                        AccountGroup.INVESTMENT,
-                        AccountGroup.OVERDRAFT,
-                        AccountGroup.LOAN,
-                        AccountGroup.OTHER
-                    )
-                }
-
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(top = 4.dp)
-                ) {
-                    activeGroups.forEach { group ->
-                        FilterChip(
-                            selected = state.groupType == group,
-                            onClick = {
-                                onUpdateState { current ->
-                                    val updatedAnchorEpochDay = if (group == AccountGroup.CREDIT_CARD) {
-                                        CreditCardCycleCalculator.computeCycleWindow(
-                                            referenceDateEpochDay = referenceDateEpochDay,
-                                            settlementDayOfMonth = current.settlementDayOfMonth,
-                                            paymentDueDayOfMonth = current.paymentDueDayOfMonth
-                                        ).lastStatementEnd.toEpochDay()
-                                    } else if (current.groupType == AccountGroup.CREDIT_CARD) {
-                                        LocalDate.now().toEpochDay()
-                                    } else {
-                                        current.openingDateEpochDay
-                                    }
-
-                                    current.copy(
-                                        groupType = group,
-                                        openingDateEpochDay = updatedAnchorEpochDay,
-                                        iconName = AccountsViewModel.defaultIconForGroup(group),
-                                        colorHex = AccountsViewModel.defaultColorForGroup(group),
-                                        parentAccountId = if (group == AccountGroup.DEBIT_CARD) {
-                                            current.parentAccountId ?: parentBankCandidates.firstOrNull()?.id
-                                        } else {
-                                            null
-                                        }
-                                    )
-                                }
-                            },
-                            label = { Text(formatAccountGroupTitle(group)) }
-                        )
-                    }
-                }
-            }
-
-            // 4. Group-Specific Fields
-            when (state.groupType) {
-                AccountGroup.DEBIT_CARD -> {
                     Text(
-                        text = "Linked Parent Bank Account",
+                        text = "Account Type",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold
                     )
-                    if (parentBankCandidates.isEmpty()) {
-                        Text(
-                            text = "No Bank or Savings account found. Create a Bank Account first to link a Debit Card.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = semanticColors.expenseCoral
-                        )
-                    } else {
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            parentBankCandidates.forEach { candidate ->
-                                FilterChip(
-                                    selected = state.parentAccountId == candidate.id,
-                                    onClick = {
-                                        onUpdateState { it.copy(parentAccountId = candidate.id) }
-                                    },
-                                    label = { Text(candidate.name) }
-                                )
-                            }
+                    Text(
+                        text = if (top4Groups.contains(state.groupType)) "1-Tap Quick Pick" else "Custom Type",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                // Top 4 Quick-Pick 2x2 Grid
+                top4Groups.chunked(2).forEach { rowPair ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        rowPair.forEach { group ->
+                            AccountTypeQuickPickTile(
+                                group = group,
+                                isSelected = state.groupType == group,
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    handleGroupSelection(group)
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
                         }
                     }
                 }
 
+                // Collapsible More Types Expander
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.45f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            isMoreTypesExpanded = !isMoreTypesExpanded
+                        }
+                        .padding(vertical = 8.dp, horizontal = 12.dp)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = if (isMoreTypesExpanded) {
+                                "Show Less Types"
+                            } else {
+                                "More Types (Savings, Loan, Investment...)"
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = if (isMoreTypesExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                AnimatedVisibility(visible = isMoreTypesExpanded) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        secondaryGroups.chunked(2).forEach { rowPair ->
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                rowPair.forEach { group ->
+                                    AccountTypeQuickPickTile(
+                                        group = group,
+                                        isSelected = state.groupType == group,
+                                        onClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            handleGroupSelection(group)
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                if (rowPair.size == 1) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Adaptive Account Details (Credit Card, Debit Card, or Standard Balance)
+            when (state.groupType) {
                 AccountGroup.CREDIT_CARD -> {
+                    // Credit Limit Field
+                    OutlinedTextField(
+                        value = state.creditLimitInput,
+                        onValueChange = { v -> onUpdateState { it.copy(creditLimitInput = v) } },
+                        label = { Text("Credit Limit") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
                     val liveCycleWindow = remember(
                         referenceDateEpochDay,
                         state.settlementDayOfMonth,
@@ -679,29 +590,28 @@ internal fun AccountEditorBottomSheet(
 
                     // 3. SIDE-BY-SIDE STARTING DEBT FIELDS
                     if (!state.isEditing) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        OutlinedTextField(
-                            value = state.statementPayableInput,
-                            onValueChange = { v -> onUpdateState { it.copy(statementPayableInput = v) } },
-                            label = { Text("Current Due") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
-                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = state.statementPayableInput,
+                                onValueChange = { v -> onUpdateState { it.copy(statementPayableInput = v) } },
+                                label = { Text("Current Due") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                singleLine = true,
+                                modifier = Modifier.weight(1f)
+                            )
 
-                        OutlinedTextField(
-                            value = state.unbilledAmountInput,
-                            onValueChange = { v -> onUpdateState { it.copy(unbilledAmountInput = v) } },
-                            label = { Text("Unbilled Spend") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-
+                            OutlinedTextField(
+                                value = state.unbilledAmountInput,
+                                onValueChange = { v -> onUpdateState { it.copy(unbilledAmountInput = v) } },
+                                label = { Text("Unbilled Spend") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                singleLine = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     } else {
                         Surface(
                             shape = RoundedCornerShape(10.dp),
@@ -823,7 +733,170 @@ internal fun AccountEditorBottomSheet(
                     }
                 }
 
-                else -> {}
+                AccountGroup.DEBIT_CARD -> {
+                    Text(
+                        text = "Linked Parent Bank Account",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    if (parentBankCandidates.isEmpty()) {
+                        Text(
+                            text = "No Bank or Savings account found. Create a Bank Account first to link a Debit Card.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = semanticColors.expenseCoral
+                        )
+                    } else {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            parentBankCandidates.forEach { candidate ->
+                                FilterChip(
+                                    selected = state.parentAccountId == candidate.id,
+                                    onClick = {
+                                        onUpdateState { it.copy(parentAccountId = candidate.id) }
+                                    },
+                                    label = { Text(candidate.name) }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                else -> {
+                    if (state.isEditing) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerLow,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = if (state.groupType.isLiabilityByDefault) "Current Outstanding Balance" else "Current Live Balance",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "${state.currencyCode} ${state.openingBalanceInput}",
+                                    style = tabularMoneyStyle(MaterialTheme.typography.titleLarge),
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "To adjust or reconcile this balance against your bank statement, use the Reconcile tool in the Passbook.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else {
+                        OutlinedTextField(
+                            value = state.openingBalanceInput,
+                            onValueChange = { v -> onUpdateState { it.copy(openingBalanceInput = v) } },
+                            label = {
+                                Text(
+                                    if (state.groupType.isLiabilityByDefault) {
+                                        "Starting Outstanding Balance"
+                                    } else {
+                                        "Starting Balance"
+                                    }
+                                )
+                            },
+                            supportingText = {
+                                Text(
+                                    if (state.groupType.isLiabilityByDefault) {
+                                        "Initial debt as of the starting date"
+                                    } else {
+                                        "Initial starting balance as of the starting date"
+                                    }
+                                )
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        var showDatePickerDialog by remember { mutableStateOf(false) }
+                        val formattedAnchorDate = remember(state.openingDateEpochDay) {
+                            LocalDate.ofEpochDay(state.openingDateEpochDay)
+                                .format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US))
+                        }
+
+                        OutlinedCard(
+                            onClick = { showDatePickerDialog = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "Starting Balance Date",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = formattedAnchorDate,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Filled.CalendarToday,
+                                    contentDescription = "Select starting date",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        if (showDatePickerDialog) {
+                            val initialMillis = remember(state.openingDateEpochDay) {
+                                LocalDate.ofEpochDay(state.openingDateEpochDay)
+                                    .atStartOfDay(ZoneOffset.UTC)
+                                    .toInstant()
+                                    .toEpochMilli()
+                            }
+                            val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+                            DatePickerDialog(
+                                onDismissRequest = { showDatePickerDialog = false },
+                                confirmButton = {
+                                    TextButton(
+                                        onClick = {
+                                            val selectedMillis = datePickerState.selectedDateMillis
+                                            if (selectedMillis != null) {
+                                                val selectedEpochDay = Instant.ofEpochMilli(selectedMillis)
+                                                    .atZone(ZoneOffset.UTC)
+                                                    .toLocalDate()
+                                                    .toEpochDay()
+                                                onUpdateState { it.copy(openingDateEpochDay = selectedEpochDay) }
+                                            }
+                                            showDatePickerDialog = false
+                                        }
+                                    ) {
+                                        Text("Confirm")
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showDatePickerDialog = false }) {
+                                        Text("Cancel")
+                                    }
+                                }
+                            ) {
+                                DatePicker(state = datePickerState)
+                            }
+                        }
+                    }
+                }
             }
 
             HorizontalDivider(color = semanticColors.cardStrokeSubtle)
@@ -867,13 +940,22 @@ internal fun AccountEditorBottomSheet(
 
                     AnimatedVisibility(visible = isForeignCurrencyExpanded) {
                         Column(modifier = Modifier.padding(top = 10.dp)) {
+                            val editorCurrencies = remember(state.currencyCode) {
+                                val popular = SupportedCurrencies.POPULAR
+                                if (popular.none { it.code.equals(state.currencyCode, ignoreCase = true) }) {
+                                    val custom = SupportedCurrencies.fromCode(state.currencyCode)
+                                    listOf(custom) + popular
+                                } else {
+                                    popular
+                                }
+                            }
                             FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                SupportedCurrencies.ALL.forEach { spec ->
+                                editorCurrencies.forEach { spec ->
                                     FilterChip(
-                                        selected = state.currencyCode == spec.code,
+                                        selected = state.currencyCode.equals(spec.code, ignoreCase = true),
                                         onClick = { onUpdateState { it.copy(currencyCode = spec.code) } },
                                         label = { Text("${spec.symbol} ${spec.code}") }
                                     )
@@ -1137,4 +1219,87 @@ private fun DayOfMonthPickerDialog(
             }
         }
     )
+}
+
+@Composable
+private fun AccountTypeQuickPickTile(
+    group: AccountGroup,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+    val groupColorHex = AccountsViewModel.defaultColorForGroup(group)
+    val groupIcon = remember(group) { AccountsViewModel.defaultIconForGroup(group) }
+
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = if (isSelected) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f)
+        } else {
+            MaterialTheme.colorScheme.surfaceContainer
+        },
+        border = BorderStroke(
+            width = if (isSelected) 1.5.dp else 1.dp,
+            color = if (isSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
+        ),
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 10.dp)
+        ) {
+            CategoryIconBadge(
+                iconName = groupIcon,
+                colorHex = groupColorHex,
+                size = 32.dp,
+                iconSize = 18.dp
+            )
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = formatAccountTypeSingularTitle(group),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = when {
+                        group.isLiabilityByDefault -> "Liability"
+                        group == AccountGroup.DEBIT_CARD -> "Linked Asset"
+                        else -> "Asset"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (group.isLiabilityByDefault) {
+                        semanticColors.expenseCoral
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+private fun formatAccountTypeSingularTitle(group: AccountGroup): String = when (group) {
+    AccountGroup.CASH -> "Cash"
+    AccountGroup.BANK_ACCOUNT -> "Bank Account"
+    AccountGroup.DEBIT_CARD -> "Debit Card"
+    AccountGroup.CREDIT_CARD -> "Credit Card"
+    AccountGroup.SAVINGS -> "Savings"
+    AccountGroup.PREPAID_WALLET -> "Prepaid Wallet"
+    AccountGroup.INVESTMENT -> "Investments"
+    AccountGroup.OVERDRAFT -> "Overdraft"
+    AccountGroup.LOAN -> "Loan"
+    AccountGroup.OTHER -> "Other"
 }
