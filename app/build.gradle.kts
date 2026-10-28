@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.spotless)
 }
 
 android {
@@ -50,6 +51,22 @@ composeCompiler {
     stabilityConfigurationFiles.add(layout.projectDirectory.file("compose_stability_config.conf"))
 }
 
+spotless {
+    kotlin {
+        target("**/*.kt")
+        targetExclude("**/build/**")
+        ktlint().editorConfigOverride(
+            mapOf(
+                "ktlint_standard_no-wildcard-imports" to "disabled",
+                "ktlint_standard_filename" to "disabled",
+                "max_line_length" to "off"
+            )
+        )
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)
@@ -85,4 +102,7 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // Debug Memory Leak Detection
+    debugImplementation(libs.leakcanary.android)
 }

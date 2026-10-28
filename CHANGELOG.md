@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.4.0] - Unreleased
+### Added
+- **LeakCanary Memory Diagnostics (`debugImplementation`)**: Added Square's LeakCanary 2.14 in debug builds for automated, passive detection of retained Activities, unclosed bottom sheet coroutine scopes, and ViewModel lifecycle leaks with zero overhead on release builds.
+- **Spotless & ktlint Code Hygiene Engine**: Integrated the Spotless code formatting plugin with ktlint rules, automating whitespace trimming, trailing line normalization, and style consistency across all Kotlin source files via `./gradlew spotlessApply`.
+- **Passbook Bottom Sheet Height Anchoring**: Fixed the `AccountPassbookBottomSheet` container height to a stable 92% viewport height (`0.92f`) and weighted scroll list (`weight(1f)`), eliminating visual jumping and moving pagination touch targets when switching between empty and active transaction months.
+
 ## [1.3.0] - 2026-10-28
 ### Added
 - **Instant Tab Switching & Pre-Warmed Data Pipelines**: Converted `StatsAndBudgetsViewModel` and `AccountsViewModel` state flows to `SharingStarted.Eagerly` and added shell-level state observation in `FolioMainShell.kt` via `collectAsStateWithLifecycle()`. Completely eliminated the cold-subscriber timeout previously caused by `WhileSubscribed(5_000L)` that unmounted upstream Room queries when away from the tab for $>5$ seconds. Tab switches to **Stats** and **Accounts** now render instantly with fully populated, pre-computed data ($0\text{ms}$ pop-in delay). Made database transaction querying in `AccountsViewModel` strictly lazy, only observing transactions when an account passbook is explicitly opened.
