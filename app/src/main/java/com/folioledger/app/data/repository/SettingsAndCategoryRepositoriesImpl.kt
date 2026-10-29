@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.withTransaction
@@ -92,6 +93,7 @@ class SettingsAndBackupRepositoryImpl(
         val BIOMETRIC_LOCK_ENABLED = booleanPreferencesKey("biometric_lock_enabled")
         val IS_SUPPORTER = booleanPreferencesKey("is_supporter")
         val SUPPORTER_TIER = stringPreferencesKey("supporter_tier")
+        val LAST_BACKUP_EPOCH_MILLIS = longPreferencesKey("last_backup_epoch_millis")
     }
 
     override fun observeUserPreferences(): Flow<UserPreferences> {
@@ -130,6 +132,11 @@ class SettingsAndBackupRepositoryImpl(
                 mutablePrefs[PreferenceKeys.SUPPORTER_TIER] = updated.supporterTier
             } else {
                 mutablePrefs.remove(PreferenceKeys.SUPPORTER_TIER)
+            }
+            if (updated.lastBackupEpochMillis != null) {
+                mutablePrefs[PreferenceKeys.LAST_BACKUP_EPOCH_MILLIS] = updated.lastBackupEpochMillis
+            } else {
+                mutablePrefs.remove(PreferenceKeys.LAST_BACKUP_EPOCH_MILLIS)
             }
         }
         Unit
@@ -334,6 +341,7 @@ class SettingsAndBackupRepositoryImpl(
             openOutputStreamForLocation(destinationUriString).use { rawStream ->
                 createBackupToStream(rawStream)
             }
+            updateUserPreferences { it.copy(lastBackupEpochMillis = System.currentTimeMillis()) }
             destinationUriString
         }
     }
@@ -368,6 +376,8 @@ class SettingsAndBackupRepositoryImpl(
                     put("dynamicColorEnabled", currentPrefs.dynamicColorEnabled)
                     put("accentPalette", currentPrefs.accentPalette)
                     put("biometricLockEnabled", currentPrefs.biometricLockEnabled)
+                    put("isSupporter", currentPrefs.isSupporter)
+                    putNullableString("supporterTier", currentPrefs.supporterTier)
                 }
             )
 
@@ -598,10 +608,20 @@ class SettingsAndBackupRepositoryImpl(
         sourceUriString: String
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
+            createSafetyRollbackSnapshot()
             openInputStreamForLocation(sourceUriString).use { rawStream ->
                 restoreBackupFromStream(rawStream)
             }
             Unit
+        }
+    }
+
+    private suspend fun createSafetyRollbackSnapshot() {
+        runCatching {
+            val safetyFile = File(context.cacheDir, "pre_restore_safety_backup.zip")
+            FileOutputStream(safetyFile).use { output ->
+                createBackupToStream(output)
+            }
         }
     }
 
@@ -743,7 +763,13 @@ class SettingsAndBackupRepositoryImpl(
                     biometricLockEnabled = prefsObj.optBoolean(
                         "biometricLockEnabled",
                         current.biometricLockEnabled
-                    )
+                    ),
+                    isSupporter = prefsObj.optBoolean(
+                        "isSupporter",
+                        current.isSupporter
+                    ),
+                    supporterTier = if (prefsObj.isNull("supporterTier")) current.supporterTier else prefsObj.optString("supporterTier").ifBlank { null },
+                    lastBackupEpochMillis = current.lastBackupEpochMillis
                 )
             }
         }
@@ -769,7 +795,8 @@ class SettingsAndBackupRepositoryImpl(
             accentPalette = prefs[PreferenceKeys.ACCENT_PALETTE] ?: "EMERALD",
             biometricLockEnabled = prefs[PreferenceKeys.BIOMETRIC_LOCK_ENABLED] ?: false,
             isSupporter = prefs[PreferenceKeys.IS_SUPPORTER] ?: false,
-            supporterTier = prefs[PreferenceKeys.SUPPORTER_TIER]
+            supporterTier = prefs[PreferenceKeys.SUPPORTER_TIER],
+            lastBackupEpochMillis = prefs[PreferenceKeys.LAST_BACKUP_EPOCH_MILLIS]
         )
     }
 
@@ -901,6 +928,17 @@ class SettingsAndBackupRepositoryImpl(
         } else {
             value
         }
+    }
+
+    override fun getLatestBackupFile(): File? {
+        val internalDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioBackups")
+        return internalDir.listFiles { file ->
+            file.isFile && file.name.endsWith(".zip", ignoreCase = true)
+        }?.maxByOrNull { it.lastModified() }
+    }
+
+    private fun JSONObject.putNullableString(key: String, value: String?) {
+        if (value == null) put(key, JSONObject.NULL) else put(key, value)
     }
 
     private fun JSONObject.putNullableLong(key: String, value: Long?) {

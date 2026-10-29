@@ -190,4 +190,6 @@ interface SettingsAndBackupRepository {
     suspend fun restoreFromZipBackup(sourceUriString: String): Result<Unit>
 
     suspend fun clearAllData(): Result<Unit>
+
+    fun getLatestBackupFile(): java.io.File?
 }

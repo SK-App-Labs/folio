@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 
 @Immutable
 data class CategoryEditorDialogState(
@@ -57,7 +58,8 @@ data class SettingsUiState(
     val csvImportResult: ImportCsvResult? = null,
     val isBusyWithFileOperation: Boolean = false,
     val fileOperationStatusLabel: String? = null,
-    val snackbarMessage: String? = null
+    val snackbarMessage: String? = null,
+    val lastCompletedFileForShare: File? = null
 ) {
     val activeManagedCategories: List<CategoryNode>
         get() = when (selectedCategoryManagerType) {
@@ -83,7 +85,8 @@ private data class SettingsInternalControlState(
     val csvImportResult: ImportCsvResult? = null,
     val isBusyWithFileOperation: Boolean = false,
     val fileOperationStatusLabel: String? = null,
-    val snackbarMessage: String? = null
+    val snackbarMessage: String? = null,
+    val lastCompletedFileForShare: File? = null
 )
 
 class SettingsViewModel(
@@ -130,7 +133,8 @@ class SettingsViewModel(
             csvImportResult = ctrl.csvImportResult,
             isBusyWithFileOperation = ctrl.isBusyWithFileOperation,
             fileOperationStatusLabel = ctrl.fileOperationStatusLabel,
-            snackbarMessage = ctrl.snackbarMessage
+            snackbarMessage = ctrl.snackbarMessage,
+            lastCompletedFileForShare = ctrl.lastCompletedFileForShare
         )
     }.stateIn(
         scope = viewModelScope,
@@ -562,10 +566,12 @@ class SettingsViewModel(
             val result = settingsAndBackupRepository.createPortableZipBackup(destinationUriString)
             result.fold(
                 onSuccess = {
+                    val latestFile = settingsAndBackupRepository.getLatestBackupFile()
                     controlState.update {
                         it.copy(
                             isBusyWithFileOperation = false,
                             fileOperationStatusLabel = null,
+                            lastCompletedFileForShare = latestFile,
                             snackbarMessage = "Saved backup to Downloads/Folio/$destinationUriString"
                         )
                     }
@@ -575,12 +581,19 @@ class SettingsViewModel(
                         it.copy(
                             isBusyWithFileOperation = false,
                             fileOperationStatusLabel = null,
+                            lastCompletedFileForShare = null,
                             snackbarMessage = error.message ?: "Backup creation failed"
                         )
                     }
                 }
             )
         }
+    }
+
+    fun getLatestBackupFile(): File? = settingsAndBackupRepository.getLatestBackupFile()
+
+    fun clearLastCompletedFileForShare() {
+        controlState.update { it.copy(lastCompletedFileForShare = null) }
     }
 
     fun requestRestoreConfirmation(sourceUriString: String) {

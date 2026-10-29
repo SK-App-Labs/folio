@@ -90,6 +90,15 @@ import com.folioledger.app.ui.theme.FolioAccentPalette
 import com.folioledger.app.ui.theme.FolioThemeMode
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
+import com.folioledger.app.ui.settings.sheets.formatBackupRelativeTime
+import java.io.File
 import java.time.LocalDate
 import kotlinx.coroutines.launch
 
@@ -98,6 +107,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
     contentPadding: PaddingValues = PaddingValues(0.dp),
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -116,6 +126,14 @@ fun SettingsScreen(
             viewModel.loadCsvPreview(uri.toString())
         }
     }
+
+    val zipDocumentPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.requestRestoreConfirmation(uri.toString())
+        }
+    }
     var showClearAllDataDialog by rememberSaveable { mutableStateOf(false) }
     var showUserGuideSheet by rememberSaveable { mutableStateOf(false) }
     var showFeedbackSheet by rememberSaveable { mutableStateOf(false) }
@@ -126,7 +144,20 @@ fun SettingsScreen(
     LaunchedEffect(uiState.snackbarMessage) {
         val message = uiState.snackbarMessage
         if (!message.isNullOrBlank()) {
-            snackbarHostState.showSnackbar(message)
+            val fileToShare = uiState.lastCompletedFileForShare
+            if (fileToShare != null) {
+                val result = snackbarHostState.showSnackbar(
+                    message = message,
+                    actionLabel = "Share",
+                    duration = SnackbarDuration.Long
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    shareBackupFile(context, fileToShare)
+                }
+                viewModel.clearLastCompletedFileForShare()
+            } else {
+                snackbarHostState.showSnackbar(message)
+            }
             viewModel.clearSnackbarMessage()
         }
     }
@@ -274,10 +305,12 @@ fun SettingsScreen(
                 // Group 3: DATA, BACKUPS & HELP
                 item {
                     SettingsGroupCard(title = "DATA, BACKUPS & HELP") {
+                        val backupStatusText = formatBackupRelativeTime(prefs.lastBackupEpochMillis)
                         SettingsNavigationRow(
                             icon = Icons.Default.Backup,
                             title = "Backups, CSV Export & Reset",
-                            valueText = "Downloads/Folio",
+                            valueText = if (prefs.lastBackupEpochMillis != null) backupStatusText else "Downloads/Folio",
+                            valueColorDot = if (prefs.lastBackupEpochMillis != null) semanticColors.incomeEmerald else null,
                             enabled = isNotBusy,
                             onClick = { isDataBackupSheetOpen = true }
                         )
@@ -385,13 +418,17 @@ fun SettingsScreen(
 
     if (isDataBackupSheetOpen) {
         DataAndBackupBottomSheet(
+            lastBackupEpochMillis = prefs.lastBackupEpochMillis,
             onCreateBackup = {
                 viewModel.createPortableZipBackup(
                     "Folio_Backup_${LocalDate.now()}_${System.currentTimeMillis() / 1000}.zip"
                 )
             },
-            onRestoreBackup = {
+            onRestoreLatestBackup = {
                 viewModel.requestRestoreConfirmation("LATEST_BACKUP")
+            },
+            onSelectBackupFile = {
+                zipDocumentPicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "*/*"))
             },
             onExportCsv = {
                 viewModel.exportAllTransactionsToCsv(
@@ -403,6 +440,11 @@ fun SettingsScreen(
             },
             onRequestClearAllData = {
                 showClearAllDataDialog = true
+            },
+            onShareLatestBackup = {
+                viewModel.getLatestBackupFile()?.let { file ->
+                    shareBackupFile(context, file)
+                }
             },
             onDismiss = { isDataBackupSheetOpen = false }
         )
@@ -493,6 +535,7 @@ fun SettingsScreen(
 
     if (uiState.pendingRestoreUriString != null) {
         RestoreConfirmationDialog(
+            sourceUriString = uiState.pendingRestoreUriString,
             onConfirmRestore = viewModel::confirmRestoreFromZipBackup,
             onCancel = viewModel::cancelPendingRestore
         )
@@ -576,11 +619,35 @@ private fun MonthStartDayPickerDialog(
     )
 }
 
+private fun shareBackupFile(context: Context, file: File) {
+    runCatching {
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = if (file.name.endsWith(".zip", ignoreCase = true)) "application/zip" else "text/csv"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "Share Folio Backup"))
+    }
+}
+
 @Composable
 private fun RestoreConfirmationDialog(
+    sourceUriString: String?,
     onConfirmRestore: () -> Unit,
     onCancel: () -> Unit
 ) {
+    val isLocalLatest = sourceUriString == null || sourceUriString == "LATEST_BACKUP"
+    val sourceDescription = if (isLocalLatest) {
+        "the latest backup from Downloads/Folio"
+    } else {
+        "the selected backup file"
+    }
+
     AlertDialog(
         onDismissRequest = onCancel,
         icon = {
@@ -598,10 +665,17 @@ private fun RestoreConfirmationDialog(
             )
         },
         text = {
-            Text(
-                text = "Restoring the latest backup from Downloads/Folio will replace your current local accounts, transactions, categories, and budgets. Are you sure you want to proceed?",
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Restoring $sourceDescription will replace your current local accounts, transactions, categories, and budgets.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "A safety rollback snapshot will be automatically saved before restoring.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         },
         confirmButton = {
             Button(

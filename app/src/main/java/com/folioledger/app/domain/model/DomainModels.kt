@@ -125,7 +125,8 @@ data class UserPreferences(
     val accentPalette: String = "EMERALD",
     val biometricLockEnabled: Boolean = false,
     val isSupporter: Boolean = false,
-    val supporterTier: String? = null
+    val supporterTier: String? = null,
+    val lastBackupEpochMillis: Long? = null
 )
 
 @Immutable
