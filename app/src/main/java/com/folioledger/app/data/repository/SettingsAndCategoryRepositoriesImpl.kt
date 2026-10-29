@@ -31,6 +31,7 @@ import com.folioledger.app.data.local.entity.TransactionTagCrossRef
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AutoBackupRetention
 import com.folioledger.app.domain.model.CategoryNode
+import com.folioledger.app.domain.model.DuplicateTransactionSample
 import com.folioledger.app.domain.model.ImportCsvPreview
 import com.folioledger.app.domain.model.ImportCsvResult
 import java.math.BigDecimal
@@ -1261,6 +1262,7 @@ class SettingsAndBackupRepositoryImpl(
         var totalRows = 0
         var validCount = 0
         var duplicateCount = 0
+        val duplicateSamples = mutableListOf<DuplicateTransactionSample>()
         val newAccounts = mutableSetOf<String>()
         val newCategories = mutableSetOf<String>()
         val accountsWithOpeningBalance = mutableListOf<String>()
@@ -1399,6 +1401,16 @@ class SettingsAndBackupRepositoryImpl(
 
                                 if (fingerprint != null && existingFingerprints.contains(fingerprint)) {
                                     duplicateCount++
+                                    if (duplicateSamples.size < 20) {
+                                        duplicateSamples.add(
+                                            DuplicateTransactionSample(
+                                                date = rawDate.ifBlank { "Unknown Date" },
+                                                accountName = accountName.ifBlank { "Account" },
+                                                payee = payee.ifBlank { "(No payee)" },
+                                                amount = rawAmount.ifBlank { "0" }
+                                            )
+                                        )
+                                    }
                                 } else {
                                     validCount++
                                     if (fingerprint != null) {
@@ -1421,7 +1433,8 @@ class SettingsAndBackupRepositoryImpl(
             newAccountsToCreate = newAccounts.toList(),
             newCategoriesToCreate = newCategories.toList(),
             warningMessages = warnings,
-            accountsWithOpeningBalance = accountsWithOpeningBalance
+            accountsWithOpeningBalance = accountsWithOpeningBalance,
+            duplicateSamples = duplicateSamples
         )
     }
 

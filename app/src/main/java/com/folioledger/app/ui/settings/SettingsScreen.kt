@@ -31,11 +31,15 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Feedback
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Payments
@@ -77,6 +81,8 @@ import androidx.compose.ui.unit.dp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.RadioButton
+import androidx.compose.ui.text.font.FontStyle
 import com.folioledger.app.domain.model.AutoBackupRetention
 import com.folioledger.app.domain.model.ImportCsvPreview
 import com.folioledger.app.domain.model.ImportCsvResult
@@ -983,6 +989,19 @@ fun ImportCsvPreviewDialog(
     onDismiss: () -> Unit
 ) {
     var skipDuplicates by rememberSaveable { mutableStateOf(true) }
+    var showDuplicateDetails by rememberSaveable { mutableStateOf(false) }
+
+    val totalToImport = if (skipDuplicates) {
+        preview.validTransactionCount
+    } else {
+        preview.validTransactionCount + preview.duplicateCount
+    }
+
+    val hasMetadataChanges = preview.accountsWithOpeningBalance.isNotEmpty() ||
+        preview.newAccountsToCreate.isNotEmpty() ||
+        preview.newCategoriesToCreate.isNotEmpty()
+
+    val canConfirm = totalToImport > 0 || hasMetadataChanges
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1020,17 +1039,17 @@ fun ImportCsvPreviewDialog(
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "• Valid Transactions: ${preview.validTransactionCount}",
+                            text = "• Valid New Transactions: ${preview.validTransactionCount}",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.SemiBold
                         )
                         if (preview.duplicateCount > 0) {
                             Text(
-                                text = "• Duplicates Found: ${preview.duplicateCount}",
+                                text = "• Duplicates Detected: ${preview.duplicateCount}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.secondary,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                         if (preview.accountsWithOpeningBalance.isNotEmpty()) {
@@ -1058,23 +1077,261 @@ fun ImportCsvPreviewDialog(
                     }
                 }
 
+                // Duplicate Handling Section
                 if (preview.duplicateCount > 0) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { skipDuplicates = !skipDuplicates }
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Checkbox(
-                            checked = skipDuplicates,
-                            onCheckedChange = { skipDuplicates = it }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Skip duplicate transactions",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "Duplicate Handling",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+
+                            Text(
+                                text = "${preview.duplicateCount} transaction${if (preview.duplicateCount > 1) "s" else ""} match existing records in your ledger.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            // Option 1: Exclude Duplicates (Recommended)
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (skipDuplicates) {
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceContainer
+                                },
+                                border = BorderStroke(
+                                    width = if (skipDuplicates) 1.5.dp else 1.dp,
+                                    color = if (skipDuplicates) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { skipDuplicates = true }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.Top,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    RadioButton(
+                                        selected = skipDuplicates,
+                                        onClick = { skipDuplicates = true },
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(
+                                                text = "Exclude Duplicates",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Surface(
+                                                shape = RoundedCornerShape(4.dp),
+                                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                            ) {
+                                                Text(
+                                                    text = "Recommended",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                        }
+                                        Text(
+                                            text = "Skips the ${preview.duplicateCount} duplicate${if (preview.duplicateCount > 1) "s" else ""} to avoid double-counting overlapping statements.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = "→ Will import ${preview.validTransactionCount} new transaction${if (preview.validTransactionCount != 1) "s" else ""}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Option 2: Include All (Allow Duplicates)
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (!skipDuplicates) {
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceContainer
+                                },
+                                border = BorderStroke(
+                                    width = if (!skipDuplicates) 1.5.dp else 1.dp,
+                                    color = if (!skipDuplicates) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { skipDuplicates = false }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.Top,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    RadioButton(
+                                        selected = !skipDuplicates,
+                                        onClick = { skipDuplicates = false },
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text(
+                                            text = "Include All (Allow Duplicates)",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "Imports every row. Use this if your statement includes legitimate identical purchases on the same day.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = "→ Will import all ${preview.validTransactionCount + preview.duplicateCount} transactions",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.secondary
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Expandable Duplicate Inspection
+                            if (preview.duplicateSamples.isNotEmpty()) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { showDuplicateDetails = !showDuplicateDetails }
+                                        .padding(top = 4.dp, bottom = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = if (showDuplicateDetails) "Hide duplicate details" else "Inspect detected duplicates (${preview.duplicateCount})",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Icon(
+                                        imageVector = if (showDuplicateDetails) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+
+                                if (showDuplicateDetails) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.surface,
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(10.dp),
+                                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            preview.duplicateSamples.forEachIndexed { idx, sample ->
+                                                if (idx > 0) {
+                                                    HorizontalDivider(
+                                                        thickness = 0.5.dp,
+                                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                                    )
+                                                }
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Text(
+                                                            text = sample.payee,
+                                                            style = MaterialTheme.typography.bodySmall,
+                                                            fontWeight = FontWeight.SemiBold,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                        Text(
+                                                            text = "${sample.date} • ${sample.accountName}",
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        )
+                                                    }
+                                                    Text(
+                                                        text = sample.amount,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                }
+                                            }
+                                            if (preview.duplicateCount > preview.duplicateSamples.size) {
+                                                Text(
+                                                    text = "+ ${preview.duplicateCount - preview.duplicateSamples.size} more duplicates not shown",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontStyle = FontStyle.Italic,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else if (preview.validTransactionCount > 0) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "No duplicates detected. All ${preview.validTransactionCount} transactions are new.",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 }
 
@@ -1098,12 +1355,14 @@ fun ImportCsvPreviewDialog(
         confirmButton = {
             Button(
                 onClick = { onConfirmImport(skipDuplicates) },
-                enabled = preview.validTransactionCount > 0 ||
-                    preview.accountsWithOpeningBalance.isNotEmpty() ||
-                    preview.newAccountsToCreate.isNotEmpty() ||
-                    preview.newCategoriesToCreate.isNotEmpty()
+                enabled = canConfirm
             ) {
-                Text("Confirm & Import")
+                val buttonLabel = when {
+                    totalToImport > 0 -> "Import $totalToImport Records"
+                    hasMetadataChanges -> "Import Metadata"
+                    else -> "Confirm & Import"
+                }
+                Text(buttonLabel)
             }
         },
         dismissButton = {

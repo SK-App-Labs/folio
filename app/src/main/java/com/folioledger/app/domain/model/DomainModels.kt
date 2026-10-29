@@ -225,6 +225,13 @@ data class TransactionSearchFilter(
     val maxAmount: MinorMoney? = null
 )
 
+data class DuplicateTransactionSample(
+    val date: String,
+    val accountName: String,
+    val payee: String,
+    val amount: String
+)
+
 data class ImportCsvPreview(
     val sourceUriString: String,
     val totalRowsRead: Int,
@@ -233,7 +240,8 @@ data class ImportCsvPreview(
     val newAccountsToCreate: List<String>,
     val newCategoriesToCreate: List<String>,
     val warningMessages: List<String>,
-    val accountsWithOpeningBalance: List<String> = emptyList()
+    val accountsWithOpeningBalance: List<String> = emptyList(),
+    val duplicateSamples: List<DuplicateTransactionSample> = emptyList()
 )
 
 data class ImportCsvResult(

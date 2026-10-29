@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.4.0] - Unreleased
 ### Added
+- **Intelligent CSV Duplicate Management & Interactive Inspection**: Elevated spreadsheet import safeguards with crystal-clear duplicate control in `ImportCsvPreviewDialog`:
+  - **Explicit Inclusion / Exclusion Control**: Replaced ambiguous duplicate checkboxes with two prominent, selectable radio cards whenever duplicates are detected:
+    - *Exclude Duplicates (Recommended)*: Skips rows already recorded in the ledger to avoid accidental double-counting from overlapping bank statements. Shows projected import count of new records.
+    - *Include All Rows (Allow Duplicates)*: Imports every row including identical ones, protecting legitimate repeat purchases on the same day (such as multiple coffees or transit tickets).
+  - **Interactive Duplicate Inspector**: Added an expandable inspection panel displaying sample duplicate records (Payee, Date, Account, and Amount) directly in the preview dialog before confirming import.
+  - **Dynamic Action Button & Clear Badging**: Dynamically calculates and displays the exact record count on the confirmation button (`Import X Records`), prevents disabled button states when intentionally importing duplicates, and surfaces a green badge when all rows in the file are unique.
 - **Dedicated 'DATA & BACKUPS' Settings Architecture & Focused Modular Sheets**: Re-architected Folio's data management UX to prevent cognitive overload and bottom sheet crowding, perfectly aligning it with the rest of Folio's card-based settings system:
   - **Dedicated Card Header (`DATA & BACKUPS`)**: Promoted Data & Backup into its own top-level settings card, cleanly separating database administration from community and help resources (`HELP & COMMUNITY`).
   - **Glanceable Live Status Indicators**: Enhanced `SettingsNavigationRow` with subtitles and dynamic status badges—displaying live auto-backup status (`[ ● 30 Days (Tiered) ]` or `[ Disabled ]`), manual backup recency (`[ ● Today, 1:15 PM ]`), and spreadsheet tools directly from the main settings view without opening any sheet.
