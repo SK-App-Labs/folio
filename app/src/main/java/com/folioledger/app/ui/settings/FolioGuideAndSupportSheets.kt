@@ -25,20 +25,27 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.LocalCafe
-import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Card
@@ -143,6 +150,7 @@ fun UserGuideBottomSheet(
 
     val allTopics = remember {
         listOf(
+            // --- GETTING STARTED ---
             GuideTopicItem(
                 id = "getting_started_setup",
                 category = GuideCategoryTab.GETTING_STARTED,
@@ -153,75 +161,186 @@ fun UserGuideBottomSheet(
                     "Open the 'Accounts' tab and tap '+ Add Account' to create your real-world Bank Accounts, Cash Wallets, Savings, Investments, and Credit Cards.",
                     "Enter your current bank or wallet balance in 'Current / Opening Balance' so your Net Worth is accurate from day one.",
                     "Have a Debit Card? Choose the 'Debit Cards' group and link it directly to its Parent Bank Account—every swipe on that Debit Card automatically deducts from the parent bank balance while tracking monthly card spend separately.",
-                    "Tap the Edit (✎) icon on any account card at any time to adjust its name, credit limit, icon, or Net Worth inclusion."
+                    "Tap any account card to open its dedicated Monthly Passbook (with opening/closing balance and running totals). Long-press any account card (or tap 'Edit Account' from the Passbook header) to adjust its name, credit limit, icon, color, or Net Worth inclusion."
+                )
+            ),
+            GuideTopicItem(
+                id = "quick_gestures_shortcuts",
+                category = GuideCategoryTab.GETTING_STARTED,
+                title = "2. Quick Gestures & Speed Shortcuts",
+                summary = "Handy gestures to navigate and edit faster across Folio",
+                icon = Icons.Filled.TouchApp,
+                bulletPoints = listOf(
+                    "Tap vs. Long-Press Account: Tap any account card to open its monthly Passbook. Long-press any account card to quickly edit its settings, credit limit, or archive it.",
+                    "Calendar Quick-Add: In the Trans tab's Calendar view, tap any day cell and tap '+ Add on this date' to backdate an entry in seconds.",
+                    "Calculator Toggle: On the transaction entry sheet, tap the small calculator icon next to the amount to instantly switch between the standard keyboard and the math keypad.",
+                    "Reconcile Tool: In any Account Passbook, tap the 'Reconcile' button to enter your actual statement closing balance—Folio will auto-calculate the difference and generate an adjustment entry with 1 tap.",
+                    "1-Tap Bookmarks (★): Frequently log the same morning coffee, metro pass, or grocery stop? Save it as a Bookmark and tap it from the top of the entry sheet to auto-fill amount, account, and category instantly."
                 )
             ),
             GuideTopicItem(
                 id = "home_5_views",
                 category = GuideCategoryTab.GETTING_STARTED,
-                title = "2. The 5-View Home Ledger & Account Scoping",
+                title = "3. The 5-View Home Ledger & Monthly Digest",
                 summary = "Daily, Calendar, Weekly, Monthly & Summary views",
                 icon = Icons.AutoMirrored.Filled.MenuBook,
                 bulletPoints = listOf(
-                    "Daily View: Chronological list grouped by date with daily Income and Expense subtotals.",
-                    "Calendar View: Visual monthly grid showing daily cashflow. Tap any date cell to inspect that day's transactions or tap '+ Add on this date' to backdate an entry effortlessly.",
-                    "Weekly & Monthly Views: Aggregated weekly buckets and 12-month financial year digests.",
-                    "Summary View: Displays your period Savings Rate %, Carry-Over surplus/deficit, top categories, budget status, and 1-tap CSV export.",
-                    "Account Scoping: Tap any account card in the 'Accounts' tab to open the 'Trans.' tab filtered exclusively to that account across all 5 views."
+                    "Daily View: Chronological list grouped by date with daily Income and Expense subtotals and running daily net flow.",
+                    "Calendar View: Visual monthly calendar showing net daily cashflow dots. Tap any date cell to inspect that day's transactions or tap '+ Add on this date' to record an entry directly on that date.",
+                    "Weekly & Monthly Views: Aggregated weekly buckets and 12-month financial year digests with carry-over surplus/deficit.",
+                    "Summary View: Displays your period Savings Rate %, Income vs. Expense bar comparisons, top expense categories, budget health, and 1-tap CSV export.",
+                    "Month Navigation: Use the header arrows (◀ / ▶) or tap the month banner to jump to any past or future month at any time."
                 )
             ),
+
+            // --- FEATURES ---
             GuideTopicItem(
                 id = "calculator_splits_bookmarks",
                 category = GuideCategoryTab.FEATURES,
-                title = "3. Fast Calculator Keypad, Splits, Refunds & Bookmarks (★)",
-                summary = "Arithmetic entry (+ - × ÷), multi-category splits & 1-tap templates",
+                title = "4. Smart Entry: Gboard, Calculator, Splits & Bookmarks",
+                summary = "Arithmetic expressions, multi-category splits & 1-tap templates",
                 icon = Icons.Filled.Calculate,
                 bulletPoints = listOf(
-                    "Built-in Calculator Keypad: Type expressions like '120+45.50' or '480÷3' directly on the custom numeric keypad. Tap '=' to evaluate or 'Save' to record immediately.",
-                    "Minimize Keypad: Tap 'Hide Keypad ⌄' on the keypad toolbar (or tap the top Amount banner) whenever you want a full-screen view of the form.",
-                    "Split Transactions: Enable the 'Split' chip when a single receipt spans multiple categories (e.g., Supermarket bill split between Groceries and Household). Use the 'Fill' button on any row to allocate the exact remaining balance.",
-                    "Refunds: Choose the 'Refund' mode when a merchant returns money—it credits your account and offsets the original expense category.",
-                    "Bookmarks (★): Tap the star icon at the top of the entry sheet to save frequent transactions (like Morning Coffee, Metro Recharge, or Rent) for 1-tap pre-filling."
+                    "Native Decimal Keyboard: By default, Folio opens your fast native Gboard decimal pad so entering amounts is seamless and lightning quick.",
+                    "Built-in Calculator Keypad: Need to do math? Tap the calculator icon (🖩) in the top amount banner to switch to Folio's full arithmetic keypad. Enter expressions like '120+45.50' or '480÷3' and tap '=' to evaluate.",
+                    "Split Receipts Across Categories: Enable the 'Split' chip when a single receipt covers multiple purposes (e.g., $150 supermarket bill split into $100 Groceries and $50 Household). Use 'Fill Remaining' to allocate balances automatically.",
+                    "Refunds & Reversals: Select the 'Refund' type when a merchant returns money—it restores your account balance and offsets the original expense category rather than inflating your income.",
+                    "Bookmarks (★): Tap the star icon on any entry to save it as a reusable template. Access saved bookmarks with 1 tap at the top of the entry sheet."
                 )
             ),
             GuideTopicItem(
-                id = "cc_cycles_explained",
-                category = GuideCategoryTab.CREDIT_CARDS,
-                title = "4. Credit Card Statement Cycles (1–31) & Unbilled Spend",
-                summary = "How Statement Closing Day, Due Day, and Bill Settlements work",
-                icon = Icons.Filled.CreditCard,
+                id = "passbook_and_reconciliation",
+                category = GuideCategoryTab.FEATURES,
+                title = "5. Account Passbooks & 1-Tap Balance Reconciliation",
+                summary = "Opening & closing monthly totals, per-row running balance & auto-balancing",
+                icon = Icons.AutoMirrored.Filled.ReceiptLong,
                 bulletPoints = listOf(
-                    "Statement Day (1–31): The day of the month your bank generates your monthly bill (e.g., Day 18). Months with 28, 29, or 30 days automatically clamp to the last day of that month.",
-                    "Payment Due Day (1–31): The deadline in the following month to pay your closed statement (e.g., Day 5).",
-                    "Balance Payable vs. Unbilled Spend: Purchases made on or before your last Statement Day appear in 'Balance Payable (Statement Due)'. Purchases made after your Statement Day roll into 'Active Unbilled Cycle Spend'.",
-                    "Installment Plans (Inst.): When logging a Credit Card expense, tap the 'Inst.' chip to divide a large purchase across 3, 6, 9, 12, 18, or 24 monthly installments with automatic rounding remainder allocation on Month 1.",
-                    "1-Tap Bill Settlement: Tap 'Pay Bill / Settle' on any Credit Card to transfer money from your Bank Account to the card. Folio records a 'CC_SETTLEMENT' transfer—reducing your bank balance and card debt without double-counting your expenses!"
+                    "Monthly Account Passbook: Tap any account card in the Accounts tab to open its dedicated Passbook. It isolates transactions for that specific account and shows Month Opening Balance, Total Inflows, Total Outflows, and Closing Balance.",
+                    "Per-Row Running Balance: Every transaction card in the Passbook displays the exact account balance at that moment in time, matching your real-world physical bank passbook or e-statement.",
+                    "1-Tap Balance Reconciliation: Found a discrepancy between your bank app and Folio? Tap the 'Reconcile' button at the top of the Passbook, enter your bank's exact closing balance, and Folio will calculate the difference (Δ) and create an automatic balancing adjustment entry.",
+                    "Credit Card Statement View: For credit cards, the Passbook shows your Active Unbilled Spend, Last Statement Balance, and Due Date, with 1-tap 'Pay Bill / Settle'."
+                )
+            ),
+            GuideTopicItem(
+                id = "csv_import_guide",
+                category = GuideCategoryTab.FEATURES,
+                title = "6. Importing CSV Data & Spreadsheet Templates",
+                summary = "Format guidelines, columns, date formats, auto-creation & duplicate skipping",
+                icon = Icons.Filled.FileUpload,
+                bulletPoints = listOf(
+                    "How to Import: Go to Settings → 'Import Transactions from CSV' and select your CSV file from local storage or cloud drive. Folio analyzes the file and shows an Import Preview summary with count of valid transactions, auto-created accounts/categories, and duplicate detection.",
+                    "Standard Column Headers: The CSV must include a header row with these column names (case-insensitive): Date, Type, Amount, Category, Account, Note, Transfer To, Payee, Tags.",
+                    "Supported Date Formats: Recommended is 'YYYY-MM-DD' (e.g., 2026-10-25). Folio also intelligently recognizes 'DD/MM/YYYY', 'DD-MM-YYYY', 'MM/DD/YYYY', 'YYYY/MM/DD', and 'dd MMM yyyy'.",
+                    "Transaction Types: Supported values in the 'Type' column are 'EXPENSE' (or 'DEBIT'), 'INCOME' (or 'CREDIT'), 'TRANSFER', 'CC_SETTLEMENT', and 'REFUND'.",
+                    "Amounts & Currency: Amounts can be plain numbers (e.g., 149.50) or formatted with commas and symbols (e.g., $1,250.00 or ₹4,500.00). Folio parses exact decimal values with zero rounding errors.",
+                    "Transfers & CC Settlements: For a TRANSFER or CC_SETTLEMENT, specify the source account in 'Account' and destination in 'Transfer To'. Leave 'Category' empty for transfers.",
+                    "Automatic Account & Category Creation: If an Account or Category listed in your CSV doesn't exist yet, Folio automatically creates it for you during import so no data is lost.",
+                    "Smart Duplicate Skipping: Folio prevents duplicate entries by checking if an identical transaction (same date, amount, account, and type) already exists. You can review the duplicate count in the preview before confirming.",
+                    "Full Backup CSVs ([ACCOUNTS], [CATEGORIES], [TRANSACTIONS]): Folio also seamlessly imports its own multi-section exported CSVs containing accounts, color palettes, categories, budgets, and transactions in a single file."
                 )
             ),
             GuideTopicItem(
                 id = "stats_budgets_rankings",
                 category = GuideCategoryTab.FEATURES,
-                title = "5. Multi-Period Stats, Drill-Down & Budgets",
-                summary = "Weekly, Monthly, Annual & Custom analytics + 80% budget alerts",
+                title = "7. Multi-Period Analytics, Budgets & Spending Insights",
+                summary = "Weekly, Monthly, Annual analytics, category drill-down & budget alerts",
                 icon = Icons.Filled.PieChart,
                 bulletPoints = listOf(
-                    "Flexible Time Windows: Switch between Weekly, Monthly, Annually, or Custom date ranges at the top of the 'Stats' tab.",
-                    "Category Drill-Down: Tap any slice of the interactive Donut Chart or any ranked category row to inspect every transaction in that category along with its 6-month trend.",
-                    "Overall & Category Budgets: In the 'Budgets' sub-tab, set a master monthly budget and individual category limits. Progress bars automatically shift from Emerald to Amber at your warning threshold (default 80%) and Coral Red at 100%.",
-                    "#Tag & Payee Rankings: Open 'Tags & Notes' to rank cross-category spending by #tag (e.g., #vacation, #medical, #tax) or merchant/payee name."
+                    "Flexible Time Windows: Switch between Weekly, Monthly, Annually, or Custom date ranges at the top of the 'Stats' tab to analyze your financial health across any horizon.",
+                    "Category Drill-Down: Tap any slice of the interactive Donut Chart or any category in the ranked breakdown to view its 6-month historical trend and inspect individual transactions.",
+                    "Monthly Overall & Category Budgets: In the 'Budgets' tab, set an overall monthly spending ceiling as well as individual category targets. Visual progress indicators shift from Emerald to Amber at 80% (configurable warning) and Coral Red at 100%.",
+                    "#Tag & Merchant Rankings: Open 'Tags & Notes' to rank your spending by custom #tags (e.g., #travel, #groceries, #tax) or top payees and merchants."
+                )
+            ),
+
+            // --- CREDIT CARDS ---
+            GuideTopicItem(
+                id = "cc_cycles_explained",
+                category = GuideCategoryTab.CREDIT_CARDS,
+                title = "8. Credit Card Cycles (1–31) & Bill Settlements",
+                summary = "Statement day, due day, unbilled spend, and settlements explained",
+                icon = Icons.Filled.CreditCard,
+                bulletPoints = listOf(
+                    "Statement Closing Day (1–31): The calendar day each month your credit card issuer closes your billing cycle (e.g., Day 18). Months with fewer days automatically clamp to the last day of that month.",
+                    "Payment Due Day (1–31): The deadline date in the subsequent month to pay off the billed balance without interest (e.g., Day 5).",
+                    "Balance Payable vs. Unbilled Spend: Transactions made on or before your last Statement Day appear under 'Statement Due'. Transactions made after the statement closing day automatically roll into 'Active Unbilled Spend'.",
+                    "1-Tap Bill Settlement: Tap 'Pay Bill / Settle' on any Credit Card to record a payment from your Bank Account to the card. Folio records this as a CC_SETTLEMENT transfer—reducing your bank balance and paying down card debt without falsely counting it as an expense!",
+                    "Credit Card Health & Utilization: In the 'Stats' tab under Credit Card Health, track your total credit limit, total utilized debt, and overall credit utilization ratio.",
+                    "Installments (Inst.): When logging a large credit card purchase, tap 'Inst.' to spread the expense over 3, 6, 9, 12, 18, or 24 monthly billing cycles with exact rounding allocation."
+                )
+            ),
+
+            // --- FAQS ---
+            GuideTopicItem(
+                id = "faq_privacy_offline",
+                category = GuideCategoryTab.FAQS,
+                title = "Privacy & Offline Architecture",
+                summary = "100% offline, zero cloud servers, zero ads, zero SMS reading",
+                icon = Icons.Filled.Security,
+                bulletPoints = listOf(
+                    "100% Local & Offline: Folio does not upload your financial records to any remote server or cloud database. Your entire financial history is stored strictly on your device inside SQLite local storage.",
+                    "Zero SMS Reading: Folio never asks for SMS reading permissions. You maintain full, deliberate control over every transaction entered.",
+                    "Zero Advertising & Telemetry: Folio contains no ad trackers, no third-party behavioral analytics, and no subscription paywalls."
                 )
             ),
             GuideTopicItem(
-                id = "faq_backups_privacy",
+                id = "faq_backup_transfer_phone",
                 category = GuideCategoryTab.FAQS,
-                title = "6. FAQs: Portable ZIP Backups, CSV Export & Privacy",
-                summary = "How to move data to a new phone and why Folio is 100% offline",
+                title = "Transferring Data to a New Phone",
+                summary = "Portable ZIP backup creation and 1-tap restore",
                 icon = Icons.Filled.Backup,
                 bulletPoints = listOf(
-                    "Q: Does Folio read my SMS, connect to bank servers, or upload my data? — No. Folio is 100% offline-first. Your database lives exclusively in private app storage on your phone with zero cloud telemetry or ads.",
-                    "Q: How do I transfer my ledger to a new phone? — Go to Settings → 'Create Portable ZIP Backup' and save the .zip file to Google Drive or local storage. On your new phone, tap 'Restore ZIP' and select that file.",
-                    "Q: Why doesn't a Transfer or Credit Card Bill Payment increase my monthly Expenses? — In double-entry personal accounting, moving money from your Bank Account to Cash or paying off a Credit Card bill is an asset-to-asset or asset-to-liability transfer; the expense was already counted when you bought the item.",
-                    "Q: How do I align Folio with my salary payday? — In Settings → 'Financial Month Start Day', pick any day from 1 to 31 (e.g., Day 25) so all monthly ledgers and budgets follow your exact pay cycle."
+                    "Step 1 (Old Phone): Open Settings → scroll to Data, Backups & Help → tap 'Create Portable ZIP Backup'. Save the generated .zip file to Google Drive, a USB drive, or send it to yourself via email/messaging.",
+                    "Step 2 (New Phone): Install Folio on your new phone → go to Settings → tap 'Restore ZIP Backup' → select your saved backup file.",
+                    "Complete Fidelity: The portable ZIP preserves your full database, all accounts, custom categories, icons, budgets, supporter status, and preferences intact."
+                )
+            ),
+            GuideTopicItem(
+                id = "faq_double_entry_transfers",
+                category = GuideCategoryTab.FAQS,
+                title = "Transfers & Credit Card Bill Payments",
+                summary = "Why moving money between accounts doesn't inflate your monthly expenses",
+                icon = Icons.Filled.SwapHoriz,
+                bulletPoints = listOf(
+                    "Accounting Principle: When you withdraw cash from an ATM, transfer funds to a savings account, or pay off a credit card bill, money is merely moving from one asset/liability pocket to another. Your total Net Worth is unchanged.",
+                    "Credit Card Purchases vs. Payments: When you buy dinner using a credit card, Folio records the Expense on that date under your Food category. If paying the card bill was also counted as an expense, that dinner would be counted twice!",
+                    "Where Transfers Appear: Transfers and CC settlements are tracked in your Account Passbooks, Home Ledger Daily/Monthly totals, and Cashflow breakdown, but are excluded from spending expense charts."
+                )
+            ),
+            GuideTopicItem(
+                id = "faq_payday_financial_month",
+                category = GuideCategoryTab.FAQS,
+                title = "Aligning Month Start with Salary Payday",
+                summary = "Configure your financial month start day from 1 to 31",
+                icon = Icons.Filled.CalendarMonth,
+                bulletPoints = listOf(
+                    "Set Custom Payday: In Settings → 'Financial Month Start Day', select the day of the month you receive your paycheck (e.g., 25th or 1st).",
+                    "Automatic Re-Alignment: When set to the 25th, your monthly ledger, monthly budgets, and monthly stats run from the 25th of the prior month through the 24th of the current month.",
+                    "Consistent Budgeting: This ensures your monthly budget reflects the exact cashflow cycle of your salary."
+                )
+            ),
+            GuideTopicItem(
+                id = "faq_csv_spreadsheet_import",
+                category = GuideCategoryTab.FAQS,
+                title = "Importing from Bank CSVs & Excel",
+                summary = "How to prepare and import your external spreadsheet data",
+                icon = Icons.Filled.FileUpload,
+                bulletPoints = listOf(
+                    "Yes! Folio supports importing standard CSV files. In your spreadsheet application (Excel, Google Sheets), ensure your columns are named: Date, Type, Amount, Category, Account, Note, Transfer To, Payee, Tags.",
+                    "Export to CSV: Save or export your sheet as a .csv file.",
+                    "Import & Preview: In Folio, go to Settings → 'Import Transactions from CSV'. Folio previews the number of valid rows, auto-creates any missing accounts/categories, and alerts you to any duplicate rows before writing to your ledger."
+                )
+            ),
+            GuideTopicItem(
+                id = "faq_reconciliation_passbook",
+                category = GuideCategoryTab.FAQS,
+                title = "What is Balance Reconciliation?",
+                summary = "How to quickly balance your Folio accounts with real-world bank statements",
+                icon = Icons.Filled.AccountBalance,
+                bulletPoints = listOf(
+                    "Why Reconcile: Over time, small forgotten expenses or bank fees might cause a slight difference between your actual bank app balance and your Folio account balance.",
+                    "How to Reconcile: Open Accounts → tap the account to view its Passbook → tap 'Reconcile'. Enter the balance shown on your real-world bank statement.",
+                    "Automatic Adjustment: Folio instantly calculates the discrepancy (Δ). With 1 tap, it records an 'Adjustment' entry in that account to bring your Folio ledger into 100% agreement with your bank."
                 )
             )
         )
