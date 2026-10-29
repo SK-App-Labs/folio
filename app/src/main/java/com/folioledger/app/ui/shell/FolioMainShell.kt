@@ -151,7 +151,7 @@ fun FolioMainShell(
             },
             floatingActionButton = {
                 AnimatedVisibility(
-                    visible = selectedTab == FolioMainTab.TRANSACTIONS || selectedTab == FolioMainTab.STATS,
+                    visible = selectedTab == FolioMainTab.TRANSACTIONS,
                     enter = fadeIn() + scaleIn(),
                     exit = fadeOut() + scaleOut()
                 ) {
