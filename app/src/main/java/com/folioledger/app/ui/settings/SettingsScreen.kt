@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Feedback
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.filled.Palette
@@ -80,6 +81,7 @@ import com.folioledger.app.ui.settings.sheets.AppearanceBottomSheet
 import com.folioledger.app.ui.settings.sheets.CategoryEditorDialog
 import com.folioledger.app.ui.settings.sheets.CategoryManagerBottomSheet
 import com.folioledger.app.ui.settings.sheets.DataAndBackupBottomSheet
+import com.folioledger.app.ui.settings.sheets.FeedbackBottomSheet
 import com.folioledger.app.ui.settings.sheets.RegionalFormatBottomSheet
 import com.folioledger.app.ui.settings.sheets.TagsAndBookmarksBottomSheet
 import com.folioledger.app.ui.theme.FolioAccentPalette
@@ -114,6 +116,7 @@ fun SettingsScreen(
     }
     var showClearAllDataDialog by rememberSaveable { mutableStateOf(false) }
     var showUserGuideSheet by rememberSaveable { mutableStateOf(false) }
+    var showFeedbackSheet by rememberSaveable { mutableStateOf(false) }
     var showTipJarSheet by rememberSaveable { mutableStateOf(false) }
     var isSupporterUnlocked by rememberSaveable { mutableStateOf(false) }
 
@@ -287,6 +290,17 @@ fun SettingsScreen(
                             valueText = null,
                             enabled = isNotBusy,
                             onClick = { showUserGuideSheet = true }
+                        )
+                        HorizontalDivider(
+                            color = semanticColors.cardStrokeSubtle,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                        SettingsNavigationRow(
+                            icon = Icons.Default.Feedback,
+                            title = "Send Feedback & Feature Ideas",
+                            valueText = null,
+                            enabled = isNotBusy,
+                            onClick = { showFeedbackSheet = true }
                         )
                         HorizontalDivider(
                             color = semanticColors.cardStrokeSubtle,
@@ -467,6 +481,12 @@ fun SettingsScreen(
     if (showUserGuideSheet) {
         UserGuideBottomSheet(
             onDismiss = { showUserGuideSheet = false }
+        )
+    }
+
+    if (showFeedbackSheet) {
+        FeedbackBottomSheet(
+            onDismiss = { showFeedbackSheet = false }
         )
     }
 
