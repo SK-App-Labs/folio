@@ -325,7 +325,6 @@ fun SettingsScreen(
                         SettingsNavigationRow(
                             icon = Icons.Default.History,
                             title = "Automated Rolling Backups",
-                            subtitle = "Zero-cloud session exit snapshots",
                             valueText = autoBackupValue,
                             valueColorDot = if (prefs.autoBackupEnabled) semanticColors.incomeEmerald else semanticColors.warningAmber,
                             enabled = isNotBusy,
@@ -341,7 +340,6 @@ fun SettingsScreen(
                         SettingsNavigationRow(
                             icon = Icons.Default.Backup,
                             title = "Transfer & Manual Backup",
-                            subtitle = "Move to new phone or save .zip",
                             valueText = if (prefs.lastBackupEpochMillis != null) backupStatusText else "Downloads/Folio",
                             valueColorDot = if (prefs.lastBackupEpochMillis != null) semanticColors.incomeEmerald else null,
                             enabled = isNotBusy,
@@ -356,7 +354,6 @@ fun SettingsScreen(
                         SettingsNavigationRow(
                             icon = Icons.Default.TableChart,
                             title = "Spreadsheets & CSV",
-                            subtitle = "Export for Excel or import bank data",
                             valueText = "Export / Import",
                             enabled = isNotBusy,
                             onClick = { isSpreadsheetsSheetOpen = true }
@@ -370,7 +367,6 @@ fun SettingsScreen(
                         SettingsNavigationRow(
                             icon = Icons.Default.DeleteForever,
                             title = "Reset All Ledger Data",
-                            subtitle = "Erase all transactions, accounts & history",
                             valueText = null,
                             titleColor = MaterialTheme.colorScheme.error,
                             iconTint = MaterialTheme.colorScheme.error,
