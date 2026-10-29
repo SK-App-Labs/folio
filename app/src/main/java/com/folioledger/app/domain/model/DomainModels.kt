@@ -126,8 +126,17 @@ data class UserPreferences(
     val biometricLockEnabled: Boolean = false,
     val isSupporter: Boolean = false,
     val supporterTier: String? = null,
-    val lastBackupEpochMillis: Long? = null
+    val lastBackupEpochMillis: Long? = null,
+    val autoBackupEnabled: Boolean = true,
+    val autoBackupRetention: AutoBackupRetention = AutoBackupRetention.THIRTY_DAYS
 )
+
+@Immutable
+enum class AutoBackupRetention(val displayName: String, val description: String) {
+    TEN_SESSIONS("10 Sessions", "Last 10 session snapshots (~1.5 MB)"),
+    THIRTY_DAYS("30 Days", "Recommended: 30 daily backups + monthly anchors (~4.5 MB)"),
+    NINETY_DAYS("90 Days", "Quarterly: 90 daily backups for tax & accounting (~13 MB)")
+}
 
 @Immutable
 enum class SupporterTier(

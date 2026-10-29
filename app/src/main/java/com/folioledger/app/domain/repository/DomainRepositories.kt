@@ -192,4 +192,12 @@ interface SettingsAndBackupRepository {
     suspend fun clearAllData(): Result<Unit>
 
     fun getLatestBackupFile(): java.io.File?
+
+    suspend fun triggerSessionAutoBackupIfDirty(): Result<String?>
+
+    fun listAutoBackupFiles(): List<java.io.File>
+
+    suspend fun setAutoBackupEnabled(enabled: Boolean): Result<Unit>
+
+    suspend fun setAutoBackupRetention(retention: com.folioledger.app.domain.model.AutoBackupRetention): Result<Unit>
 }

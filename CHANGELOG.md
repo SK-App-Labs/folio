@@ -8,7 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.4.0] - Unreleased
 ### Added
-- **Dual-Restore Architecture & High-Impact Backup Upgrades**: Upgraded Folio's data management and backup system with comprehensive reliability and migration improvements:
+- **Smart Session Auto-Backup Engine & 30-Day Tiered Retention Model**: Engineered an automated, privacy-first rolling backup engine that safeguards user financial records with zero manual intervention and zero cloud dependencies:
+  - **Smart Dirty Session Tracking (`SessionChangeTracker` & Room `InvalidationTracker`)**: Automatically flags sessions as dirty whenever mutations occur across any of the 9 database tables (`accounts`, `categories`, `transactions`, `transaction_splits`, `tags`, `budgets`, `recurring_rules`, `bookmarks`, `installment_plans`). Read-only sessions (viewing charts or checking balances) write 0 bytes to disk.
+  - **Background Exit Execution**: Hooks into `MainActivity.onStop()` running asynchronously on `applicationScope` (`Dispatchers.IO`), capturing snapshot state safely when the user backgrounds or leaves the app without blocking the UI main thread. Includes a 60-second debounce mechanism to eliminate churn during rapid consecutive app switching.
+  - **30-Day Tiered Retention Model (`AutoBackupRetentionEngine`)**: Intelligently manages storage footprint (~5 MB total) through a multi-tier pruning algorithm:
+    - *Intra-day snapshots*: Keeps up to 3 session snapshots for the current day.
+    - *Daily snapshots*: Retains 1 snapshot per day for the last 30 days (spanning a complete salary and credit card billing cycle).
+    - *Monthly archives*: Preserves 1 snapshot per month for up to 3 months prior (quarterly audit history).
+  - **User Configurable Retention Policies**: Exposes choices for `10 Sessions`, `30 Days (Tiered - Recommended)`, and `90 Days` directly in `DataAndBackupBottomSheet.kt` with live snapshot file counts, relative timestamps (`Today, 2:30 PM`, `Yesterday, 9:15 AM`), individual snapshot sizes in KB, and 1-tap **Restore** / **Share** actions.
+  - **Dual-Restore Architecture & High-Impact Backup Upgrades**: Upgraded Folio's data management and backup system with comprehensive reliability and migration improvements:
   - **Dual-Restore (Local vs. SAF Document Picker)**: Added a native Android Storage Access Framework file picker (`ActivityResultContracts.OpenDocument`) for restoring backups from any cloud provider (Google Drive, OneDrive, Nextcloud, local folders), alongside the 1-tap quick restore from `Downloads/Folio`.
   - **Supporter Status & Tier Persistence**: Persisted `isSupporter: Boolean` and `supporterTier: String?` directly in the backup JSON archive, preventing loss of supporter recognition and badges when transferring to a new device.
   - **Pre-Restore Automatic Rollback Snapshot**: Automatically generates an internal safety rollback archive in app cache prior to executing database restore wipes, guarding against corrupted or incorrect backup selection.

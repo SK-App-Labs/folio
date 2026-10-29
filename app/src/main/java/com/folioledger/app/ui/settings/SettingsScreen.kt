@@ -416,9 +416,26 @@ fun SettingsScreen(
         )
     }
 
+    LaunchedEffect(isDataBackupSheetOpen) {
+        if (isDataBackupSheetOpen) {
+            viewModel.refreshAutoBackupFiles()
+        }
+    }
+
     if (isDataBackupSheetOpen) {
         DataAndBackupBottomSheet(
             lastBackupEpochMillis = prefs.lastBackupEpochMillis,
+            autoBackupEnabled = prefs.autoBackupEnabled,
+            autoBackupRetention = prefs.autoBackupRetention,
+            autoBackupFiles = uiState.autoBackupFiles,
+            onToggleAutoBackup = viewModel::setAutoBackupEnabled,
+            onSelectRetention = viewModel::setAutoBackupRetention,
+            onRestoreAutoBackupFile = { file ->
+                viewModel.requestRestoreConfirmation(file.absolutePath)
+            },
+            onShareBackupFile = { file ->
+                shareBackupFile(context, file)
+            },
             onCreateBackup = {
                 viewModel.createPortableZipBackup(
                     "Folio_Backup_${LocalDate.now()}_${System.currentTimeMillis() / 1000}.zip"

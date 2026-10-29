@@ -25,8 +25,11 @@ import com.folioledger.app.data.local.entity.RecurringRuleEntity
 import com.folioledger.app.data.local.entity.TagEntity
 import com.folioledger.app.data.local.entity.TransactionEntity
 import com.folioledger.app.data.local.entity.TransactionSplitEntity
+import com.folioledger.app.data.backup.AutoBackupRetentionEngine
+import com.folioledger.app.data.backup.SessionChangeTracker
 import com.folioledger.app.data.local.entity.TransactionTagCrossRef
 import com.folioledger.app.domain.model.AccountGroup
+import com.folioledger.app.domain.model.AutoBackupRetention
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.ImportCsvPreview
 import com.folioledger.app.domain.model.ImportCsvResult
@@ -67,6 +70,7 @@ import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.nio.charset.StandardCharsets
 import java.time.LocalDate
+import java.time.LocalTime
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -94,6 +98,8 @@ class SettingsAndBackupRepositoryImpl(
         val IS_SUPPORTER = booleanPreferencesKey("is_supporter")
         val SUPPORTER_TIER = stringPreferencesKey("supporter_tier")
         val LAST_BACKUP_EPOCH_MILLIS = longPreferencesKey("last_backup_epoch_millis")
+        val AUTO_BACKUP_ENABLED = booleanPreferencesKey("auto_backup_enabled")
+        val AUTO_BACKUP_RETENTION = stringPreferencesKey("auto_backup_retention")
     }
 
     override fun observeUserPreferences(): Flow<UserPreferences> {
@@ -138,6 +144,8 @@ class SettingsAndBackupRepositoryImpl(
             } else {
                 mutablePrefs.remove(PreferenceKeys.LAST_BACKUP_EPOCH_MILLIS)
             }
+            mutablePrefs[PreferenceKeys.AUTO_BACKUP_ENABLED] = updated.autoBackupEnabled
+            mutablePrefs[PreferenceKeys.AUTO_BACKUP_RETENTION] = updated.autoBackupRetention.name
         }
         Unit
     }
@@ -796,7 +804,11 @@ class SettingsAndBackupRepositoryImpl(
             biometricLockEnabled = prefs[PreferenceKeys.BIOMETRIC_LOCK_ENABLED] ?: false,
             isSupporter = prefs[PreferenceKeys.IS_SUPPORTER] ?: false,
             supporterTier = prefs[PreferenceKeys.SUPPORTER_TIER],
-            lastBackupEpochMillis = prefs[PreferenceKeys.LAST_BACKUP_EPOCH_MILLIS]
+            lastBackupEpochMillis = prefs[PreferenceKeys.LAST_BACKUP_EPOCH_MILLIS],
+            autoBackupEnabled = prefs[PreferenceKeys.AUTO_BACKUP_ENABLED] ?: true,
+            autoBackupRetention = runCatching {
+                AutoBackupRetention.valueOf(prefs[PreferenceKeys.AUTO_BACKUP_RETENTION] ?: AutoBackupRetention.THIRTY_DAYS.name)
+            }.getOrDefault(AutoBackupRetention.THIRTY_DAYS)
         )
     }
 
@@ -936,6 +948,60 @@ class SettingsAndBackupRepositoryImpl(
             file.isFile && file.name.endsWith(".zip", ignoreCase = true)
         }?.maxByOrNull { it.lastModified() }
     }
+
+    override suspend fun triggerSessionAutoBackupIfDirty(): Result<String?> = withContext(Dispatchers.IO) {
+        runCatching {
+            val currentPrefs = observeUserPreferences().first()
+            if (!currentPrefs.autoBackupEnabled) {
+                return@runCatching null
+            }
+            if (!SessionChangeTracker.canBackupNow()) {
+                return@runCatching null
+            }
+
+            val autoDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioAutoBackups").apply {
+                mkdirs()
+            }
+            val dateStr = LocalDate.now().toString()
+            val timeStr = DateTimeFormatter.ofPattern("HHmmss").format(LocalTime.now())
+            val fileName = "Folio_AutoBackup_${dateStr}_$timeStr.zip"
+            val targetFile = File(autoDir, fileName)
+
+            FileOutputStream(targetFile).use { output ->
+                createBackupToStream(output)
+            }
+
+            // Mirror latest auto-backup to public Downloads/Folio folder for uninstall protection
+            runCatching {
+                openOutputStreamForLocation("Folio_Latest_AutoBackup.zip").use { mirrorOut ->
+                    FileInputStream(targetFile).use { it.copyTo(mirrorOut) }
+                }
+            }
+
+            // Apply 30-Day Tiered Retention Pruning
+            AutoBackupRetentionEngine.pruneDirectory(autoDir, currentPrefs.autoBackupRetention)
+
+            // Update in-memory and DataStore recency indicator
+            updateUserPreferences { it.copy(lastBackupEpochMillis = System.currentTimeMillis()) }
+            SessionChangeTracker.recordBackupFinished()
+
+            targetFile.absolutePath
+        }
+    }
+
+    override fun listAutoBackupFiles(): List<File> {
+        val autoDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioAutoBackups")
+        if (!autoDir.exists() || !autoDir.isDirectory) return emptyList()
+        return autoDir.listFiles { file ->
+            file.isFile && file.name.startsWith("Folio_AutoBackup_") && file.name.endsWith(".zip", ignoreCase = true)
+        }?.sortedByDescending { it.lastModified() } ?: emptyList()
+    }
+
+    override suspend fun setAutoBackupEnabled(enabled: Boolean): Result<Unit> =
+        updateUserPreferences { it.copy(autoBackupEnabled = enabled) }
+
+    override suspend fun setAutoBackupRetention(retention: AutoBackupRetention): Result<Unit> =
+        updateUserPreferences { it.copy(autoBackupRetention = retention) }
 
     private fun JSONObject.putNullableString(key: String, value: String?) {
         if (value == null) put(key, JSONObject.NULL) else put(key, value)

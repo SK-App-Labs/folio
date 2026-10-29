@@ -4,6 +4,7 @@ package com.folioledger.app.ui.settings
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.folioledger.app.domain.model.AutoBackupRetention
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.ImportCsvPreview
 import com.folioledger.app.domain.model.ImportCsvResult
@@ -59,7 +60,8 @@ data class SettingsUiState(
     val isBusyWithFileOperation: Boolean = false,
     val fileOperationStatusLabel: String? = null,
     val snackbarMessage: String? = null,
-    val lastCompletedFileForShare: File? = null
+    val lastCompletedFileForShare: File? = null,
+    val autoBackupFiles: List<File> = emptyList()
 ) {
     val activeManagedCategories: List<CategoryNode>
         get() = when (selectedCategoryManagerType) {
@@ -86,13 +88,18 @@ private data class SettingsInternalControlState(
     val isBusyWithFileOperation: Boolean = false,
     val fileOperationStatusLabel: String? = null,
     val snackbarMessage: String? = null,
-    val lastCompletedFileForShare: File? = null
+    val lastCompletedFileForShare: File? = null,
+    val autoBackupFiles: List<File> = emptyList()
 )
 
 class SettingsViewModel(
     private val settingsAndBackupRepository: SettingsAndBackupRepository,
     private val categoryAndTagRepository: CategoryAndTagRepository
 ) : ViewModel() {
+
+    init {
+        refreshAutoBackupFiles()
+    }
 
     private val controlState = MutableStateFlow(SettingsInternalControlState())
 
@@ -134,7 +141,8 @@ class SettingsViewModel(
             isBusyWithFileOperation = ctrl.isBusyWithFileOperation,
             fileOperationStatusLabel = ctrl.fileOperationStatusLabel,
             snackbarMessage = ctrl.snackbarMessage,
-            lastCompletedFileForShare = ctrl.lastCompletedFileForShare
+            lastCompletedFileForShare = ctrl.lastCompletedFileForShare,
+            autoBackupFiles = ctrl.autoBackupFiles
         )
     }.stateIn(
         scope = viewModelScope,
@@ -575,6 +583,7 @@ class SettingsViewModel(
                             snackbarMessage = "Saved backup to Downloads/Folio/$destinationUriString"
                         )
                     }
+                    refreshAutoBackupFiles()
                 },
                 onFailure = { error ->
                     controlState.update {
@@ -624,6 +633,7 @@ class SettingsViewModel(
                             snackbarMessage = "Ledger database & settings restored successfully"
                         )
                     }
+                    refreshAutoBackupFiles()
                 },
                 onFailure = { error ->
                     controlState.update {
@@ -635,6 +645,27 @@ class SettingsViewModel(
                     }
                 }
             )
+        }
+    }
+
+    fun setAutoBackupEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsAndBackupRepository.setAutoBackupEnabled(enabled)
+            refreshAutoBackupFiles()
+        }
+    }
+
+    fun setAutoBackupRetention(retention: AutoBackupRetention) {
+        viewModelScope.launch {
+            settingsAndBackupRepository.setAutoBackupRetention(retention)
+            refreshAutoBackupFiles()
+        }
+    }
+
+    fun refreshAutoBackupFiles() {
+        viewModelScope.launch {
+            val files = settingsAndBackupRepository.listAutoBackupFiles()
+            controlState.update { it.copy(autoBackupFiles = files) }
         }
     }
 

@@ -63,6 +63,10 @@ class MainActivity : FragmentActivity() {
         super.onStop()
         if (!isChangingConfigurations) {
             lockViewModel.isSessionUnlocked.value = false
+            val app = application as FolioApplication
+            app.applicationScope.launch(Dispatchers.IO) {
+                app.container.settingsAndBackupRepository.triggerSessionAutoBackupIfDirty()
+            }
         }
     }
 
