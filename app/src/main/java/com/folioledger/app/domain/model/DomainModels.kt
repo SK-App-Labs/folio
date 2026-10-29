@@ -141,7 +141,7 @@ enum class SupporterTier(
         title = "Coffee / Chai Boost",
         badgeLabel = "☕ Coffee Supporter",
         footerEdition = "☕ Coffee Supporter Edition",
-        accentHex = "#B45309"
+        accentHex = "#8D4925"
     ),
     GENEROUS_SUPPORTER(
         skuId = "folio_tip_supporter",
@@ -155,7 +155,7 @@ enum class SupporterTier(
         title = "Folio Patron",
         badgeLabel = "👑 Folio Patron",
         footerEdition = "👑 Patron Gold Edition",
-        accentHex = "#D97706"
+        accentHex = "#F59E0B"
     );
 
     companion object {
