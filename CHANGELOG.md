@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.4.0] - Unreleased
 ### Added
+- **Dedicated 'DATA & BACKUPS' Settings Architecture & Focused Modular Sheets**: Re-architected Folio's data management UX to prevent cognitive overload and bottom sheet crowding, perfectly aligning it with the rest of Folio's card-based settings system:
+  - **Dedicated Card Header (`DATA & BACKUPS`)**: Promoted Data & Backup into its own top-level settings card, cleanly separating database administration from community and help resources (`HELP & COMMUNITY`).
+  - **Glanceable Live Status Indicators**: Enhanced `SettingsNavigationRow` with subtitles and dynamic status badges—displaying live auto-backup status (`[ ● 30 Days (Tiered) ]` or `[ Disabled ]`), manual backup recency (`[ ● Today, 1:15 PM ]`), and spreadsheet tools directly from the main settings view without opening any sheet.
+  - **Modular, Focused Bottom Sheets**: Replaced the monolithic 8-card sheet with three concise, single-purpose sheets:
+    - `AutoBackupBottomSheet`: Dedicated to session exit dirty tracking, retention chips, policy explanation, and snapshot history with 1-tap Restore and Share.
+    - `TransferAndManualBackupBottomSheet`: Dedicated strictly to phone migration, featuring hero status banner, 1-tap share, portable `.zip` creation, cloud document picker restore, and local fast restore.
+    - `SpreadsheetsBottomSheet`: Dedicated to CSV workflows (multi-section spreadsheet export for Excel/Google Sheets and bank statement CSV import with interactive preview).
+  - **Intentional Danger Zone**: Positioned "Reset All Ledger Data" with distinct red styling at the bottom of the data section, triggering the confirmation dialog directly without being buried inside backup menus.
 - **Smart Session Auto-Backup Engine & 30-Day Tiered Retention Model**: Engineered an automated, privacy-first rolling backup engine that safeguards user financial records with zero manual intervention and zero cloud dependencies:
   - **Smart Dirty Session Tracking (`SessionChangeTracker` & Room `InvalidationTracker`)**: Automatically flags sessions as dirty whenever mutations occur across any of the 9 database tables (`accounts`, `categories`, `transactions`, `transaction_splits`, `tags`, `budgets`, `recurring_rules`, `bookmarks`, `installment_plans`). Read-only sessions (viewing charts or checking balances) write 0 bytes to disk.
   - **Background Exit Execution**: Hooks into `MainActivity.onStop()` running asynchronously on `applicationScope` (`Dispatchers.IO`), capturing snapshot state safely when the user backgrounds or leaves the app without blocking the UI main thread. Includes a 60-second debounce mechanism to eliminate churn during rapid consecutive app switching.
