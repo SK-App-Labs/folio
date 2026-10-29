@@ -77,6 +77,8 @@ import androidx.compose.material3.Checkbox
 import com.folioledger.app.domain.model.ImportCsvPreview
 import com.folioledger.app.domain.model.ImportCsvResult
 import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.model.SupporterTier
+import com.folioledger.app.ui.components.parseHexColorSafely
 import com.folioledger.app.ui.settings.sheets.AppearanceBottomSheet
 import com.folioledger.app.ui.settings.sheets.CategoryEditorDialog
 import com.folioledger.app.ui.settings.sheets.CategoryManagerBottomSheet
@@ -305,11 +307,14 @@ fun SettingsScreen(
                             color = semanticColors.cardStrokeSubtle,
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
+                        val activeSupporterTier = SupporterTier.fromSkuOrTitle(prefs.supporterTier)
+                            ?: if (prefs.isSupporter) SupporterTier.GENEROUS_SUPPORTER else null
+
                         SettingsNavigationRow(
                             icon = Icons.Default.LocalCafe,
                             title = "Support Folio (Tip Jar) ☕",
-                            valueText = if (prefs.isSupporter) "★ Unlocked" else null,
-                            valueColorDot = if (prefs.isSupporter) semanticColors.warningAmber else null,
+                            valueText = activeSupporterTier?.badgeLabel ?: (if (prefs.isSupporter) "★ Unlocked" else null),
+                            valueColorDot = activeSupporterTier?.let { parseHexColorSafely(it.accentHex) } ?: (if (prefs.isSupporter) semanticColors.warningAmber else null),
                             enabled = isNotBusy,
                             onClick = { showTipJarSheet = true }
                         )
@@ -318,6 +323,20 @@ fun SettingsScreen(
 
                 // Minimalist Footer
                 item {
+                    val activeSupporterTier = SupporterTier.fromSkuOrTitle(prefs.supporterTier)
+                        ?: if (prefs.isSupporter) SupporterTier.GENEROUS_SUPPORTER else null
+
+                    val footerText = activeSupporterTier?.let {
+                        "Folio Ledger v${BuildConfig.VERSION_NAME} • ${it.footerEdition}"
+                    } ?: if (prefs.isSupporter) {
+                        "Folio Ledger v${BuildConfig.VERSION_NAME} • ★ Supporter Edition"
+                    } else {
+                        "Folio Ledger v${BuildConfig.VERSION_NAME} • 100% Offline SQLite"
+                    }
+
+                    val footerColor = activeSupporterTier?.let { parseHexColorSafely(it.accentHex) }
+                        ?: if (prefs.isSupporter) semanticColors.warningAmber else MaterialTheme.colorScheme.onSurfaceVariant
+
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
@@ -325,13 +344,9 @@ fun SettingsScreen(
                             .padding(top = 16.dp, bottom = 24.dp)
                     ) {
                         Text(
-                            text = if (prefs.isSupporter) {
-                                "Folio Ledger v${BuildConfig.VERSION_NAME} • ★ Supporter Edition"
-                            } else {
-                                "Folio Ledger v${BuildConfig.VERSION_NAME} • 100% Offline SQLite"
-                            },
+                            text = footerText,
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (prefs.isSupporter) semanticColors.warningAmber else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = footerColor,
                             fontWeight = if (prefs.isSupporter) FontWeight.SemiBold else FontWeight.Normal,
                             textAlign = TextAlign.Center
                         )

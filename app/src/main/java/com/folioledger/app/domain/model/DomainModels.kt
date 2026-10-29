@@ -129,6 +129,48 @@ data class UserPreferences(
 )
 
 @Immutable
+enum class SupporterTier(
+    val skuId: String,
+    val title: String,
+    val badgeLabel: String,
+    val footerEdition: String,
+    val accentHex: String
+) {
+    COFFEE(
+        skuId = "folio_tip_coffee",
+        title = "Coffee / Chai Boost",
+        badgeLabel = "☕ Coffee Supporter",
+        footerEdition = "☕ Coffee Supporter Edition",
+        accentHex = "#B45309"
+    ),
+    GENEROUS_SUPPORTER(
+        skuId = "folio_tip_supporter",
+        title = "Generous Supporter",
+        badgeLabel = "★ Generous Supporter",
+        footerEdition = "★ Supporter Edition",
+        accentHex = "#059669"
+    ),
+    PATRON(
+        skuId = "folio_tip_patron",
+        title = "Folio Patron",
+        badgeLabel = "👑 Folio Patron",
+        footerEdition = "👑 Patron Gold Edition",
+        accentHex = "#D97706"
+    );
+
+    companion object {
+        fun fromSkuOrTitle(identifier: String?): SupporterTier? {
+            if (identifier.isNullOrBlank()) return null
+            return entries.firstOrNull {
+                it.skuId.equals(identifier, ignoreCase = true) ||
+                    it.title.equals(identifier, ignoreCase = true) ||
+                    it.name.equals(identifier, ignoreCase = true)
+            }
+        }
+    }
+}
+
+@Immutable
 data class MonthlyTrendBar(
     val periodLabel: String,
     val startEpochDay: Long,

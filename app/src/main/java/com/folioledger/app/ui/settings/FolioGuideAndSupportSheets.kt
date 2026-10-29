@@ -75,7 +75,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.CurrencySpec
+import com.folioledger.app.domain.model.SupporterTier
 import com.folioledger.app.R
+import com.folioledger.app.ui.components.parseHexColorSafely
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 
@@ -458,14 +460,16 @@ fun UserGuideBottomSheet(
 
 @Immutable
 private data class TipTierOption(
-    val skuId: String,
-    val title: String,
+    val tier: SupporterTier,
     val subtitle: String,
     val inrPriceDisplay: String,
     val usdPriceDisplay: String,
-    val icon: ImageVector,
-    val accentHex: String
-)
+    val icon: ImageVector
+) {
+    val skuId: String get() = tier.skuId
+    val title: String get() = tier.title
+    val accentHex: String get() = tier.accentHex
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -485,31 +489,25 @@ fun TipJarBottomSheet(
     val tipTiers = remember {
         listOf(
             TipTierOption(
-                skuId = "folio_tip_coffee",
-                title = "Coffee / Chai Boost",
+                tier = SupporterTier.COFFEE,
                 subtitle = "Fuel a late-night coding & bug-squashing session",
                 inrPriceDisplay = "₹99",
                 usdPriceDisplay = "$1.99",
-                icon = Icons.Filled.LocalCafe,
-                accentHex = "#D97706"
+                icon = Icons.Filled.LocalCafe
             ),
             TipTierOption(
-                skuId = "folio_tip_supporter",
-                title = "Generous Supporter",
+                tier = SupporterTier.GENEROUS_SUPPORTER,
                 subtitle = "Support new chart visualizations & offline power tools",
                 inrPriceDisplay = "₹299",
                 usdPriceDisplay = "$4.99",
-                icon = Icons.Filled.Favorite,
-                accentHex = "#059669"
+                icon = Icons.Filled.Verified
             ),
             TipTierOption(
-                skuId = "folio_tip_patron",
-                title = "Folio Patron",
+                tier = SupporterTier.PATRON,
                 subtitle = "Champion independent, privacy-first software craftsmanship",
                 inrPriceDisplay = "₹999",
                 usdPriceDisplay = "$14.99",
-                icon = Icons.Filled.WorkspacePremium,
-                accentHex = "#4F46E5"
+                icon = Icons.Filled.WorkspacePremium
             )
         )
     }
@@ -580,15 +578,21 @@ fun TipJarBottomSheet(
                 )
             }
 
-            val displayTier = supporterTier ?: selectedSkuConfirmation?.let { sku ->
-                tipTiers.firstOrNull { it.skuId == sku }?.title
-            } ?: "Folio Supporter"
+            val activeTier = SupporterTier.fromSkuOrTitle(supporterTier ?: selectedSkuConfirmation)
+                ?: if (isSupporter) SupporterTier.GENEROUS_SUPPORTER else null
 
-            if (isSupporter || selectedSkuConfirmation != null) {
+            if (activeTier != null) {
+                val tierAccentColor = parseHexColorSafely(activeTier.accentHex)
+                val tierIcon = when (activeTier) {
+                    SupporterTier.COFFEE -> Icons.Filled.LocalCafe
+                    SupporterTier.GENEROUS_SUPPORTER -> Icons.Filled.Verified
+                    SupporterTier.PATRON -> Icons.Filled.WorkspacePremium
+                }
+
                 Surface(
                     shape = RoundedCornerShape(14.dp),
-                    color = semanticColors.warningAmberContainer.copy(alpha = 0.45f),
-                    border = BorderStroke(1.5.dp, semanticColors.warningAmber),
+                    color = tierAccentColor.copy(alpha = 0.14f),
+                    border = BorderStroke(1.5.dp, tierAccentColor),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -600,27 +604,27 @@ fun TipJarBottomSheet(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
-                                .background(semanticColors.warningAmber.copy(alpha = 0.2f))
+                                .background(tierAccentColor.copy(alpha = 0.22f))
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.WorkspacePremium,
+                                imageVector = tierIcon,
                                 contentDescription = null,
-                                tint = semanticColors.warningAmber,
+                                tint = tierAccentColor,
                                 modifier = Modifier.size(22.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "★ $displayTier Unlocked!",
+                                text = "${activeTier.badgeLabel} Unlocked!",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = semanticColors.onWarningAmberContainer
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = "Thank you for supporting independent, offline-first personal finance software.",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = semanticColors.onWarningAmberContainer.copy(alpha = 0.85f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -629,11 +633,7 @@ fun TipJarBottomSheet(
 
             tipTiers.forEach { tier ->
                 val priceLabel = if (isIndianRupee) tier.inrPriceDisplay else tier.usdPriceDisplay
-                val tierColor = when (tier.skuId) {
-                    "folio_tip_coffee" -> semanticColors.warningAmber
-                    "folio_tip_supporter" -> semanticColors.incomeEmerald
-                    else -> MaterialTheme.colorScheme.primary
-                }
+                val tierColor = parseHexColorSafely(tier.accentHex)
 
                 Card(
                     shape = RoundedCornerShape(16.dp),
