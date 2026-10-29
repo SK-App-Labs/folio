@@ -90,6 +90,8 @@ class SettingsAndBackupRepositoryImpl(
         val DYNAMIC_COLOR_ENABLED = booleanPreferencesKey("dynamic_color_enabled")
         val ACCENT_PALETTE = stringPreferencesKey("accent_palette")
         val BIOMETRIC_LOCK_ENABLED = booleanPreferencesKey("biometric_lock_enabled")
+        val IS_SUPPORTER = booleanPreferencesKey("is_supporter")
+        val SUPPORTER_TIER = stringPreferencesKey("supporter_tier")
     }
 
     override fun observeUserPreferences(): Flow<UserPreferences> {
@@ -123,6 +125,12 @@ class SettingsAndBackupRepositoryImpl(
             mutablePrefs[PreferenceKeys.DYNAMIC_COLOR_ENABLED] = updated.dynamicColorEnabled
             mutablePrefs[PreferenceKeys.ACCENT_PALETTE] = updated.accentPalette
             mutablePrefs[PreferenceKeys.BIOMETRIC_LOCK_ENABLED] = updated.biometricLockEnabled
+            mutablePrefs[PreferenceKeys.IS_SUPPORTER] = updated.isSupporter
+            if (updated.supporterTier != null) {
+                mutablePrefs[PreferenceKeys.SUPPORTER_TIER] = updated.supporterTier
+            } else {
+                mutablePrefs.remove(PreferenceKeys.SUPPORTER_TIER)
+            }
         }
         Unit
     }
@@ -759,7 +767,9 @@ class SettingsAndBackupRepositoryImpl(
             themeMode = prefs[PreferenceKeys.THEME_MODE] ?: "SYSTEM",
             dynamicColorEnabled = prefs[PreferenceKeys.DYNAMIC_COLOR_ENABLED] ?: false,
             accentPalette = prefs[PreferenceKeys.ACCENT_PALETTE] ?: "EMERALD",
-            biometricLockEnabled = prefs[PreferenceKeys.BIOMETRIC_LOCK_ENABLED] ?: false
+            biometricLockEnabled = prefs[PreferenceKeys.BIOMETRIC_LOCK_ENABLED] ?: false,
+            isSupporter = prefs[PreferenceKeys.IS_SUPPORTER] ?: false,
+            supporterTier = prefs[PreferenceKeys.SUPPORTER_TIER]
         )
     }
 

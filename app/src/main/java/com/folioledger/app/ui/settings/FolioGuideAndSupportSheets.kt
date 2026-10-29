@@ -1,5 +1,6 @@
 package com.folioledger.app.ui.settings
 
+import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -37,6 +38,7 @@ import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Card
@@ -48,6 +50,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Surface
@@ -65,6 +68,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -468,6 +472,7 @@ private data class TipTierOption(
 fun TipJarBottomSheet(
     currencySpec: CurrencySpec,
     isSupporter: Boolean = false,
+    supporterTier: String? = null,
     onTipSelected: (skuId: String, tierTitle: String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -575,35 +580,47 @@ fun TipJarBottomSheet(
                 )
             }
 
+            val displayTier = supporterTier ?: selectedSkuConfirmation?.let { sku ->
+                tipTiers.firstOrNull { it.skuId == sku }?.title
+            } ?: "Folio Supporter"
+
             if (isSupporter || selectedSkuConfirmation != null) {
                 Surface(
                     shape = RoundedCornerShape(14.dp),
-                    color = semanticColors.incomeEmeraldContainer,
-                    border = BorderStroke(1.dp, semanticColors.incomeEmerald),
+                    color = semanticColors.warningAmberContainer.copy(alpha = 0.45f),
+                    border = BorderStroke(1.5.dp, semanticColors.warningAmber),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(14.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.Verified,
-                            contentDescription = null,
-                            tint = semanticColors.incomeEmerald,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(semanticColors.warningAmber.copy(alpha = 0.2f))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.WorkspacePremium,
+                                contentDescription = null,
+                                tint = semanticColors.warningAmber,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Supporter Badge Unlocked! ★",
+                                text = "★ $displayTier Unlocked!",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = semanticColors.onIncomeEmeraldContainer
+                                color = semanticColors.onWarningAmberContainer
                             )
                             Text(
                                 text = "Thank you for supporting independent, offline-first personal finance software.",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = semanticColors.onIncomeEmeraldContainer
+                                color = semanticColors.onWarningAmberContainer.copy(alpha = 0.85f)
                             )
                         }
                     }
@@ -696,6 +713,60 @@ fun TipJarBottomSheet(
                                 fontWeight = FontWeight.Bold
                             )
                         }
+                    }
+                }
+            }
+
+            // Free Way to Support: Share Folio
+            val context = LocalContext.current
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Share Folio with Friends",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Help friends take control of their money with 100% offline privacy.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    OutlinedButton(
+                        onClick = {
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
+                                    "I recommend Folio for managing expenses and budgets! It is 100% offline, privacy-first, with zero cloud and zero ads. Check it out on Google Play: https://play.google.com/store/apps/details?id=com.folioledger.app"
+                                )
+                            }
+                            context.startActivity(Intent.createChooser(shareIntent, "Share Folio"))
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Share,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Share", style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }

@@ -123,7 +123,9 @@ data class UserPreferences(
     val themeMode: String = "SYSTEM",   // SYSTEM, LIGHT, DARK, AMOLED_BLACK
     val dynamicColorEnabled: Boolean = false,
     val accentPalette: String = "EMERALD",
-    val biometricLockEnabled: Boolean = false
+    val biometricLockEnabled: Boolean = false,
+    val isSupporter: Boolean = false,
+    val supporterTier: String? = null
 )
 
 @Immutable

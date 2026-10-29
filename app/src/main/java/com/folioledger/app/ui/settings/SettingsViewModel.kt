@@ -241,6 +241,22 @@ class SettingsViewModel(
         }
     }
 
+    fun unlockSupporterBadge(tierTitle: String) {
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                current.copy(
+                    isSupporter = true,
+                    supporterTier = tierTitle
+                )
+            }
+            controlState.update {
+                it.copy(
+                    snackbarMessage = "Thank you for your $tierTitle support! ★ Supporter badge unlocked."
+                )
+            }
+        }
+    }
+
     // 2-Level Category & Subcategory CRUD Actions
 
     fun setCategoryManagerOpen(

@@ -118,7 +118,6 @@ fun SettingsScreen(
     var showUserGuideSheet by rememberSaveable { mutableStateOf(false) }
     var showFeedbackSheet by rememberSaveable { mutableStateOf(false) }
     var showTipJarSheet by rememberSaveable { mutableStateOf(false) }
-    var isSupporterUnlocked by rememberSaveable { mutableStateOf(false) }
 
     val prefs = uiState.userPreferences
 
@@ -309,7 +308,8 @@ fun SettingsScreen(
                         SettingsNavigationRow(
                             icon = Icons.Default.LocalCafe,
                             title = "Support Folio (Tip Jar) ☕",
-                            valueText = null,
+                            valueText = if (prefs.isSupporter) "★ Unlocked" else null,
+                            valueColorDot = if (prefs.isSupporter) semanticColors.warningAmber else null,
                             enabled = isNotBusy,
                             onClick = { showTipJarSheet = true }
                         )
@@ -325,9 +325,14 @@ fun SettingsScreen(
                             .padding(top = 16.dp, bottom = 24.dp)
                     ) {
                         Text(
-                            text = "Folio Ledger v${BuildConfig.VERSION_NAME} • 100% Offline SQLite",
+                            text = if (prefs.isSupporter) {
+                                "Folio Ledger v${BuildConfig.VERSION_NAME} • ★ Supporter Edition"
+                            } else {
+                                "Folio Ledger v${BuildConfig.VERSION_NAME} • 100% Offline SQLite"
+                            },
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (prefs.isSupporter) semanticColors.warningAmber else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = if (prefs.isSupporter) FontWeight.SemiBold else FontWeight.Normal,
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.heightIn(min = 2.dp))
@@ -493,14 +498,10 @@ fun SettingsScreen(
     if (showTipJarSheet) {
         TipJarBottomSheet(
             currencySpec = uiState.currencySpec,
-            isSupporter = isSupporterUnlocked,
+            isSupporter = prefs.isSupporter,
+            supporterTier = prefs.supporterTier,
             onTipSelected = { _, tierTitle ->
-                isSupporterUnlocked = true
-                coroutineScope.launch {
-                    snackbarHostState.showSnackbar(
-                        "Thank you for your $tierTitle support! ★ Supporter badge unlocked."
-                    )
-                }
+                viewModel.unlockSupporterBadge(tierTitle)
             },
             onDismiss = { showTipJarSheet = false }
         )
