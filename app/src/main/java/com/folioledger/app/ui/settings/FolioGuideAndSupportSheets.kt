@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Search
@@ -252,12 +253,27 @@ fun UserGuideBottomSheet(
                     "#Tag & Merchant Rankings: Open 'Tags & Notes' to rank your spending by custom #tags (e.g., #travel, #groceries, #tax) or top payees and merchants."
                 )
             ),
+            GuideTopicItem(
+                id = "data_management_and_backups",
+                category = GuideCategoryTab.FEATURES,
+                title = "8. Data Management, Automated Backups & Safe Recovery",
+                summary = "Hands-off session auto-backups, 30-day retention, cloud restore & safety snapshots",
+                icon = Icons.Filled.Backup,
+                bulletPoints = listOf(
+                    "Automatic Rolling Backups: Folio automatically creates a background backup whenever you finish a session where data was modified. If you just viewed charts or balances, 0 bytes are written to disk.",
+                    "Complete Lifetime Ledger Guarantee: Each backup snapshot contains your complete lifetime ledger, all accounts, categories, preferences, and supporter tier. The 30-Day Tiered Retention keeps up to 3 session snapshots today, 1 daily snapshot for the last 30 days, and 1 monthly snapshot for up to 3 months (~5 MB total).",
+                    "1-Tap Restore on Same Device: Need to undo an accidental deletion? Open Settings → 'Data Management & Backup' and tap 'Restore' on any recent snapshot, or tap 'Restore Latest Local Backup' for instant 1-tap recovery.",
+                    "Transferring to a New Phone: Tap 'Create Backup Archive (.zip)' and share it directly to Google Drive or chat. On your new phone, tap 'Restore from Cloud or File (.zip)' to pick the file directly from Google Drive or Downloads.",
+                    "Pre-Restore Safety Rollback: Before any restore wipes existing data, Folio automatically saves a hidden safety snapshot in cache. If an invalid or corrupted file was chosen, your existing ledger is preserved.",
+                    "Spreadsheet CSV Export & Import: Tap 'Export Full Ledger to CSV' for a multi-section spreadsheet (Accounts, Categories, Ledger) compatible with Excel and Google Sheets, or tap 'Import Data from CSV / Excel' to import bank statements with interactive preview."
+                )
+            ),
 
             // --- CREDIT CARDS ---
             GuideTopicItem(
                 id = "cc_cycles_explained",
                 category = GuideCategoryTab.CREDIT_CARDS,
-                title = "8. Credit Card Cycles (1–31) & Bill Settlements",
+                title = "9. Credit Card Cycles (1–31) & Bill Settlements",
                 summary = "Statement day, due day, unbilled spend, and settlements explained",
                 icon = Icons.Filled.CreditCard,
                 bulletPoints = listOf(
@@ -287,12 +303,24 @@ fun UserGuideBottomSheet(
                 id = "faq_backup_transfer_phone",
                 category = GuideCategoryTab.FAQS,
                 title = "Transferring Data to a New Phone",
-                summary = "Portable ZIP backup creation and 1-tap restore",
+                summary = "Portable ZIP backup creation, cloud sharing and document picker restore",
                 icon = Icons.Filled.Backup,
                 bulletPoints = listOf(
-                    "Step 1 (Old Phone): Open Settings → scroll to Data, Backups & Help → tap 'Create Portable ZIP Backup'. Save the generated .zip file to Google Drive, a USB drive, or send it to yourself via email/messaging.",
-                    "Step 2 (New Phone): Install Folio on your new phone → go to Settings → tap 'Restore ZIP Backup' → select your saved backup file.",
-                    "Complete Fidelity: The portable ZIP preserves your full database, all accounts, custom categories, icons, budgets, supporter status, and preferences intact."
+                    "Step 1 (Old Phone): Open Settings → 'Data Management & Backup' → tap 'Create Backup Archive (.zip)'. Tap 'Share' on the completion snackbar to send the archive directly to Google Drive, Telegram, or email.",
+                    "Step 2 (New Phone): Install Folio on your new phone → go to Settings → 'Data Management & Backup' → tap 'Restore from Cloud or File (.zip)' → select your backup file from Google Drive or Downloads.",
+                    "Complete Fidelity & Rollback Protection: Restores your complete database, accounts, categories, budgets, preferences, and supporter tier. A pre-restore safety snapshot protects against corrupted or incorrect file selection."
+                )
+            ),
+            GuideTopicItem(
+                id = "faq_automated_rolling_backups",
+                category = GuideCategoryTab.FAQS,
+                title = "How do Automated Rolling Backups Work?",
+                summary = "Hands-off session exit snapshots, dirty tracking & 30-day tiered retention",
+                icon = Icons.Filled.History,
+                bulletPoints = listOf(
+                    "Hands-Off Background Safety: Folio automatically creates a rolling snapshot when you exit or leave the app, but only if you actually modified data (0 disk writes if you were just viewing charts or balances).",
+                    "Complete Lifetime Ledger: Each snapshot contains your complete lifetime ledger. The '30 Days (Tiered)' policy retains up to 3 session snapshots today, 1 daily snapshot for the last 30 days, and 1 monthly snapshot for up to 3 months prior (~5 MB total).",
+                    "1-Tap Recovery & Sharing: You can restore directly from any recent snapshot in the bottom sheet with 1 tap, or tap the share icon to upload any snapshot to Google Drive."
                 )
             ),
             GuideTopicItem(
