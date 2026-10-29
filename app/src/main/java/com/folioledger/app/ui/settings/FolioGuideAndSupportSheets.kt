@@ -560,7 +560,7 @@ fun TipJarBottomSheet(
                     }
                 }
                 IconButton(onClick = onDismiss) {
-                    Icon(imageVector = Icons.Filled.Close, contentDescription = "Close Tip Jar")
+                    Icon(imageVector = Icons.Filled.Close, contentDescription = "Close Support Folio")
                 }
             }
 

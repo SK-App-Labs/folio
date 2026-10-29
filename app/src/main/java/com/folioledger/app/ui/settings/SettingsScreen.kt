@@ -312,7 +312,7 @@ fun SettingsScreen(
 
                         SettingsNavigationRow(
                             icon = Icons.Default.LocalCafe,
-                            title = "Support Folio (Tip Jar) ☕",
+                            title = "Support Folio ☕",
                             valueText = activeSupporterTier?.badgeLabel ?: (if (prefs.isSupporter) "★ Unlocked" else null),
                             valueColorDot = activeSupporterTier?.let { parseHexColorSafely(it.accentHex) } ?: (if (prefs.isSupporter) semanticColors.warningAmber else null),
                             enabled = isNotBusy,
