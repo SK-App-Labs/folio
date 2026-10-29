@@ -97,10 +97,6 @@ class SettingsViewModel(
     private val categoryAndTagRepository: CategoryAndTagRepository
 ) : ViewModel() {
 
-    init {
-        refreshAutoBackupFiles()
-    }
-
     private val controlState = MutableStateFlow(SettingsInternalControlState())
 
     private val categoriesAndMetadataFlow = combine(
@@ -149,6 +145,10 @@ class SettingsViewModel(
         started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = SettingsUiState()
     )
+
+    init {
+        refreshAutoBackupFiles()
+    }
 
     // UserPreferences Update Actions
 
