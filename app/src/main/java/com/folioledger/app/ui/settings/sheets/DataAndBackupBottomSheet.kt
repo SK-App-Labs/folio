@@ -45,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.folioledger.app.domain.model.AutoBackupRetention
 import java.io.File
 import java.time.Instant
@@ -108,7 +109,7 @@ fun DataAndBackupBottomSheet(
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp, top = 8.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Column {
                 Text(
@@ -117,11 +118,22 @@ fun DataAndBackupBottomSheet(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Dual-storage: Downloads/Folio & internal app storage",
+                    text = "100% offline & private • Saved locally on your device",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+
+            // ==========================================
+            // SECTION 1: AUTOMATIC PROTECTION
+            // ==========================================
+            Text(
+                text = "AUTOMATIC PROTECTION",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                letterSpacing = 0.8.sp
+            )
 
             // Last Backup Hero Status Banner
             if (lastBackupEpochMillis != null) {
@@ -215,12 +227,12 @@ fun DataAndBackupBottomSheet(
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    text = "Automated Rolling Backups",
+                                    text = "Auto-Backup on Session Exit",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
-                                    text = "Auto-snapshot on exit when data is modified",
+                                    text = "Automatically saves whenever data is added or modified",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -238,7 +250,7 @@ fun DataAndBackupBottomSheet(
                         )
 
                         Text(
-                            text = "Retention Policy",
+                            text = "History Retention",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -298,9 +310,9 @@ fun DataAndBackupBottomSheet(
                         }
 
                         val policyDesc = when (autoBackupRetention) {
-                            AutoBackupRetention.TEN_SESSIONS -> "Keeps rolling history of the last 10 session exit snapshots."
-                            AutoBackupRetention.THIRTY_DAYS -> "3 intra-day session caps + daily snapshots for 30 days + 3 monthly anchors (~5 MB)."
-                            AutoBackupRetention.NINETY_DAYS -> "3 intra-day session caps + daily snapshots for 90 days (~12 MB)."
+                            AutoBackupRetention.TEN_SESSIONS -> "Keeps rolling history of your last 10 session snapshots (~1.5 MB). Each snapshot contains your complete lifetime ledger."
+                            AutoBackupRetention.THIRTY_DAYS -> "Keeps 3 intra-day + 30 daily snapshots + 3 monthly anchors (~5 MB). Each snapshot contains your complete lifetime ledger."
+                            AutoBackupRetention.NINETY_DAYS -> "Keeps 3 intra-day + 90 daily snapshots (~12 MB). Each snapshot contains your complete lifetime ledger."
                         }
                         Text(
                             text = policyDesc,
@@ -398,6 +410,17 @@ fun DataAndBackupBottomSheet(
                 }
             }
 
+            // ==========================================
+            // SECTION 2: TRANSFER & MANUAL BACKUP
+            // ==========================================
+            Text(
+                text = "TRANSFER & MANUAL BACKUP",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                letterSpacing = 0.8.sp
+            )
+
             // Create Portable ZIP Backup
             Card(
                 onClick = {
@@ -422,12 +445,49 @@ fun DataAndBackupBottomSheet(
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Create Portable ZIP Backup",
+                            text = "Create Backup Archive (.zip)",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Complete portable archive of database, settings & tier",
+                            text = "Saves to Downloads/Folio with 1-tap share to Google Drive or chat",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Restore from Cloud or File (.zip)
+            Card(
+                onClick = {
+                    onSelectBackupFile()
+                    onDismiss()
+                },
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FolderOpen,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Restore from Cloud or File (.zip)",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Moving to a new phone? Pick a backup from Google Drive or Downloads",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -458,19 +518,13 @@ fun DataAndBackupBottomSheet(
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Restore Latest Local Backup",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
                         Text(
-                            text = "Fast 1-tap restore from Downloads/Folio",
+                            text = "Restore Latest Local Backup",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Fast 1-tap restore from Downloads/Folio on this device",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -478,42 +532,16 @@ fun DataAndBackupBottomSheet(
                 }
             }
 
-            // Select Backup File (.zip)
-            Card(
-                onClick = {
-                    onSelectBackupFile()
-                    onDismiss()
-                },
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FolderOpen,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.tertiary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Select Backup File (.zip)",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "Pick from Google Drive, cloud storage, or downloads",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
+            // ==========================================
+            // SECTION 3: SPREADSHEETS (CSV)
+            // ==========================================
+            Text(
+                text = "SPREADSHEETS (CSV)",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                letterSpacing = 0.8.sp
+            )
 
             // Export Full Ledger to CSV
             Card(
@@ -544,7 +572,7 @@ fun DataAndBackupBottomSheet(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Multi-section spreadsheet with accounts, categories & ledger entries",
+                            text = "Multi-section sheet for Excel & Google Sheets (Accounts, Categories & Ledger)",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -581,7 +609,7 @@ fun DataAndBackupBottomSheet(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Supports standard CSVs or multi-section sheets with accounts & categories",
+                            text = "Import transactions or bank statements with live column preview",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
