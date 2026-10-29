@@ -18,14 +18,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Upload
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -45,7 +43,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.folioledger.app.domain.model.AutoBackupRetention
 import java.io.File
 import java.time.Instant
@@ -76,24 +73,19 @@ fun formatBackupRelativeTime(epochMillis: Long?): String {
     }
 }
 
+/**
+ * Bottom sheet dedicated strictly to Automated Rolling Backups & Snapshot History.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DataAndBackupBottomSheet(
-    lastBackupEpochMillis: Long? = null,
-    autoBackupEnabled: Boolean = true,
-    autoBackupRetention: AutoBackupRetention = AutoBackupRetention.THIRTY_DAYS,
-    autoBackupFiles: List<File> = emptyList(),
-    onToggleAutoBackup: (Boolean) -> Unit = {},
-    onSelectRetention: (AutoBackupRetention) -> Unit = {},
-    onRestoreAutoBackupFile: (File) -> Unit = {},
-    onShareBackupFile: ((File) -> Unit)? = null,
-    onCreateBackup: () -> Unit,
-    onRestoreLatestBackup: () -> Unit,
-    onSelectBackupFile: () -> Unit,
-    onExportCsv: () -> Unit,
-    onImportCsv: () -> Unit = {},
-    onRequestClearAllData: () -> Unit,
-    onShareLatestBackup: (() -> Unit)? = null,
+fun AutoBackupBottomSheet(
+    autoBackupEnabled: Boolean,
+    autoBackupRetention: AutoBackupRetention,
+    autoBackupFiles: List<File>,
+    onToggleAutoBackup: (Boolean) -> Unit,
+    onSelectRetention: (AutoBackupRetention) -> Unit,
+    onRestoreAutoBackupFile: (File) -> Unit,
+    onShareBackupFile: ((File) -> Unit)?,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -113,89 +105,18 @@ fun DataAndBackupBottomSheet(
         ) {
             Column {
                 Text(
-                    text = "Data Management & Backup",
+                    text = "Automated Rolling Backups",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "100% offline & private • Saved locally on your device",
+                    text = "Zero-cloud, hands-off local protection on this device",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            // ==========================================
-            // SECTION 1: AUTOMATIC PROTECTION
-            // ==========================================
-            Text(
-                text = "AUTOMATIC PROTECTION",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                letterSpacing = 0.8.sp
-            )
-
-            // Last Backup Hero Status Banner
-            if (lastBackupEpochMillis != null) {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = "Last Backup: ${formatBackupRelativeTime(lastBackupEpochMillis)}",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "Downloads/Folio • Full database & settings",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        if (onShareLatestBackup != null) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            OutlinedButton(
-                                onClick = onShareLatestBackup,
-                                shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Share,
-                                    contentDescription = "Share Backup",
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Share", style = MaterialTheme.typography.labelMedium)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Automated Rolling Backups Engine Card
+            // Main Auto-Backup Configuration Card
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
@@ -319,115 +240,219 @@ fun DataAndBackupBottomSheet(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
                         )
+                    }
+                }
+            }
 
-                        if (autoBackupFiles.isNotEmpty()) {
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                            )
+            // Recent Automated Snapshots Card
+            if (autoBackupEnabled && autoBackupFiles.isNotEmpty()) {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "Recent Snapshots (${autoBackupFiles.size})",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
 
-                            Text(
-                                text = "Recent Snapshots (${autoBackupFiles.size})",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                autoBackupFiles.take(4).forEach { file ->
-                                    val sizeKb = (file.length() / 1024L).coerceAtLeast(1L)
-                                    val timestamp = file.lastModified()
-                                    Surface(
-                                        shape = RoundedCornerShape(10.dp),
-                                        color = MaterialTheme.colorScheme.surfaceContainerLowest,
-                                        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                                        modifier = Modifier.fillMaxWidth()
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            autoBackupFiles.take(5).forEach { file ->
+                                val sizeKb = (file.length() / 1024L).coerceAtLeast(1L)
+                                val timestamp = file.lastModified()
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = formatBackupRelativeTime(timestamp),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = "${file.name} • ${sizeKb} KB",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                         Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = formatBackupRelativeTime(timestamp),
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = MaterialTheme.colorScheme.onSurface
-                                                )
-                                                Text(
-                                                    text = "${file.name} • ${sizeKb} KB",
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            }
-                                            Row(
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                                verticalAlignment = Alignment.CenterVertically
+                                            OutlinedButton(
+                                                onClick = {
+                                                    onRestoreAutoBackupFile(file)
+                                                    onDismiss()
+                                                },
+                                                shape = RoundedCornerShape(8.dp),
+                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                                modifier = Modifier.height(32.dp)
                                             ) {
-                                                OutlinedButton(
-                                                    onClick = {
-                                                        onRestoreAutoBackupFile(file)
-                                                        onDismiss()
-                                                    },
-                                                    shape = RoundedCornerShape(8.dp),
-                                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                                    modifier = Modifier.height(32.dp)
+                                                Text("Restore", style = MaterialTheme.typography.labelSmall)
+                                            }
+                                            if (onShareBackupFile != null) {
+                                                IconButton(
+                                                    onClick = { onShareBackupFile(file) },
+                                                    modifier = Modifier.size(32.dp)
                                                 ) {
-                                                    Text("Restore", style = MaterialTheme.typography.labelSmall)
-                                                }
-                                                if (onShareBackupFile != null) {
-                                                    IconButton(
-                                                        onClick = { onShareBackupFile(file) },
-                                                        modifier = Modifier.size(32.dp)
-                                                    ) {
-                                                        Icon(
-                                                            imageVector = Icons.Default.Share,
-                                                            contentDescription = "Share",
-                                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                            modifier = Modifier.size(16.dp)
-                                                        )
-                                                    }
+                                                    Icon(
+                                                        imageVector = Icons.Default.Share,
+                                                        contentDescription = "Share",
+                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
                                                 }
                                             }
                                         }
                                     }
                                 }
-                                if (autoBackupFiles.size > 4) {
-                                    Text(
-                                        text = "+ ${autoBackupFiles.size - 4} more snapshots managed automatically",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(start = 4.dp)
-                                    )
-                                }
+                            }
+                            if (autoBackupFiles.size > 5) {
+                                Text(
+                                    text = "+ ${autoBackupFiles.size - 5} more snapshots managed automatically",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(start = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Bottom sheet dedicated strictly to Portable ZIP Backups and Device Migration Restores.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TransferAndManualBackupBottomSheet(
+    lastBackupEpochMillis: Long?,
+    onCreateBackup: () -> Unit,
+    onRestoreLatestBackup: () -> Unit,
+    onSelectBackupFile: () -> Unit,
+    onShareLatestBackup: (() -> Unit)?,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp, top = 8.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Column {
+                Text(
+                    text = "Transfer & Manual Backup",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Create portable archives and migrate data to a new phone",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Hero Status Banner
+            if (lastBackupEpochMillis != null) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Last Backup: ${formatBackupRelativeTime(lastBackupEpochMillis)}",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Downloads/Folio • Full database & settings",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        if (onShareLatestBackup != null) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            OutlinedButton(
+                                onClick = onShareLatestBackup,
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = "Share Backup",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Share", style = MaterialTheme.typography.labelMedium)
                             }
                         }
                     }
                 }
             }
 
-            // ==========================================
-            // SECTION 2: TRANSFER & MANUAL BACKUP
-            // ==========================================
-            Text(
-                text = "TRANSFER & MANUAL BACKUP",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                letterSpacing = 0.8.sp
-            )
-
-            // Create Portable ZIP Backup
+            // Action 1: Create Backup Archive (.zip)
             Card(
                 onClick = {
                     onCreateBackup()
                     onDismiss()
                 },
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Row(
@@ -458,13 +483,13 @@ fun DataAndBackupBottomSheet(
                 }
             }
 
-            // Restore from Cloud or File (.zip)
+            // Action 2: Restore from Cloud or File (.zip) [New Phone]
             Card(
                 onClick = {
                     onSelectBackupFile()
                     onDismiss()
                 },
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Row(
@@ -495,13 +520,13 @@ fun DataAndBackupBottomSheet(
                 }
             }
 
-            // Restore Latest Local Backup
+            // Action 3: Restore Latest Local Backup [Same Device]
             Card(
                 onClick = {
                     onRestoreLatestBackup()
                     onDismiss()
                 },
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Row(
@@ -531,17 +556,47 @@ fun DataAndBackupBottomSheet(
                     }
                 }
             }
+        }
+    }
+}
 
-            // ==========================================
-            // SECTION 3: SPREADSHEETS (CSV)
-            // ==========================================
-            Text(
-                text = "SPREADSHEETS (CSV)",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                letterSpacing = 0.8.sp
-            )
+/**
+ * Bottom sheet dedicated strictly to Spreadsheet Exports and CSV Imports.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SpreadsheetsBottomSheet(
+    onExportCsv: () -> Unit,
+    onImportCsv: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp, top = 8.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Column {
+                Text(
+                    text = "Spreadsheets & CSV",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Export for desktop analysis or import bank statements",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
             // Export Full Ledger to CSV
             Card(
@@ -549,7 +604,7 @@ fun DataAndBackupBottomSheet(
                     onExportCsv()
                     onDismiss()
                 },
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Row(
@@ -586,7 +641,7 @@ fun DataAndBackupBottomSheet(
                     onImportCsv()
                     onDismiss()
                 },
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Row(
@@ -615,33 +670,6 @@ fun DataAndBackupBottomSheet(
                         )
                     }
                 }
-            }
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-            // Danger Zone — Reset / Clear All Data
-            OutlinedButton(
-                onClick = {
-                    onRequestClearAllData()
-                    onDismiss()
-                },
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                ),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Danger Zone — Reset / Clear All Data",
-                    fontWeight = FontWeight.Bold
-                )
             }
         }
     }

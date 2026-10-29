@@ -32,12 +32,15 @@ import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Feedback
 import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -74,18 +77,21 @@ import androidx.compose.ui.unit.dp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.Checkbox
+import com.folioledger.app.domain.model.AutoBackupRetention
 import com.folioledger.app.domain.model.ImportCsvPreview
 import com.folioledger.app.domain.model.ImportCsvResult
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupporterTier
 import com.folioledger.app.ui.components.parseHexColorSafely
 import com.folioledger.app.ui.settings.sheets.AppearanceBottomSheet
+import com.folioledger.app.ui.settings.sheets.AutoBackupBottomSheet
 import com.folioledger.app.ui.settings.sheets.CategoryEditorDialog
 import com.folioledger.app.ui.settings.sheets.CategoryManagerBottomSheet
-import com.folioledger.app.ui.settings.sheets.DataAndBackupBottomSheet
 import com.folioledger.app.ui.settings.sheets.FeedbackBottomSheet
 import com.folioledger.app.ui.settings.sheets.RegionalFormatBottomSheet
+import com.folioledger.app.ui.settings.sheets.SpreadsheetsBottomSheet
 import com.folioledger.app.ui.settings.sheets.TagsAndBookmarksBottomSheet
+import com.folioledger.app.ui.settings.sheets.TransferAndManualBackupBottomSheet
 import com.folioledger.app.ui.theme.FolioAccentPalette
 import com.folioledger.app.ui.theme.FolioThemeMode
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
@@ -114,7 +120,9 @@ fun SettingsScreen(
 
     var isAppearanceSheetOpen by rememberSaveable { mutableStateOf(false) }
     var isRegionalFormatSheetOpen by rememberSaveable { mutableStateOf(false) }
-    var isDataBackupSheetOpen by rememberSaveable { mutableStateOf(false) }
+    var isAutoBackupSheetOpen by rememberSaveable { mutableStateOf(false) }
+    var isTransferBackupSheetOpen by rememberSaveable { mutableStateOf(false) }
+    var isSpreadsheetsSheetOpen by rememberSaveable { mutableStateOf(false) }
     var isTagsAndBookmarksSheetOpen by rememberSaveable { mutableStateOf(false) }
 
     var showMonthStartDayDialog by rememberSaveable { mutableStateOf(false) }
@@ -302,22 +310,79 @@ fun SettingsScreen(
                     }
                 }
 
-                // Group 3: DATA, BACKUPS & HELP
+                // Group 3: DATA & BACKUPS
                 item {
-                    SettingsGroupCard(title = "DATA, BACKUPS & HELP") {
-                        val backupStatusText = formatBackupRelativeTime(prefs.lastBackupEpochMillis)
+                    SettingsGroupCard(title = "DATA & BACKUPS") {
+                        // 1. Automated Rolling Backups
+                        val autoBackupValue = if (prefs.autoBackupEnabled) {
+                            when (prefs.autoBackupRetention) {
+                                AutoBackupRetention.TEN_SESSIONS -> "10 Sessions"
+                                AutoBackupRetention.THIRTY_DAYS -> "30 Days (Tiered)"
+                                AutoBackupRetention.NINETY_DAYS -> "90 Days"
+                            }
+                        } else "Disabled"
+
                         SettingsNavigationRow(
-                            icon = Icons.Default.Backup,
-                            title = "Backups, CSV Export & Reset",
-                            valueText = if (prefs.lastBackupEpochMillis != null) backupStatusText else "Downloads/Folio",
-                            valueColorDot = if (prefs.lastBackupEpochMillis != null) semanticColors.incomeEmerald else null,
+                            icon = Icons.Default.History,
+                            title = "Automated Rolling Backups",
+                            subtitle = "Zero-cloud session exit snapshots",
+                            valueText = autoBackupValue,
+                            valueColorDot = if (prefs.autoBackupEnabled) semanticColors.incomeEmerald else semanticColors.warningAmber,
                             enabled = isNotBusy,
-                            onClick = { isDataBackupSheetOpen = true }
+                            onClick = { isAutoBackupSheetOpen = true }
                         )
                         HorizontalDivider(
                             color = semanticColors.cardStrokeSubtle,
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
+
+                        // 2. Transfer & Manual Backup
+                        val backupStatusText = formatBackupRelativeTime(prefs.lastBackupEpochMillis)
+                        SettingsNavigationRow(
+                            icon = Icons.Default.Backup,
+                            title = "Transfer & Manual Backup",
+                            subtitle = "Move to new phone or save .zip",
+                            valueText = if (prefs.lastBackupEpochMillis != null) backupStatusText else "Downloads/Folio",
+                            valueColorDot = if (prefs.lastBackupEpochMillis != null) semanticColors.incomeEmerald else null,
+                            enabled = isNotBusy,
+                            onClick = { isTransferBackupSheetOpen = true }
+                        )
+                        HorizontalDivider(
+                            color = semanticColors.cardStrokeSubtle,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+
+                        // 3. Spreadsheets & CSV
+                        SettingsNavigationRow(
+                            icon = Icons.Default.TableChart,
+                            title = "Spreadsheets & CSV",
+                            subtitle = "Export for Excel or import bank data",
+                            valueText = "Export / Import",
+                            enabled = isNotBusy,
+                            onClick = { isSpreadsheetsSheetOpen = true }
+                        )
+                        HorizontalDivider(
+                            color = semanticColors.cardStrokeSubtle,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+
+                        // 4. Reset All Ledger Data (Danger Zone)
+                        SettingsNavigationRow(
+                            icon = Icons.Default.DeleteForever,
+                            title = "Reset All Ledger Data",
+                            subtitle = "Erase all transactions, accounts & history",
+                            valueText = null,
+                            titleColor = MaterialTheme.colorScheme.error,
+                            iconTint = MaterialTheme.colorScheme.error,
+                            enabled = isNotBusy,
+                            onClick = { showClearAllDataDialog = true }
+                        )
+                    }
+                }
+
+                // Group 4: HELP & COMMUNITY
+                item {
+                    SettingsGroupCard(title = "HELP & COMMUNITY") {
                         SettingsNavigationRow(
                             icon = Icons.AutoMirrored.Filled.MenuBook,
                             title = "Folio User Guide & FAQs",
@@ -416,15 +481,14 @@ fun SettingsScreen(
         )
     }
 
-    LaunchedEffect(isDataBackupSheetOpen) {
-        if (isDataBackupSheetOpen) {
+    LaunchedEffect(isAutoBackupSheetOpen, isTransferBackupSheetOpen) {
+        if (isAutoBackupSheetOpen || isTransferBackupSheetOpen) {
             viewModel.refreshAutoBackupFiles()
         }
     }
 
-    if (isDataBackupSheetOpen) {
-        DataAndBackupBottomSheet(
-            lastBackupEpochMillis = prefs.lastBackupEpochMillis,
+    if (isAutoBackupSheetOpen) {
+        AutoBackupBottomSheet(
             autoBackupEnabled = prefs.autoBackupEnabled,
             autoBackupRetention = prefs.autoBackupRetention,
             autoBackupFiles = uiState.autoBackupFiles,
@@ -436,6 +500,13 @@ fun SettingsScreen(
             onShareBackupFile = { file ->
                 shareBackupFile(context, file)
             },
+            onDismiss = { isAutoBackupSheetOpen = false }
+        )
+    }
+
+    if (isTransferBackupSheetOpen) {
+        TransferAndManualBackupBottomSheet(
+            lastBackupEpochMillis = prefs.lastBackupEpochMillis,
             onCreateBackup = {
                 viewModel.createPortableZipBackup(
                     "Folio_Backup_${LocalDate.now()}_${System.currentTimeMillis() / 1000}.zip"
@@ -447,6 +518,17 @@ fun SettingsScreen(
             onSelectBackupFile = {
                 zipDocumentPicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "*/*"))
             },
+            onShareLatestBackup = {
+                viewModel.getLatestBackupFile()?.let { file ->
+                    shareBackupFile(context, file)
+                }
+            },
+            onDismiss = { isTransferBackupSheetOpen = false }
+        )
+    }
+
+    if (isSpreadsheetsSheetOpen) {
+        SpreadsheetsBottomSheet(
             onExportCsv = {
                 viewModel.exportAllTransactionsToCsv(
                     "Folio_Ledger_Export_${LocalDate.now()}.csv"
@@ -455,15 +537,7 @@ fun SettingsScreen(
             onImportCsv = {
                 csvDocumentPicker.launch(arrayOf("text/csv", "text/comma-separated-values", "application/vnd.ms-excel", "*/*"))
             },
-            onRequestClearAllData = {
-                showClearAllDataDialog = true
-            },
-            onShareLatestBackup = {
-                viewModel.getLatestBackupFile()?.let { file ->
-                    shareBackupFile(context, file)
-                }
-            },
-            onDismiss = { isDataBackupSheetOpen = false }
+            onDismiss = { isSpreadsheetsSheetOpen = false }
         )
     }
 
@@ -796,6 +870,9 @@ fun SettingsNavigationRow(
     valueText: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    titleColor: Color? = null,
+    iconTint: Color? = null,
     valueColorDot: Color? = null,
     enabled: Boolean = true
 ) {
@@ -811,15 +888,25 @@ fun SettingsNavigationRow(
             imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(20.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
+            tint = iconTint ?: MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.width(16.dp))
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f)
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = titleColor ?: MaterialTheme.colorScheme.onSurface
+            )
+            if (!subtitle.isNullOrEmpty()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
         if (valueColorDot != null) {
             Box(
                 modifier = Modifier
