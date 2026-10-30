@@ -260,7 +260,7 @@ private data class LedgerControlState(
     val referenceDateEpochDay: Long = LocalDate.now().toEpochDay(),
     val selectedCalendarDayEpochDay: Long = LocalDate.now().toEpochDay(),
     val scopedAccountId: Long? = null,
-    val expandedWeekIndices: Set<Int> = setOf(1),
+    val expandedWeekIndices: Set<Int>? = null,
     val expandedYearlyMonths: Set<Int>? = null,
     val searchFilter: TransactionSearchFilter = TransactionSearchFilter(),
     val filterAllPeriods: Boolean = false,
@@ -539,6 +539,12 @@ class LedgerHomeViewModel(
             secondaryCurrencies = prefs.secondaryCurrencies
         )
 
+        val defaultActiveWeekIndex = weeklyBuckets.firstOrNull { bucket ->
+            ctrl.referenceDateEpochDay in bucket.startEpochDay..bucket.endEpochDay
+        }?.weekIndex ?: weeklyBuckets.lastOrNull()?.weekIndex ?: 1
+
+        val effectiveExpandedWeeks = ctrl.expandedWeekIndices ?: setOf(defaultActiveWeekIndex)
+
         val effectiveExpandedMonths = ctrl.expandedYearlyMonths ?: setOf(periodRange.anchorMonthValue)
 
         val yearlyMonthItems = periodBundle.yearRanges.mapIndexed { idx, monthRange ->
@@ -641,7 +647,7 @@ class LedgerHomeViewModel(
             selectedCalendarDayIncome = selectedDayIncome,
             selectedCalendarDayExpense = selectedDayExpense,
             weeklyBuckets = weeklyBuckets,
-            expandedWeekIndices = ctrl.expandedWeekIndices,
+            expandedWeekIndices = effectiveExpandedWeeks,
             yearlyMonthItems = yearlyMonthItems,
             expandedYearlyMonths = effectiveExpandedMonths,
             yearlyIncomeTotal = yearlyIncome,
@@ -700,6 +706,7 @@ class LedgerHomeViewModel(
             current.copy(
                 referenceDateEpochDay = prevEpochDay,
                 selectedCalendarDayEpochDay = prevEpochDay,
+                expandedWeekIndices = null,
                 expandedYearlyMonths = if (current.selectedSubTab == LedgerSubTab.MONTHLY) null else current.expandedYearlyMonths
             )
         }
@@ -717,6 +724,7 @@ class LedgerHomeViewModel(
             current.copy(
                 referenceDateEpochDay = nextEpochDay,
                 selectedCalendarDayEpochDay = nextEpochDay,
+                expandedWeekIndices = null,
                 expandedYearlyMonths = if (current.selectedSubTab == LedgerSubTab.MONTHLY) null else current.expandedYearlyMonths
             )
         }
@@ -728,6 +736,7 @@ class LedgerHomeViewModel(
             it.copy(
                 referenceDateEpochDay = today,
                 selectedCalendarDayEpochDay = today,
+                expandedWeekIndices = null,
                 expandedYearlyMonths = null,
                 scrollToTopSignal = it.scrollToTopSignal + 1
             )
@@ -739,11 +748,16 @@ class LedgerHomeViewModel(
     }
 
     fun toggleWeekExpanded(weekIndex: Int) {
+        val currentBuckets = uiState.value.weeklyBuckets
         controlState.update { current ->
-            val next = if (weekIndex in current.expandedWeekIndices) {
-                current.expandedWeekIndices - weekIndex
+            val defaultActiveIndex = currentBuckets.firstOrNull { bucket ->
+                current.referenceDateEpochDay in bucket.startEpochDay..bucket.endEpochDay
+            }?.weekIndex ?: currentBuckets.lastOrNull()?.weekIndex ?: 1
+            val base = current.expandedWeekIndices ?: setOf(defaultActiveIndex)
+            val next = if (weekIndex in base) {
+                base - weekIndex
             } else {
-                current.expandedWeekIndices + weekIndex
+                base + weekIndex
             }
             current.copy(expandedWeekIndices = next)
         }

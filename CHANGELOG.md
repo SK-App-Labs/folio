@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.4.0] - Unreleased
 ### Fixed
+- **Ledger Weekly Subtab Polish & Usability**:
+  - *Contextual Transaction Date Badging*: Added `"EEE, dd MMM"` date badges (e.g., `Fri, 02 Oct`) alongside the account name on transaction cards within expanded weekly buckets, resolving missing date visibility across 7-day multi-day week spans.
+  - *Intelligent Dynamic Week Expansion*: Changed hardcoded `expandedWeekIndices = setOf(1)` to dynamic resolution that automatically expands the week containing the reference date (or current day), and resets cleanly when stepping across months.
+  - *Clean Empty State Feedback*: Resolved phantom chevron behavior on empty weeks by rendering a subtle `"No transactions recorded for this week"` message instead of keeping the card body closed while the chevron points up.
+  - *Stable Compose Keys*: Upgraded LazyColumn keys to composite strings (`"${bucket.startEpochDay}_${bucket.weekIndex}"`) to eliminate key collisions across month navigation and maintain optimal rendering performance.
 - **Ledger Monthly Subtab Accordion & Weekly Content Expansion**:
   - Resolved accordion lock bug in `LedgerHomeViewModel.kt` where `expandedYearlyMonths` defaulted to `emptySet()`, causing weekly breakdown cards to render completely empty and preventing users from collapsing the current month card.
   - Introduced nullable `expandedYearlyMonths: Set<Int>? = null` state in `LedgerControlState` to distinguish initial default expansion from explicit user collapse (`emptySet()`), enabling 1-tap collapsing and expanding of any month with full weekly item loading.

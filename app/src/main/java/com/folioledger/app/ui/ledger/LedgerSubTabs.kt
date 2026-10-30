@@ -550,7 +550,7 @@ internal fun WeeklyLedgerSubTabContent(
 
         items(
             items = uiState.weeklyBuckets,
-            key = { it.weekIndex },
+            key = { "${it.startEpochDay}_${it.weekIndex}" },
             contentType = { "weekly_bucket_card" }
         ) { bucket ->
             val isExpanded = bucket.weekIndex in uiState.expandedWeekIndices
@@ -630,7 +630,7 @@ internal fun WeeklyLedgerSubTabContent(
                     }
 
                     AnimatedVisibility(
-                        visible = isExpanded && bucket.transactions.isNotEmpty(),
+                        visible = isExpanded,
                         enter = expandVertically(),
                         exit = shrinkVertically()
                     ) {
@@ -641,13 +641,23 @@ internal fun WeeklyLedgerSubTabContent(
                                 .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
                         ) {
                             HorizontalDivider(color = semanticColors.cardStrokeSubtle)
-                            bucket.transactions.forEach { tx ->
-                                LedgerTransactionItemCard(
-                                    transaction = tx,
-                                    scopedAccountId = uiState.scopedAccountId,
-                                    currencySpec = uiState.currencySpec,
-                                    grouping = uiState.numberGrouping,
-                                    onClick = { onTransactionClick(tx) }
+                            if (bucket.transactions.isNotEmpty()) {
+                                bucket.transactions.forEach { tx ->
+                                    LedgerTransactionItemCard(
+                                        transaction = tx,
+                                        scopedAccountId = uiState.scopedAccountId,
+                                        currencySpec = uiState.currencySpec,
+                                        grouping = uiState.numberGrouping,
+                                        showDate = true,
+                                        onClick = { onTransactionClick(tx) }
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    text = "No transactions recorded for this week",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
                                 )
                             }
                         }

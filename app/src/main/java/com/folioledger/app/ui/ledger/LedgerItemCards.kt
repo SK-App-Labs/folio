@@ -26,6 +26,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.graphicsLayer
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
@@ -121,6 +124,8 @@ internal fun DailyDateGroupHeaderRow(
     }
 }
 
+private val transactionRowDateFormatter = DateTimeFormatter.ofPattern("EEE, dd MMM", Locale.US)
+
 @Composable
 internal fun DailyGroupedTransactionsCard(
     transactions: List<TransactionItem>,
@@ -128,7 +133,8 @@ internal fun DailyGroupedTransactionsCard(
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onTransactionClick: (TransactionItem) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showDate: Boolean = false
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -152,7 +158,8 @@ internal fun DailyGroupedTransactionsCard(
                         scopedAccountId = scopedAccountId,
                         currencySpec = currencySpec,
                         grouping = grouping,
-                        onClick = { onTransactionClick(tx) }
+                        onClick = { onTransactionClick(tx) },
+                        showDate = showDate
                     )
                 }
             }
@@ -167,7 +174,8 @@ internal fun LedgerTransactionRow(
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showDate: Boolean = false
 ) {
     val txCurrency = remember(transaction.currencyCode, currencySpec) {
         SupportedCurrencies.getByCode(transaction.currencyCode) ?: currencySpec
@@ -290,6 +298,24 @@ internal fun LedgerTransactionRow(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                if (showDate) {
+                    val dateLabel = remember(transaction.ledgerDateEpochDay) {
+                        val date = LocalDate.ofEpochDay(transaction.ledgerDateEpochDay)
+                        date.format(transactionRowDateFormatter)
+                    }
+                    Text(
+                        text = dateLabel,
+                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "•",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
+
                 Text(
                     text = transaction.accountName,
                     style = MaterialTheme.typography.labelSmall,
@@ -328,7 +354,8 @@ internal fun LedgerTransactionItemCard(
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showDate: Boolean = false
 ) {
     DailyGroupedTransactionsCard(
         transactions = listOf(transaction),
@@ -336,6 +363,7 @@ internal fun LedgerTransactionItemCard(
         currencySpec = currencySpec,
         grouping = grouping,
         onTransactionClick = { onClick() },
-        modifier = modifier
+        modifier = modifier,
+        showDate = showDate
     )
 }

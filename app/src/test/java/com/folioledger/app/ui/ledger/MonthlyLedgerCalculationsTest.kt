@@ -109,4 +109,78 @@ class MonthlyLedgerCalculationsTest {
         assertEquals(2440L, yearlyExpense.amountMinor)
         assertEquals(560L, yearlyNet.amountMinor)
     }
+
+    @Test
+    fun testWeeklyDefaultExpansionAndToggleLogic() {
+        val week1Start = java.time.LocalDate.of(2026, 10, 1).toEpochDay()
+        val week1End = java.time.LocalDate.of(2026, 10, 4).toEpochDay()
+
+        val week5Start = java.time.LocalDate.of(2026, 10, 26).toEpochDay()
+        val week5End = java.time.LocalDate.of(2026, 10, 31).toEpochDay()
+
+        val mockBuckets = listOf(
+            WeeklyLedgerBucket(
+                weekIndex = 1,
+                label = "Week 1",
+                dateRangeSubtitle = "01 Oct – 04 Oct",
+                startEpochDay = week1Start,
+                endEpochDay = week1End,
+                incomeTotal = MinorMoney.ZERO,
+                expenseTotal = MinorMoney.ZERO,
+                netTotal = MinorMoney.ZERO,
+                transactions = emptyList()
+            ),
+            WeeklyLedgerBucket(
+                weekIndex = 5,
+                label = "Week 5",
+                dateRangeSubtitle = "26 Oct – 31 Oct",
+                startEpochDay = week5Start,
+                endEpochDay = week5End,
+                incomeTotal = MinorMoney.ZERO,
+                expenseTotal = MinorMoney.ZERO,
+                netTotal = MinorMoney.ZERO,
+                transactions = emptyList()
+            )
+        )
+
+        // Today is Oct 30th (in week 5)
+        val refDate = java.time.LocalDate.of(2026, 10, 30).toEpochDay()
+        var expandedWeekIndices: Set<Int>? = null
+
+        val defaultActiveIndex = mockBuckets.firstOrNull { bucket ->
+            refDate in bucket.startEpochDay..bucket.endEpochDay
+        }?.weekIndex ?: mockBuckets.lastOrNull()?.weekIndex ?: 1
+
+        assertEquals(5, defaultActiveIndex)
+
+        // Initial effective expansion should be Week 5
+        val initialEffective = expandedWeekIndices ?: setOf(defaultActiveIndex)
+        assertEquals(setOf(5), initialEffective)
+        assertTrue(5 in initialEffective)
+        assertFalse(1 in initialEffective)
+
+        // User clicks week 5 to collapse it
+        fun toggle(week: Int) {
+            val base = expandedWeekIndices ?: setOf(defaultActiveIndex)
+            expandedWeekIndices = if (week in base) base - week else base + week
+        }
+
+        toggle(5)
+        val collapsedEffective = expandedWeekIndices ?: setOf(defaultActiveIndex)
+        assertEquals(emptySet<Int>(), collapsedEffective)
+        assertFalse(5 in collapsedEffective)
+
+        // User clicks week 1 to expand it
+        toggle(1)
+        val week1Effective = expandedWeekIndices ?: setOf(defaultActiveIndex)
+        assertEquals(setOf(1), week1Effective)
+    }
+
+    @Test
+    fun testWeeklyTransactionDateFormatting() {
+        val date = java.time.LocalDate.of(2026, 10, 2)
+        val formatter = java.time.format.DateTimeFormatter.ofPattern("EEE, dd MMM", java.util.Locale.US)
+        val formatted = date.format(formatter)
+        assertEquals("Fri, 02 Oct", formatted)
+    }
 }
