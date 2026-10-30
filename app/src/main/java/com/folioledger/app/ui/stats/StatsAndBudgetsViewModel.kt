@@ -1436,7 +1436,7 @@ class StatsAndBudgetsViewModel(
             0f
         }
         val aggregateStatus = when {
-            aggregateUtilization > 80f -> CreditUtilizationStatus.WARNING
+            aggregateUtilization > 50f -> CreditUtilizationStatus.WARNING
             aggregateUtilization > 30f -> CreditUtilizationStatus.MODERATE
             else -> CreditUtilizationStatus.SAFE
         }
@@ -1501,14 +1501,15 @@ class StatsAndBudgetsViewModel(
                 0f
             }
             val cardStatus = when {
-                cardUtil > 80f -> CreditUtilizationStatus.WARNING
+                cardUtil > 50f -> CreditUtilizationStatus.WARNING
                 cardUtil > 30f -> CreditUtilizationStatus.MODERATE
                 else -> CreditUtilizationStatus.SAFE
             }
 
-            // Float days if swiped today
+            // Float days if swiped today (prioritize cards with available credit)
             val floatDays = ChronoUnit.DAYS.between(today, cycle.activeCycleNextDueDate).coerceAtLeast(0L)
-            if (floatDays > maxFloatDays) {
+            val hasAvailableHeadroom = cardAvailable.isPositive
+            if (floatDays > maxFloatDays && hasAvailableHeadroom) {
                 maxFloatDays = floatDays
                 bestSmartSwipe = SmartSwipeRecommendation(
                     account = card,
@@ -1585,8 +1586,24 @@ class StatsAndBudgetsViewModel(
             )
             cardAnalyticsItems.add(analyticsItem)
 
-            if (cardUtil > 30f && (singleCardExceeding30 == null || cardUtil > singleCardExceeding30.utilizationPercent)) {
+            if (aggregateUtilization <= 30f && cardUtil > 30f && (singleCardExceeding30 == null || cardUtil > singleCardExceeding30.utilizationPercent)) {
                 singleCardExceeding30 = analyticsItem
+            }
+        }
+
+        // Fallback for smart swipe if all cards were maxed out
+        if (bestSmartSwipe == null && cardAnalyticsItems.isNotEmpty()) {
+            val bestItem = cardAnalyticsItems.maxByOrNull { it.floatDaysRemaining }
+            if (bestItem != null) {
+                val stmtDay = (bestItem.account.settlementDayOfMonth ?: 1).coerceIn(1, 31)
+                val dueDay = (bestItem.account.paymentDueDayOfMonth ?: 20).coerceIn(1, 31)
+                val cycle = CreditCardCycleCalculator.computeCycleWindow(referenceDateEpochDay, stmtDay, dueDay)
+                bestSmartSwipe = SmartSwipeRecommendation(
+                    account = bestItem.account,
+                    floatDaysRemaining = bestItem.floatDaysRemaining,
+                    statementCloseDate = cycle.activeCycleEnd,
+                    nextDueDate = cycle.activeCycleNextDueDate
+                )
             }
         }
 

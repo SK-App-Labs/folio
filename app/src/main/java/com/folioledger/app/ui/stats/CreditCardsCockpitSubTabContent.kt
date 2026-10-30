@@ -62,6 +62,8 @@ import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.model.SupportedCurrencies
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.EmptyStateCard
 import com.folioledger.app.ui.components.MoneyColorMode
@@ -340,8 +342,8 @@ private fun CreditHeroArcGaugeCard(
                     ) {
                         Text(
                             text = when (cockpit.aggregateStatus) {
-                                CreditUtilizationStatus.WARNING -> "● High Risk (>80%)"
-                                CreditUtilizationStatus.MODERATE -> "● Warning (30-80%)"
+                                CreditUtilizationStatus.WARNING -> "● High Risk (>50%)"
+                                CreditUtilizationStatus.MODERATE -> "● Warning (30-50%)"
                                 CreditUtilizationStatus.SAFE -> "● Safe Tier (<30%)"
                             },
                             style = MaterialTheme.typography.labelSmall,
@@ -476,7 +478,11 @@ private fun CreditHeroArcGaugeCard(
                             )
                             Text(
                                 text = if (coverage.isCashBacked) {
-                                    val netText = "${currencySpec.symbol} ${cockpit.liquidCoverage.netLiquidCash.formatPlain()}"
+                                    val netText = MoneyFormatterAndCalculator.formatMinorMoney(
+                                        money = cockpit.liquidCoverage.netLiquidCash,
+                                        currencySpec = currencySpec,
+                                        grouping = grouping
+                                    )
                                     "Liquid bank cash covers all debt ($netText Net Cash)."
                                 } else {
                                     "Total card debt exceeds liquid cash reserves."
@@ -689,7 +695,11 @@ private fun TimelineItemRow(
     onOpenSettlement: (AccountSummary) -> Unit
 ) {
     val semanticColors = LocalFolioSemanticColors.current
-    val cardColor = parseHexColorSafely(item.account.colorHex)
+    val cardColor = remember(item.account.colorHex) { parseHexColorSafely(item.account.colorHex) }
+    val cardSpec = remember(item.account.currencyCode) {
+        SupportedCurrencies.getByCode(item.account.currencyCode)
+            ?: SupportedCurrencies.fromCode(item.account.currencyCode)
+    }
 
     val borderLeftColor = when {
         item.isOverdue || item.isUrgent -> semanticColors.expenseCoral
@@ -775,7 +785,7 @@ private fun TimelineItemRow(
             ) {
                 MoneyText(
                     money = item.amountDue,
-                    currencySpec = currencySpec,
+                    currencySpec = cardSpec,
                     grouping = grouping,
                     colorMode = if (item.isBilled) MoneyColorMode.EXPENSE else MoneyColorMode.NEUTRAL,
                     style = MaterialTheme.typography.titleSmall,
@@ -878,6 +888,10 @@ private fun CardAnalyticsItemRow(
     grouping: NumberGroupingSystem
 ) {
     val semanticColors = LocalFolioSemanticColors.current
+    val cardSpec = remember(item.account.currencyCode) {
+        SupportedCurrencies.getByCode(item.account.currencyCode)
+            ?: SupportedCurrencies.fromCode(item.account.currencyCode)
+    }
     val progressColor = when (item.status) {
         CreditUtilizationStatus.WARNING -> semanticColors.expenseCoral
         CreditUtilizationStatus.MODERATE -> semanticColors.warningAmber
@@ -925,7 +939,7 @@ private fun CardAnalyticsItemRow(
                             )
                             MoneyText(
                                 money = item.creditLimit,
-                                currencySpec = currencySpec,
+                                currencySpec = cardSpec,
                                 grouping = grouping,
                                 colorMode = MoneyColorMode.NEUTRAL,
                                 style = MaterialTheme.typography.bodySmall
@@ -943,8 +957,8 @@ private fun CardAnalyticsItemRow(
                     )
                     Text(
                         text = when (item.status) {
-                            CreditUtilizationStatus.WARNING -> "Warning (>80%)"
-                            CreditUtilizationStatus.MODERATE -> "Moderate (30-80%)"
+                            CreditUtilizationStatus.WARNING -> "Warning (>50%)"
+                            CreditUtilizationStatus.MODERATE -> "Moderate (30-50%)"
                             CreditUtilizationStatus.SAFE -> "Safe (<30%)"
                         },
                         style = MaterialTheme.typography.labelSmall,
@@ -988,7 +1002,7 @@ private fun CardAnalyticsItemRow(
                     )
                     MoneyText(
                         money = item.ytdSpend,
-                        currencySpec = currencySpec,
+                        currencySpec = cardSpec,
                         grouping = grouping,
                         colorMode = MoneyColorMode.NEUTRAL,
                         style = MaterialTheme.typography.labelSmall,
@@ -1072,108 +1086,118 @@ private fun SpendModeRatioCard(
                 }
             }
 
-            // Dual Progress Split Bar
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(10.dp)
-                    .clip(RoundedCornerShape(5.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            ) {
-                Row(modifier = Modifier.fillMaxSize()) {
-                    if (ratio.creditPercentage > 0f) {
+            val hasExpenses = !ratio.creditSpend.isZero || !ratio.liquidSpend.isZero
+            if (!hasExpenses) {
+                Text(
+                    text = "No expenses recorded in $periodTitle.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            } else {
+                // Dual Progress Split Bar
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(10.dp)
+                        .clip(RoundedCornerShape(5.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                ) {
+                    Row(modifier = Modifier.fillMaxSize()) {
+                        if (ratio.creditPercentage > 0f) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(ratio.creditPercentage.coerceAtLeast(1f))
+                                    .fillMaxSize()
+                                    .background(semanticColors.expenseCoral)
+                            )
+                        }
+                        if (ratio.liquidPercentage > 0f) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(ratio.liquidPercentage.coerceAtLeast(1f))
+                                    .fillMaxSize()
+                                    .background(semanticColors.incomeEmerald)
+                            )
+                        }
+                    }
+                }
+
+                // Legend
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         Box(
                             modifier = Modifier
-                                .weight(ratio.creditPercentage.coerceAtLeast(1f))
-                                .fillMaxSize()
+                                .size(8.dp)
+                                .clip(CircleShape)
                                 .background(semanticColors.expenseCoral)
                         )
+                        Text(
+                            text = "💳 Credit: ${String.format(Locale.US, "%.0f", ratio.creditPercentage)}% (",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = semanticColors.expenseCoral,
+                            fontWeight = FontWeight.Bold
+                        )
+                        MoneyText(
+                            money = ratio.creditSpend,
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            colorMode = MoneyColorMode.EXPENSE,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = ")",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = semanticColors.expenseCoral
+                        )
                     }
-                    if (ratio.liquidPercentage > 0f) {
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         Box(
                             modifier = Modifier
-                                .weight(ratio.liquidPercentage.coerceAtLeast(1f))
-                                .fillMaxSize()
+                                .size(8.dp)
+                                .clip(CircleShape)
                                 .background(semanticColors.incomeEmerald)
+                        )
+                        Text(
+                            text = "🏦 Bank/Cash: ${String.format(Locale.US, "%.0f", ratio.liquidPercentage)}% (",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = semanticColors.incomeEmerald,
+                            fontWeight = FontWeight.Bold
+                        )
+                        MoneyText(
+                            money = ratio.liquidSpend,
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            colorMode = MoneyColorMode.INCOME,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = ")",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = semanticColors.incomeEmerald
                         )
                     }
                 }
+
+                Text(
+                    text = "💡 Higher credit share maximizes reward points, provided statement balances are cleared in full before due dates.",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-
-            // Legend
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(semanticColors.expenseCoral)
-                    )
-                    Text(
-                        text = "💳 Credit: ${String.format(Locale.US, "%.0f", ratio.creditPercentage)}% (",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = semanticColors.expenseCoral,
-                        fontWeight = FontWeight.Bold
-                    )
-                    MoneyText(
-                        money = ratio.creditSpend,
-                        currencySpec = currencySpec,
-                        grouping = grouping,
-                        colorMode = MoneyColorMode.EXPENSE,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = ")",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = semanticColors.expenseCoral
-                    )
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(semanticColors.incomeEmerald)
-                    )
-                    Text(
-                        text = "🏦 Bank/Cash: ${String.format(Locale.US, "%.0f", ratio.liquidPercentage)}% (",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = semanticColors.incomeEmerald,
-                        fontWeight = FontWeight.Bold
-                    )
-                    MoneyText(
-                        money = ratio.liquidSpend,
-                        currencySpec = currencySpec,
-                        grouping = grouping,
-                        colorMode = MoneyColorMode.INCOME,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = ")",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = semanticColors.incomeEmerald
-                    )
-                }
-            }
-
-            Text(
-                text = "💡 Higher credit share maximizes reward points, provided statement balances are cleared in full before due dates.",
-                style = MaterialTheme.typography.bodySmall,
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
@@ -1230,11 +1254,4 @@ private fun CreditSpendTrendCard(
             )
         }
     }
-}
-
-private fun com.folioledger.app.domain.model.MinorMoney.formatPlain(): String {
-    val absVal = Math.abs(this.amountMinor)
-    val integerPart = absVal / 100
-    val fracPart = absVal % 100
-    return if (fracPart > 0) "$integerPart.${String.format(Locale.US, "%02d", fracPart)}" else "$integerPart"
 }

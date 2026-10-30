@@ -143,6 +143,44 @@ class CreditCardsCockpitCalculationsTest {
     }
 
     @Test
+    fun testSmartSwipeAdvisor_PrioritizesCardsWithAvailableCredit() {
+        // Card A has longer float (~46 days) but is 100% MAXED OUT (limit 50k, debt 50k -> available 0)
+        val cardA = createTestAccount(
+            id = 1,
+            name = "Maxed Out Card",
+            group = AccountGroup.CREDIT_CARD,
+            balanceMinor = -50_000_00L,
+            creditLimitMinor = 50_000_00L,
+            statementDay = 28,
+            dueDay = 16
+        )
+
+        // Card B has shorter float (~20 days) but HAS AVAILABLE LIMIT (limit 100k, debt 10k -> available 90k)
+        val cardB = createTestAccount(
+            id = 2,
+            name = "Available Card",
+            group = AccountGroup.CREDIT_CARD,
+            balanceMinor = -10_000_00L,
+            creditLimitMinor = 100_000_00L,
+            statementDay = 1,
+            dueDay = 20
+        )
+
+        val cards = listOf(cardA, cardB)
+        val candidateWithHeadroom = cards.filter {
+            val limit = it.creditLimit?.amountMinor ?: 0L
+            val debt = it.currentBalance.abs().amountMinor
+            limit > debt
+        }.maxByOrNull { card ->
+            val cycle = CreditCardCycleCalculator.computeCycleWindow(refEpochDay, card.settlementDayOfMonth!!, card.paymentDueDayOfMonth!!)
+            ChronoUnit.DAYS.between(refDate, cycle.activeCycleNextDueDate)
+        }
+
+        assertNotNull(candidateWithHeadroom)
+        assertEquals("Available Card", candidateWithHeadroom?.name)
+    }
+
+    @Test
     fun testSpendModeRatio_StrictlyExcludesTransfersAndSettlements() {
         val ccId = 10L
         val bankId = 20L
