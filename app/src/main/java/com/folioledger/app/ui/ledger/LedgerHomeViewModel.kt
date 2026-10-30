@@ -249,6 +249,7 @@ data class LedgerHomeUiState(
     val filteredIncomeTotal: MinorMoney = MinorMoney.ZERO,
     val filteredExpenseTotal: MinorMoney = MinorMoney.ZERO,
     val filteredNetTotal: MinorMoney = MinorMoney.ZERO,
+    val filteredTransferTotal: MinorMoney = MinorMoney.ZERO,
     val availableAccounts: List<AccountSummary> = emptyList(),
     val availableCategories: List<CategoryNode> = emptyList(),
     val expenseCategories: List<CategoryNode> = emptyList(),
@@ -670,6 +671,25 @@ class LedgerHomeViewModel(
             primaryCurrencySpec = currencySpec,
             secondaryCurrencies = prefs.secondaryCurrencies
         )
+
+        val filteredTransferMinor = scopedFilteredTransactions
+            .filter { it.type == TransactionType.TRANSFER || it.type == TransactionType.CC_SETTLEMENT }
+            .sumOf { tx ->
+                if (tx.currencyCode != currencySpec.code) {
+                    val rate = prefs.secondaryCurrencies.firstOrNull { it.code == tx.currencyCode }?.exchangeRateToPrimary ?: 1.0
+                    val sourceSpec = SupportedCurrencies.fromCode(tx.currencyCode)
+                    MoneyFormatterAndCalculator.convertMinorMoney(
+                        sourceMinor = tx.amount.amountMinor,
+                        sourceFractionDigits = sourceSpec.fractionDigits,
+                        targetFractionDigits = currencySpec.fractionDigits,
+                        rateToTarget = rate
+                    )
+                } else {
+                    tx.amount.amountMinor
+                }
+            }
+        val filteredTransferTotal = MinorMoney(filteredTransferMinor)
+
         val filteredDailyGroups = if (filterActive) {
             buildDailyGroups(
                 transactions = scopedFilteredTransactions,
@@ -733,6 +753,7 @@ class LedgerHomeViewModel(
             filteredIncomeTotal = filteredInc,
             filteredExpenseTotal = filteredExp,
             filteredNetTotal = filteredInc - filteredExp,
+            filteredTransferTotal = filteredTransferTotal,
             availableAccounts = refBundle.accounts,
             availableCategories = refBundle.categories,
             expenseCategories = expenseCats,

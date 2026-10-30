@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
@@ -34,8 +36,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.AccountSummary
+import com.folioledger.app.domain.model.CategoryNode
+import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
+import com.folioledger.app.domain.model.TransactionSearchFilter
+import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
@@ -138,9 +145,20 @@ internal fun SearchAndActiveFilterBanner(
     isFilterActive: Boolean,
     periodTitle: String,
     filterAllPeriods: Boolean,
+    filter: TransactionSearchFilter = TransactionSearchFilter(),
+    accounts: List<AccountSummary> = emptyList(),
+    categories: List<CategoryNode> = emptyList(),
+    currencySpec: CurrencySpec = SupportedCurrencies.INR,
+    grouping: NumberGroupingSystem = NumberGroupingSystem.INDIAN,
     onQueryChange: (String) -> Unit,
     onOpenFilterSheet: () -> Unit,
-    onClearAllFilters: () -> Unit
+    onClearAllFilters: () -> Unit,
+    onRemoveCategoryFilter: (Long) -> Unit = {},
+    onRemoveAccountFilter: (Long) -> Unit = {},
+    onRemoveTypeFilter: (TransactionType) -> Unit = {},
+    onRemoveTagFilter: (String) -> Unit = {},
+    onRemoveTransfersFilter: () -> Unit = {},
+    onRemoveAmountBounds: () -> Unit = {}
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -211,6 +229,152 @@ internal fun SearchAndActiveFilterBanner(
                         Text("Reset")
                     }
                 }
+            }
+
+            val hasActiveCriteria = filter.categoryIds.isNotEmpty() ||
+                    filter.accountIds.isNotEmpty() ||
+                    filter.types.isNotEmpty() ||
+                    filter.tags.isNotEmpty() ||
+                    filter.minAmount != null ||
+                    filter.maxAmount != null
+
+            if (isFilterActive && hasActiveCriteria) {
+                Spacer(modifier = Modifier.size(8.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Types
+                    if (TransactionType.EXPENSE in filter.types) {
+                        item(key = "type_exp") {
+                            ActiveFilterChipPill(
+                                label = "Expense",
+                                onRemove = { onRemoveTypeFilter(TransactionType.EXPENSE) }
+                            )
+                        }
+                    }
+                    if (TransactionType.REFUND in filter.types) {
+                        item(key = "type_ref") {
+                            ActiveFilterChipPill(
+                                label = "Refund",
+                                onRemove = { onRemoveTypeFilter(TransactionType.REFUND) }
+                            )
+                        }
+                    }
+                    if (TransactionType.INCOME in filter.types) {
+                        item(key = "type_inc") {
+                            ActiveFilterChipPill(
+                                label = "Income",
+                                onRemove = { onRemoveTypeFilter(TransactionType.INCOME) }
+                            )
+                        }
+                    }
+                    if (TransactionType.TRANSFER in filter.types || TransactionType.CC_SETTLEMENT in filter.types) {
+                        item(key = "type_trans") {
+                            ActiveFilterChipPill(
+                                label = "⇄ Transfers",
+                                onRemove = onRemoveTransfersFilter
+                            )
+                        }
+                    }
+
+                    // Categories
+                    items(filter.categoryIds.toList(), key = { "cat_$it" }) { catId ->
+                        val cat = categories.firstOrNull { it.id == catId }
+                            ?: categories.flatMap { it.subcategories }.firstOrNull { it.id == catId }
+                        ActiveFilterChipPill(
+                            label = cat?.name ?: "Category #$catId",
+                            iconName = cat?.iconName,
+                            colorHex = cat?.colorHex,
+                            onRemove = { onRemoveCategoryFilter(catId) }
+                        )
+                    }
+
+                    // Accounts
+                    items(filter.accountIds.toList(), key = { "acc_$it" }) { accId ->
+                        val acc = accounts.firstOrNull { it.id == accId }
+                        ActiveFilterChipPill(
+                            label = acc?.name ?: "Account #$accId",
+                            iconName = acc?.iconName,
+                            colorHex = acc?.colorHex,
+                            onRemove = { onRemoveAccountFilter(accId) }
+                        )
+                    }
+
+                    // Tags
+                    items(filter.tags.toList(), key = { "tag_$it" }) { tag ->
+                        ActiveFilterChipPill(
+                            label = "#$tag",
+                            onRemove = { onRemoveTagFilter(tag) }
+                        )
+                    }
+
+                    // Amount Range
+                    if (filter.minAmount != null || filter.maxAmount != null) {
+                        val label = when {
+                            filter.minAmount != null && filter.maxAmount != null ->
+                                "${MoneyFormatterAndCalculator.formatMinorMoney(filter.minAmount, currencySpec, grouping)} - ${MoneyFormatterAndCalculator.formatMinorMoney(filter.maxAmount, currencySpec, grouping)}"
+                            filter.minAmount != null ->
+                                "≥ ${MoneyFormatterAndCalculator.formatMinorMoney(filter.minAmount, currencySpec, grouping)}"
+                            filter.maxAmount != null ->
+                                "≤ ${MoneyFormatterAndCalculator.formatMinorMoney(filter.maxAmount, currencySpec, grouping)}"
+                            else -> ""
+                        }
+                        item(key = "amount_bound") {
+                            ActiveFilterChipPill(
+                                label = label,
+                                onRemove = onRemoveAmountBounds
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActiveFilterChipPill(
+    label: String,
+    iconName: String? = null,
+    colorHex: String? = null,
+    onRemove: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 8.dp, end = 2.dp, top = 2.dp, bottom = 2.dp)
+        ) {
+            if (iconName != null && colorHex != null) {
+                CategoryIconBadge(
+                    iconName = iconName,
+                    colorHex = colorHex,
+                    size = 18.dp,
+                    iconSize = 11.dp
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.width(2.dp))
+            IconButton(
+                onClick = onRemove,
+                modifier = Modifier.size(22.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "Remove $label filter",
+                    modifier = Modifier.size(13.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

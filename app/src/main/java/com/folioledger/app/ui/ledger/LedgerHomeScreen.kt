@@ -106,7 +106,9 @@ fun LedgerHomeScreen(
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 val isMonthlyTab = uiState.selectedSubTab == LedgerSubTab.MONTHLY
-                val headerTitle = if (isMonthlyTab) {
+                val headerTitle = if (uiState.isFilterActive && uiState.filterAllPeriods) {
+                    "All Dates (Lifetime)"
+                } else if (isMonthlyTab) {
                     "Year ${uiState.activePeriodRange.anchorYear}"
                 } else {
                     uiState.activePeriodRange.title
@@ -156,9 +158,20 @@ fun LedgerHomeScreen(
                         isFilterActive = uiState.isFilterActive,
                         periodTitle = uiState.activePeriodRange.title,
                         filterAllPeriods = uiState.filterAllPeriods,
+                        filter = uiState.searchFilter,
+                        accounts = uiState.availableAccounts,
+                        categories = uiState.availableCategories,
+                        currencySpec = uiState.currencySpec,
+                        grouping = uiState.numberGrouping,
                         onQueryChange = viewModel::updateSearchQuery,
                         onOpenFilterSheet = { viewModel.setFilterSheetOpen(true) },
-                        onClearAllFilters = viewModel::clearAllFilters
+                        onClearAllFilters = viewModel::clearAllFilters,
+                        onRemoveCategoryFilter = viewModel::toggleFilterCategoryId,
+                        onRemoveAccountFilter = viewModel::toggleFilterAccountId,
+                        onRemoveTypeFilter = viewModel::toggleFilterTransactionType,
+                        onRemoveTagFilter = viewModel::toggleFilterTag,
+                        onRemoveTransfersFilter = viewModel::toggleFilterTransfers,
+                        onRemoveAmountBounds = { viewModel.updateFilterAmountBounds("", "") }
                     )
                 }
 

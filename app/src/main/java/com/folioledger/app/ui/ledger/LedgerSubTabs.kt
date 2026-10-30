@@ -71,6 +71,56 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable
+internal fun SingleTotalSummaryBanner(
+    label: String,
+    amount: MinorMoney,
+    colorMode: MoneyColorMode,
+    currencySpec: CurrencySpec,
+    grouping: NumberGroupingSystem,
+    prefix: String = ""
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, LocalFolioSemanticColors.current.cardStrokeSubtle),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (prefix.isNotEmpty()) {
+                    Text(
+                        text = prefix,
+                        style = tabularMoneyStyle(MaterialTheme.typography.titleLarge),
+                        fontWeight = FontWeight.Bold,
+                        color = LocalFolioSemanticColors.current.transferBlue
+                    )
+                }
+                MoneyText(
+                    money = amount,
+                    currencySpec = currencySpec,
+                    grouping = grouping,
+                    colorMode = colorMode,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
 internal fun FilteredSearchResultsContent(
     uiState: LedgerHomeUiState,
     onTransactionClick: (TransactionItem) -> Unit,
@@ -96,54 +146,95 @@ internal fun FilteredSearchResultsContent(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        item {
-            ThreeColumnSummaryBanner(
-                firstLabel = "Filtered Income",
-                firstAmount = uiState.filteredIncomeTotal,
-                secondLabel = "Filtered Expenses",
-                secondAmount = uiState.filteredExpenseTotal,
-                thirdLabel = "Filtered Net",
-                thirdAmount = uiState.filteredNetTotal,
-                currencySpec = uiState.currencySpec,
-                grouping = uiState.numberGrouping
-            )
+        if (uiState.filteredTransactions.isNotEmpty()) {
+            item {
+                val hasIncome = uiState.filteredIncomeTotal.isPositive
+                val hasExpense = uiState.filteredExpenseTotal.isPositive
+                val hasTransfer = uiState.filteredTransferTotal.isPositive
+
+                when {
+                    hasIncome && hasExpense -> {
+                        ThreeColumnSummaryBanner(
+                            firstLabel = "Filtered Income",
+                            firstAmount = uiState.filteredIncomeTotal,
+                            secondLabel = "Filtered Expenses",
+                            secondAmount = uiState.filteredExpenseTotal,
+                            thirdLabel = "Filtered Net",
+                            thirdAmount = uiState.filteredNetTotal,
+                            currencySpec = uiState.currencySpec,
+                            grouping = uiState.numberGrouping
+                        )
+                    }
+                    hasExpense && !hasIncome && !hasTransfer -> {
+                        SingleTotalSummaryBanner(
+                            label = "Total Filtered Expenses",
+                            amount = uiState.filteredExpenseTotal,
+                            colorMode = MoneyColorMode.EXPENSE,
+                            currencySpec = uiState.currencySpec,
+                            grouping = uiState.numberGrouping
+                        )
+                    }
+                    hasIncome && !hasExpense && !hasTransfer -> {
+                        SingleTotalSummaryBanner(
+                            label = "Total Filtered Income",
+                            amount = uiState.filteredIncomeTotal,
+                            colorMode = MoneyColorMode.INCOME,
+                            currencySpec = uiState.currencySpec,
+                            grouping = uiState.numberGrouping
+                        )
+                    }
+                    hasTransfer && !hasIncome && !hasExpense -> {
+                        SingleTotalSummaryBanner(
+                            label = "Total Filtered Transfers",
+                            amount = uiState.filteredTransferTotal,
+                            colorMode = MoneyColorMode.NEUTRAL,
+                            currencySpec = uiState.currencySpec,
+                            grouping = uiState.numberGrouping,
+                            prefix = "⇄ "
+                        )
+                    }
+                    else -> {
+                        ThreeColumnSummaryBanner(
+                            firstLabel = if (hasTransfer && !hasIncome) "Transfers" else "Filtered Income",
+                            firstAmount = if (hasTransfer && !hasIncome) uiState.filteredTransferTotal else uiState.filteredIncomeTotal,
+                            secondLabel = "Filtered Expenses",
+                            secondAmount = uiState.filteredExpenseTotal,
+                            thirdLabel = "Filtered Net",
+                            thirdAmount = uiState.filteredNetTotal,
+                            currencySpec = uiState.currencySpec,
+                            grouping = uiState.numberGrouping
+                        )
+                    }
+                }
+            }
         }
 
         item {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "${uiState.filteredTransactions.size} matches",
-                        style = tabularMoneyStyle(MaterialTheme.typography.labelLarge),
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    FilterChip(
-                        selected = !uiState.filterAllPeriods,
-                        onClick = { onToggleFilterAllPeriods(!uiState.filterAllPeriods) },
-                        label = {
-                            Text(
-                                text = if (uiState.filterAllPeriods) {
-                                    "All Dates"
-                                } else {
-                                    "In ${uiState.activePeriodRange.title}"
-                                },
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        }
-                    )
-                }
-
-                TextButton(onClick = onClearFilters) {
-                    Text("Exit Filter")
-                }
+                Text(
+                    text = "${uiState.filteredTransactions.size} matches",
+                    style = tabularMoneyStyle(MaterialTheme.typography.labelLarge),
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                FilterChip(
+                    selected = !uiState.filterAllPeriods,
+                    onClick = { onToggleFilterAllPeriods(!uiState.filterAllPeriods) },
+                    label = {
+                        Text(
+                            text = if (uiState.filterAllPeriods) {
+                                "All Dates"
+                            } else {
+                                "In ${uiState.activePeriodRange.title}"
+                            },
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                )
             }
         }
 

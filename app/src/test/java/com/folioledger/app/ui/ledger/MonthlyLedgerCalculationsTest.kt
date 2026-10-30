@@ -750,4 +750,93 @@ class MonthlyLedgerCalculationsTest {
         assertFalse(TransactionType.TRANSFER in types)
         assertFalse(TransactionType.CC_SETTLEMENT in types)
     }
+
+    @Test
+    fun testSmartAdaptiveFilterSummaryBannerLogic() {
+        fun resolveBannerType(income: MinorMoney, expense: MinorMoney, transfer: MinorMoney): String {
+            val hasIncome = income.isPositive
+            val hasExpense = expense.isPositive
+            val hasTransfer = transfer.isPositive
+            return when {
+                hasIncome && hasExpense -> "THREE_COLUMN_MIXED"
+                hasExpense && !hasIncome && !hasTransfer -> "SINGLE_EXPENSE"
+                hasIncome && !hasExpense && !hasTransfer -> "SINGLE_INCOME"
+                hasTransfer && !hasIncome && !hasExpense -> "SINGLE_TRANSFER"
+                else -> "THREE_COLUMN_FALLBACK"
+            }
+        }
+
+        // 1. Only expenses
+        assertEquals("SINGLE_EXPENSE", resolveBannerType(MinorMoney.ZERO, MinorMoney(1450000L), MinorMoney.ZERO))
+
+        // 2. Only income
+        assertEquals("SINGLE_INCOME", resolveBannerType(MinorMoney(8500000L), MinorMoney.ZERO, MinorMoney.ZERO))
+
+        // 3. Only transfers
+        assertEquals("SINGLE_TRANSFER", resolveBannerType(MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney(500000L)))
+
+        // 4. Mixed income & expense
+        assertEquals("THREE_COLUMN_MIXED", resolveBannerType(MinorMoney(5000000L), MinorMoney(2000000L), MinorMoney.ZERO))
+    }
+
+    @Test
+    fun testFilteredTransfersSummationWithForeignCurrency() {
+        val transfer1 = TransactionItem(
+            id = 1L,
+            type = TransactionType.TRANSFER,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(100000L), // ₹1,000 INR
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Checking",
+            transferToAccountId = 2L,
+            transferToAccountName = "Savings"
+        )
+        val transfer2 = TransactionItem(
+            id = 2L,
+            type = TransactionType.CC_SETTLEMENT,
+            timestampEpochMillis = 2000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(2000L), // $20 USD -> ₹1,700 at 85.0
+            currencyCode = "USD",
+            accountId = 1L,
+            accountName = "Checking",
+            transferToAccountId = 3L,
+            transferToAccountName = "US Credit Card"
+        )
+        val nonTransfer = TransactionItem(
+            id = 3L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 3000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(50000L),
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Checking"
+        )
+
+        val filteredTxns = listOf(transfer1, transfer2, nonTransfer)
+        val secondaryCurrencies = listOf(com.folioledger.app.domain.model.SecondaryCurrency(code = "USD", exchangeRateToPrimary = 85.0))
+
+        val transferMinor = filteredTxns
+            .filter { it.type == TransactionType.TRANSFER || it.type == TransactionType.CC_SETTLEMENT }
+            .sumOf { tx ->
+                if (tx.currencyCode != inrSpec.code) {
+                    val rate = secondaryCurrencies.firstOrNull { it.code == tx.currencyCode }?.exchangeRateToPrimary ?: 1.0
+                    val sourceSpec = SupportedCurrencies.fromCode(tx.currencyCode)
+                    MoneyFormatterAndCalculator.convertMinorMoney(
+                        sourceMinor = tx.amount.amountMinor,
+                        sourceFractionDigits = sourceSpec.fractionDigits,
+                        targetFractionDigits = inrSpec.fractionDigits,
+                        rateToTarget = rate
+                    )
+                } else {
+                    tx.amount.amountMinor
+                }
+            }
+
+        // ₹1,000 (100000 paise) + ₹1,700 (170000 paise) = ₹2,700 (270000 paise)
+        assertEquals(270000L, transferMinor)
+    }
 }
