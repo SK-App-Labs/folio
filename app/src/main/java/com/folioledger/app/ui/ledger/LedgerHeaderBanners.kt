@@ -179,11 +179,9 @@ internal fun SearchAndActiveFilterBanner(
                     onValueChange = onQueryChange,
                     placeholder = {
                         Text(
-                            if (filterAllPeriods) {
-                                "Search across all dates..."
-                            } else {
-                                "Search in $periodTitle..."
-                            }
+                            text = "Search",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     },
                     leadingIcon = {
@@ -210,22 +208,28 @@ internal fun SearchAndActiveFilterBanner(
                 FilledTonalButton(
                     onClick = onOpenFilterSheet,
                     shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.FilterList,
-                        contentDescription = null,
+                        contentDescription = "Filters",
                         modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = if (activeFilterCount > 0) "Filters ($activeFilterCount)" else "Filters",
-                        style = tabularMoneyStyle(MaterialTheme.typography.labelLarge)
-                    )
+                    if (activeFilterCount > 0) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "$activeFilterCount",
+                            style = tabularMoneyStyle(MaterialTheme.typography.labelLarge),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
 
                 if (isFilterActive) {
-                    TextButton(onClick = onClearAllFilters) {
+                    TextButton(
+                        onClick = onClearAllFilters,
+                        contentPadding = PaddingValues(horizontal = 8.dp)
+                    ) {
                         Text("Reset")
                     }
                 }
