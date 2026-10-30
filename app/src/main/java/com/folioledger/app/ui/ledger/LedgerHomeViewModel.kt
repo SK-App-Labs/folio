@@ -251,6 +251,11 @@ data class LedgerHomeUiState(
     val filteredNetTotal: MinorMoney = MinorMoney.ZERO,
     val availableAccounts: List<AccountSummary> = emptyList(),
     val availableCategories: List<CategoryNode> = emptyList(),
+    val expenseCategories: List<CategoryNode> = emptyList(),
+    val incomeCategories: List<CategoryNode> = emptyList(),
+    val expenseFilterCount: Int = 0,
+    val incomeFilterCount: Int = 0,
+    val accountFilterCount: Int = 0,
     val availableTags: List<String> = emptyList(),
     val bookmarks: List<TransactionBookmark> = emptyList(),
     val inspectedTransaction: TransactionItem? = null,
@@ -619,6 +624,38 @@ class LedgerHomeViewModel(
         val filterCount = countActiveUserFilters(ctrl.searchFilter, ctrl.filterAllPeriods)
         val filterActive = isUserFilterNonEmpty(ctrl.searchFilter)
 
+        val expenseCats = refBundle.categories.filter { it.type == CategoryType.EXPENSE }
+        val incomeCats = refBundle.categories.filter { it.type == CategoryType.INCOME }
+
+        val expenseCategoryIds = buildSet {
+            expenseCats.forEach { parent ->
+                add(parent.id)
+                parent.subcategories.forEach { add(it.id) }
+            }
+        }
+        val incomeCategoryIds = buildSet {
+            incomeCats.forEach { parent ->
+                add(parent.id)
+                parent.subcategories.forEach { add(it.id) }
+            }
+        }
+
+        val activeSearchFilter = ctrl.searchFilter
+        var expFilterCount = 0
+        if (TransactionType.EXPENSE in activeSearchFilter.types) expFilterCount++
+        if (TransactionType.REFUND in activeSearchFilter.types) expFilterCount++
+        expFilterCount += activeSearchFilter.categoryIds.count { it in expenseCategoryIds }
+        expFilterCount += activeSearchFilter.tags.size
+
+        var incFilterCount = 0
+        if (TransactionType.INCOME in activeSearchFilter.types) incFilterCount++
+        incFilterCount += activeSearchFilter.categoryIds.count { it in incomeCategoryIds }
+
+        var accFilterCount = 0
+        accFilterCount += activeSearchFilter.accountIds.size
+        if (TransactionType.TRANSFER in activeSearchFilter.types || TransactionType.CC_SETTLEMENT in activeSearchFilter.types) accFilterCount++
+        if (activeSearchFilter.minAmount != null || activeSearchFilter.maxAmount != null) accFilterCount++
+
         val scopedFilteredTransactions = if (activeScopedAccountId != null) {
             refBundle.filteredTransactions.filter { tx ->
                 tx.accountId == activeScopedAccountId || tx.transferToAccountId == activeScopedAccountId
@@ -698,6 +735,11 @@ class LedgerHomeViewModel(
             filteredNetTotal = filteredInc - filteredExp,
             availableAccounts = refBundle.accounts,
             availableCategories = refBundle.categories,
+            expenseCategories = expenseCats,
+            incomeCategories = incomeCats,
+            expenseFilterCount = expFilterCount,
+            incomeFilterCount = incFilterCount,
+            accountFilterCount = accFilterCount,
             availableTags = refBundle.tags,
             bookmarks = refBundle.bookmarks,
             inspectedTransaction = updatedInspected,
@@ -946,6 +988,19 @@ class LedgerHomeViewModel(
             val existing = current.searchFilter.tags
             val next = if (tag in existing) existing - tag else existing + tag
             current.copy(searchFilter = current.searchFilter.copy(tags = next))
+        }
+    }
+
+    fun toggleFilterTransfers() {
+        controlState.update { current ->
+            val existing = current.searchFilter.types
+            val hasTransfers = TransactionType.TRANSFER in existing || TransactionType.CC_SETTLEMENT in existing
+            val next = if (hasTransfers) {
+                existing - TransactionType.TRANSFER - TransactionType.CC_SETTLEMENT
+            } else {
+                existing + TransactionType.TRANSFER + TransactionType.CC_SETTLEMENT
+            }
+            current.copy(searchFilter = current.searchFilter.copy(types = next))
         }
     }
 

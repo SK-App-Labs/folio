@@ -292,6 +292,7 @@ fun LedgerHomeScreen(
             onToggleAccount = viewModel::toggleFilterAccountId,
             onToggleCategory = viewModel::toggleFilterCategoryId,
             onToggleTag = viewModel::toggleFilterTag,
+            onToggleTransfers = viewModel::toggleFilterTransfers,
             onUpdateAmountBounds = viewModel::updateFilterAmountBounds,
             onFilterAllPeriodsChange = viewModel::setFilterAllPeriods,
             onClearAll = viewModel::clearAllFilters,

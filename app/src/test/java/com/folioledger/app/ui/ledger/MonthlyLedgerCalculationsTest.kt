@@ -657,4 +657,97 @@ class MonthlyLedgerCalculationsTest {
         assertEquals(2, resetToDailyCalls)
         assertEquals(LedgerSubTab.DAILY, currentSubTab)
     }
+
+    @Test
+    fun testFilterTabCountsAndCategorySeparation() {
+        val expenseCat1 = com.folioledger.app.domain.model.CategoryNode(
+            id = 1L,
+            name = "Food",
+            type = com.folioledger.app.domain.model.CategoryType.EXPENSE,
+            parentId = null,
+            iconName = "fastfood",
+            colorHex = "#FF0000"
+        )
+        val expenseCat2 = com.folioledger.app.domain.model.CategoryNode(
+            id = 2L,
+            name = "Shopping",
+            type = com.folioledger.app.domain.model.CategoryType.EXPENSE,
+            parentId = null,
+            iconName = "shopping_bag",
+            colorHex = "#FF5500"
+        )
+        val incomeCat1 = com.folioledger.app.domain.model.CategoryNode(
+            id = 3L,
+            name = "Salary",
+            type = com.folioledger.app.domain.model.CategoryType.INCOME,
+            parentId = null,
+            iconName = "payments",
+            colorHex = "#00FF00"
+        )
+        val allCategories = listOf(expenseCat1, expenseCat2, incomeCat1)
+
+        val expenseCats = allCategories.filter { it.type == com.folioledger.app.domain.model.CategoryType.EXPENSE }
+        val incomeCats = allCategories.filter { it.type == com.folioledger.app.domain.model.CategoryType.INCOME }
+
+        assertEquals(2, expenseCats.size)
+        assertEquals(1, incomeCats.size)
+
+        val expenseCategoryIds = setOf(1L, 2L)
+        val incomeCategoryIds = setOf(3L)
+
+        // Filter with 1 expense category, 1 tag, 1 income type, 1 account, and transfers
+        val filter = com.folioledger.app.domain.model.TransactionSearchFilter(
+            categoryIds = setOf(1L), // 1 expense category
+            tags = setOf("lunch"),  // 1 tag
+            types = setOf(TransactionType.INCOME, TransactionType.TRANSFER), // 1 income, 1 transfer
+            accountIds = setOf(10L, 20L), // 2 accounts
+            minAmount = MinorMoney(100L) // 1 amount bound
+        )
+
+        var expFilterCount = 0
+        if (TransactionType.EXPENSE in filter.types) expFilterCount++
+        if (TransactionType.REFUND in filter.types) expFilterCount++
+        expFilterCount += filter.categoryIds.count { it in expenseCategoryIds }
+        expFilterCount += filter.tags.size
+        assertEquals(2, expFilterCount) // 1 category + 1 tag
+
+        var incFilterCount = 0
+        if (TransactionType.INCOME in filter.types) incFilterCount++
+        incFilterCount += filter.categoryIds.count { it in incomeCategoryIds }
+        assertEquals(1, incFilterCount) // 1 income type
+
+        var accFilterCount = 0
+        accFilterCount += filter.accountIds.size
+        if (TransactionType.TRANSFER in filter.types || TransactionType.CC_SETTLEMENT in filter.types) accFilterCount++
+        if (filter.minAmount != null || filter.maxAmount != null) accFilterCount++
+        assertEquals(4, accFilterCount) // 2 accounts + 1 transfer + 1 amount bound
+    }
+
+    @Test
+    fun testToggleFilterTransfersLogic() {
+        var types = emptySet<TransactionType>()
+
+        fun toggleTransfers() {
+            val hasTransfers = TransactionType.TRANSFER in types || TransactionType.CC_SETTLEMENT in types
+            types = if (hasTransfers) {
+                types - TransactionType.TRANSFER - TransactionType.CC_SETTLEMENT
+            } else {
+                types + TransactionType.TRANSFER + TransactionType.CC_SETTLEMENT
+            }
+        }
+
+        // Initially no transfers
+        assertFalse(TransactionType.TRANSFER in types)
+        assertFalse(TransactionType.CC_SETTLEMENT in types)
+
+        // Toggle on: both TRANSFER and CC_SETTLEMENT added
+        toggleTransfers()
+        assertTrue(TransactionType.TRANSFER in types)
+        assertTrue(TransactionType.CC_SETTLEMENT in types)
+
+        // Toggle off: both removed
+        toggleTransfers()
+        assertFalse(TransactionType.TRANSFER in types)
+        assertFalse(TransactionType.CC_SETTLEMENT in types)
+    }
 }
