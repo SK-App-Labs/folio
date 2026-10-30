@@ -186,6 +186,7 @@ data class YearlyMonthOverviewItem(
 data class AccountPeriodFlowSummary(
     val accountId: Long,
     val accountName: String,
+    val currencyCode: String,
     val incomeTotal: MinorMoney,
     val expenseTotal: MinorMoney,
     val netChange: MinorMoney,
@@ -591,7 +592,7 @@ class LedgerHomeViewModel(
         val yearlyExpense = MinorMoney(yearlyMonthItems.sumOf { it.expenseTotal.amountMinor })
         val yearlyNet = yearlyIncome - yearlyExpense
 
-        val accountFlows = buildAccountPeriodFlows(activePeriodTransactions)
+        val accountFlows = buildAccountPeriodFlows(activePeriodTransactions, refBundle.accounts)
         val savingsRate = if (resolvedPeriodSummary.totalIncome.isPositive) {
             val netMinor = resolvedPeriodSummary.netCashflow.amountMinor.toFloat()
             val incMinor = resolvedPeriodSummary.totalIncome.amountMinor.toFloat()
@@ -659,7 +660,11 @@ class LedgerHomeViewModel(
             yearlyIncomeTotal = yearlyIncome,
             yearlyExpenseTotal = yearlyExpense,
             yearlyNetTotal = yearlyNet,
-            topExpenseCategories = periodBundle.categoryStats.take(6),
+            topExpenseCategories = if (activeScopedAccountId != null) {
+                buildScopedCategorySpendStats(activePeriodTransactions, refBundle.categories)
+            } else {
+                periodBundle.categoryStats.take(6)
+            },
             budgetProgressList = periodBundle.budgets,
             accountPeriodFlows = accountFlows,
             savingsRatePercent = savingsRate,
@@ -907,19 +912,23 @@ class LedgerHomeViewModel(
 
     fun exportActivePeriodToCsv(destinationUriString: String) {
         val period = uiState.value.activePeriodRange
+        val scopedAccId = uiState.value.scopedAccountId
+        val scopedName = uiState.value.scopedAccount?.name
         viewModelScope.launch {
             controlState.update { it.copy(isExportingCsv = true) }
             val result = settingsAndBackupRepository.exportTransactionsToCsv(
                 destinationUriString = destinationUriString,
                 startEpochDay = period.startEpochDay,
-                endEpochDay = period.endEpochDay
+                endEpochDay = period.endEpochDay,
+                accountId = scopedAccId
             )
             result.fold(
                 onSuccess = { rowCount ->
+                    val label = if (scopedName != null) "$scopedName (${period.title})" else period.title
                     controlState.update {
                         it.copy(
                             isExportingCsv = false,
-                            snackbarMessage = "Exported $rowCount transactions for ${period.title} to CSV"
+                            snackbarMessage = "Exported $rowCount transactions for $label to CSV"
                         )
                     }
                 },
@@ -1211,10 +1220,12 @@ class LedgerHomeViewModel(
     }
 
     private fun buildAccountPeriodFlows(
-        transactions: List<TransactionItem>
+        transactions: List<TransactionItem>,
+        accounts: List<AccountSummary>
     ): List<AccountPeriodFlowSummary> {
         if (transactions.isEmpty()) return emptyList()
 
+        val accountsById = accounts.associateBy { it.id }
         val accountNamesById = mutableMapOf<Long, String>()
         val txnsByAccountId = mutableMapOf<Long, MutableList<TransactionItem>>()
 
@@ -1231,16 +1242,88 @@ class LedgerHomeViewModel(
         }
 
         return txnsByAccountId.map { (accId, txns) ->
-            val accName = accountNamesById[accId] ?: "Account #$accId"
+            val account = accountsById[accId]
+            val accName = account?.name ?: accountNamesById[accId] ?: "Account #$accId"
+            val currencyCode = account?.currencyCode ?: txns.firstOrNull()?.currencyCode ?: "INR"
             val (inc, exp) = computeIncomeAndExpenseTotals(txns, accId)
             AccountPeriodFlowSummary(
                 accountId = accId,
                 accountName = accName,
+                currencyCode = currencyCode,
                 incomeTotal = inc,
                 expenseTotal = exp,
                 netChange = inc - exp,
                 transactionCount = txns.size
             )
         }.sortedByDescending { it.transactionCount }
+    }
+
+    private fun buildScopedCategorySpendStats(
+        transactions: List<TransactionItem>,
+        categories: List<CategoryNode>
+    ): List<CategorySpendStat> {
+        val netMinorByCategoryId = mutableMapOf<Long, Long>()
+        val txCountByCategoryId = mutableMapOf<Long, Int>()
+        val categoryDetails = mutableMapOf<Long, Triple<String, String, String>>()
+
+        fun indexCategory(node: CategoryNode) {
+            categoryDetails[node.id] = Triple(node.name, node.colorHex, node.iconName)
+            node.subcategories.forEach { sub ->
+                categoryDetails[sub.id] = Triple(node.name, node.colorHex, node.iconName)
+            }
+        }
+        categories.forEach { indexCategory(it) }
+
+        fun addDelta(catId: Long?, amountMinor: Long) {
+            val resolvedId = catId ?: -1L
+            val current = netMinorByCategoryId[resolvedId] ?: 0L
+            netMinorByCategoryId[resolvedId] = current + amountMinor
+            txCountByCategoryId[resolvedId] = (txCountByCategoryId[resolvedId] ?: 0) + 1
+        }
+
+        for (tx in transactions) {
+            when (tx.type) {
+                TransactionType.EXPENSE -> {
+                    if (tx.isSplit && tx.splits.isNotEmpty()) {
+                        for (split in tx.splits) {
+                            addDelta(split.categoryId, split.amount.amountMinor)
+                        }
+                    } else {
+                        val total = tx.amount.amountMinor + tx.transferFee.amountMinor
+                        addDelta(tx.categoryId, total)
+                    }
+                }
+                TransactionType.REFUND -> {
+                    addDelta(tx.categoryId, -tx.amount.amountMinor)
+                }
+                TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> {
+                    if (tx.transferFee.isPositive) {
+                        addDelta(tx.categoryId, tx.transferFee.amountMinor)
+                    }
+                }
+                else -> Unit
+            }
+        }
+
+        val positive = netMinorByCategoryId.filter { it.value > 0L }
+        val grandTotal = positive.values.sum()
+        if (grandTotal <= 0L) return emptyList()
+
+        return positive.map { (catId, minor) ->
+            val details = categoryDetails[catId]
+            val name = details?.first ?: if (catId == -1L) "Uncategorized" else "Category #$catId"
+            val color = details?.second ?: "#64748B"
+            val icon = details?.third ?: "category"
+            val pct = (minor.toFloat() / grandTotal.toFloat()) * 100f
+            CategorySpendStat(
+                categoryId = catId,
+                categoryName = name,
+                colorHex = color,
+                iconName = icon,
+                netAmount = MinorMoney(minor),
+                percentageOfTotal = pct,
+                transactionCount = txCountByCategoryId[catId] ?: 1
+            )
+        }.sortedByDescending { it.netAmount.amountMinor }.take(6)
     }
 }

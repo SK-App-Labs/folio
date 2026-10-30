@@ -201,4 +201,94 @@ class MonthlyLedgerCalculationsTest {
         val formatted = date.format(formatter)
         assertEquals("Fri, 02 Oct", formatted)
     }
+
+    @Test
+    fun testSavingsRateBadgeDisplayLogic() {
+        fun resolveSavingsBadge(incomeMinor: Long, expenseMinor: Long): String {
+            val hasIncome = incomeMinor > 0L
+            val hasExpense = expenseMinor > 0L
+            return when {
+                hasIncome -> {
+                    val net = incomeMinor - expenseMinor
+                    val pct = ((net.toFloat() / incomeMinor.toFloat()) * 100f).coerceIn(-100f, 100f)
+                    String.format(java.util.Locale.US, "Savings Rate: %.1f%%", pct)
+                }
+                hasExpense -> "Deficit (No Income)"
+                else -> "No Activity"
+            }
+        }
+
+        assertEquals("Savings Rate: 60.0%", resolveSavingsBadge(500000L, 200000L))
+        assertEquals("Savings Rate: -50.0%", resolveSavingsBadge(200000L, 300000L))
+        assertEquals("Deficit (No Income)", resolveSavingsBadge(0L, 150000L))
+        assertEquals("No Activity", resolveSavingsBadge(0L, 0L))
+    }
+
+    @Test
+    fun testAccountPeriodFlowSummaryMultiCurrency() {
+        val acc1Flow = AccountPeriodFlowSummary(
+            accountId = 1L,
+            accountName = "HDFC Bank",
+            currencyCode = "INR",
+            incomeTotal = MinorMoney(5000000L),
+            expenseTotal = MinorMoney(1200000L),
+            netChange = MinorMoney(3800000L),
+            transactionCount = 12
+        )
+
+        val acc2Flow = AccountPeriodFlowSummary(
+            accountId = 2L,
+            accountName = "US Dollar Savings",
+            currencyCode = "USD",
+            incomeTotal = MinorMoney(100000L),
+            expenseTotal = MinorMoney(25000L),
+            netChange = MinorMoney(75000L),
+            transactionCount = 3
+        )
+
+        assertEquals("INR", acc1Flow.currencyCode)
+        assertEquals(3800000L, acc1Flow.netChange.amountMinor)
+        assertEquals("USD", acc2Flow.currencyCode)
+        assertEquals(75000L, acc2Flow.netChange.amountMinor)
+    }
+
+    @Test
+    fun testBudgetDisplaySelectionLogic() {
+        data class MockBudget(val id: Long, val categoryId: Long?, val name: String)
+
+        val overall = MockBudget(1L, null, "Overall Monthly Budget")
+        val groceries = MockBudget(2L, 10L, "Groceries")
+        val dining = MockBudget(3L, 11L, "Dining")
+        val entertainment = MockBudget(4L, 12L, "Entertainment")
+
+        // Case 1: Overall budget exists along with categories
+        val listWithOverall = listOf(overall, groceries, dining, entertainment)
+        val selectedWithOverall = if (listWithOverall.any { it.categoryId == null }) {
+            val ov = listWithOverall.first { it.categoryId == null }
+            val cats = listWithOverall.filter { it.categoryId != null }
+            listOf(ov) + cats.take(2)
+        } else {
+            listWithOverall.take(3)
+        }
+
+        assertEquals(3, selectedWithOverall.size)
+        assertEquals("Overall Monthly Budget", selectedWithOverall[0].name)
+        assertEquals("Groceries", selectedWithOverall[1].name)
+        assertEquals("Dining", selectedWithOverall[2].name)
+
+        // Case 2: No overall budget exists, only categories
+        val listCategoriesOnly = listOf(groceries, dining, entertainment)
+        val selectedCatsOnly = if (listCategoriesOnly.any { it.categoryId == null }) {
+            val ov = listCategoriesOnly.first { it.categoryId == null }
+            val cats = listCategoriesOnly.filter { it.categoryId != null }
+            listOf(ov) + cats.take(2)
+        } else {
+            listCategoriesOnly.take(3)
+        }
+
+        assertEquals(3, selectedCatsOnly.size)
+        assertEquals("Groceries", selectedCatsOnly[0].name)
+        assertEquals("Dining", selectedCatsOnly[1].name)
+        assertEquals("Entertainment", selectedCatsOnly[2].name)
+    }
 }

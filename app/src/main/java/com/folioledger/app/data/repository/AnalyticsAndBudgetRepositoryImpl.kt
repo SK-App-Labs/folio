@@ -13,12 +13,18 @@ import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.MonthlyTrendBar
 import com.folioledger.app.domain.model.PeriodLedgerSummary
+import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SpendRankingItem
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
+import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -29,8 +35,36 @@ import java.util.Locale
 class AnalyticsAndBudgetRepositoryImpl(
     private val transactionDao: TransactionDao,
     private val categoryAndTagDao: CategoryAndTagDao,
-    private val budgetAndRecurringDao: BudgetAndRecurringDao
+    private val budgetAndRecurringDao: BudgetAndRecurringDao,
+    private val settingsRepository: SettingsAndBackupRepository? = null
 ) : AnalyticsAndBudgetRepository {
+
+    private val userPreferencesFlow: Flow<UserPreferences> =
+        settingsRepository?.observeUserPreferences() ?: flowOf(UserPreferences())
+
+    private fun convertToPrimaryMinor(
+        amountMinor: Long,
+        currencyCode: String,
+        primaryCurrencyCode: String,
+        secondaryMap: Map<String, Double>
+    ): Long {
+        if (amountMinor == 0L) return 0L
+        val txCurrency = currencyCode.trim().uppercase()
+        val primaryCode = primaryCurrencyCode.trim().uppercase()
+        if (txCurrency == primaryCode) {
+            return amountMinor
+        }
+        val rate = secondaryMap[txCurrency] ?: return amountMinor
+        if (rate <= 0.0) return amountMinor
+        val txSpec = SupportedCurrencies.fromCode(txCurrency)
+        val primarySpec = SupportedCurrencies.fromCode(primaryCode)
+        return MoneyFormatterAndCalculator.convertMinorMoney(
+            sourceMinor = amountMinor,
+            sourceFractionDigits = txSpec.fractionDigits,
+            targetFractionDigits = primarySpec.fractionDigits,
+            rateToTarget = rate
+        )
+    }
 
     override fun observePeriodLedgerSummary(
         startEpochDay: Long,
@@ -42,7 +76,10 @@ class AnalyticsAndBudgetRepositoryImpl(
         } else {
             transactionDao.observeTransactionsInRange(startEpochDay, endEpochDay)
         }
-        return transactionsFlow.map { transactions ->
+        return combine(transactionsFlow, userPreferencesFlow) { transactions, prefs ->
+            val primaryCode = prefs.primaryCurrencyCode
+            val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase() to it.exchangeRateToPrimary }
+
             var priorNetMinor = 0L
             var periodIncomeMinor = 0L
             var periodExpenseRawMinor = 0L
@@ -53,11 +90,13 @@ class AnalyticsAndBudgetRepositoryImpl(
 
                 if (day < startEpochDay) {
                     if (includeCarryOver) {
-                        priorNetMinor = applyCashflowDelta(priorNetMinor, txWithDetails)
+                        priorNetMinor = applyCashflowDelta(priorNetMinor, txWithDetails, primaryCode, secondaryMap)
                     }
                 } else if (day in startEpochDay..endEpochDay) {
-                    val amount = Math.abs(tx.amountMinor)
-                    val fee = Math.abs(tx.transferFeeMinor)
+                    val rawAmount = Math.abs(tx.amountMinor)
+                    val rawFee = Math.abs(tx.transferFeeMinor)
+                    val amount = convertToPrimaryMinor(rawAmount, tx.currencyCode, primaryCode, secondaryMap)
+                    val fee = convertToPrimaryMinor(rawFee, tx.currencyCode, primaryCode, secondaryMap)
 
                     when (tx.type) {
                         TransactionType.INCOME -> {
@@ -113,8 +152,11 @@ class AnalyticsAndBudgetRepositoryImpl(
     ): Flow<List<CategorySpendStat>> {
         return combine(
             transactionDao.observeTransactionsInRange(startEpochDay, endEpochDay),
-            categoryAndTagDao.observeAllCategories()
-        ) { periodTransactions, categories ->
+            categoryAndTagDao.observeAllCategories(),
+            userPreferencesFlow
+        ) { periodTransactions, categories, prefs ->
+            val primaryCode = prefs.primaryCurrencyCode
+            val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase() to it.exchangeRateToPrimary }
             val categoriesById = categories.associateBy { it.id }
             val netMinorByCategoryId = HashMap<Long, Long>()
             val txCountByCategoryId = HashMap<Long, Int>()
@@ -136,8 +178,10 @@ class AnalyticsAndBudgetRepositoryImpl(
 
             for (txWithDetails in periodTransactions) {
                 val tx = txWithDetails.transaction
-                val amount = Math.abs(tx.amountMinor)
-                val fee = Math.abs(tx.transferFeeMinor)
+                val rawAmount = Math.abs(tx.amountMinor)
+                val rawFee = Math.abs(tx.transferFeeMinor)
+                val amount = convertToPrimaryMinor(rawAmount, tx.currencyCode, primaryCode, secondaryMap)
+                val fee = convertToPrimaryMinor(rawFee, tx.currencyCode, primaryCode, secondaryMap)
 
                 when (type) {
                     CategoryType.EXPENSE -> {
@@ -145,9 +189,15 @@ class AnalyticsAndBudgetRepositoryImpl(
                             TransactionType.EXPENSE -> {
                                 if (tx.isSplit && txWithDetails.splits.isNotEmpty()) {
                                     for (split in txWithDetails.splits) {
+                                        val splitAmount = convertToPrimaryMinor(
+                                            Math.abs(split.amountMinor),
+                                            tx.currencyCode,
+                                            primaryCode,
+                                            secondaryMap
+                                        )
                                         addCategoryDelta(
                                             categoryId = split.categoryId,
-                                            deltaMinor = Math.abs(split.amountMinor),
+                                            deltaMinor = splitAmount,
                                             countIncrement = 1
                                         )
                                     }
@@ -187,9 +237,15 @@ class AnalyticsAndBudgetRepositoryImpl(
                         if (tx.type == TransactionType.INCOME) {
                             if (tx.isSplit && txWithDetails.splits.isNotEmpty()) {
                                 for (split in txWithDetails.splits) {
+                                    val splitAmount = convertToPrimaryMinor(
+                                        Math.abs(split.amountMinor),
+                                        tx.currencyCode,
+                                        primaryCode,
+                                        secondaryMap
+                                    )
                                     addCategoryDelta(
                                         categoryId = split.categoryId,
-                                        deltaMinor = Math.abs(split.amountMinor),
+                                        deltaMinor = splitAmount,
                                         countIncrement = 1
                                     )
                                 }
@@ -250,10 +306,16 @@ class AnalyticsAndBudgetRepositoryImpl(
         val overallEndEpochDay = sixCycles.last().second.toEpochDay()
         val labelFormatter = DateTimeFormatter.ofPattern("MMM yyyy", Locale.ENGLISH)
 
-        return transactionDao.observeTransactionsInRange(
-            startDay = overallStartEpochDay,
-            endDay = overallEndEpochDay
-        ).map { transactions ->
+        return combine(
+            transactionDao.observeTransactionsInRange(
+                startDay = overallStartEpochDay,
+                endDay = overallEndEpochDay
+            ),
+            userPreferencesFlow
+        ) { transactions, prefs ->
+            val primaryCode = prefs.primaryCurrencyCode
+            val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase() to it.exchangeRateToPrimary }
+
             sixCycles.map { (startDate, endDate) ->
                 val cycleStart = startDate.toEpochDay()
                 val cycleEnd = endDate.toEpochDay()
@@ -265,8 +327,10 @@ class AnalyticsAndBudgetRepositoryImpl(
                     val tx = txWithDetails.transaction
                     if (tx.ledgerDateEpochDay !in cycleStart..cycleEnd) continue
 
-                    val amount = Math.abs(tx.amountMinor)
-                    val fee = Math.abs(tx.transferFeeMinor)
+                    val rawAmount = Math.abs(tx.amountMinor)
+                    val rawFee = Math.abs(tx.transferFeeMinor)
+                    val amount = convertToPrimaryMinor(rawAmount, tx.currencyCode, primaryCode, secondaryMap)
+                    val fee = convertToPrimaryMinor(rawFee, tx.currencyCode, primaryCode, secondaryMap)
 
                     when (tx.type) {
                         TransactionType.INCOME -> {
@@ -315,114 +379,132 @@ class AnalyticsAndBudgetRepositoryImpl(
         startEpochDay: Long,
         endEpochDay: Long
     ): Flow<List<SpendRankingItem>> {
-        return transactionDao.observeTransactionsInRange(startEpochDay, endEpochDay)
-            .map { transactions ->
-                val amountByTag = HashMap<String, Long>()
-                val countByTag = HashMap<String, Int>()
-                val displayLabelByKey = HashMap<String, String>()
+        return combine(
+            transactionDao.observeTransactionsInRange(startEpochDay, endEpochDay),
+            userPreferencesFlow
+        ) { transactions, prefs ->
+            val primaryCode = prefs.primaryCurrencyCode
+            val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase() to it.exchangeRateToPrimary }
+            val amountByTag = HashMap<String, Long>()
+            val countByTag = HashMap<String, Int>()
+            val displayLabelByKey = HashMap<String, String>()
 
-                for (txWithDetails in transactions) {
-                    val tx = txWithDetails.transaction
-                    if (txWithDetails.tags.isEmpty()) continue
+            for (txWithDetails in transactions) {
+                val tx = txWithDetails.transaction
+                if (txWithDetails.tags.isEmpty()) continue
 
-                    val deltaMinor = when (tx.type) {
-                        TransactionType.EXPENSE ->
-                            Math.addExact(Math.abs(tx.amountMinor), Math.abs(tx.transferFeeMinor))
-                        TransactionType.REFUND ->
-                            Math.negateExact(Math.abs(tx.amountMinor))
-                        TransactionType.TRANSFER,
-                        TransactionType.CC_SETTLEMENT ->
-                            Math.abs(tx.transferFeeMinor)
-                        TransactionType.INCOME,
-                        TransactionType.OPENING_BALANCE,
-                        TransactionType.RECONCILIATION -> 0L
-                    }
-                    if (deltaMinor == 0L) continue
+                val rawAmount = Math.abs(tx.amountMinor)
+                val rawFee = Math.abs(tx.transferFeeMinor)
+                val amount = convertToPrimaryMinor(rawAmount, tx.currencyCode, primaryCode, secondaryMap)
+                val fee = convertToPrimaryMinor(rawFee, tx.currencyCode, primaryCode, secondaryMap)
 
-                    for (tag in txWithDetails.tags) {
-                        val key = tag.name.trim().lowercase()
-                        if (key.isEmpty()) continue
-                        displayLabelByKey.putIfAbsent(key, tag.name.trim())
-                        amountByTag[key] = Math.addExact(amountByTag[key] ?: 0L, deltaMinor)
-                        if (deltaMinor > 0L) {
-                            countByTag[key] = (countByTag[key] ?: 0) + 1
-                        }
+                val deltaMinor = when (tx.type) {
+                    TransactionType.EXPENSE ->
+                        Math.addExact(amount, fee)
+                    TransactionType.REFUND ->
+                        Math.negateExact(amount)
+                    TransactionType.TRANSFER,
+                    TransactionType.CC_SETTLEMENT ->
+                        fee
+                    TransactionType.INCOME,
+                    TransactionType.OPENING_BALANCE,
+                    TransactionType.RECONCILIATION -> 0L
+                }
+                if (deltaMinor == 0L) continue
+
+                for (tag in txWithDetails.tags) {
+                    val key = tag.name.trim().lowercase()
+                    if (key.isEmpty()) continue
+                    displayLabelByKey.putIfAbsent(key, tag.name.trim())
+                    amountByTag[key] = Math.addExact(amountByTag[key] ?: 0L, deltaMinor)
+                    if (deltaMinor > 0L) {
+                        countByTag[key] = (countByTag[key] ?: 0) + 1
                     }
                 }
-
-                val positiveEntries = amountByTag.entries.filter { it.value > 0L }
-                var grandTotalMinor = 0L
-                for (entry in positiveEntries) {
-                    grandTotalMinor = Math.addExact(grandTotalMinor, entry.value)
-                }
-
-                positiveEntries
-                    .map { (key, netMinor) ->
-                        SpendRankingItem(
-                            label = displayLabelByKey[key] ?: key,
-                            totalAmount = MinorMoney(netMinor),
-                            transactionCount = (countByTag[key] ?: 1).coerceAtLeast(1),
-                            percentageOfTotal = computePercentage(netMinor, grandTotalMinor)
-                        )
-                    }
-                    .sortedByDescending { it.totalAmount }
             }
+
+            val positiveEntries = amountByTag.entries.filter { it.value > 0L }
+            var grandTotalMinor = 0L
+            for (entry in positiveEntries) {
+                grandTotalMinor = Math.addExact(grandTotalMinor, entry.value)
+            }
+
+            positiveEntries
+                .map { (key, netMinor) ->
+                    SpendRankingItem(
+                        label = displayLabelByKey[key] ?: key,
+                        totalAmount = MinorMoney(netMinor),
+                        transactionCount = (countByTag[key] ?: 1).coerceAtLeast(1),
+                        percentageOfTotal = computePercentage(netMinor, grandTotalMinor)
+                    )
+                }
+                .sortedByDescending { it.totalAmount }
+        }
     }
 
     override fun observePayeeOrNoteRankings(
         startEpochDay: Long,
         endEpochDay: Long
     ): Flow<List<SpendRankingItem>> {
-        return transactionDao.observeTransactionsInRange(startEpochDay, endEpochDay)
-            .map { transactions ->
-                val amountByLabel = HashMap<String, Long>()
-                val countByLabel = HashMap<String, Int>()
-                val displayLabelByKey = HashMap<String, String>()
+        return combine(
+            transactionDao.observeTransactionsInRange(startEpochDay, endEpochDay),
+            userPreferencesFlow
+        ) { transactions, prefs ->
+            val primaryCode = prefs.primaryCurrencyCode
+            val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase() to it.exchangeRateToPrimary }
+            val amountByLabel = HashMap<String, Long>()
+            val countByLabel = HashMap<String, Int>()
+            val displayLabelByKey = HashMap<String, String>()
 
-                for (txWithDetails in transactions) {
-                    val tx = txWithDetails.transaction
-                    val rawLabel = tx.payeeOrDescription.trim().ifEmpty { tx.note.trim() }
-                    if (rawLabel.isEmpty()) continue
+            for (txWithDetails in transactions) {
+                val tx = txWithDetails.transaction
+                val rawLabel = tx.payeeOrDescription.trim().ifEmpty { tx.note.trim() }
+                if (rawLabel.isEmpty()) continue
 
-                    val deltaMinor = when (tx.type) {
-                        TransactionType.EXPENSE ->
-                            Math.addExact(Math.abs(tx.amountMinor), Math.abs(tx.transferFeeMinor))
-                        TransactionType.REFUND ->
-                            Math.negateExact(Math.abs(tx.amountMinor))
-                        TransactionType.TRANSFER,
-                        TransactionType.CC_SETTLEMENT ->
-                            Math.abs(tx.transferFeeMinor)
-                        TransactionType.INCOME,
-                        TransactionType.OPENING_BALANCE,
-                        TransactionType.RECONCILIATION -> 0L
-                    }
-                    if (deltaMinor == 0L) continue
+                val rawAmount = Math.abs(tx.amountMinor)
+                val rawFee = Math.abs(tx.transferFeeMinor)
+                val amount = convertToPrimaryMinor(rawAmount, tx.currencyCode, primaryCode, secondaryMap)
+                val fee = convertToPrimaryMinor(rawFee, tx.currencyCode, primaryCode, secondaryMap)
 
-                    val key = rawLabel.lowercase()
-                    displayLabelByKey.putIfAbsent(key, rawLabel)
-                    amountByLabel[key] = Math.addExact(amountByLabel[key] ?: 0L, deltaMinor)
-                    if (deltaMinor > 0L) {
-                        countByLabel[key] = (countByLabel[key] ?: 0) + 1
-                    }
+                val deltaMinor = when (tx.type) {
+                    TransactionType.EXPENSE ->
+                        Math.addExact(amount, fee)
+                    TransactionType.REFUND ->
+                        Math.negateExact(amount)
+                    TransactionType.TRANSFER,
+                    TransactionType.CC_SETTLEMENT ->
+                        fee
+                    TransactionType.INCOME,
+                    TransactionType.OPENING_BALANCE,
+                    TransactionType.RECONCILIATION -> 0L
                 }
+                if (deltaMinor == 0L) continue
 
-                val positiveEntries = amountByLabel.entries.filter { it.value > 0L }
-                var grandTotalMinor = 0L
-                for (entry in positiveEntries) {
-                    grandTotalMinor = Math.addExact(grandTotalMinor, entry.value)
+                val key = rawLabel.lowercase()
+                displayLabelByKey.putIfAbsent(key, rawLabel)
+                amountByLabel[key] = Math.addExact(amountByLabel[key] ?: 0L, deltaMinor)
+                if (deltaMinor > 0L) {
+                    countByLabel[key] = (countByLabel[key] ?: 0) + 1
                 }
-
-                positiveEntries
-                    .map { (key, netMinor) ->
-                        SpendRankingItem(
-                            label = displayLabelByKey[key] ?: key,
-                            totalAmount = MinorMoney(netMinor),
-                            transactionCount = (countByLabel[key] ?: 1).coerceAtLeast(1),
-                            percentageOfTotal = computePercentage(netMinor, grandTotalMinor)
-                        )
-                    }
-                    .sortedByDescending { it.totalAmount }
             }
+
+            val positiveEntries = amountByLabel.entries.filter { it.value > 0L }
+            var grandTotalMinor = 0L
+            for (entry in positiveEntries) {
+                grandTotalMinor = Math.addExact(grandTotalMinor, entry.value)
+            }
+
+            positiveEntries
+                .map { (key, netMinor) ->
+                    SpendRankingItem(
+                        label = displayLabelByKey[key] ?: key,
+                        totalAmount = MinorMoney(netMinor),
+                        transactionCount = (countByLabel[key] ?: 1).coerceAtLeast(1),
+                        percentageOfTotal = computePercentage(netMinor, grandTotalMinor)
+                    )
+                }
+                .sortedByDescending { it.totalAmount }
+        }
     }
 
     override fun observeBudgetProgressList(
@@ -432,8 +514,11 @@ class AnalyticsAndBudgetRepositoryImpl(
         return combine(
             budgetAndRecurringDao.observeAllBudgets(),
             categoryAndTagDao.observeAllCategories(),
-            transactionDao.observeTransactionsInRange(startEpochDay, endEpochDay)
-        ) { budgets, categories, periodTransactions ->
+            transactionDao.observeTransactionsInRange(startEpochDay, endEpochDay),
+            userPreferencesFlow
+        ) { budgets, categories, periodTransactions, prefs ->
+            val primaryCode = prefs.primaryCurrencyCode
+            val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase() to it.exchangeRateToPrimary }
             val categoriesById = categories.associateBy { it.id }
             val childCategoryIdsByParentId = categories
                 .filter { it.parentId != null }
@@ -452,8 +537,10 @@ class AnalyticsAndBudgetRepositoryImpl(
 
             for (txWithDetails in periodTransactions) {
                 val tx = txWithDetails.transaction
-                val amount = Math.abs(tx.amountMinor)
-                val fee = Math.abs(tx.transferFeeMinor)
+                val rawAmount = Math.abs(tx.amountMinor)
+                val rawFee = Math.abs(tx.transferFeeMinor)
+                val amount = convertToPrimaryMinor(rawAmount, tx.currencyCode, primaryCode, secondaryMap)
+                val fee = convertToPrimaryMinor(rawFee, tx.currencyCode, primaryCode, secondaryMap)
 
                 when (tx.type) {
                     TransactionType.EXPENSE -> {
@@ -461,7 +548,13 @@ class AnalyticsAndBudgetRepositoryImpl(
                         overallNetExpenseMinor = Math.addExact(overallNetExpenseMinor, totalCharge)
                         if (tx.isSplit && txWithDetails.splits.isNotEmpty()) {
                             for (split in txWithDetails.splits) {
-                                recordCategoryExpense(split.categoryId, Math.abs(split.amountMinor))
+                                val splitAmount = convertToPrimaryMinor(
+                                    Math.abs(split.amountMinor),
+                                    tx.currencyCode,
+                                    primaryCode,
+                                    secondaryMap
+                                )
+                                recordCategoryExpense(split.categoryId, splitAmount)
                             }
                         } else {
                             recordCategoryExpense(tx.categoryId, totalCharge)
@@ -553,11 +646,13 @@ class AnalyticsAndBudgetRepositoryImpl(
 
     private fun applyCashflowDelta(
         currentNetMinor: Long,
-        txWithDetails: TransactionWithDetails
+        txWithDetails: TransactionWithDetails,
+        primaryCode: String,
+        secondaryMap: Map<String, Double>
     ): Long {
         val tx = txWithDetails.transaction
-        val amount = Math.abs(tx.amountMinor)
-        val fee = Math.abs(tx.transferFeeMinor)
+        val amount = convertToPrimaryMinor(Math.abs(tx.amountMinor), tx.currencyCode, primaryCode, secondaryMap)
+        val fee = convertToPrimaryMinor(Math.abs(tx.transferFeeMinor), tx.currencyCode, primaryCode, secondaryMap)
 
         return when (tx.type) {
             TransactionType.INCOME,

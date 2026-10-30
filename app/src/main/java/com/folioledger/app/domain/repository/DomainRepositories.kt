@@ -175,7 +175,8 @@ interface SettingsAndBackupRepository {
     suspend fun exportTransactionsToCsv(
         destinationUriString: String,
         startEpochDay: Long? = null,
-        endEpochDay: Long? = null
+        endEpochDay: Long? = null,
+        accountId: Long? = null
     ): Result<Int>
 
     suspend fun previewTransactionsCsv(sourceUriString: String): Result<ImportCsvPreview>

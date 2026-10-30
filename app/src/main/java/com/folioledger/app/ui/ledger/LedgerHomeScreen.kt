@@ -245,7 +245,14 @@ fun LedgerHomeScreen(
                                     uiState = uiState,
                                     onExportCsvClick = {
                                         val sanitizedTitle = uiState.activePeriodRange.title.replace(' ', '_')
-                                        viewModel.exportActivePeriodToCsv("Folio_$sanitizedTitle.csv")
+                                        val scoped = uiState.scopedAccount
+                                        val fileName = if (scoped != null) {
+                                            val sanitizedAccount = scoped.name.replace(' ', '_')
+                                            "Folio_${sanitizedAccount}_$sanitizedTitle.csv"
+                                        } else {
+                                            "Folio_$sanitizedTitle.csv"
+                                        }
+                                        viewModel.exportActivePeriodToCsv(fileName)
                                     }
                                 )
                             }

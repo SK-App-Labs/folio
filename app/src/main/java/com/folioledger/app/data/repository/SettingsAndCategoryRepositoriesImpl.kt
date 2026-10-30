@@ -172,14 +172,16 @@ class SettingsAndBackupRepositoryImpl(
     override suspend fun exportTransactionsToCsv(
         destinationUriString: String,
         startEpochDay: Long?,
-        endEpochDay: Long?
+        endEpochDay: Long?,
+        accountId: Long?
     ): Result<Int> = withContext(Dispatchers.IO) {
         runCatching {
             openOutputStreamForLocation(destinationUriString).use { rawStream ->
                 exportTransactionsToCsvStream(
                     outputStream = rawStream,
                     startEpochDay = startEpochDay,
-                    endEpochDay = endEpochDay
+                    endEpochDay = endEpochDay,
+                    accountId = accountId
                 )
             }
         }
@@ -221,7 +223,8 @@ class SettingsAndBackupRepositoryImpl(
     suspend fun exportTransactionsToCsvStream(
         outputStream: OutputStream,
         startEpochDay: Long? = null,
-        endEpochDay: Long? = null
+        endEpochDay: Long? = null,
+        accountId: Long? = null
     ): Int = withContext(Dispatchers.IO) {
         val allAccounts = database.accountDao().getAllAccountsOnce()
         val accountsById = allAccounts.associateBy { it.id }
@@ -237,7 +240,10 @@ class SettingsAndBackupRepositoryImpl(
             val day = txWithDetails.transaction.ledgerDateEpochDay
             val afterStart = startEpochDay == null || day >= startEpochDay
             val beforeEnd = endEpochDay == null || day <= endEpochDay
-            afterStart && beforeEnd
+            val matchesAccount = accountId == null ||
+                txWithDetails.transaction.accountId == accountId ||
+                txWithDetails.transaction.transferToAccountId == accountId
+            afterStart && beforeEnd && matchesAccount
         }
 
         // Write UTF-8 BOM so Microsoft Excel opens the CSV seamlessly with UTF-8 characters
@@ -251,7 +257,12 @@ class SettingsAndBackupRepositoryImpl(
         writer.newLine()
         writer.write("# Hint: (Account Name),(BANK_ACCOUNT|CREDIT_CARD|CASH|SAVINGS|PREPAID_WALLET|LOAN),(Currency ISO),(Starting Balance e.g. 50000.00),(Anchor Date YYYY-MM-DD),(Credit Limit),(Settlement Day 1-31)")
         writer.newLine()
-        for (acc in allAccounts) {
+        val exportedAccounts = if (accountId != null) {
+            allAccounts.filter { it.id == accountId }
+        } else {
+            allAccounts
+        }
+        for (acc in exportedAccounts) {
             val spec = SupportedCurrencies.fromCode(acc.currencyCode)
             val balanceStr = formatDecimalAmountPlain(acc.openingBalanceMinor, spec.fractionDigits)
             val anchorEpochDay = openingDatesByAccountId[acc.id] ?: (acc.createdAtEpochMillis / 86400000L)

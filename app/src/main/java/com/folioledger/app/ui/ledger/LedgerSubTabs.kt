@@ -53,6 +53,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.EmptyStateCard
@@ -866,8 +867,6 @@ internal fun SummaryLedgerSubTabContent(
     val semanticColors = LocalFolioSemanticColors.current
     val summary = uiState.periodSummary
     val closingBalanceWithCarryOver = summary.netCashflow + summary.carryOverFromPreviousPeriod
-    val overallBudget = uiState.budgetProgressList.firstOrNull { it.categoryId == null }
-        ?: uiState.budgetProgressList.firstOrNull()
 
     LazyColumn(
         contentPadding = PaddingValues(
@@ -912,26 +911,40 @@ internal fun SummaryLedgerSubTabContent(
                             fontWeight = FontWeight.Bold
                         )
 
-                        val savingsRateText = remember(uiState.savingsRatePercent) {
-                            String.format(Locale.US, "Savings Rate: %.1f%%", uiState.savingsRatePercent)
+                        val hasIncome = summary.totalIncome.isPositive
+                        val hasExpense = summary.totalExpense.isPositive
+                        val (rateBadgeText, rateContainerColor, rateContentColor) = when {
+                            hasIncome && uiState.savingsRatePercent >= 0f -> Triple(
+                                String.format(Locale.US, "Savings Rate: %.1f%%", uiState.savingsRatePercent),
+                                semanticColors.incomeEmeraldContainer,
+                                semanticColors.onIncomeEmeraldContainer
+                            )
+                            hasIncome && uiState.savingsRatePercent < 0f -> Triple(
+                                String.format(Locale.US, "Savings Rate: %.1f%%", uiState.savingsRatePercent),
+                                semanticColors.expenseCoralContainer,
+                                semanticColors.onExpenseCoralContainer
+                            )
+                            hasExpense -> Triple(
+                                "Deficit (No Income)",
+                                semanticColors.expenseCoralContainer,
+                                semanticColors.onExpenseCoralContainer
+                            )
+                            else -> Triple(
+                                "No Activity",
+                                MaterialTheme.colorScheme.surfaceContainerHighest,
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
+
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = if (uiState.savingsRatePercent >= 0f) {
-                                semanticColors.incomeEmeraldContainer
-                            } else {
-                                semanticColors.expenseCoralContainer
-                            }
+                            color = rateContainerColor
                         ) {
                             Text(
-                                text = savingsRateText,
+                                text = rateBadgeText,
                                 style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                                 fontWeight = FontWeight.Bold,
-                                color = if (uiState.savingsRatePercent >= 0f) {
-                                    semanticColors.onIncomeEmeraldContainer
-                                } else {
-                                    semanticColors.onExpenseCoralContainer
-                                },
+                                color = rateContentColor,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                             )
                         }
@@ -982,15 +995,8 @@ internal fun SummaryLedgerSubTabContent(
             }
         }
 
-        if (overallBudget != null && uiState.scopedAccountId == null) {
+        if (uiState.accountPeriodFlows.isNotEmpty()) {
             item {
-                val fraction = (overallBudget.usagePercentage / 100f).coerceIn(0f, 1f)
-                val barColor = when {
-                    overallBudget.usagePercentage >= 100f -> semanticColors.expenseCoral
-                    overallBudget.usagePercentage >= overallBudget.alertThresholdPercent -> semanticColors.warningAmber
-                    else -> semanticColors.incomeEmerald
-                }
-
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
@@ -1000,70 +1006,126 @@ internal fun SummaryLedgerSubTabContent(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier.padding(16.dp)
                     ) {
                         Row(
+                            verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "Budget Status (${overallBudget.categoryName})",
-                                style = MaterialTheme.typography.titleSmall,
+                                text = if (uiState.scopedAccount != null) {
+                                    "${uiState.scopedAccount.name} Flow Summary"
+                                } else {
+                                    "Account Breakdown"
+                                },
+                                style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = String.format(Locale.US, "%.1f%% used", overallBudget.usagePercentage),
-                                style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
-                                fontWeight = FontWeight.Bold,
-                                color = barColor
+                                text = "${uiState.accountPeriodFlows.size} active",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
 
-                        LinearProgressIndicator(
-                            progress = { fraction },
-                            color = barColor,
-                            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            strokeCap = StrokeCap.Round,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(8.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                        )
+                        HorizontalDivider(color = semanticColors.cardStrokeSubtle)
 
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row {
-                                Text(
-                                    text = "Spent: ",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                MoneyText(
-                                    money = overallBudget.spentAmount,
-                                    currencySpec = uiState.currencySpec,
-                                    grouping = uiState.numberGrouping,
-                                    colorMode = MoneyColorMode.EXPENSE,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold
+                        uiState.accountPeriodFlows.forEachIndexed { index, flow ->
+                            if (index > 0) {
+                                HorizontalDivider(
+                                    color = semanticColors.cardStrokeSubtle.copy(alpha = 0.5f),
+                                    modifier = Modifier.padding(vertical = 2.dp)
                                 )
                             }
-                            Row {
-                                Text(
-                                    text = "Remaining: ",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                MoneyText(
-                                    money = overallBudget.remainingAmount,
-                                    currencySpec = uiState.currencySpec,
-                                    grouping = uiState.numberGrouping,
-                                    colorMode = MoneyColorMode.AUTO_SIGN,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
+                            val flowCurrencySpec = SupportedCurrencies.fromCode(flow.currencyCode)
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = flow.accountName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = MaterialTheme.colorScheme.surfaceContainerHighest
+                                    ) {
+                                        Text(
+                                            text = "${flow.transactionCount} trans",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row {
+                                            Text(
+                                                text = "In: ",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            MoneyText(
+                                                money = flow.incomeTotal,
+                                                currencySpec = flowCurrencySpec,
+                                                grouping = uiState.numberGrouping,
+                                                colorMode = MoneyColorMode.INCOME,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                        Row {
+                                            Text(
+                                                text = "Out: ",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            MoneyText(
+                                                money = flow.expenseTotal,
+                                                currencySpec = flowCurrencySpec,
+                                                grouping = uiState.numberGrouping,
+                                                colorMode = MoneyColorMode.EXPENSE,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                    }
+
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "Net: ",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        MoneyText(
+                                            money = flow.netChange,
+                                            currencySpec = flowCurrencySpec,
+                                            grouping = uiState.numberGrouping,
+                                            colorMode = MoneyColorMode.AUTO_SIGN,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            showPlusSignForPositive = true
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -1071,7 +1133,119 @@ internal fun SummaryLedgerSubTabContent(
             }
         }
 
-        if (uiState.topExpenseCategories.isNotEmpty() && uiState.scopedAccountId == null) {
+        if (uiState.budgetProgressList.isNotEmpty() && uiState.scopedAccountId == null) {
+            item {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    ),
+                    border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = "Budget Status",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        val overallBudget = uiState.budgetProgressList.firstOrNull { it.categoryId == null }
+                        val categoryBudgets = uiState.budgetProgressList.filter { it.categoryId != null }
+                        val budgetsToDisplay = if (overallBudget != null) {
+                            listOf(overallBudget) + categoryBudgets.take(2)
+                        } else {
+                            categoryBudgets.take(3)
+                        }
+
+                        budgetsToDisplay.forEachIndexed { idx, budget ->
+                            if (idx > 0) {
+                                HorizontalDivider(
+                                    color = semanticColors.cardStrokeSubtle.copy(alpha = 0.5f)
+                                )
+                            }
+                            val fraction = (budget.usagePercentage / 100f).coerceIn(0f, 1f)
+                            val barColor = when {
+                                budget.usagePercentage >= 100f -> semanticColors.expenseCoral
+                                budget.usagePercentage >= budget.alertThresholdPercent -> semanticColors.warningAmber
+                                else -> semanticColors.incomeEmerald
+                            }
+
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = budget.categoryName,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = String.format(Locale.US, "%.1f%% used", budget.usagePercentage),
+                                        style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
+                                        fontWeight = FontWeight.Bold,
+                                        color = barColor
+                                    )
+                                }
+
+                                LinearProgressIndicator(
+                                    progress = { fraction },
+                                    color = barColor,
+                                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    strokeCap = StrokeCap.Round,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(8.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                )
+
+                                Row(
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row {
+                                        Text(
+                                            text = "Spent: ",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        MoneyText(
+                                            money = budget.spentAmount,
+                                            currencySpec = uiState.currencySpec,
+                                            grouping = uiState.numberGrouping,
+                                            colorMode = MoneyColorMode.EXPENSE,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    Row {
+                                        Text(
+                                            text = "Remaining: ",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        MoneyText(
+                                            money = budget.remainingAmount,
+                                            currencySpec = uiState.currencySpec,
+                                            grouping = uiState.numberGrouping,
+                                            colorMode = MoneyColorMode.AUTO_SIGN,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (uiState.topExpenseCategories.isNotEmpty()) {
             item {
                 Card(
                     shape = RoundedCornerShape(16.dp),
@@ -1086,7 +1260,11 @@ internal fun SummaryLedgerSubTabContent(
                         modifier = Modifier.padding(16.dp)
                     ) {
                         Text(
-                            text = "Top Expense Categories",
+                            text = if (uiState.scopedAccount != null) {
+                                "Top Expenses (${uiState.scopedAccount.name})"
+                            } else {
+                                "Top Expense Categories"
+                            },
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -1150,6 +1328,8 @@ internal fun SummaryLedgerSubTabContent(
                 Text(
                     text = if (uiState.isExportingCsv) {
                         "Exporting CSV..."
+                    } else if (uiState.scopedAccount != null) {
+                        "Export ${uiState.scopedAccount.name} (${uiState.activePeriodRange.title}) to CSV"
                     } else {
                         "Export ${uiState.activePeriodRange.title} Transactions to CSV"
                     },

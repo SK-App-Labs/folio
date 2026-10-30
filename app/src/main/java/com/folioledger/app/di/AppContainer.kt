@@ -55,7 +55,8 @@ class AppContainer(context: Context) {
         AnalyticsAndBudgetRepositoryImpl(
             transactionDao = database.transactionDao(),
             categoryAndTagDao = database.categoryAndTagDao(),
-            budgetAndRecurringDao = database.budgetAndRecurringDao()
+            budgetAndRecurringDao = database.budgetAndRecurringDao(),
+            settingsRepository = settingsAndBackupRepository
         )
     }
 }

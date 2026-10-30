@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.4.0] - Unreleased
 ### Fixed
+- **Ledger Summary Subtab Polish & Data Integrity**:
+  - *Scoped CSV Export Isolation*: Upgraded `exportTransactionsToCsv` and `exportTransactionsToCsvStream` in `SettingsAndBackupRepository` and `LedgerHomeViewModel` to filter strictly by `accountId` when an account filter is active, preventing transaction leakage from other accounts into scoped exports and personalizing the export filename (e.g. `Folio_HDFC_Bank_Oct_2026.csv`).
+  - *Multi-Currency Accuracy in Analytics & Budgets*: Injected user preferences into `AnalyticsAndBudgetRepositoryImpl` to dynamically convert foreign currency transactions to the user's primary currency across `observeCategorySpendStats`, `observeBudgetProgressList`, `observeSixMonthTrendBars`, `observeTagSpendRankings`, and `observePayeeOrNoteRankings`, eliminating distorted totals when transacting across multiple currencies.
+  - *Account Activity Breakdown Card*: Implemented the previously missing Account Breakdown card on the Summary subtab, displaying each active account with its transaction count, native currency inflows, outflows, and net cashflow changes.
+  - *Intelligent Savings Rate Badging*: Fixed the misleading bright green `Savings Rate: 0.0%` badge when income is zero and expenses exist; now cleanly renders a neutral/warning `Deficit (No Income)` or `No Activity` badge with appropriate color mode.
+  - *Transparent Multi-Category Budget Progress*: Replaced the arbitrary single-budget fallback with a unified budget display showing the overall monthly budget plus active category budgets (or up to 3 category budgets when no overall budget exists).
+  - *Scoped Screen Depletion Prevention*: Added in-memory category spend calculation for scoped account views so top expenses and account flow summaries remain rich and informative rather than leaving the Summary subtab depleted.
 - **Ledger Weekly Subtab Polish & Usability**:
   - *Contextual Transaction Date Badging*: Added `"EEE, dd MMM"` date badges (e.g., `Fri, 02 Oct`) alongside the account name on transaction cards within expanded weekly buckets, resolving missing date visibility across 7-day multi-day week spans.
   - *Smart Month-Aware Week Expansion*: In the active month containing today, automatically expands the current week (e.g., Week 5); when navigating to past or future months, all weeks start collapsed to present an immediate, clean high-level summary of the entire month's weekly totals.
