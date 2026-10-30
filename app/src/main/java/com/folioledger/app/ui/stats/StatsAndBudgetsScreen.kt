@@ -722,27 +722,21 @@ private fun StatsBreakdownSubTabContent(
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
-                // Segmented Toggle Chips: [ 📊 Cashflow ] | [ 📈 Net Worth ] | [ 💳 Credit Health ]
+                // Segmented Toggle Chips: [ 📊 Cashflow ] | [ 📈 Net Worth ]
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     FilterChip(
                         selected = uiState.selectedTrendChartMode == TrendChartMode.INCOME_VS_EXPENSE,
                         onClick = { onSelectTrendChartMode(TrendChartMode.INCOME_VS_EXPENSE) },
-                        label = { Text("📊 Cashflow", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) },
+                        label = { Text("📊 Cashflow", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold) },
                         modifier = Modifier.weight(1f)
                     )
                     FilterChip(
                         selected = uiState.selectedTrendChartMode == TrendChartMode.NET_WORTH,
                         onClick = { onSelectTrendChartMode(TrendChartMode.NET_WORTH) },
-                        label = { Text("📈 Net Worth", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    FilterChip(
-                        selected = uiState.selectedTrendChartMode == TrendChartMode.CREDIT_ANALYSIS,
-                        onClick = { onSelectTrendChartMode(TrendChartMode.CREDIT_ANALYSIS) },
-                        label = { Text("💳 Credit Health", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) },
+                        label = { Text("📈 Net Worth", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold) },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -765,12 +759,9 @@ private fun StatsBreakdownSubTabContent(
                         )
                     }
                     TrendChartMode.CREDIT_ANALYSIS -> {
-                        CreditHealthDashboardCard(
-                            totalAvailableCredit = uiState.totalAvailableCredit,
-                            totalCreditLimit = uiState.totalCreditLimit,
-                            totalUsedCredit = uiState.totalUsedCredit,
-                            overallUtilizationPercent = uiState.overallCreditUtilizationPercent,
-                            creditCardHealthList = uiState.creditCardHealthList,
+                        // Fallback for backwards compatibility if mode is set externally
+                        SixMonthTrendBarChart(
+                            bars = uiState.sixMonthTrendBars,
                             currencySpec = uiState.currencySpec,
                             grouping = uiState.numberGrouping
                         )
