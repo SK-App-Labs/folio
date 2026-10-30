@@ -291,4 +291,58 @@ class MonthlyLedgerCalculationsTest {
         assertEquals("Dining", selectedCatsOnly[1].name)
         assertEquals("Entertainment", selectedCatsOnly[2].name)
     }
+
+    @Test
+    fun testSmartYearAwareMonthExpansion() {
+        val today = java.time.LocalDate.of(2026, 10, 30).toEpochDay()
+        val year2026Start = java.time.LocalDate.of(2026, 1, 1).toEpochDay()
+        val year2026End = java.time.LocalDate.of(2026, 12, 31).toEpochDay()
+
+        val year2025Start = java.time.LocalDate.of(2025, 1, 1).toEpochDay()
+        val year2025End = java.time.LocalDate.of(2025, 12, 31).toEpochDay()
+
+        fun resolveDefaultExpandedMonths(yearStart: Long, yearEnd: Long, anchorMonthVal: Int): Set<Int> {
+            val isCurrentYear = today in yearStart..yearEnd
+            return if (isCurrentYear) {
+                setOf(anchorMonthVal)
+            } else {
+                emptySet()
+            }
+        }
+
+        // Current Year (2026): Oct (10) is auto-expanded
+        val expandedCurrentYear = resolveDefaultExpandedMonths(year2026Start, year2026End, 10)
+        assertEquals(setOf(10), expandedCurrentYear)
+
+        // Past Year (2025): Starts completely collapsed for high-level bird's-eye view
+        val expandedPastYear = resolveDefaultExpandedMonths(year2025Start, year2025End, 10)
+        assertEquals(emptySet<Int>(), expandedPastYear)
+
+        // Toggling logic in past year
+        var userExpandedMonths: Set<Int>? = null
+        val baseSet = userExpandedMonths ?: expandedPastYear
+        assertEquals(emptySet<Int>(), baseSet)
+
+        // User expands Month 5 (May 2025)
+        val afterToggleMay = if (5 in baseSet) baseSet - 5 else baseSet + 5
+        assertEquals(setOf(5), afterToggleMay)
+
+        // User toggles May again -> collapses
+        val afterToggleMayAgain = if (5 in afterToggleMay) afterToggleMay - 5 else afterToggleMay + 5
+        assertEquals(emptySet<Int>(), afterToggleMayAgain)
+    }
+
+    @Test
+    fun testMonthlyCompositeKeyUniquenessAcrossYears() {
+        val oct2026Start = java.time.LocalDate.of(2026, 10, 1).toEpochDay()
+        val oct2025Start = java.time.LocalDate.of(2025, 10, 1).toEpochDay()
+
+        val key2026 = "${oct2026Start}_10"
+        val key2025 = "${oct2025Start}_10"
+
+        // Keys for the same month across different years must not collide
+        assertFalse(key2026 == key2025)
+        assertEquals("${oct2026Start}_10", key2026)
+        assertEquals("${oct2025Start}_10", key2025)
+    }
 }

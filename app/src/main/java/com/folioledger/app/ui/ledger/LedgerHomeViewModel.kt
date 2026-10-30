@@ -552,7 +552,18 @@ class LedgerHomeViewModel(
 
         val effectiveExpandedWeeks = ctrl.expandedWeekIndices ?: defaultExpandedWeeks
 
-        val effectiveExpandedMonths = ctrl.expandedYearlyMonths ?: setOf(periodRange.anchorMonthValue)
+        val yearStartDay = periodBundle.yearRanges.firstOrNull()?.startEpochDay ?: 0L
+        val yearEndDay = periodBundle.yearRanges.lastOrNull()?.endEpochDay ?: Long.MAX_VALUE
+        val isCurrentYear = todayEpochDay in yearStartDay..yearEndDay
+        val defaultExpandedMonths = if (isCurrentYear) {
+            val activeMonthIndex = periodBundle.yearRanges.indexOfFirst {
+                todayEpochDay in it.startEpochDay..it.endEpochDay
+            }.let { if (it >= 0) it + 1 else periodRange.anchorMonthValue }
+            setOf(activeMonthIndex)
+        } else {
+            emptySet()
+        }
+        val effectiveExpandedMonths = ctrl.expandedYearlyMonths ?: defaultExpandedMonths
 
         val yearlyMonthItems = periodBundle.yearRanges.mapIndexed { idx, monthRange ->
             val monthTxns = activeYearTransactions.filter {
@@ -772,18 +783,43 @@ class LedgerHomeViewModel(
 
     fun toggleYearlyMonthExpanded(monthIndex: Int) {
         val monthStartDay = userPreferencesFlow.value.monthStartDay
+        val today = LocalDate.now().toEpochDay()
         controlState.update { current ->
             val currentRange = LedgerPeriodCalculator.computeFinancialMonthRange(
                 referenceDateEpochDay = current.referenceDateEpochDay,
                 monthStartDay = monthStartDay
             )
-            val baseSet = current.expandedYearlyMonths ?: setOf(currentRange.anchorMonthValue)
+            val yearRanges = LedgerPeriodCalculator.computeFinancialYearMonthRanges(
+                anchorYear = currentRange.anchorYear,
+                monthStartDay = monthStartDay
+            )
+            val isCurrentYear = today in (yearRanges.first().startEpochDay..yearRanges.last().endEpochDay)
+            val defaultExpanded = if (isCurrentYear) {
+                val activeMonthIdx = yearRanges.indexOfFirst {
+                    today in it.startEpochDay..it.endEpochDay
+                }.let { if (it >= 0) it + 1 else currentRange.anchorMonthValue }
+                setOf(activeMonthIdx)
+            } else {
+                emptySet()
+            }
+            val baseSet = current.expandedYearlyMonths ?: defaultExpanded
             val next = if (monthIndex in baseSet) {
                 baseSet - monthIndex
             } else {
                 baseSet + monthIndex
             }
             current.copy(expandedYearlyMonths = next)
+        }
+    }
+
+    fun drillDownToMonth(startEpochDay: Long) {
+        controlState.update { current ->
+            current.copy(
+                referenceDateEpochDay = startEpochDay,
+                selectedCalendarDayEpochDay = startEpochDay,
+                selectedSubTab = LedgerSubTab.DAILY,
+                expandedWeekIndices = null
+            )
         }
     }
 

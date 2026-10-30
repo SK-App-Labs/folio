@@ -672,7 +672,8 @@ internal fun WeeklyLedgerSubTabContent(
 @Composable
 internal fun MonthlyLedgerSubTabContent(
     uiState: LedgerHomeUiState,
-    onToggleMonth: (Int) -> Unit
+    onToggleMonth: (Int) -> Unit,
+    onDrillDownToMonth: (Long) -> Unit = {}
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -711,7 +712,7 @@ internal fun MonthlyLedgerSubTabContent(
 
         items(
             items = uiState.yearlyMonthItems.reversed(),
-            key = { it.monthIndex },
+            key = { "${it.periodRange.startEpochDay}_${it.monthIndex}" },
             contentType = { "yearly_month_card" }
         ) { monthItem ->
             val isExpanded = monthItem.monthIndex in uiState.expandedYearlyMonths
@@ -751,16 +752,37 @@ internal fun MonthlyLedgerSubTabContent(
                                 } else {
                                     Icons.Filled.ExpandMore
                                 },
-                                contentDescription = null,
+                                contentDescription = if (isExpanded) {
+                                    "Collapse ${monthItem.periodRange.title}"
+                                } else {
+                                    "Expand ${monthItem.periodRange.title}"
+                                },
                                 tint = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
-                                Text(
-                                    text = monthItem.periodRange.title,
-                                    style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = monthItem.periodRange.title,
+                                        style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (monthItem.isCurrentActiveMonth) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = MaterialTheme.colorScheme.primaryContainer
+                                        ) {
+                                            Text(
+                                                text = "Current",
+                                                style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
                                 Text(
                                     text = "${monthItem.periodRange.subtitle} · ${monthItem.transactionCount} trans",
                                     style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
@@ -812,43 +834,111 @@ internal fun MonthlyLedgerSubTabContent(
                                 .padding(start = 14.dp, end = 14.dp, bottom = 12.dp)
                         ) {
                             HorizontalDivider(color = semanticColors.cardStrokeSubtle)
-                            monthItem.weeklyBuckets.forEach { week ->
+
+                            if (monthItem.transactionCount == 0) {
+                                Text(
+                                    text = "No transactions recorded for this month",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 12.dp)
+                                )
+                            } else {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 4.dp)
+                                        .padding(vertical = 2.dp)
                                 ) {
                                     Text(
-                                        text = "${week.label} (${week.dateRangeSubtitle})",
-                                        style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
+                                        text = "Weekly Breakdown",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                        MoneyText(
-                                            money = week.incomeTotal,
-                                            currencySpec = uiState.currencySpec,
-                                            grouping = uiState.numberGrouping,
-                                            colorMode = MoneyColorMode.INCOME,
-                                            style = MaterialTheme.typography.labelSmall
-                                        )
-                                        MoneyText(
-                                            money = week.expenseTotal,
-                                            currencySpec = uiState.currencySpec,
-                                            grouping = uiState.numberGrouping,
-                                            colorMode = MoneyColorMode.EXPENSE,
-                                            style = MaterialTheme.typography.labelSmall
-                                        )
-                                        MoneyText(
-                                            money = week.netTotal,
-                                            currencySpec = uiState.currencySpec,
-                                            grouping = uiState.numberGrouping,
-                                            colorMode = MoneyColorMode.AUTO_SIGN,
+                                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                                        Text(
+                                            text = "In",
                                             style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = semanticColors.incomeEmerald
+                                        )
+                                        Text(
+                                            text = "Out",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = semanticColors.expenseCoral
+                                        )
+                                        Text(
+                                            text = "Net",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
+                                }
+
+                                monthItem.weeklyBuckets.forEach { week ->
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .clickable { onDrillDownToMonth(week.startEpochDay) }
+                                            .padding(vertical = 4.dp, horizontal = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = "${week.label} (${week.dateRangeSubtitle})",
+                                            style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                            MoneyText(
+                                                money = week.incomeTotal,
+                                                currencySpec = uiState.currencySpec,
+                                                grouping = uiState.numberGrouping,
+                                                colorMode = MoneyColorMode.INCOME,
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                            MoneyText(
+                                                money = week.expenseTotal,
+                                                currencySpec = uiState.currencySpec,
+                                                grouping = uiState.numberGrouping,
+                                                colorMode = MoneyColorMode.EXPENSE,
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                            MoneyText(
+                                                money = week.netTotal,
+                                                currencySpec = uiState.currencySpec,
+                                                grouping = uiState.numberGrouping,
+                                                colorMode = MoneyColorMode.AUTO_SIGN,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            HorizontalDivider(color = semanticColors.cardStrokeSubtle.copy(alpha = 0.5f))
+
+                            Row(
+                                horizontalArrangement = Arrangement.End,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                TextButton(
+                                    onClick = { onDrillDownToMonth(monthItem.periodRange.startEpochDay) },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "View in Daily →",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
                             }
                         }

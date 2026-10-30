@@ -20,9 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - *Smart Month-Aware Week Expansion*: In the active month containing today, automatically expands the current week (e.g., Week 5); when navigating to past or future months, all weeks start collapsed to present an immediate, clean high-level summary of the entire month's weekly totals.
   - *Clean Empty State Feedback*: Resolved phantom chevron behavior on empty weeks by rendering a subtle `"No transactions recorded for this week"` message instead of keeping the card body closed while the chevron points up.
   - *Stable Compose Keys*: Upgraded LazyColumn keys to composite strings (`"${bucket.startEpochDay}_${bucket.weekIndex}"`) to eliminate key collisions across month navigation and maintain optimal rendering performance.
-- **Ledger Monthly Subtab Accordion & Weekly Content Expansion**:
-  - Resolved accordion lock bug in `LedgerHomeViewModel.kt` where `expandedYearlyMonths` defaulted to `emptySet()`, causing weekly breakdown cards to render completely empty and preventing users from collapsing the current month card.
-  - Introduced nullable `expandedYearlyMonths: Set<Int>? = null` state in `LedgerControlState` to distinguish initial default expansion from explicit user collapse (`emptySet()`), enabling 1-tap collapsing and expanding of any month with full weekly item loading.
+- **Ledger Monthly Subtab Accordion & Drill-Down Usability**:
+  - *Composite LazyColumn Keys*: Replaced simple integer keys (`1..12`) with composite keys (`"${startEpochDay}_${monthIndex}"`) to eliminate key collisions across annual navigation, ensuring buttery smooth scroll and animation performance.
+  - *Smart Year-Aware Month Expansion*: Automatically expands the current active month when viewing the financial year containing today; when navigating to past or future years, all 12 months start collapsed for an immediate, uncluttered bird's-eye overview.
+  - *1-Tap Drill-Down Navigation*: Added direct navigation from any month or week in the Monthly subtab (`"View in Daily →"` and clickable weekly breakdown rows) to jump immediately to that period in the Daily subtab without tedious date-stepping.
+  - *Clean Empty Month State*: Replaced the redundant 5 empty week rows with a clear `"No transactions recorded for this month"` message when expanding inactive or future months.
+  - *Compact Column Labels & Current Month Badge*: Added explicit `In`, `Out`, and `Net` column headers to the expanded weekly breakdown and a prominent `Current` pill badge to the active month card.
+  - *Resolved Accordion Lock Bug*: Introduced nullable `expandedYearlyMonths: Set<Int>? = null` in `LedgerControlState` to distinguish initial default expansion from explicit user collapse (`emptySet()`), enabling 1-tap collapsing and expanding of any month with full weekly item loading.
 - **Ledger Monthly Subtab Annual Summary Banner Alignment**:
   - Replaced the mismatched monthly period summary (`uiState.periodSummary`) on the Monthly subtab header with dedicated annual metrics (`yearlyIncomeTotal`, `yearlyExpenseTotal`, and `yearlyNetTotal`) in `ThreeColumnSummaryBanner`.
   - The top summary banner now displays *Annual Income*, *Annual Expenses*, and *Annual Net*, perfectly matching the sum of all 12 month cards in the financial year.
