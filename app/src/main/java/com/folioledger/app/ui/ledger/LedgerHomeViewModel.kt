@@ -539,11 +539,17 @@ class LedgerHomeViewModel(
             secondaryCurrencies = prefs.secondaryCurrencies
         )
 
-        val defaultActiveWeekIndex = weeklyBuckets.firstOrNull { bucket ->
-            ctrl.referenceDateEpochDay in bucket.startEpochDay..bucket.endEpochDay
-        }?.weekIndex ?: weeklyBuckets.lastOrNull()?.weekIndex ?: 1
+        val isCurrentPeriod = todayEpochDay in periodRange.startEpochDay..periodRange.endEpochDay
+        val defaultExpandedWeeks = if (isCurrentPeriod) {
+            val activeWeek = weeklyBuckets.firstOrNull { bucket ->
+                todayEpochDay in bucket.startEpochDay..bucket.endEpochDay
+            }?.weekIndex ?: weeklyBuckets.lastOrNull()?.weekIndex ?: 1
+            setOf(activeWeek)
+        } else {
+            emptySet()
+        }
 
-        val effectiveExpandedWeeks = ctrl.expandedWeekIndices ?: setOf(defaultActiveWeekIndex)
+        val effectiveExpandedWeeks = ctrl.expandedWeekIndices ?: defaultExpandedWeeks
 
         val effectiveExpandedMonths = ctrl.expandedYearlyMonths ?: setOf(periodRange.anchorMonthValue)
 
@@ -748,12 +754,8 @@ class LedgerHomeViewModel(
     }
 
     fun toggleWeekExpanded(weekIndex: Int) {
-        val currentBuckets = uiState.value.weeklyBuckets
         controlState.update { current ->
-            val defaultActiveIndex = currentBuckets.firstOrNull { bucket ->
-                current.referenceDateEpochDay in bucket.startEpochDay..bucket.endEpochDay
-            }?.weekIndex ?: currentBuckets.lastOrNull()?.weekIndex ?: 1
-            val base = current.expandedWeekIndices ?: setOf(defaultActiveIndex)
+            val base = current.expandedWeekIndices ?: uiState.value.expandedWeekIndices
             val next = if (weekIndex in base) {
                 base - weekIndex
             } else {

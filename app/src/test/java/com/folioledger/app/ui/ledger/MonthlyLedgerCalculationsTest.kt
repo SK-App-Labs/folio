@@ -144,35 +144,53 @@ class MonthlyLedgerCalculationsTest {
         )
 
         // Today is Oct 30th (in week 5)
-        val refDate = java.time.LocalDate.of(2026, 10, 30).toEpochDay()
+        val today = java.time.LocalDate.of(2026, 10, 30).toEpochDay()
+        val currentPeriodStart = java.time.LocalDate.of(2026, 10, 1).toEpochDay()
+        val currentPeriodEnd = java.time.LocalDate.of(2026, 10, 31).toEpochDay()
+
+        // In Current Month: smart default expands Week 5 (containing today)
+        val isCurrentPeriod = today in currentPeriodStart..currentPeriodEnd
+        val defaultExpandedWeeksCurrentMonth = if (isCurrentPeriod) {
+            val activeWeek = mockBuckets.firstOrNull { bucket ->
+                today in bucket.startEpochDay..bucket.endEpochDay
+            }?.weekIndex ?: mockBuckets.lastOrNull()?.weekIndex ?: 1
+            setOf(activeWeek)
+        } else {
+            emptySet()
+        }
+
+        assertEquals(setOf(5), defaultExpandedWeeksCurrentMonth)
+
+        // In Past or Future Month: all weeks start collapsed
+        val pastPeriodStart = java.time.LocalDate.of(2026, 9, 1).toEpochDay()
+        val pastPeriodEnd = java.time.LocalDate.of(2026, 9, 30).toEpochDay()
+        val isPastPeriod = today in pastPeriodStart..pastPeriodEnd
+        val defaultExpandedWeeksPastMonth = if (isPastPeriod) {
+            setOf(1)
+        } else {
+            emptySet()
+        }
+
+        assertEquals(emptySet<Int>(), defaultExpandedWeeksPastMonth)
+
+        // Toggling logic
         var expandedWeekIndices: Set<Int>? = null
-
-        val defaultActiveIndex = mockBuckets.firstOrNull { bucket ->
-            refDate in bucket.startEpochDay..bucket.endEpochDay
-        }?.weekIndex ?: mockBuckets.lastOrNull()?.weekIndex ?: 1
-
-        assertEquals(5, defaultActiveIndex)
-
-        // Initial effective expansion should be Week 5
-        val initialEffective = expandedWeekIndices ?: setOf(defaultActiveIndex)
+        val initialEffective = expandedWeekIndices ?: defaultExpandedWeeksCurrentMonth
         assertEquals(setOf(5), initialEffective)
-        assertTrue(5 in initialEffective)
-        assertFalse(1 in initialEffective)
 
-        // User clicks week 5 to collapse it
-        fun toggle(week: Int) {
-            val base = expandedWeekIndices ?: setOf(defaultActiveIndex)
+        fun toggle(week: Int, currentRendered: Set<Int>) {
+            val base = expandedWeekIndices ?: currentRendered
             expandedWeekIndices = if (week in base) base - week else base + week
         }
 
-        toggle(5)
-        val collapsedEffective = expandedWeekIndices ?: setOf(defaultActiveIndex)
+        // Collapse week 5
+        toggle(5, initialEffective)
+        val collapsedEffective = expandedWeekIndices ?: defaultExpandedWeeksCurrentMonth
         assertEquals(emptySet<Int>(), collapsedEffective)
-        assertFalse(5 in collapsedEffective)
 
-        // User clicks week 1 to expand it
-        toggle(1)
-        val week1Effective = expandedWeekIndices ?: setOf(defaultActiveIndex)
+        // Expand week 1
+        toggle(1, collapsedEffective)
+        val week1Effective = expandedWeekIndices ?: defaultExpandedWeeksCurrentMonth
         assertEquals(setOf(1), week1Effective)
     }
 

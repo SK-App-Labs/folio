@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Ledger Weekly Subtab Polish & Usability**:
   - *Contextual Transaction Date Badging*: Added `"EEE, dd MMM"` date badges (e.g., `Fri, 02 Oct`) alongside the account name on transaction cards within expanded weekly buckets, resolving missing date visibility across 7-day multi-day week spans.
-  - *Intelligent Dynamic Week Expansion*: Changed hardcoded `expandedWeekIndices = setOf(1)` to dynamic resolution that automatically expands the week containing the reference date (or current day), and resets cleanly when stepping across months.
+  - *Smart Month-Aware Week Expansion*: In the active month containing today, automatically expands the current week (e.g., Week 5); when navigating to past or future months, all weeks start collapsed to present an immediate, clean high-level summary of the entire month's weekly totals.
   - *Clean Empty State Feedback*: Resolved phantom chevron behavior on empty weeks by rendering a subtle `"No transactions recorded for this week"` message instead of keeping the card body closed while the chevron points up.
   - *Stable Compose Keys*: Upgraded LazyColumn keys to composite strings (`"${bucket.startEpochDay}_${bucket.weekIndex}"`) to eliminate key collisions across month navigation and maintain optimal rendering performance.
 - **Ledger Monthly Subtab Accordion & Weekly Content Expansion**:
