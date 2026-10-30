@@ -250,18 +250,11 @@ fun StatsAndBudgetsScreen(
                     }
 
                     StatsSubTab.CREDIT_CARDS -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Credit Cards Cockpit (${uiState.creditCockpitState.activeCards.size} Cards)",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        CreditCardsCockpitSubTabContent(
+                            uiState = uiState,
+                            onOpenSettlement = viewModel::openCreditCardSettlementSheet,
+                            contentPadding = contentPadding
+                        )
                     }
 
                     StatsSubTab.BUDGETS -> {
