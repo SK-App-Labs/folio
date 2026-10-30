@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 ## [1.4.0] - Unreleased
+### Fixed
+- **Ledger Monthly Subtab Accordion & Weekly Content Expansion**:
+  - Resolved accordion lock bug in `LedgerHomeViewModel.kt` where `expandedYearlyMonths` defaulted to `emptySet()`, causing weekly breakdown cards to render completely empty and preventing users from collapsing the current month card.
+  - Introduced nullable `expandedYearlyMonths: Set<Int>? = null` state in `LedgerControlState` to distinguish initial default expansion from explicit user collapse (`emptySet()`), enabling 1-tap collapsing and expanding of any month with full weekly item loading.
+- **Ledger Monthly Subtab Annual Summary Banner Alignment**:
+  - Replaced the mismatched monthly period summary (`uiState.periodSummary`) on the Monthly subtab header with dedicated annual metrics (`yearlyIncomeTotal`, `yearlyExpenseTotal`, and `yearlyNetTotal`) in `ThreeColumnSummaryBanner`.
+  - The top summary banner now displays *Annual Income*, *Annual Expenses*, and *Annual Net*, perfectly matching the sum of all 12 month cards in the financial year.
+- **Multi-Currency Aggregation in Ledger Calculations**:
+  - Upgraded `computeIncomeAndExpenseTotals`, `buildDailyGroups`, `buildCalendarGridCells`, and `buildWeeklyBucketsForPeriod` to convert non-primary account transactions into the user's configured primary currency using manual exchange rates from `prefs.secondaryCurrencies`.
+  - Eliminates 1:1 raw summation errors when viewing multi-currency transactions across accounts in the aggregate view while preserving native currencies for single-account scopes.
+
 ### Added
 - **Branded PDF Account Statement & Universal Tax Report Export Engine**: Engineered a 100% offline, native Skia vector PDF generation engine with **0 KB APK overhead** using Android's native `android.graphics.pdf.PdfDocument`, providing publication-ready financial statements for accounting, tax filing, visa applications, and personal audits:
   - **Dedicated Settings Entry Point**: Positioned directly under the *DATA & BACKUPS* settings card via a dedicated row: `PDF Statements & Tax Reports`, keeping daily passbook interaction clutter-free and consolidating reporting tools in one authoritative location.

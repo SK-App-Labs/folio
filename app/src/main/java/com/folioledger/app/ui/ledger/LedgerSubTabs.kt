@@ -677,10 +677,14 @@ internal fun MonthlyLedgerSubTabContent(
     ) {
         item {
             ThreeColumnSummaryBanner(
-                periodSummary = uiState.periodSummary,
+                firstLabel = "Annual Income",
+                firstAmount = uiState.yearlyIncomeTotal,
+                secondLabel = "Annual Expenses",
+                secondAmount = uiState.yearlyExpenseTotal,
+                thirdLabel = "Annual Net",
+                thirdAmount = uiState.yearlyNetTotal,
                 currencySpec = uiState.currencySpec,
-                grouping = uiState.numberGrouping,
-                showCarryOver = uiState.userPreferences.carryOverEnabled && uiState.scopedAccountId == null
+                grouping = uiState.numberGrouping
             )
         }
 
