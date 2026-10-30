@@ -580,4 +580,28 @@ class MonthlyLedgerCalculationsTest {
         assertTrue(formatted.contains("$"))
         assertFalse(formatted.contains("₹"))
     }
+
+    @Test
+    fun testInstallmentMetadataFormatting() {
+        fun formatInstallmentLabel(index: Int?, total: Int?): String? {
+            return if (index != null && total != null) "$index of $total" else null
+        }
+
+        val installmentTx = TransactionItem(
+            id = 10L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 5000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(1000000L),
+            currencyCode = "INR",
+            accountId = 2L,
+            accountName = "HDFC Credit Card",
+            installmentIndex = 3,
+            installmentTotalCount = 12
+        )
+        val regularTx = installmentTx.copy(installmentIndex = null, installmentTotalCount = null)
+
+        assertEquals("3 of 12", formatInstallmentLabel(installmentTx.installmentIndex, installmentTx.installmentTotalCount))
+        assertEquals(null, formatInstallmentLabel(regularTx.installmentIndex, regularTx.installmentTotalCount))
+    }
 }

@@ -177,6 +177,32 @@ internal fun TransactionDetailActionSheet(
                 )
             }
 
+            if (transaction.installmentIndex != null && transaction.installmentTotalCount != null) {
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Installment",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.tertiaryContainer
+                    ) {
+                        Text(
+                            text = "${transaction.installmentIndex} of ${transaction.installmentTotalCount}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+            }
+
             if (transaction.payeeOrDescription.isNotBlank()) {
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
