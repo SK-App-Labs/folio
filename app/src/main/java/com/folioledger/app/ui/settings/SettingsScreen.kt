@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material.icons.filled.Warning
@@ -95,6 +96,7 @@ import com.folioledger.app.ui.settings.sheets.CategoryEditorDialog
 import com.folioledger.app.ui.settings.sheets.CategoryManagerBottomSheet
 import com.folioledger.app.ui.settings.sheets.FeedbackBottomSheet
 import com.folioledger.app.ui.settings.sheets.RegionalFormatBottomSheet
+import com.folioledger.app.ui.settings.sheets.SecondaryCurrenciesBottomSheet
 import com.folioledger.app.ui.settings.sheets.SpreadsheetsBottomSheet
 import com.folioledger.app.ui.settings.sheets.TagsAndBookmarksBottomSheet
 import com.folioledger.app.ui.settings.sheets.TransferAndManualBackupBottomSheet
@@ -126,6 +128,7 @@ fun SettingsScreen(
 
     var isAppearanceSheetOpen by rememberSaveable { mutableStateOf(false) }
     var isRegionalFormatSheetOpen by rememberSaveable { mutableStateOf(false) }
+    var isSecondaryCurrenciesSheetOpen by rememberSaveable { mutableStateOf(false) }
     var isAutoBackupSheetOpen by rememberSaveable { mutableStateOf(false) }
     var isTransferBackupSheetOpen by rememberSaveable { mutableStateOf(false) }
     var isSpreadsheetsSheetOpen by rememberSaveable { mutableStateOf(false) }
@@ -263,6 +266,24 @@ fun SettingsScreen(
                             valueText = "${prefs.primaryCurrencyCode} • ${if (prefs.numberGrouping == NumberGroupingSystem.INDIAN) "12,34,567" else "1,234,567"}",
                             enabled = isNotBusy,
                             onClick = { isRegionalFormatSheetOpen = true }
+                        )
+                        HorizontalDivider(
+                            color = semanticColors.cardStrokeSubtle,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                        SettingsNavigationRow(
+                            icon = Icons.Default.Public,
+                            title = "Secondary Currencies",
+                            valueText = when {
+                                prefs.secondaryCurrencies.isEmpty() -> "None configured"
+                                prefs.secondaryCurrencies.size == 1 -> {
+                                    val sec = prefs.secondaryCurrencies.first()
+                                    "${sec.code} (1 = ${sec.exchangeRateToPrimary})"
+                                }
+                                else -> "${prefs.secondaryCurrencies.size} active (${prefs.secondaryCurrencies.joinToString(", ") { it.code }})"
+                            },
+                            enabled = isNotBusy,
+                            onClick = { isSecondaryCurrenciesSheetOpen = true }
                         )
                         HorizontalDivider(
                             color = semanticColors.cardStrokeSubtle,
@@ -479,9 +500,16 @@ fun SettingsScreen(
             prefs = prefs,
             onSelectCurrency = viewModel::setPrimaryCurrency,
             onSelectGroupingStyle = viewModel::setNumberGrouping,
+            onDismiss = { isRegionalFormatSheetOpen = false }
+        )
+    }
+
+    if (isSecondaryCurrenciesSheetOpen) {
+        SecondaryCurrenciesBottomSheet(
+            prefs = prefs,
             onAddOrUpdateSecondaryCurrency = viewModel::addOrUpdateSecondaryCurrency,
             onRemoveSecondaryCurrency = viewModel::removeSecondaryCurrency,
-            onDismiss = { isRegionalFormatSheetOpen = false }
+            onDismiss = { isSecondaryCurrenciesSheetOpen = false }
         )
     }
 
