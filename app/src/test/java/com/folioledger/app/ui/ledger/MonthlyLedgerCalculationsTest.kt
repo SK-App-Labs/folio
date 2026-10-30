@@ -604,4 +604,57 @@ class MonthlyLedgerCalculationsTest {
         assertEquals("3 of 12", formatInstallmentLabel(installmentTx.installmentIndex, installmentTx.installmentTotalCount))
         assertEquals(null, formatInstallmentLabel(regularTx.installmentIndex, regularTx.installmentTotalCount))
     }
+
+    @Test
+    fun testTransTabDoubleTapResetToDailyLogic() {
+        var currentSubTab = LedgerSubTab.MONTHLY
+        var lastTransTabTapTime = 0L
+        var jumpToTodayCalls = 0
+        var resetToDailyCalls = 0
+
+        fun onTransTabTapped(now: Long) {
+            if (now - lastTransTabTapTime < 500L) {
+                // Double tap
+                currentSubTab = LedgerSubTab.DAILY
+                resetToDailyCalls++
+                lastTransTabTapTime = 0L
+            } else {
+                // Single tap
+                lastTransTabTapTime = now
+                jumpToTodayCalls++
+            }
+        }
+
+        // 1. Single tap at t = 1000ms: only triggers jump to today, stays on MONTHLY
+        onTransTabTapped(1000L)
+        assertEquals(1, jumpToTodayCalls)
+        assertEquals(0, resetToDailyCalls)
+        assertEquals(LedgerSubTab.MONTHLY, currentSubTab)
+
+        // 2. Second tap at t = 1250ms (250ms delta < 500ms): triggers double-tap reset to DAILY
+        onTransTabTapped(1250L)
+        assertEquals(1, jumpToTodayCalls)
+        assertEquals(1, resetToDailyCalls)
+        assertEquals(LedgerSubTab.DAILY, currentSubTab)
+
+        // 3. User switches to CALENDAR
+        currentSubTab = LedgerSubTab.CALENDAR
+
+        // 4. Tap at t = 3000ms, then tap at t = 3800ms (delta 800ms > 500ms): both are single taps
+        onTransTabTapped(3000L)
+        assertEquals(2, jumpToTodayCalls)
+        assertEquals(1, resetToDailyCalls)
+        assertEquals(LedgerSubTab.CALENDAR, currentSubTab)
+
+        onTransTabTapped(3800L)
+        assertEquals(3, jumpToTodayCalls)
+        assertEquals(1, resetToDailyCalls)
+        assertEquals(LedgerSubTab.CALENDAR, currentSubTab)
+
+        // 5. Quick follow-up tap at t = 4000ms (delta 200ms < 500ms): resets to DAILY!
+        onTransTabTapped(4000L)
+        assertEquals(3, jumpToTodayCalls)
+        assertEquals(2, resetToDailyCalls)
+        assertEquals(LedgerSubTab.DAILY, currentSubTab)
+    }
 }

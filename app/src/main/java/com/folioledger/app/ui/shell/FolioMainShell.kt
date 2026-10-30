@@ -87,6 +87,7 @@ fun FolioMainShell(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     var backPressedTime by remember { mutableLongStateOf(0L) }
+    var lastTransTabTapTime by remember { mutableLongStateOf(0L) }
 
     // 1. Back Handler for secondary tabs (STATS, ACCOUNTS, SETTINGS)
     BackHandler(enabled = selectedTab != FolioMainTab.TRANSACTIONS && !isEntrySheetOpen) {
@@ -127,14 +128,28 @@ fun FolioMainShell(
                         NavigationBarItem(
                             selected = selectedTab == tab,
                             onClick = {
+                                val now = System.currentTimeMillis()
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 if (selectedTab == FolioMainTab.ACCOUNTS && tab == FolioMainTab.ACCOUNTS) {
                                     // Tapping Accounts tab icon again returns to main accounts list
                                     accountsViewModel.selectAccountForInspection(null)
                                 }
-                                if (selectedTab == FolioMainTab.TRANSACTIONS && tab == FolioMainTab.TRANSACTIONS) {
-                                    // Tapping Transactions tab icon when already active jumps to today and scrolls to top
-                                    ledgerViewModel.jumpToToday()
+                                if (tab == FolioMainTab.TRANSACTIONS) {
+                                    if (selectedTab == FolioMainTab.TRANSACTIONS) {
+                                        if (now - lastTransTabTapTime < 500L) {
+                                            // Double-tap on active Transactions tab: switch to Daily subtab and jump to today
+                                            ledgerViewModel.resetToDailySubTabAndJumpToToday()
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            lastTransTabTapTime = 0L
+                                        } else {
+                                            // Single tap on active Transactions tab: jump to today within current subtab
+                                            lastTransTabTapTime = now
+                                            ledgerViewModel.jumpToToday()
+                                        }
+                                    } else {
+                                        // Switched from another main tab
+                                        lastTransTabTapTime = now
+                                    }
                                 }
                                 selectedTab = tab
                             },

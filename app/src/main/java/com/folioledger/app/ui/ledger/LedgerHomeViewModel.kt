@@ -783,6 +783,20 @@ class LedgerHomeViewModel(
         }
     }
 
+    fun resetToDailySubTabAndJumpToToday() {
+        val today = LocalDate.now().toEpochDay()
+        controlState.update {
+            it.copy(
+                selectedSubTab = LedgerSubTab.DAILY,
+                referenceDateEpochDay = today,
+                selectedCalendarDayEpochDay = today,
+                expandedWeekIndices = null,
+                expandedYearlyMonths = null,
+                scrollToTopSignal = it.scrollToTopSignal + 1
+            )
+        }
+    }
+
     fun selectCalendarDay(epochDay: Long) {
         controlState.update { it.copy(selectedCalendarDayEpochDay = epochDay) }
     }
