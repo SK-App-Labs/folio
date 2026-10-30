@@ -1023,20 +1023,20 @@ private fun CardAnalyticsItemRow(
                     )
                     if (item.topCategoryName != null) {
                         Surface(
-                            shape = RoundedCornerShape(6.dp),
+                            shape = RoundedCornerShape(8.dp),
                             color = MaterialTheme.colorScheme.surfaceContainerHighest,
                             border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.padding(start = 4.dp, end = 7.dp, top = 2.5.dp, bottom = 2.5.dp)
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(cardColor)
+                                CategoryIconBadge(
+                                    iconName = item.topCategoryIconName ?: "category",
+                                    colorHex = item.topCategoryColorHex ?: item.account.colorHex,
+                                    size = 18.dp,
+                                    iconSize = 11.dp
                                 )
                                 Text(
                                     text = "${item.topCategoryName} · ${String.format(Locale.US, "%.0f", item.topCategoryPercent)}%",
