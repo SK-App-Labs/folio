@@ -712,7 +712,8 @@ fun SixMonthSmoothTrendAreaChart(
     currencySpec: CurrencySpec = SupportedCurrencies.INR,
     grouping: NumberGroupingSystem = currencySpec.defaultGrouping,
     categoryType: CategoryType = CategoryType.EXPENSE,
-    chartHeight: Dp = 160.dp
+    chartHeight: Dp = 160.dp,
+    customColor: Color? = null
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     var selectedIndex by rememberSaveable(bars.size) {
@@ -731,7 +732,7 @@ fun SixMonthSmoothTrendAreaChart(
         label = "AreaChartEntryAnimation"
     )
 
-    val lineColor = if (categoryType == CategoryType.EXPENSE) {
+    val lineColor = customColor ?: if (categoryType == CategoryType.EXPENSE) {
         semanticColors.expenseCoral
     } else {
         semanticColors.incomeEmerald

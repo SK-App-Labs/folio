@@ -287,7 +287,8 @@ data class CategoryDrillDownState(
     val categoryStat: CategorySpendStat,
     val categoryType: CategoryType,
     val transactions: List<TransactionItem>,
-    val matchingBudget: BudgetProgress?
+    val matchingBudget: BudgetProgress?,
+    val categorySixMonthTrendBars: List<MonthlyTrendBar> = emptyList()
 )
 
 @Immutable
@@ -296,6 +297,7 @@ data class StatsAndBudgetsUiState(
     val periodGranularity: StatsPeriodGranularity = StatsPeriodGranularity.MONTHLY,
     val selectedCategoryType: CategoryType = CategoryType.EXPENSE,
     val selectedRankingMode: RankingMode = RankingMode.TAGS,
+    val isRankingsAllTime: Boolean = false,
     val selectedTrendChartMode: TrendChartMode = TrendChartMode.INCOME_VS_EXPENSE,
     val selectedNetWorthMetricFilter: NetWorthChartMetricFilter = NetWorthChartMetricFilter.ALL_IN_ONE,
     val referenceDateEpochDay: Long = LocalDate.now().toEpochDay(),
@@ -357,6 +359,7 @@ private data class StatsInternalControlState(
     val periodGranularity: StatsPeriodGranularity = StatsPeriodGranularity.MONTHLY,
     val selectedCategoryType: CategoryType = CategoryType.EXPENSE,
     val selectedRankingMode: RankingMode = RankingMode.TAGS,
+    val isRankingsAllTime: Boolean = false,
     val selectedTrendChartMode: TrendChartMode = TrendChartMode.INCOME_VS_EXPENSE,
     val selectedNetWorthMetricFilter: NetWorthChartMetricFilter = NetWorthChartMetricFilter.ALL_IN_ONE,
     val referenceDateEpochDay: Long = LocalDate.now().toEpochDay(),
@@ -375,6 +378,7 @@ private data class PeriodQueryParameters(
     val referenceDateEpochDay: Long,
     val customStartEpochDay: Long,
     val customEndEpochDay: Long,
+    val isRankingsAllTime: Boolean,
     val prefs: UserPreferences
 )
 
@@ -438,6 +442,7 @@ class StatsAndBudgetsViewModel(
             referenceDateEpochDay = ctrl.referenceDateEpochDay,
             customStartEpochDay = ctrl.customStartEpochDay,
             customEndEpochDay = ctrl.customEndEpochDay,
+            isRankingsAllTime = ctrl.isRankingsAllTime,
             prefs = prefs
         )
     }.flatMapLatest { params ->
@@ -489,14 +494,16 @@ class StatsAndBudgetsViewModel(
             Triple(trendBars, budgets, periodTxns)
         }
 
+        val rankingsStartDay = if (params.isRankingsAllTime) 0L else periodRange.startEpochDay
+        val rankingsEndDay = if (params.isRankingsAllTime) Long.MAX_VALUE else periodRange.endEpochDay
         val rankingsFlow = combine(
             analyticsAndBudgetRepository.observeTagSpendRankings(
-                startEpochDay = periodRange.startEpochDay,
-                endEpochDay = periodRange.endEpochDay
+                startEpochDay = rankingsStartDay,
+                endEpochDay = rankingsEndDay
             ),
             analyticsAndBudgetRepository.observePayeeOrNoteRankings(
-                startEpochDay = periodRange.startEpochDay,
-                endEpochDay = periodRange.endEpochDay
+                startEpochDay = rankingsStartDay,
+                endEpochDay = rankingsEndDay
             )
         ) { tags, payees ->
             tags to payees
@@ -605,11 +612,54 @@ class StatsAndBudgetsViewModel(
                     )
 
                 val matchingBudget = categoryBudgets.firstOrNull { it.categoryId == targetCatId }
+
+                // Compute category-specific 6-month historical trend
+                val categoryTrendBars = bundle.trendBars.map { bar ->
+                    var cycleExpenseMinor = 0L
+                    var cycleIncomeMinor = 0L
+
+                    for (tx in allTxs) {
+                        if (tx.ledgerDateEpochDay !in bar.startEpochDay..bar.endEpochDay) continue
+
+                        val directMatch = tx.categoryId != null && tx.categoryId in matchingCategoryIds
+                        val splitMatch = tx.isSplit && tx.splits.any { it.categoryId in matchingCategoryIds }
+                        val nameMatch = tx.categoryName != null &&
+                                tx.categoryName.equals(stat.categoryName, ignoreCase = true)
+                        val parentNameMatch = tx.parentCategoryName != null &&
+                                tx.parentCategoryName.equals(stat.categoryName, ignoreCase = true)
+
+                        if (!directMatch && !splitMatch && !nameMatch && !parentNameMatch) continue
+
+                        val rawAmount = Math.abs(tx.amount.amountMinor)
+                        if (ctrl.selectedCategoryType == CategoryType.EXPENSE) {
+                            when (tx.type) {
+                                TransactionType.EXPENSE -> cycleExpenseMinor += rawAmount
+                                TransactionType.REFUND -> cycleExpenseMinor -= rawAmount
+                                else -> {}
+                            }
+                        } else {
+                            if (tx.type == TransactionType.INCOME) {
+                                cycleIncomeMinor += rawAmount
+                            }
+                        }
+                    }
+
+                    MonthlyTrendBar(
+                        periodLabel = bar.periodLabel,
+                        startEpochDay = bar.startEpochDay,
+                        endEpochDay = bar.endEpochDay,
+                        totalIncome = MinorMoney(cycleIncomeMinor.coerceAtLeast(0L)),
+                        totalExpense = MinorMoney(cycleExpenseMinor.coerceAtLeast(0L)),
+                        netSavings = MinorMoney(cycleIncomeMinor - cycleExpenseMinor)
+                    )
+                }
+
                 CategoryDrillDownState(
                     categoryStat = stat,
                     categoryType = ctrl.selectedCategoryType,
                     transactions = matchingTxns,
-                    matchingBudget = matchingBudget
+                    matchingBudget = matchingBudget,
+                    categorySixMonthTrendBars = categoryTrendBars
                 )
             } else {
                 null
@@ -621,6 +671,7 @@ class StatsAndBudgetsViewModel(
             periodGranularity = ctrl.periodGranularity,
             selectedCategoryType = ctrl.selectedCategoryType,
             selectedRankingMode = ctrl.selectedRankingMode,
+            isRankingsAllTime = ctrl.isRankingsAllTime,
             selectedTrendChartMode = ctrl.selectedTrendChartMode,
             selectedNetWorthMetricFilter = ctrl.selectedNetWorthMetricFilter,
             referenceDateEpochDay = ctrl.referenceDateEpochDay,
@@ -662,7 +713,20 @@ class StatsAndBudgetsViewModel(
     )
 
     fun selectSubTab(subTab: StatsSubTab) {
-        controlState.update { it.copy(selectedSubTab = subTab) }
+        controlState.update { current ->
+            if (subTab == StatsSubTab.BUDGETS && current.periodGranularity != StatsPeriodGranularity.MONTHLY) {
+                current.copy(
+                    selectedSubTab = subTab,
+                    periodGranularity = StatsPeriodGranularity.MONTHLY
+                )
+            } else {
+                current.copy(selectedSubTab = subTab)
+            }
+        }
+    }
+
+    fun toggleRankingsAllTime() {
+        controlState.update { it.copy(isRankingsAllTime = !it.isRankingsAllTime) }
     }
 
     fun selectPeriodGranularity(granularity: StatsPeriodGranularity) {

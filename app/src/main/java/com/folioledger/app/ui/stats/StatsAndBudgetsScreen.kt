@@ -194,11 +194,13 @@ fun StatsAndBudgetsScreen(
                     }
                 },
                 trailingContent = {
-                    StatsPeriodGranularityDropdownChip(
-                        selectedGranularity = uiState.periodGranularity,
-                        onSelectGranularity = viewModel::selectPeriodGranularity,
-                        onOpenCustomDatePicker = { viewModel.setCustomDatePickerOpen(true) }
-                    )
+                    if (uiState.selectedSubTab != StatsSubTab.BUDGETS) {
+                        StatsPeriodGranularityDropdownChip(
+                            selectedGranularity = uiState.periodGranularity,
+                            onSelectGranularity = viewModel::selectPeriodGranularity,
+                            onOpenCustomDatePicker = { viewModel.setCustomDatePickerOpen(true) }
+                        )
+                    }
                 }
             )
 
@@ -265,7 +267,8 @@ fun StatsAndBudgetsScreen(
                     StatsSubTab.TAGS_AND_NOTES -> {
                         TagsAndNotesRankingsSubTabContent(
                             uiState = uiState,
-                            onSelectRankingMode = viewModel::selectRankingMode
+                            onSelectRankingMode = viewModel::selectRankingMode,
+                            onToggleRankingsAllTime = viewModel::toggleRankingsAllTime
                         )
                     }
                 }
@@ -286,7 +289,6 @@ fun StatsAndBudgetsScreen(
         CategoryDrillDownBottomSheet(
             drillDownState = drillDown,
             periodTitle = uiState.activePeriodRange.title,
-            sixMonthTrendBars = uiState.sixMonthTrendBars,
             currencySpec = uiState.currencySpec,
             grouping = uiState.numberGrouping,
             onConfigureBudgetForCategory = {
@@ -1423,7 +1425,8 @@ private fun BudgetProgressCard(
 @Composable
 private fun TagsAndNotesRankingsSubTabContent(
     uiState: StatsAndBudgetsUiState,
-    onSelectRankingMode: (RankingMode) -> Unit
+    onSelectRankingMode: (RankingMode) -> Unit,
+    onToggleRankingsAllTime: () -> Unit
 ) {
     val items = uiState.activeRankingItems
 
@@ -1482,6 +1485,35 @@ private fun TagsAndNotesRankingsSubTabContent(
                         modifier = Modifier.weight(1f)
                     )
                 }
+            }
+        }
+
+        // Sub-header with All-Time Scope Filter Chip
+        item {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = if (uiState.selectedRankingMode == RankingMode.TAGS) {
+                        "Ranked Tags (${items.size})"
+                    } else {
+                        "Ranked Payees & Notes (${items.size})"
+                    },
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                FilterChip(
+                    selected = uiState.isRankingsAllTime,
+                    onClick = onToggleRankingsAllTime,
+                    label = {
+                        Text(
+                            text = if (uiState.isRankingsAllTime) "All-Time" else "In ${uiState.activePeriodRange.title}",
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                )
             }
         }
 
@@ -1629,7 +1661,6 @@ private data class SubcategoryBreakdownItem(
 private fun CategoryDrillDownBottomSheet(
     drillDownState: CategoryDrillDownState,
     periodTitle: String,
-    sixMonthTrendBars: List<com.folioledger.app.domain.model.MonthlyTrendBar>,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onConfigureBudgetForCategory: () -> Unit,
@@ -1898,15 +1929,47 @@ private fun CategoryDrillDownBottomSheet(
                 }
             }
 
-            if (sixMonthTrendBars.isNotEmpty()) {
+            if (drillDownState.categorySixMonthTrendBars.isNotEmpty()) {
                 item {
-                    SixMonthSmoothTrendAreaChart(
-                        bars = sixMonthTrendBars,
-                        currencySpec = currencySpec,
-                        grouping = grouping,
-                        categoryType = drillDownState.categoryType,
-                        chartHeight = 160.dp
-                    )
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        ),
+                        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(14.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "6-Month Trend · ${stat.categoryName}",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Past 6 Cycles",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            HorizontalDivider(color = semanticColors.cardStrokeSubtle)
+                            SixMonthSmoothTrendAreaChart(
+                                bars = drillDownState.categorySixMonthTrendBars,
+                                currencySpec = currencySpec,
+                                grouping = grouping,
+                                categoryType = drillDownState.categoryType,
+                                chartHeight = 150.dp,
+                                customColor = catColor
+                            )
+                        }
+                    }
                 }
             }
 
