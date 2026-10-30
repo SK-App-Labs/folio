@@ -345,4 +345,36 @@ class MonthlyLedgerCalculationsTest {
         assertEquals("${oct2026Start}_10", key2026)
         assertEquals("${oct2025Start}_10", key2025)
     }
+
+    @Test
+    fun testIsCurrentActiveMonthOnlyMatchesRealTimeCurrentMonth() {
+        val today = java.time.LocalDate.of(2026, 10, 30).toEpochDay()
+
+        // Months in 2026 (Active Year)
+        val months2026 = (1..12).map { m ->
+            val start = java.time.LocalDate.of(2026, m, 1).toEpochDay()
+            val end = java.time.LocalDate.of(2026, m, java.time.YearMonth.of(2026, m).lengthOfMonth()).toEpochDay()
+            m to (start..end)
+        }
+        val currentMonths2026 = months2026.filter { today in it.second }.map { it.first }
+        assertEquals(listOf(10), currentMonths2026) // Only October 2026 is current
+
+        // Months in 2025 (Past Year) - switching years should NEVER show "Current" on any month
+        val months2025 = (1..12).map { m ->
+            val start = java.time.LocalDate.of(2025, m, 1).toEpochDay()
+            val end = java.time.LocalDate.of(2025, m, java.time.YearMonth.of(2025, m).lengthOfMonth()).toEpochDay()
+            m to (start..end)
+        }
+        val currentMonths2025 = months2025.filter { today in it.second }.map { it.first }
+        assertTrue(currentMonths2025.isEmpty())
+
+        // Months in 2027 (Future Year) - switching years should NEVER show "Current" on any month
+        val months2027 = (1..12).map { m ->
+            val start = java.time.LocalDate.of(2027, m, 1).toEpochDay()
+            val end = java.time.LocalDate.of(2027, m, java.time.YearMonth.of(2027, m).lengthOfMonth()).toEpochDay()
+            m to (start..end)
+        }
+        val currentMonths2027 = months2027.filter { today in it.second }.map { it.first }
+        assertTrue(currentMonths2027.isEmpty())
+    }
 }

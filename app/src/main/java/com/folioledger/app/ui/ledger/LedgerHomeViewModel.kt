@@ -590,7 +590,7 @@ class LedgerHomeViewModel(
             YearlyMonthOverviewItem(
                 monthIndex = idx + 1,
                 periodRange = monthRange,
-                isCurrentActiveMonth = monthRange.startEpochDay == periodRange.startEpochDay,
+                isCurrentActiveMonth = todayEpochDay in monthRange.startEpochDay..monthRange.endEpochDay,
                 incomeTotal = mIncome,
                 expenseTotal = mExpense,
                 netTotal = mIncome - mExpense,
