@@ -111,6 +111,7 @@ import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SpendRankingItem
 import com.folioledger.app.domain.model.TransactionItem
+import com.folioledger.app.ui.accounts.sheets.CreditCardSettlementBottomSheet
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.CreditHealthDashboardCard
 import com.folioledger.app.ui.components.EmptyStateCard
@@ -194,7 +195,7 @@ fun StatsAndBudgetsScreen(
                     }
                 },
                 trailingContent = {
-                    if (uiState.selectedSubTab != StatsSubTab.BUDGETS) {
+                    if (uiState.selectedSubTab != StatsSubTab.BUDGETS && uiState.selectedSubTab != StatsSubTab.CREDIT_CARDS) {
                         StatsPeriodGranularityDropdownChip(
                             selectedGranularity = uiState.periodGranularity,
                             onSelectGranularity = viewModel::selectPeriodGranularity,
@@ -246,6 +247,21 @@ fun StatsAndBudgetsScreen(
                             onSelectTrendChartMode = viewModel::selectTrendChartMode,
                             onSelectNetWorthChartMetricFilter = viewModel::selectNetWorthChartMetricFilter
                         )
+                    }
+
+                    StatsSubTab.CREDIT_CARDS -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Credit Cards Cockpit (${uiState.creditCockpitState.activeCards.size} Cards)",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
 
                     StatsSubTab.BUDGETS -> {
@@ -319,6 +335,20 @@ fun StatsAndBudgetsScreen(
                 }
             },
             onDismiss = viewModel::dismissBudgetEditorDialog
+        )
+    }
+
+    val settlementState = uiState.settlementSheetState
+    if (settlementState != null) {
+        CreditCardSettlementBottomSheet(
+            state = settlementState,
+            assetAccounts = uiState.assetAccountsForSettlement,
+            grouping = uiState.numberGrouping,
+            isSaving = uiState.isSettlementSaving,
+            onSelectPreset = viewModel::selectSettlementPreset,
+            onUpdateState = viewModel::updateSettlementSheetState,
+            onConfirmSettlement = viewModel::submitCreditCardSettlement,
+            onDismiss = viewModel::dismissSettlementSheet
         )
     }
 }
