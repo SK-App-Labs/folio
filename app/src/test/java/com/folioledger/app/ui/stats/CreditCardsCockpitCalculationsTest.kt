@@ -55,9 +55,7 @@ class CreditCardsCockpitCalculationsTest {
         amountMinor: Long,
         type: TransactionType,
         epochDay: Long = refEpochDay,
-        categoryName: String = "Shopping",
-        categoryIconName: String? = "shopping_bag",
-        categoryColorHex: String? = "#8B5CF6"
+        categoryName: String = "Shopping"
     ) = TransactionItem(
         id = id,
         accountId = accountId,
@@ -69,8 +67,6 @@ class CreditCardsCockpitCalculationsTest {
         timestampEpochMillis = epochDay * 86_400_000L,
         categoryId = 100L,
         categoryName = categoryName,
-        categoryIconName = categoryIconName,
-        categoryColorHex = categoryColorHex,
         note = "Test Tx",
         payeeOrDescription = "Merchant",
         tags = emptyList(),
@@ -246,52 +242,5 @@ class CreditCardsCockpitCalculationsTest {
 
         assertNotNull("Should detect single card spike", spikeCard)
         assertEquals("Small Card", spikeCard?.name)
-    }
-
-    @Test
-    fun testCardTopCategorySpendAndIconExtraction() {
-        val cardId = 42L
-        val txs = listOf(
-            createTestTransaction(1, cardId, 3_000_00L, TransactionType.EXPENSE, categoryName = "Dining", categoryIconName = "restaurant", categoryColorHex = "#F59E0B"),
-            createTestTransaction(2, cardId, 2_000_00L, TransactionType.EXPENSE, categoryName = "Dining", categoryIconName = "restaurant", categoryColorHex = "#F59E0B"),
-            createTestTransaction(3, cardId, 4_000_00L, TransactionType.EXPENSE, categoryName = "Shopping", categoryIconName = "shopping_bag", categoryColorHex = "#8B5CF6"),
-            createTestTransaction(4, cardId, 1_000_00L, TransactionType.EXPENSE, categoryName = "Fuel", categoryIconName = "local_gas_station", categoryColorHex = "#EF4444")
-        )
-
-        // Total: Dining 5,000, Shopping 4,000, Fuel 1,000 -> Total YTD = 10,000
-        var ytdMinor = 0L
-        data class CategorySpendTracker(
-            val name: String,
-            val iconName: String?,
-            val colorHex: String?,
-            var totalMinor: Long
-        )
-        val catSpendMap = mutableMapOf<String, CategorySpendTracker>()
-        for (tx in txs) {
-            val amt = Math.abs(tx.amount.amountMinor)
-            ytdMinor += amt
-            val catName = tx.categoryName ?: "General"
-            val existing = catSpendMap[catName]
-            if (existing != null) {
-                existing.totalMinor += amt
-            } else {
-                catSpendMap[catName] = CategorySpendTracker(
-                    name = catName,
-                    iconName = tx.categoryIconName,
-                    colorHex = tx.categoryColorHex,
-                    totalMinor = amt
-                )
-            }
-        }
-
-        val topCatEntry = catSpendMap.values.maxByOrNull { it.totalMinor }
-        assertNotNull(topCatEntry)
-        assertEquals("Dining", topCatEntry?.name)
-        assertEquals("restaurant", topCatEntry?.iconName)
-        assertEquals("#F59E0B", topCatEntry?.colorHex)
-        assertEquals(5_000_00L, topCatEntry?.totalMinor)
-
-        val topPercent = (topCatEntry!!.totalMinor.toFloat() / ytdMinor.toFloat()) * 100f
-        assertEquals(50f, topPercent, 0.01f)
     }
 }

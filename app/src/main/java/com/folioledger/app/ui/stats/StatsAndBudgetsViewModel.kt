@@ -147,9 +147,7 @@ data class CreditCardAnalyticsItem(
     val ytdSpend: MinorMoney,
     val topCategoryName: String?,
     val topCategoryPercent: Float,
-    val floatDaysRemaining: Long,
-    val topCategoryIconName: String? = null,
-    val topCategoryColorHex: String? = null
+    val floatDaysRemaining: Long
 )
 
 @Immutable
@@ -1554,38 +1552,20 @@ class StatsAndBudgetsViewModel(
 
             // Card YTD Spend & Top Category
             var ytdMinor = 0L
-            data class CategorySpendTracker(
-                val name: String,
-                val iconName: String?,
-                val colorHex: String?,
-                var totalMinor: Long
-            )
-            val catSpendMap = mutableMapOf<String, CategorySpendTracker>()
+            val catSpendMap = mutableMapOf<String, Long>()
             for (tx in allTxs) {
                 if (tx.accountId == card.id && tx.type == TransactionType.EXPENSE && tx.ledgerDateEpochDay >= currentYearStartEpoch) {
                     val amt = Math.abs(tx.amount.amountMinor)
                     ytdMinor += amt
                     val catName = tx.categoryName ?: "General"
-                    val existing = catSpendMap[catName]
-                    if (existing != null) {
-                        existing.totalMinor += amt
-                    } else {
-                        catSpendMap[catName] = CategorySpendTracker(
-                            name = catName,
-                            iconName = tx.categoryIconName,
-                            colorHex = tx.categoryColorHex,
-                            totalMinor = amt
-                        )
-                    }
+                    catSpendMap[catName] = (catSpendMap[catName] ?: 0L) + amt
                 }
             }
             val ytdSpend = MinorMoney(ytdMinor)
-            val topCatEntry = catSpendMap.values.maxByOrNull { it.totalMinor }
-            val topCategoryName = topCatEntry?.name
-            val topCategoryIconName = topCatEntry?.iconName
-            val topCategoryColorHex = topCatEntry?.colorHex
+            val topCatEntry = catSpendMap.maxByOrNull { it.value }
+            val topCategoryName = topCatEntry?.key
             val topCategoryPercent = if (ytdMinor > 0L && topCatEntry != null) {
-                (topCatEntry.totalMinor.toFloat() / ytdMinor.toFloat() * 100f).coerceIn(0f, 100f)
+                (topCatEntry.value.toFloat() / ytdMinor.toFloat() * 100f).coerceIn(0f, 100f)
             } else {
                 0f
             }
@@ -1602,9 +1582,7 @@ class StatsAndBudgetsViewModel(
                 ytdSpend = ytdSpend,
                 topCategoryName = topCategoryName,
                 topCategoryPercent = topCategoryPercent,
-                floatDaysRemaining = floatDays,
-                topCategoryIconName = topCategoryIconName,
-                topCategoryColorHex = topCategoryColorHex
+                floatDaysRemaining = floatDays
             )
             cardAnalyticsItems.add(analyticsItem)
 

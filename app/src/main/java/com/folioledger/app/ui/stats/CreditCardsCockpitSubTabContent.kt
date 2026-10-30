@@ -662,6 +662,62 @@ private fun CreditPaymentTimelineSection(
             )
         }
 
+        val allBilledSettled = timelineItems.none { it.isBilled && it.amountDue.isPositive }
+        if (allBilledSettled) {
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = semanticColors.incomeEmeraldContainer.copy(alpha = 0.5f),
+                border = BorderStroke(1.dp, semanticColors.incomeEmerald.copy(alpha = 0.35f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = "🎉",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                            Text(
+                                text = "All Statements Settled!",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = semanticColors.incomeEmerald
+                            )
+                            Text(
+                                text = "Zero card bills due right now. Enjoy your grace float.",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier.padding(start = 6.dp)
+                    ) {
+                        Text(
+                            text = "CLEAR",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            color = semanticColors.incomeEmerald,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+            }
+        }
+
         Card(
             shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(
@@ -888,7 +944,6 @@ private fun CardAnalyticsItemRow(
     grouping: NumberGroupingSystem
 ) {
     val semanticColors = LocalFolioSemanticColors.current
-    val cardColor = remember(item.account.colorHex) { parseHexColorSafely(item.account.colorHex) }
     val cardSpec = remember(item.account.currencyCode) {
         SupportedCurrencies.getByCode(item.account.currencyCode)
             ?: SupportedCurrencies.fromCode(item.account.currencyCode)
@@ -1018,44 +1073,18 @@ private fun CardAnalyticsItemRow(
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.outline,
-                        modifier = Modifier.padding(bottom = 2.dp)
+                        color = MaterialTheme.colorScheme.outline
                     )
-                    if (item.topCategoryName != null) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                modifier = Modifier.padding(start = 4.dp, end = 7.dp, top = 2.5.dp, bottom = 2.5.dp)
-                            ) {
-                                CategoryIconBadge(
-                                    iconName = item.topCategoryIconName ?: "category",
-                                    colorHex = item.topCategoryColorHex ?: item.account.colorHex,
-                                    size = 18.dp,
-                                    iconSize = 11.dp
-                                )
-                                Text(
-                                    text = "${item.topCategoryName} · ${String.format(Locale.US, "%.0f", item.topCategoryPercent)}%",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontSize = 10.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    } else {
-                        Text(
-                            text = "None Yet",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Text(
+                        text = if (item.topCategoryName != null) {
+                            "${item.topCategoryName} · ${String.format(Locale.US, "%.0f", item.topCategoryPercent)}%"
+                        } else {
+                            "None Yet"
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
             }
         }
