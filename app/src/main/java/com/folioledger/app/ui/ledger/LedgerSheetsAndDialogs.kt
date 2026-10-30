@@ -3,11 +3,14 @@ package com.folioledger.app.ui.ledger
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -19,12 +22,14 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -55,6 +60,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
@@ -438,312 +444,413 @@ internal fun ReinforcedSearchFilterBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
         containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(start = 20.dp, end = 20.dp, bottom = 32.dp)
+                .fillMaxHeight(0.88f)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+            // FIXED HEADER (Non-scrollable: dragging down anywhere here directly pulls down and dismisses the sheet smoothly)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
             ) {
-                Text(
-                    text = "Search & Multi-Filter",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = onClearAll) {
-                        Text("Reset All")
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Search & Multi-Filter",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = onClearAll) {
+                            Text("Reset All")
+                        }
+                        IconButton(onClick = onDismiss) {
+                            Icon(imageVector = Icons.Filled.Close, contentDescription = "Close")
+                        }
                     }
-                    IconButton(onClick = onDismiss) {
-                        Icon(imageVector = Icons.Filled.Close, contentDescription = "Close")
+                }
+
+                OutlinedTextField(
+                    value = filter.queryText,
+                    onValueChange = onQueryChange,
+                    label = { Text("Keyword (Payee, Description, Note)") },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    trailingIcon = {
+                        if (filter.queryText.isNotEmpty()) {
+                            IconButton(onClick = { onQueryChange("") }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Clear,
+                                    contentDescription = "Clear search"
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Search
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onSearch = { onDismiss() }
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Scope Filter to Selected Month (${uiState.activePeriodRange.title})",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Follows < Prev / Next > month navigation automatically",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = !uiState.filterAllPeriods,
+                        onCheckedChange = { scopeToMonth -> onFilterAllPeriodsChange(!scopeToMonth) }
+                    )
+                }
+
+                HorizontalDivider(color = semanticColors.cardStrokeSubtle)
+
+                // 3-Tab Filter Switcher
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    FilterTabPill(
+                        title = "Expense",
+                        badgeCount = uiState.expenseFilterCount,
+                        selected = selectedFilterTab == LedgerFilterSheetTab.EXPENSE,
+                        selectedColor = semanticColors.expenseCoral,
+                        onClick = { selectedFilterTab = LedgerFilterSheetTab.EXPENSE },
+                        modifier = Modifier.weight(1f)
+                    )
+                    FilterTabPill(
+                        title = "Income",
+                        badgeCount = uiState.incomeFilterCount,
+                        selected = selectedFilterTab == LedgerFilterSheetTab.INCOME,
+                        selectedColor = semanticColors.incomeEmerald,
+                        onClick = { selectedFilterTab = LedgerFilterSheetTab.INCOME },
+                        modifier = Modifier.weight(1f)
+                    )
+                    FilterTabPill(
+                        title = "Accounts & Range",
+                        badgeCount = uiState.accountFilterCount,
+                        selected = selectedFilterTab == LedgerFilterSheetTab.ACCOUNTS,
+                        selectedColor = semanticColors.transferBlue,
+                        onClick = { selectedFilterTab = LedgerFilterSheetTab.ACCOUNTS },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // SCROLLABLE TAB CONTENT (Scrolls internal options without blocking sheet drag from top)
+            val tabScrollState = rememberScrollState()
+            Column(
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(tabScrollState)
+                    .padding(horizontal = 20.dp, vertical = 6.dp)
+            ) {
+                when (selectedFilterTab) {
+                    LedgerFilterSheetTab.EXPENSE -> {
+                        Text(
+                            text = "Transaction Type",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            FilterChip(
+                                selected = TransactionType.EXPENSE in filter.types,
+                                onClick = { onToggleType(TransactionType.EXPENSE) },
+                                label = { Text("Expense") }
+                            )
+                            FilterChip(
+                                selected = TransactionType.REFUND in filter.types,
+                                onClick = { onToggleType(TransactionType.REFUND) },
+                                label = { Text("Refund") }
+                            )
+                        }
+
+                        if (uiState.expenseCategories.isNotEmpty()) {
+                            Text(
+                                text = "Expense Categories",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                uiState.expenseCategories.forEach { cat ->
+                                    FilterChip(
+                                        selected = cat.id in filter.categoryIds,
+                                        onClick = { onToggleCategory(cat.id) },
+                                        leadingIcon = {
+                                            CategoryIconBadge(
+                                                iconName = cat.iconName,
+                                                colorHex = cat.colorHex,
+                                                size = 18.dp,
+                                                iconSize = 12.dp
+                                            )
+                                        },
+                                        label = { Text(cat.name) }
+                                    )
+                                    cat.subcategories.forEach { sub ->
+                                        FilterChip(
+                                            selected = sub.id in filter.categoryIds,
+                                            onClick = { onToggleCategory(sub.id) },
+                                            leadingIcon = {
+                                                CategoryIconBadge(
+                                                    iconName = sub.iconName,
+                                                    colorHex = sub.colorHex,
+                                                    size = 18.dp,
+                                                    iconSize = 12.dp
+                                                )
+                                            },
+                                            label = { Text("${cat.name} › ${sub.name}") }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        if (uiState.availableTags.isNotEmpty()) {
+                            Text(
+                                text = "Spending Tags",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                uiState.availableTags.forEach { tag ->
+                                    FilterChip(
+                                        selected = tag in filter.tags,
+                                        onClick = { onToggleTag(tag) },
+                                        label = { Text("#$tag") }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    LedgerFilterSheetTab.INCOME -> {
+                        Text(
+                            text = "Transaction Type",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            FilterChip(
+                                selected = TransactionType.INCOME in filter.types,
+                                onClick = { onToggleType(TransactionType.INCOME) },
+                                label = { Text("Income") }
+                            )
+                        }
+
+                        if (uiState.incomeCategories.isNotEmpty()) {
+                            Text(
+                                text = "Income Categories",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                uiState.incomeCategories.forEach { cat ->
+                                    FilterChip(
+                                        selected = cat.id in filter.categoryIds,
+                                        onClick = { onToggleCategory(cat.id) },
+                                        leadingIcon = {
+                                            CategoryIconBadge(
+                                                iconName = cat.iconName,
+                                                colorHex = cat.colorHex,
+                                                size = 18.dp,
+                                                iconSize = 12.dp
+                                            )
+                                        },
+                                        label = { Text(cat.name) }
+                                    )
+                                    cat.subcategories.forEach { sub ->
+                                        FilterChip(
+                                            selected = sub.id in filter.categoryIds,
+                                            onClick = { onToggleCategory(sub.id) },
+                                            leadingIcon = {
+                                                CategoryIconBadge(
+                                                    iconName = sub.iconName,
+                                                    colorHex = sub.colorHex,
+                                                    size = 18.dp,
+                                                    iconSize = 12.dp
+                                                )
+                                            },
+                                            label = { Text("${cat.name} › ${sub.name}") }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    LedgerFilterSheetTab.ACCOUNTS -> {
+                        if (uiState.availableAccounts.isNotEmpty()) {
+                            val accountsByGroup = remember(uiState.availableAccounts) {
+                                uiState.availableAccounts.groupBy { it.groupType }
+                            }
+
+                            accountsByGroup.forEach { (group, accList) ->
+                                val groupTitle = when (group) {
+                                    AccountGroup.BANK_ACCOUNT -> "Bank Accounts"
+                                    AccountGroup.SAVINGS -> "Savings Accounts"
+                                    AccountGroup.CREDIT_CARD -> "Credit Cards"
+                                    AccountGroup.DEBIT_CARD -> "Debit Cards"
+                                    AccountGroup.CASH -> "Cash"
+                                    AccountGroup.PREPAID_WALLET -> "Wallets"
+                                    AccountGroup.LOAN -> "Loans & Liabilities"
+                                    else -> group.name.replace('_', ' ')
+                                }
+
+                                Text(
+                                    text = "$groupTitle (${accList.size})",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    accList.forEach { account ->
+                                        FilterChip(
+                                            selected = account.id in filter.accountIds,
+                                            onClick = { onToggleAccount(account.id) },
+                                            leadingIcon = {
+                                                CategoryIconBadge(
+                                                    iconName = account.iconName,
+                                                    colorHex = account.colorHex,
+                                                    size = 18.dp,
+                                                    iconSize = 12.dp
+                                                )
+                                            },
+                                            label = { Text(account.name) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Text(
+                            text = "Transfers & Settlements",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        val isTransferSelected = TransactionType.TRANSFER in filter.types || TransactionType.CC_SETTLEMENT in filter.types
+                        FilterChip(
+                            selected = isTransferSelected,
+                            onClick = onToggleTransfers,
+                            label = { Text("⇄ Internal Transfers & Settlements") }
+                        )
+
+                        Text(
+                            text = "Amount Range (${uiState.currencySpec.symbol})",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = uiState.minAmountFilterInput,
+                                onValueChange = { minVal ->
+                                    onUpdateAmountBounds(minVal, uiState.maxAmountFilterInput)
+                                },
+                                label = { Text("Min Amount") },
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Decimal,
+                                    imeAction = ImeAction.Next
+                                ),
+                                singleLine = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = uiState.maxAmountFilterInput,
+                                onValueChange = { maxVal ->
+                                    onUpdateAmountBounds(uiState.minAmountFilterInput, maxVal)
+                                },
+                                label = { Text("Max Amount") },
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Decimal,
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onDone = { onDismiss() }
+                                ),
+                                singleLine = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
                 }
             }
 
-            OutlinedTextField(
-                value = filter.queryText,
-                onValueChange = onQueryChange,
-                label = { Text("Keyword (Payee, Description, Note)") },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Text,
-                    imeAction = ImeAction.Search
-                ),
-                keyboardActions = KeyboardActions(
-                    onSearch = { onDismiss() }
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+            // PINNED FOOTER (Always visible, perfectly elevated, never scrolled away)
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 2.dp,
+                border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Scope Filter to Selected Month (${uiState.activePeriodRange.title})",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = "Follows < Prev / Next > month navigation automatically",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Switch(
-                    checked = !uiState.filterAllPeriods,
-                    onCheckedChange = { scopeToMonth -> onFilterAllPeriodsChange(!scopeToMonth) }
-                )
-            }
-
-            HorizontalDivider(color = semanticColors.cardStrokeSubtle)
-
-            // 3-Tab Filter Switcher
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                FilterTabPill(
-                    title = "Expense",
-                    badgeCount = uiState.expenseFilterCount,
-                    selected = selectedFilterTab == LedgerFilterSheetTab.EXPENSE,
-                    selectedColor = semanticColors.expenseCoral,
-                    onClick = { selectedFilterTab = LedgerFilterSheetTab.EXPENSE },
-                    modifier = Modifier.weight(1f)
-                )
-                FilterTabPill(
-                    title = "Income",
-                    badgeCount = uiState.incomeFilterCount,
-                    selected = selectedFilterTab == LedgerFilterSheetTab.INCOME,
-                    selectedColor = semanticColors.incomeEmerald,
-                    onClick = { selectedFilterTab = LedgerFilterSheetTab.INCOME },
-                    modifier = Modifier.weight(1f)
-                )
-                FilterTabPill(
-                    title = "Accounts & Range",
-                    badgeCount = uiState.accountFilterCount,
-                    selected = selectedFilterTab == LedgerFilterSheetTab.ACCOUNTS,
-                    selectedColor = semanticColors.transferBlue,
-                    onClick = { selectedFilterTab = LedgerFilterSheetTab.ACCOUNTS },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            when (selectedFilterTab) {
-                LedgerFilterSheetTab.EXPENSE -> {
-                    Text(
-                        text = "Transaction Type",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        FilterChip(
-                            selected = TransactionType.EXPENSE in filter.types,
-                            onClick = { onToggleType(TransactionType.EXPENSE) },
-                            label = { Text("Expense") }
-                        )
-                        FilterChip(
-                            selected = TransactionType.REFUND in filter.types,
-                            onClick = { onToggleType(TransactionType.REFUND) },
-                            label = { Text("Refund") }
-                        )
-                    }
-
-                    if (uiState.expenseCategories.isNotEmpty()) {
-                        Text(
-                            text = "Expense Categories (${uiState.expenseCategories.size})",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            uiState.expenseCategories.forEach { cat ->
-                                FilterChip(
-                                    selected = cat.id in filter.categoryIds,
-                                    onClick = { onToggleCategory(cat.id) },
-                                    leadingIcon = {
-                                        CategoryIconBadge(
-                                            iconName = cat.iconName,
-                                            colorHex = cat.colorHex,
-                                            size = 18.dp,
-                                            iconSize = 12.dp
-                                        )
-                                    },
-                                    label = { Text(cat.name) }
-                                )
-                            }
-                        }
-                    }
-
-                    if (uiState.availableTags.isNotEmpty()) {
-                        Text(
-                            text = "Spending Tags",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            uiState.availableTags.forEach { tag ->
-                                FilterChip(
-                                    selected = tag in filter.tags,
-                                    onClick = { onToggleTag(tag) },
-                                    label = { Text("#$tag") }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                LedgerFilterSheetTab.INCOME -> {
-                    Text(
-                        text = "Transaction Type",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        FilterChip(
-                            selected = TransactionType.INCOME in filter.types,
-                            onClick = { onToggleType(TransactionType.INCOME) },
-                            label = { Text("Income") }
-                        )
-                    }
-
-                    if (uiState.incomeCategories.isNotEmpty()) {
-                        Text(
-                            text = "Income Categories (${uiState.incomeCategories.size})",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            uiState.incomeCategories.forEach { cat ->
-                                FilterChip(
-                                    selected = cat.id in filter.categoryIds,
-                                    onClick = { onToggleCategory(cat.id) },
-                                    leadingIcon = {
-                                        CategoryIconBadge(
-                                            iconName = cat.iconName,
-                                            colorHex = cat.colorHex,
-                                            size = 18.dp,
-                                            iconSize = 12.dp
-                                        )
-                                    },
-                                    label = { Text(cat.name) }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                LedgerFilterSheetTab.ACCOUNTS -> {
-                    if (uiState.availableAccounts.isNotEmpty()) {
-                        Text(
-                            text = "Accounts (${uiState.availableAccounts.size})",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            uiState.availableAccounts.forEach { account ->
-                                FilterChip(
-                                    selected = account.id in filter.accountIds,
-                                    onClick = { onToggleAccount(account.id) },
-                                    leadingIcon = {
-                                        CategoryIconBadge(
-                                            iconName = account.iconName,
-                                            colorHex = account.colorHex,
-                                            size = 18.dp,
-                                            iconSize = 12.dp
-                                        )
-                                    },
-                                    label = { Text(account.name) }
-                                )
-                            }
-                        }
-                    }
-
-                    Text(
-                        text = "Transfers & Settlements",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    val isTransferSelected = TransactionType.TRANSFER in filter.types || TransactionType.CC_SETTLEMENT in filter.types
-                    FilterChip(
-                        selected = isTransferSelected,
-                        onClick = onToggleTransfers,
-                        label = { Text("⇄ Internal Transfers & Settlements") }
-                    )
-
-                    Text(
-                        text = "Amount Range (${uiState.currencySpec.symbol})",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 10.dp)
+                ) {
+                    Button(
+                        onClick = onDismiss,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        OutlinedTextField(
-                            value = uiState.minAmountFilterInput,
-                            onValueChange = { minVal ->
-                                onUpdateAmountBounds(minVal, uiState.maxAmountFilterInput)
-                            },
-                            label = { Text("Min Amount") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = uiState.maxAmountFilterInput,
-                            onValueChange = { maxVal ->
-                                onUpdateAmountBounds(uiState.minAmountFilterInput, maxVal)
-                            },
-                            label = { Text("Max Amount") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
+                        Text(
+                            text = if (uiState.filteredTransactions.isNotEmpty()) {
+                                "Apply Filters (${uiState.filteredTransactions.size} Results)"
+                            } else if (uiState.isFilterActive) {
+                                "Apply Filters (0 Results)"
+                            } else {
+                                "Close Filters"
+                            }
                         )
                     }
                 }
-            }
-
-            Button(
-                onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = if (uiState.filteredTransactions.isNotEmpty()) {
-                        "Apply Filters (${uiState.filteredTransactions.size} Results)"
-                    } else if (uiState.isFilterActive) {
-                        "Apply Filters (0 Results)"
-                    } else {
-                        "Close Filters"
-                    }
-                )
             }
         }
     }
