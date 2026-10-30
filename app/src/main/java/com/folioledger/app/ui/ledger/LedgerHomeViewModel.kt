@@ -138,10 +138,12 @@ data class DailyLedgerGroup(
     val dayOfWeekText: String,
     val monthYearText: String,
     val isToday: Boolean,
-    val dailyIncome: MinorMoney,
-    val dailyExpense: MinorMoney,
-    val dailyNet: MinorMoney,
-    val transactions: List<TransactionItem>
+    val dailyIncome: MinorMoney = MinorMoney.ZERO,
+    val dailyExpense: MinorMoney = MinorMoney.ZERO,
+    val dailyNet: MinorMoney = MinorMoney.ZERO,
+    val dailyTransferTotal: MinorMoney = MinorMoney.ZERO,
+    val transferCount: Int = 0,
+    val transactions: List<TransactionItem> = emptyList()
 )
 
 @Immutable
@@ -1141,6 +1143,21 @@ class LedgerHomeViewModel(
                     primaryCurrencySpec = primaryCurrencySpec,
                     secondaryCurrencies = secondaryCurrencies
                 )
+                val transferTxns = sortedTxns.filter { it.type == TransactionType.TRANSFER || it.type == TransactionType.CC_SETTLEMENT }
+                val transferTotalMinor = transferTxns.sumOf { tx ->
+                    if (primaryCurrencySpec != null && tx.currencyCode != primaryCurrencySpec.code) {
+                        val rate = secondaryCurrencies.firstOrNull { it.code == tx.currencyCode }?.exchangeRateToPrimary ?: 1.0
+                        val sourceSpec = SupportedCurrencies.fromCode(tx.currencyCode)
+                        MoneyFormatterAndCalculator.convertMinorMoney(
+                            sourceMinor = tx.amount.amountMinor,
+                            sourceFractionDigits = sourceSpec.fractionDigits,
+                            targetFractionDigits = primaryCurrencySpec.fractionDigits,
+                            rateToTarget = rate
+                        )
+                    } else {
+                        tx.amount.amountMinor
+                    }
+                }
                 DailyLedgerGroup(
                     epochDay = epochDay,
                     dayOfMonthText = String.format(Locale.US, "%02d", date.dayOfMonth),
@@ -1152,6 +1169,8 @@ class LedgerHomeViewModel(
                     dailyIncome = dayInc,
                     dailyExpense = dayExp,
                     dailyNet = dayInc - dayExp,
+                    dailyTransferTotal = MinorMoney(transferTotalMinor),
+                    transferCount = transferTxns.size,
                     transactions = sortedTxns
                 )
             }

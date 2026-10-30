@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -41,18 +42,25 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
@@ -74,6 +82,23 @@ internal fun TransactionDetailActionSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    val txCurrency = remember(transaction.currencyCode, currencySpec) {
+        SupportedCurrencies.getByCode(transaction.currencyCode) ?: currencySpec
+    }
+
+    val categoryTitle = remember(transaction.parentCategoryName, transaction.categoryName, transaction.type) {
+        when {
+            !transaction.parentCategoryName.isNullOrBlank() && !transaction.categoryName.isNullOrBlank() ->
+                "${transaction.parentCategoryName} › ${transaction.categoryName}"
+            !transaction.categoryName.isNullOrBlank() ->
+                transaction.categoryName
+            else ->
+                transaction.type.name.replace('_', ' ')
+        }
+    }
+
     val dateFormatted = remember(transaction.ledgerDateEpochDay) {
         LocalDate.ofEpochDay(transaction.ledgerDateEpochDay)
             .format(DateTimeFormatter.ofPattern("EEEE, dd MMM yyyy", Locale.US))
@@ -105,8 +130,7 @@ internal fun TransactionDetailActionSheet(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = transaction.categoryName
-                                ?: transaction.type.name.replace('_', ' '),
+                            text = categoryTitle,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
@@ -120,7 +144,7 @@ internal fun TransactionDetailActionSheet(
 
                 MoneyText(
                     money = transaction.amount,
-                    currencySpec = currencySpec,
+                    currencySpec = txCurrency,
                     grouping = grouping,
                     colorMode = MoneyColorMode.fromTransactionType(transaction.type),
                     style = MaterialTheme.typography.headlineSmall,
@@ -215,7 +239,7 @@ internal fun TransactionDetailActionSheet(
                                 )
                                 MoneyText(
                                     money = split.amount,
-                                    currencySpec = currencySpec,
+                                    currencySpec = txCurrency,
                                     grouping = grouping,
                                     colorMode = MoneyColorMode.NEUTRAL,
                                     style = MaterialTheme.typography.bodySmall,
@@ -250,7 +274,7 @@ internal fun TransactionDetailActionSheet(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 OutlinedButton(
-                    onClick = onDelete,
+                    onClick = { showDeleteConfirmation = true },
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = semanticColors.expenseCoral
                     ),
@@ -279,6 +303,33 @@ internal fun TransactionDetailActionSheet(
                 }
             }
         }
+    }
+
+    if (showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text("Delete Transaction") },
+            text = { Text("Are you sure you want to delete this transaction? This action cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirmation = false
+                        onDelete()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    )
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
@@ -337,6 +388,13 @@ internal fun ReinforcedSearchFilterBottomSheet(
                 label = { Text("Keyword (Payee, Description, Note)") },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Search
+                ),
+                keyboardActions = KeyboardActions(
+                    onSearch = { onDismiss() }
+                ),
                 modifier = Modifier.fillMaxWidth()
             )
 

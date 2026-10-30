@@ -465,4 +465,119 @@ class MonthlyLedgerCalculationsTest {
         val resolvedOct = if (today in octStart..octEnd) today else octStart
         assertEquals(today, resolvedOct) // Defaults to Today!
     }
+
+    @Test
+    fun testDailyLedgerGroupTransferTrackingAndConversion() {
+        val secondaryCurrencies = listOf(
+            SecondaryCurrency(code = "USD", exchangeRateToPrimary = 85.0)
+        )
+        val transferTx1 = TransactionItem(
+            id = 1L,
+            type = TransactionType.TRANSFER,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(500000L), // ₹5,000 INR
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Checking",
+            transferToAccountId = 2L,
+            transferToAccountName = "Savings"
+        )
+        val transferTx2 = TransactionItem(
+            id = 2L,
+            type = TransactionType.TRANSFER,
+            timestampEpochMillis = 2000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(1000L), // $10 USD (1000 cents) -> ₹850 (85000 paise)
+            currencyCode = "USD",
+            accountId = 3L,
+            accountName = "Forex",
+            transferToAccountId = 2L,
+            transferToAccountName = "Savings"
+        )
+        val dayTxns = listOf(transferTx1, transferTx2)
+
+        val transferTxns = dayTxns.filter { it.type == TransactionType.TRANSFER || it.type == TransactionType.CC_SETTLEMENT }
+        val transferTotalMinor = transferTxns.sumOf { tx ->
+            if (tx.currencyCode != inrSpec.code) {
+                val rate = secondaryCurrencies.firstOrNull { it.code == tx.currencyCode }?.exchangeRateToPrimary ?: 1.0
+                val sourceSpec = SupportedCurrencies.fromCode(tx.currencyCode)
+                MoneyFormatterAndCalculator.convertMinorMoney(
+                    sourceMinor = tx.amount.amountMinor,
+                    sourceFractionDigits = sourceSpec.fractionDigits,
+                    targetFractionDigits = inrSpec.fractionDigits,
+                    rateToTarget = rate
+                )
+            } else {
+                tx.amount.amountMinor
+            }
+        }
+
+        val dailyGroup = DailyLedgerGroup(
+            epochDay = 20000L,
+            dayOfMonthText = "15",
+            dayOfWeekText = "MON",
+            monthYearText = "Oct 2026",
+            isToday = false,
+            dailyIncome = MinorMoney.ZERO,
+            dailyExpense = MinorMoney.ZERO,
+            dailyNet = MinorMoney.ZERO,
+            dailyTransferTotal = MinorMoney(transferTotalMinor),
+            transferCount = transferTxns.size,
+            transactions = dayTxns
+        )
+
+        assertEquals(2, dailyGroup.transferCount)
+        // ₹5,000 (500000 paise) + ₹850 (85000 paise) = ₹5,850 (585000 paise)
+        assertEquals(585000L, dailyGroup.dailyTransferTotal.amountMinor)
+    }
+
+    @Test
+    fun testCategoryHierarchyFormatting() {
+        fun formatCategoryTitle(parentCategoryName: String?, categoryName: String?, type: TransactionType): String {
+            return when {
+                !parentCategoryName.isNullOrBlank() && !categoryName.isNullOrBlank() ->
+                    "$parentCategoryName › $categoryName"
+                !categoryName.isNullOrBlank() ->
+                    categoryName
+                else ->
+                    type.name.replace('_', ' ')
+            }
+        }
+
+        // Parent and child present
+        assertEquals("Food & Drinks › Coffee", formatCategoryTitle("Food & Drinks", "Coffee", TransactionType.EXPENSE))
+
+        // Only child present
+        assertEquals("Groceries", formatCategoryTitle(null, "Groceries", TransactionType.EXPENSE))
+        assertEquals("Groceries", formatCategoryTitle("", "Groceries", TransactionType.EXPENSE))
+
+        // Neither present -> falls back to type name formatted
+        assertEquals("EXPENSE", formatCategoryTitle(null, null, TransactionType.EXPENSE))
+        assertEquals("CC SETTLEMENT", formatCategoryTitle("", "", TransactionType.CC_SETTLEMENT))
+    }
+
+    @Test
+    fun testCurrencySpecResolutionInDetailSheet() {
+        // Transaction recorded in USD
+        val usdTx = TransactionItem(
+            id = 1L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(5000L), // $50.00
+            currencyCode = "USD",
+            accountId = 1L,
+            accountName = "US Card"
+        )
+        val resolvedSpec = SupportedCurrencies.getByCode(usdTx.currencyCode) ?: inrSpec
+        assertEquals("USD", resolvedSpec.code)
+        assertEquals("$", resolvedSpec.symbol)
+        assertEquals(2, resolvedSpec.fractionDigits)
+
+        // Formatted amount uses USD symbol, not primary INR ₹
+        val formatted = MoneyFormatterAndCalculator.formatMinorMoney(usdTx.amount, resolvedSpec)
+        assertTrue(formatted.contains("$"))
+        assertFalse(formatted.contains("₹"))
+    }
 }

@@ -34,6 +34,7 @@ import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
@@ -48,6 +49,7 @@ internal fun DailyDateGroupHeaderRow(
     grouping: NumberGroupingSystem,
     amountsAlpha: () -> Float = { 1f }
 ) {
+    val semanticColors = LocalFolioSemanticColors.current
     Surface(
         color = MaterialTheme.colorScheme.surface,
         modifier = Modifier.fillMaxWidth()
@@ -96,7 +98,8 @@ internal fun DailyDateGroupHeaderRow(
             }
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 if (group.dailyIncome.isPositive) {
                     MoneyText(
@@ -118,6 +121,20 @@ internal fun DailyDateGroupHeaderRow(
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold
                     )
+                }
+                if (!group.dailyIncome.isPositive && !group.dailyExpense.isPositive && group.transferCount > 0) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = semanticColors.transferBlueContainer.copy(alpha = 0.85f)
+                    ) {
+                        Text(
+                            text = "⇄ ${MoneyFormatterAndCalculator.formatMinorMoney(group.dailyTransferTotal, currencySpec, grouping)}",
+                            style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
+                            fontWeight = FontWeight.Bold,
+                            color = semanticColors.onTransferBlueContainer,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
                 }
             }
         }
