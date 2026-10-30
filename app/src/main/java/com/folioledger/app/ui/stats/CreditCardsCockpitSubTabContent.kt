@@ -888,6 +888,7 @@ private fun CardAnalyticsItemRow(
     grouping: NumberGroupingSystem
 ) {
     val semanticColors = LocalFolioSemanticColors.current
+    val cardColor = remember(item.account.colorHex) { parseHexColorSafely(item.account.colorHex) }
     val cardSpec = remember(item.account.currencyCode) {
         SupportedCurrencies.getByCode(item.account.currencyCode)
             ?: SupportedCurrencies.fromCode(item.account.currencyCode)
@@ -1017,18 +1018,44 @@ private fun CardAnalyticsItemRow(
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.outline
+                        color = MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.padding(bottom = 2.dp)
                     )
-                    Text(
-                        text = if (item.topCategoryName != null) {
-                            "${item.topCategoryName} · ${String.format(Locale.US, "%.0f", item.topCategoryPercent)}%"
-                        } else {
-                            "None Yet"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    if (item.topCategoryName != null) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(cardColor)
+                                )
+                                Text(
+                                    text = "${item.topCategoryName} · ${String.format(Locale.US, "%.0f", item.topCategoryPercent)}%",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = "None Yet",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
