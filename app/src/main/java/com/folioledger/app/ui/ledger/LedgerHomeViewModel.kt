@@ -823,6 +823,17 @@ class LedgerHomeViewModel(
         }
     }
 
+    fun drillDownToWeek(monthStartEpochDay: Long, weekIndex: Int) {
+        controlState.update { current ->
+            current.copy(
+                referenceDateEpochDay = monthStartEpochDay,
+                selectedCalendarDayEpochDay = monthStartEpochDay,
+                selectedSubTab = LedgerSubTab.WEEKLY,
+                expandedWeekIndices = setOf(weekIndex)
+            )
+        }
+    }
+
     fun inspectTransaction(transaction: TransactionItem?) {
         controlState.update { it.copy(inspectedTransaction = transaction) }
     }

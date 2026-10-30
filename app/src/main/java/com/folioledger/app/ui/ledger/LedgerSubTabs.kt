@@ -673,7 +673,8 @@ internal fun WeeklyLedgerSubTabContent(
 internal fun MonthlyLedgerSubTabContent(
     uiState: LedgerHomeUiState,
     onToggleMonth: (Int) -> Unit,
-    onDrillDownToMonth: (Long) -> Unit = {}
+    onDrillDownToMonth: (Long) -> Unit = {},
+    onDrillDownToWeek: (Long, Int) -> Unit = { _, _ -> }
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -888,7 +889,7 @@ internal fun MonthlyLedgerSubTabContent(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clip(RoundedCornerShape(6.dp))
-                                            .clickable { onDrillDownToMonth(week.startEpochDay) }
+                                            .clickable { onDrillDownToWeek(monthItem.periodRange.startEpochDay, week.weekIndex) }
                                             .padding(vertical = 4.dp, horizontal = 2.dp)
                                     ) {
                                         Text(

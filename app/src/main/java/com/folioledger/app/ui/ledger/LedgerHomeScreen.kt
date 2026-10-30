@@ -237,7 +237,8 @@ fun LedgerHomeScreen(
                                 MonthlyLedgerSubTabContent(
                                     uiState = uiState,
                                     onToggleMonth = viewModel::toggleYearlyMonthExpanded,
-                                    onDrillDownToMonth = viewModel::drillDownToMonth
+                                    onDrillDownToMonth = viewModel::drillDownToMonth,
+                                    onDrillDownToWeek = viewModel::drillDownToWeek
                                 )
                             }
 

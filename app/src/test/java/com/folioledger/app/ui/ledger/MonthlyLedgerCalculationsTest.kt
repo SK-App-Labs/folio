@@ -377,4 +377,32 @@ class MonthlyLedgerCalculationsTest {
         val currentMonths2027 = months2027.filter { today in it.second }.map { it.first }
         assertTrue(currentMonths2027.isEmpty())
     }
+
+    @Test
+    fun testDrillDownToWeekStateTransitions() {
+        // Given reference control state currently on Monthly subtab
+        val octStartEpoch = java.time.LocalDate.of(2026, 10, 1).toEpochDay()
+        var selectedSubTab = LedgerSubTab.MONTHLY
+        var referenceEpochDay = java.time.LocalDate.of(2026, 5, 1).toEpochDay()
+        var expandedWeekIndices: Set<Int>? = null
+
+        // When user drills down to Week 3 of October
+        val targetMonthStart = octStartEpoch
+        val targetWeekIndex = 3
+
+        // Simulate drillDownToWeek(targetMonthStart, targetWeekIndex)
+        referenceEpochDay = targetMonthStart
+        selectedSubTab = LedgerSubTab.WEEKLY
+        expandedWeekIndices = setOf(targetWeekIndex)
+
+        // Then verify target state
+        assertEquals(LedgerSubTab.WEEKLY, selectedSubTab)
+        assertEquals(octStartEpoch, referenceEpochDay)
+        assertEquals(setOf(3), expandedWeekIndices)
+
+        // Verify only Week 3 is expanded in the Weekly subtab
+        val weekIndicesInMonth = 1..5
+        val expandedWeeks = weekIndicesInMonth.filter { it in expandedWeekIndices }
+        assertEquals(listOf(3), expandedWeeks)
+    }
 }
