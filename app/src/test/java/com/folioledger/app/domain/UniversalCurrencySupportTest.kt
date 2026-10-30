@@ -75,4 +75,52 @@ class UniversalCurrencySupportTest {
         assertEquals("INR", fallback.code)
         assertEquals("₹", fallback.symbol)
     }
+
+    @Test
+    fun testConvertMinorMoney_SameDecimals() {
+        // $100.00 USD (10,000 cents) @ 85.00 INR/USD -> ₹8,500.00 (850,000 paise)
+        val converted = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.convertMinorMoney(
+            sourceMinor = 10_000L,
+            sourceFractionDigits = 2,
+            targetFractionDigits = 2,
+            rateToTarget = 85.0
+        )
+        assertEquals(850_000L, converted)
+    }
+
+    @Test
+    fun testConvertMinorMoney_DifferentDecimals_ZeroDecimalsToTwo() {
+        // 10,000 JPY (0 decimals) @ 0.55 INR/JPY -> ₹5,500.00 (550,000 paise)
+        val converted = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.convertMinorMoney(
+            sourceMinor = 10_000L,
+            sourceFractionDigits = 0,
+            targetFractionDigits = 2,
+            rateToTarget = 0.55
+        )
+        assertEquals(550_000L, converted)
+    }
+
+    @Test
+    fun testConvertMinorMoney_DifferentDecimals_ThreeDecimalsToTwo() {
+        // 10.000 KWD (10,000 minor, 3 decimals) @ 3.25 USD/KWD -> $32.50 (3,250 cents, 2 decimals)
+        val converted = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.convertMinorMoney(
+            sourceMinor = 10_000L,
+            sourceFractionDigits = 3,
+            targetFractionDigits = 2,
+            rateToTarget = 3.25
+        )
+        assertEquals(3_250L, converted)
+    }
+
+    @Test
+    fun testConvertMinorMoney_NegativeAmountPreserved() {
+        // -$50.00 USD (-5,000 cents) @ 85.00 INR/USD -> -₹4,250.00 (-425,000 paise)
+        val converted = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.convertMinorMoney(
+            sourceMinor = -5_000L,
+            sourceFractionDigits = 2,
+            targetFractionDigits = 2,
+            rateToTarget = 85.0
+        )
+        assertEquals(-425_000L, converted)
+    }
 }

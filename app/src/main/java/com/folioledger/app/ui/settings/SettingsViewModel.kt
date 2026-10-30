@@ -11,6 +11,7 @@ import com.folioledger.app.domain.model.ImportCsvResult
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.UserPreferences
@@ -156,13 +157,48 @@ class SettingsViewModel(
         val spec = SupportedCurrencies.fromCode(currencyCode)
         viewModelScope.launch {
             settingsAndBackupRepository.updateUserPreferences { current ->
+                val cleanSecondaries = current.secondaryCurrencies.filter { it.code != spec.code }
                 current.copy(
                     primaryCurrencyCode = spec.code,
+                    secondaryCurrencies = cleanSecondaries,
                     numberGrouping = spec.defaultGrouping
                 )
             }
             controlState.update {
                 it.copy(snackbarMessage = "Primary currency set to ${spec.displayName} (${spec.symbol})")
+            }
+        }
+    }
+
+    fun addOrUpdateSecondaryCurrency(code: String, rate: Double) {
+        val trimmedCode = code.trim().uppercase()
+        if (trimmedCode.isEmpty() || rate <= 0.0) return
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                if (trimmedCode == current.primaryCurrencyCode.uppercase()) {
+                    return@updateUserPreferences current
+                }
+                val updatedList = current.secondaryCurrencies
+                    .filter { it.code != trimmedCode }
+                    .plus(SecondaryCurrency(code = trimmedCode, exchangeRateToPrimary = rate))
+                    .sortedBy { it.code }
+                current.copy(secondaryCurrencies = updatedList)
+            }
+            controlState.update {
+                it.copy(snackbarMessage = "Secondary currency $trimmedCode updated (1 $trimmedCode = $rate)")
+            }
+        }
+    }
+
+    fun removeSecondaryCurrency(code: String) {
+        val trimmedCode = code.trim().uppercase()
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                val updatedList = current.secondaryCurrencies.filter { it.code != trimmedCode }
+                current.copy(secondaryCurrencies = updatedList)
+            }
+            controlState.update {
+                it.copy(snackbarMessage = "Removed $trimmedCode from secondary currencies")
             }
         }
     }

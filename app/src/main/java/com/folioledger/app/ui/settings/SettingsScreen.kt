@@ -479,6 +479,8 @@ fun SettingsScreen(
             prefs = prefs,
             onSelectCurrency = viewModel::setPrimaryCurrency,
             onSelectGroupingStyle = viewModel::setNumberGrouping,
+            onAddOrUpdateSecondaryCurrency = viewModel::addOrUpdateSecondaryCurrency,
+            onRemoveSecondaryCurrency = viewModel::removeSecondaryCurrency,
             onDismiss = { isRegionalFormatSheetOpen = false }
         )
     }

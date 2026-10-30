@@ -131,6 +131,8 @@ fun AccountsScreen(
             state = editorState,
             referenceDateEpochDay = uiState.referenceDateEpochDay,
             parentBankCandidates = uiState.parentBankCandidates,
+            primaryCurrencyCode = uiState.primaryCurrencyCode,
+            secondaryCurrencies = uiState.secondaryCurrencies,
             isSaving = uiState.isSaving,
             onUpdateState = viewModel::updateEditorDialogState,
             onSave = viewModel::saveAccountFromDialog,

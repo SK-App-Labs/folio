@@ -10,6 +10,7 @@ import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NetWorthOverview
 import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionSearchFilter
@@ -346,6 +347,8 @@ data class AccountsUiState(
     val passbookMonthOffset: Int = 0,
     val accountPassbook: AccountPassbookUiModel? = null,
     val currencySpec: CurrencySpec = SupportedCurrencies.INR,
+    val primaryCurrencyCode: String = "INR",
+    val secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
     val numberGrouping: NumberGroupingSystem = NumberGroupingSystem.INDIAN,
     val referenceDateEpochDay: Long = LocalDate.now().toEpochDay(),
     val showArchivedAccounts: Boolean = false,
@@ -479,6 +482,8 @@ class AccountsViewModel(
             passbookMonthOffset = ctrl.passbookMonthOffset,
             accountPassbook = passbookModel,
             currencySpec = currencySpec,
+            primaryCurrencyCode = prefs.primaryCurrencyCode,
+            secondaryCurrencies = prefs.secondaryCurrencies,
             numberGrouping = prefs.numberGrouping,
             referenceDateEpochDay = ctrl.referenceDateEpochDay,
             showArchivedAccounts = ctrl.showArchivedAccounts,

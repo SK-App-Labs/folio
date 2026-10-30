@@ -232,4 +232,30 @@ object MoneyFormatterAndCalculator {
             return BigDecimal(token)
         }
     }
+
+    /**
+     * Converts a minor currency amount (e.g. cents, paise) to another currency's minor units
+     * using a direct exchange rate (1 Unit of Source = [rateToTarget] Units of Target),
+     * correctly scaling for differences in fraction digits (e.g. JPY=0, USD=2, KWD=3).
+     */
+    fun convertMinorMoney(
+        sourceMinor: Long,
+        sourceFractionDigits: Int,
+        targetFractionDigits: Int,
+        rateToTarget: Double
+    ): Long {
+        if (rateToTarget <= 0.0 || sourceMinor == 0L) return sourceMinor
+        val sourceMajor = BigDecimal(sourceMinor).movePointLeft(sourceFractionDigits.coerceAtLeast(0))
+        val targetMajor = sourceMajor.multiply(BigDecimal.valueOf(rateToTarget))
+        val scaled = targetMajor.movePointRight(targetFractionDigits.coerceAtLeast(0))
+            .setScale(0, RoundingMode.HALF_UP)
+        return try {
+            scaled.longValueExact()
+        } catch (_: ArithmeticException) {
+            scaled.toBigInteger()
+                .max(BigInteger.valueOf(Long.MIN_VALUE))
+                .min(BigInteger.valueOf(Long.MAX_VALUE))
+                .toLong()
+        }
+    }
 }

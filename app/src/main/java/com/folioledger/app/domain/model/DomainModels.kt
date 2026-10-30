@@ -113,8 +113,15 @@ data class BudgetProgress(
 )
 
 @Immutable
+data class SecondaryCurrency(
+    val code: String,
+    val exchangeRateToPrimary: Double
+)
+
+@Immutable
 data class UserPreferences(
     val primaryCurrencyCode: String = "INR",
+    val secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
     val numberGrouping: NumberGroupingSystem = NumberGroupingSystem.INDIAN,
     val monthStartDay: Int = 1,         // 1..28
     val weekStartDayIso: Int = 1,       // 1 = Monday, 7 = Sunday

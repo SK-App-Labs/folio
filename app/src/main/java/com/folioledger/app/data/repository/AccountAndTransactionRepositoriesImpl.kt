@@ -16,6 +16,7 @@ import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NetWorthOverview
 import com.folioledger.app.domain.model.SplitLineItem
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionSearchFilter
 import com.folioledger.app.domain.model.TransactionType
@@ -23,6 +24,7 @@ import com.folioledger.app.domain.repository.AccountRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -39,25 +41,51 @@ class AccountRepositoryImpl(
 ) : AccountRepository {
 
     override fun observeNetWorthOverview(referenceDateEpochDay: Long): Flow<NetWorthOverview> {
-        return observeAllAccounts(referenceDateEpochDay).map { allSummaries ->
+        return combine(
+            observeAllAccounts(referenceDateEpochDay),
+            settingsRepository.observeUserPreferences()
+        ) { allSummaries, prefs ->
             val activeSummaries = allSummaries.filter { !it.isArchived }
-            var totalAssets = MinorMoney.ZERO
-            var totalLiabilities = MinorMoney.ZERO
+            val primarySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
+            val secondaryMap = prefs.secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+
+            var totalAssetsMinor = 0L
+            var totalLiabilitiesMinor = 0L
 
             for (account in activeSummaries) {
                 if (!account.includeInNetWorth || account.groupType == AccountGroup.DEBIT_CARD) {
                     continue
                 }
-                when {
-                    account.currentBalance.isPositive -> {
-                        totalAssets += account.currentBalance
+                val rawBalanceMinor = account.currentBalance.amountMinor
+                if (rawBalanceMinor == 0L) continue
+
+                val accountCurrency = account.currencyCode.trim().uppercase()
+                val convertedBalanceMinor = if (accountCurrency == primarySpec.code.uppercase()) {
+                    rawBalanceMinor
+                } else {
+                    val secondary = secondaryMap[accountCurrency]
+                    if (secondary != null && secondary.exchangeRateToPrimary > 0.0) {
+                        val accSpec = SupportedCurrencies.fromCode(accountCurrency)
+                        MoneyFormatterAndCalculator.convertMinorMoney(
+                            sourceMinor = rawBalanceMinor,
+                            sourceFractionDigits = accSpec.fractionDigits,
+                            targetFractionDigits = primarySpec.fractionDigits,
+                            rateToTarget = secondary.exchangeRateToPrimary
+                        )
+                    } else {
+                        rawBalanceMinor
                     }
-                    account.currentBalance.isNegative -> {
-                        totalLiabilities += account.currentBalance.abs()
-                    }
+                }
+
+                if (convertedBalanceMinor > 0L) {
+                    totalAssetsMinor = Math.addExact(totalAssetsMinor, convertedBalanceMinor)
+                } else if (convertedBalanceMinor < 0L) {
+                    totalLiabilitiesMinor = Math.addExact(totalLiabilitiesMinor, Math.abs(convertedBalanceMinor))
                 }
             }
 
+            val totalAssets = MinorMoney(totalAssetsMinor)
+            val totalLiabilities = MinorMoney(totalLiabilitiesMinor)
             val netWorth = totalAssets - totalLiabilities
             val accountsByGroup = activeSummaries.groupBy { it.groupType }
 

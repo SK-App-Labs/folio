@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.4.0] - Unreleased
 ### Added
+- **Secondary Currencies & Manual Exchange Rate Engine**: Added universal multi-currency support allowing users to manage foreign accounts with deterministic, manual exchange rates and consolidated net worth calculations:
+  - **Manual Exchange Rate Management**: Introduced a dedicated *Secondary Currencies & Rates* card in `RegionalFormatBottomSheet.kt`. Users can add secondary currencies (e.g. USD, EUR, GBP, AED, JPY) with a custom exchange rate relative to their primary currency (`1 [SEC] = X [PRIMARY]`), with 1-tap edit and delete controls.
+  - **Curated Account Currency Picker**: In `AccountEditorBottomSheet.kt`, replaced the cluttered 170+ currency picker with a clean, active currency chip row displaying the Primary currency, each added Secondary currency (with its configured exchange rate), and an expandable drawer for other currencies.
+  - **Converted Net Worth Engine**: Upgraded `observeNetWorthOverview` in `AccountRepositoryImpl.kt` and `MoneyFormatterAndCalculator.convertMinorMoney` to properly convert non-primary account balances into the primary currency using the user's manual exchange rate, resolving an existing raw-integer summation bug across differing currencies while maintaining fraction digit precision (handling JPY 0 decimals, USD/INR 2 decimals, KWD 3 decimals).
+  - **DataStore & Backup Persistence**: Persisted secondary currencies and their rates in Android DataStore and the automated rolling JSON backup archive (`AutoBackupEngine.kt`), ensuring full portability across devices.
 - **Intelligent CSV Duplicate Management & Interactive Inspection**: Elevated spreadsheet import safeguards with crystal-clear duplicate control in `ImportCsvPreviewDialog`:
   - **Explicit Inclusion / Exclusion Control**: Replaced ambiguous duplicate checkboxes with two prominent, selectable radio cards whenever duplicates are detected:
     - *Exclude Duplicates (Recommended)*: Skips rows already recorded in the ledger to avoid accidental double-counting from overlapping bank statements. Shows projected import count of new records.

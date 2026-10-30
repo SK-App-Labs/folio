@@ -86,6 +86,7 @@ import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.MinorMoney
+import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.ui.accounts.AccountEditorDialogState
 import com.folioledger.app.ui.accounts.AccountsViewModel
@@ -104,6 +105,8 @@ internal fun AccountEditorBottomSheet(
     state: AccountEditorDialogState,
     referenceDateEpochDay: Long,
     parentBankCandidates: List<AccountSummary>,
+    primaryCurrencyCode: String = "INR",
+    secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
     isSaving: Boolean,
     onUpdateState: ((AccountEditorDialogState) -> AccountEditorDialogState) -> Unit,
     onSave: () -> Unit,
@@ -901,7 +904,7 @@ internal fun AccountEditorBottomSheet(
 
             HorizontalDivider(color = semanticColors.cardStrokeSubtle)
 
-            // 5. Collapsible Foreign Currency Selector
+            // 5. Active Currency Selector
             Surface(
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.surfaceContainer,
@@ -909,9 +912,11 @@ internal fun AccountEditorBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { isForeignCurrencyExpanded = !isForeignCurrencyExpanded }
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -926,34 +931,70 @@ internal fun AccountEditorBottomSheet(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Currency: ${state.currencyCode}",
+                                text = "Account Currency: ${state.currencyCode}",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
-                        Icon(
-                            imageVector = if (isForeignCurrencyExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+
+                    // Curated Active Currencies: Primary + Configured Secondaries
+                    val activeSpecs = remember(primaryCurrencyCode, secondaryCurrencies, state.currencyCode) {
+                        val prim = SupportedCurrencies.fromCode(primaryCurrencyCode)
+                        val secs = secondaryCurrencies.map { SupportedCurrencies.fromCode(it.code) }
+                        val current = SupportedCurrencies.fromCode(state.currencyCode)
+                        (listOf(prim) + secs + listOf(current)).distinctBy { it.code.uppercase() }
+                    }
+
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        activeSpecs.forEach { spec ->
+                            val isSelected = state.currencyCode.equals(spec.code, ignoreCase = true)
+                            val isPrimary = spec.code.equals(primaryCurrencyCode, ignoreCase = true)
+                            val secMatch = secondaryCurrencies.firstOrNull { it.code.equals(spec.code, ignoreCase = true) }
+
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { onUpdateState { it.copy(currencyCode = spec.code) } },
+                                label = {
+                                    val labelText = when {
+                                        isPrimary -> "${spec.symbol} ${spec.code} (Primary)"
+                                        secMatch != null -> "${spec.symbol} ${spec.code} (1 = ${secMatch.exchangeRateToPrimary})"
+                                        else -> "${spec.symbol} ${spec.code}"
+                                    }
+                                    Text(labelText)
+                                }
+                            )
+                        }
+                    }
+
+                    // Collapsible "More Currencies" toggle
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { isForeignCurrencyExpanded = !isForeignCurrencyExpanded }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = if (isForeignCurrencyExpanded) "Hide other currencies" else "Choose another currency... ⌄",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
 
                     AnimatedVisibility(visible = isForeignCurrencyExpanded) {
-                        Column(modifier = Modifier.padding(top = 10.dp)) {
-                            val editorCurrencies = remember(state.currencyCode) {
-                                val popular = SupportedCurrencies.POPULAR
-                                if (popular.none { it.code.equals(state.currencyCode, ignoreCase = true) }) {
-                                    val custom = SupportedCurrencies.fromCode(state.currencyCode)
-                                    listOf(custom) + popular
-                                } else {
-                                    popular
-                                }
-                            }
+                        Column(modifier = Modifier.padding(top = 4.dp)) {
+                            val popular = SupportedCurrencies.POPULAR
                             FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                editorCurrencies.forEach { spec ->
+                                popular.forEach { spec ->
                                     FilterChip(
                                         selected = state.currencyCode.equals(spec.code, ignoreCase = true),
                                         onClick = { onUpdateState { it.copy(currencyCode = spec.code) } },

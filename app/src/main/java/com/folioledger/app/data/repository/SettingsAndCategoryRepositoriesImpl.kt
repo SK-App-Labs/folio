@@ -42,6 +42,7 @@ import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.RepeatFrequency
+import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.TransactionType
@@ -87,6 +88,7 @@ class SettingsAndBackupRepositoryImpl(
 
     private object PreferenceKeys {
         val PRIMARY_CURRENCY_CODE = stringPreferencesKey("primary_currency_code")
+        val SECONDARY_CURRENCIES_JSON = stringPreferencesKey("secondary_currencies_json")
         val NUMBER_GROUPING = stringPreferencesKey("number_grouping")
         val MONTH_START_DAY = intPreferencesKey("month_start_day")
         val WEEK_START_DAY_ISO = intPreferencesKey("week_start_day_iso")
@@ -125,6 +127,7 @@ class SettingsAndBackupRepositoryImpl(
             val validatedWeekStart = updated.weekStartDayIso.coerceIn(1, 7)
 
             mutablePrefs[PreferenceKeys.PRIMARY_CURRENCY_CODE] = updated.primaryCurrencyCode
+            mutablePrefs[PreferenceKeys.SECONDARY_CURRENCIES_JSON] = serializeSecondaryCurrencies(updated.secondaryCurrencies)
             mutablePrefs[PreferenceKeys.NUMBER_GROUPING] = updated.numberGrouping.name
             mutablePrefs[PreferenceKeys.MONTH_START_DAY] = validatedMonthStart
             mutablePrefs[PreferenceKeys.WEEK_START_DAY_ISO] = validatedWeekStart
@@ -376,6 +379,7 @@ class SettingsAndBackupRepositoryImpl(
                 "userPreferences",
                 JSONObject().apply {
                     put("primaryCurrencyCode", currentPrefs.primaryCurrencyCode)
+                    put("secondaryCurrencies", serializeSecondaryCurrencies(currentPrefs.secondaryCurrencies))
                     put("numberGrouping", currentPrefs.numberGrouping.name)
                     put("monthStartDay", currentPrefs.monthStartDay)
                     put("weekStartDayIso", currentPrefs.weekStartDayIso)
@@ -746,6 +750,11 @@ class SettingsAndBackupRepositoryImpl(
                         "primaryCurrencyCode",
                         current.primaryCurrencyCode
                     ),
+                    secondaryCurrencies = if (prefsObj.has("secondaryCurrencies")) {
+                        parseSecondaryCurrencies(prefsObj.optString("secondaryCurrencies", "[]"))
+                    } else {
+                        current.secondaryCurrencies
+                    },
                     numberGrouping = runCatching {
                         NumberGroupingSystem.valueOf(
                             prefsObj.optString("numberGrouping", current.numberGrouping.name)
@@ -787,6 +796,8 @@ class SettingsAndBackupRepositoryImpl(
 
     private fun mapPreferencesToDomain(prefs: Preferences): UserPreferences {
         val currencyCode = prefs[PreferenceKeys.PRIMARY_CURRENCY_CODE] ?: "INR"
+        val secondaryJson = prefs[PreferenceKeys.SECONDARY_CURRENCIES_JSON] ?: "[]"
+        val secondaryCurrencies = parseSecondaryCurrencies(secondaryJson)
         val defaultGrouping = SupportedCurrencies.fromCode(currencyCode).defaultGrouping
         val groupingName = prefs[PreferenceKeys.NUMBER_GROUPING] ?: defaultGrouping.name
         val grouping = runCatching { NumberGroupingSystem.valueOf(groupingName) }
@@ -794,6 +805,7 @@ class SettingsAndBackupRepositoryImpl(
 
         return UserPreferences(
             primaryCurrencyCode = currencyCode,
+            secondaryCurrencies = secondaryCurrencies,
             numberGrouping = grouping,
             monthStartDay = (prefs[PreferenceKeys.MONTH_START_DAY] ?: 1).coerceIn(1, 31),
             weekStartDayIso = (prefs[PreferenceKeys.WEEK_START_DAY_ISO] ?: 1).coerceIn(1, 7),
@@ -811,6 +823,33 @@ class SettingsAndBackupRepositoryImpl(
                 AutoBackupRetention.valueOf(prefs[PreferenceKeys.AUTO_BACKUP_RETENTION] ?: AutoBackupRetention.THIRTY_DAYS.name)
             }.getOrDefault(AutoBackupRetention.THIRTY_DAYS)
         )
+    }
+
+    private fun parseSecondaryCurrencies(json: String): List<SecondaryCurrency> {
+        return runCatching {
+            val array = JSONArray(json)
+            val list = mutableListOf<SecondaryCurrency>()
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                val code = obj.optString("code").trim().uppercase()
+                val rate = obj.optDouble("rate", 1.0)
+                if (code.isNotEmpty() && rate > 0.0) {
+                    list.add(SecondaryCurrency(code = code, exchangeRateToPrimary = rate))
+                }
+            }
+            list.distinctBy { it.code }
+        }.getOrDefault(emptyList())
+    }
+
+    private fun serializeSecondaryCurrencies(list: List<SecondaryCurrency>): String {
+        val array = JSONArray()
+        list.forEach { item ->
+            val obj = JSONObject()
+            obj.put("code", item.code.trim().uppercase())
+            obj.put("rate", item.exchangeRateToPrimary)
+            array.put(obj)
+        }
+        return array.toString()
     }
 
     private fun openOutputStreamForLocation(destinationUriString: String): OutputStream {
