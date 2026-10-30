@@ -101,7 +101,7 @@ fun LedgerHomeScreen(
                 .fillMaxSize()
                 .padding(
                     top = contentPadding.calculateTopPadding() + scaffoldPadding.calculateTopPadding(),
-                    bottom = contentPadding.calculateBottomPadding() + scaffoldPadding.calculateBottomPadding()
+                    bottom = contentPadding.calculateBottomPadding()
                 )
         ) {
             Column(modifier = Modifier.fillMaxSize()) {

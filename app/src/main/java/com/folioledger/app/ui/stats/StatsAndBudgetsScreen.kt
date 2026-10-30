@@ -178,7 +178,7 @@ fun StatsAndBudgetsScreen(
                 .fillMaxSize()
                 .padding(
                     top = contentPadding.calculateTopPadding() + scaffoldPadding.calculateTopPadding(),
-                    bottom = contentPadding.calculateBottomPadding() + scaffoldPadding.calculateBottomPadding()
+                    bottom = contentPadding.calculateBottomPadding()
                 )
         ) {
             PeriodSelectorHeader(
@@ -499,7 +499,7 @@ private fun StatsBreakdownSubTabContent(
             start = 16.dp,
             end = 16.dp,
             top = 12.dp,
-            bottom = 96.dp
+            bottom = 32.dp
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
@@ -975,7 +975,7 @@ private fun BudgetsManagerSubTabContent(
             start = 16.dp,
             end = 16.dp,
             top = 12.dp,
-            bottom = 96.dp
+            bottom = 32.dp
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
@@ -1432,7 +1432,7 @@ private fun TagsAndNotesRankingsSubTabContent(
             start = 16.dp,
             end = 16.dp,
             top = 12.dp,
-            bottom = 96.dp
+            bottom = 32.dp
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
