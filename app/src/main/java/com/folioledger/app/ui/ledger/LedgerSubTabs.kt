@@ -4,8 +4,10 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -18,7 +20,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Add
@@ -368,41 +372,79 @@ internal fun CalendarLedgerSubTabContent(
                                                 .fillMaxSize()
                                                 .padding(vertical = 4.dp, horizontal = 2.dp)
                                         ) {
-                                            Text(
-                                                text = cell.dayNumber.toString(),
-                                                style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                                                fontWeight = if (isSelected || cell.isToday) {
-                                                    FontWeight.Bold
-                                                } else {
-                                                    FontWeight.Medium
-                                                },
-                                                color = if (isSelected) {
-                                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                                } else {
-                                                    MaterialTheme.colorScheme.onSurface
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.Center,
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Text(
+                                                    text = cell.dayNumber.toString(),
+                                                    style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                                                    fontWeight = if (isSelected || cell.isToday) {
+                                                        FontWeight.Bold
+                                                    } else {
+                                                        FontWeight.Medium
+                                                    },
+                                                    color = if (isSelected) {
+                                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                                    } else {
+                                                        MaterialTheme.colorScheme.onSurface
+                                                    }
+                                                )
+                                                if (cell.isToday) {
+                                                    Spacer(modifier = Modifier.width(2.dp))
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(4.dp)
+                                                            .clip(CircleShape)
+                                                            .background(
+                                                                if (isSelected) {
+                                                                    MaterialTheme.colorScheme.primary
+                                                                } else {
+                                                                    semanticColors.incomeEmerald
+                                                                }
+                                                            )
+                                                    )
                                                 }
-                                            )
+                                            }
 
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.spacedBy(1.dp)
+                                            ) {
                                                 if (cell.incomeTotal.isPositive) {
-                                                    MoneyText(
-                                                        money = cell.incomeTotal,
-                                                        currencySpec = uiState.currencySpec,
-                                                        grouping = uiState.numberGrouping,
-                                                        includeSymbol = false,
-                                                        colorMode = MoneyColorMode.INCOME,
-                                                        style = MaterialTheme.typography.labelSmall
+                                                    Text(
+                                                        text = "+${MoneyFormatterAndCalculator.formatCompactMinorMoney(cell.incomeTotal, uiState.currencySpec, uiState.numberGrouping)}",
+                                                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = semanticColors.incomeEmerald,
+                                                        maxLines = 1
                                                     )
                                                 }
                                                 if (cell.expenseTotal.isPositive) {
-                                                    MoneyText(
-                                                        money = cell.expenseTotal,
-                                                        currencySpec = uiState.currencySpec,
-                                                        grouping = uiState.numberGrouping,
-                                                        includeSymbol = false,
-                                                        colorMode = MoneyColorMode.EXPENSE,
-                                                        style = MaterialTheme.typography.labelSmall
+                                                    Text(
+                                                        text = "-${MoneyFormatterAndCalculator.formatCompactMinorMoney(cell.expenseTotal, uiState.currencySpec, uiState.numberGrouping)}",
+                                                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = semanticColors.expenseCoral,
+                                                        maxLines = 1
                                                     )
+                                                }
+                                                if (!cell.incomeTotal.isPositive && !cell.expenseTotal.isPositive && cell.transferCount > 0) {
+                                                    Surface(
+                                                        shape = RoundedCornerShape(4.dp),
+                                                        color = semanticColors.transferBlueContainer.copy(alpha = 0.85f),
+                                                        modifier = Modifier.padding(top = 1.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "⇄ ${MoneyFormatterAndCalculator.formatCompactMinorMoney(cell.transferTotal, uiState.currencySpec, uiState.numberGrouping)}",
+                                                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = semanticColors.onTransferBlueContainer,
+                                                            modifier = Modifier.padding(horizontal = 3.dp, vertical = 0.5.dp),
+                                                            maxLines = 1
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
@@ -479,7 +521,7 @@ internal fun CalendarLedgerSubTabContent(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "Add on this date",
+                            text = "Add",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold
                         )

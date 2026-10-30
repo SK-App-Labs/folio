@@ -154,6 +154,8 @@ data class CalendarDayCell(
     val incomeTotal: MinorMoney = MinorMoney.ZERO,
     val expenseTotal: MinorMoney = MinorMoney.ZERO,
     val netTotal: MinorMoney = MinorMoney.ZERO,
+    val transferTotal: MinorMoney = MinorMoney.ZERO,
+    val transferCount: Int = 0,
     val transactionCount: Int = 0
 )
 
@@ -718,6 +720,7 @@ class LedgerHomeViewModel(
 
     fun navigateToPreviousPeriod() {
         val monthStartDay = userPreferencesFlow.value.monthStartDay
+        val today = LocalDate.now().toEpochDay()
         controlState.update { current ->
             val deltaMonths = if (current.selectedSubTab == LedgerSubTab.MONTHLY) -12L else -1L
             val prevEpochDay = LedgerPeriodCalculator.stepFinancialMonth(
@@ -725,9 +728,15 @@ class LedgerHomeViewModel(
                 monthStartDay = monthStartDay,
                 deltaMonths = deltaMonths
             )
+            val targetPeriod = LedgerPeriodCalculator.computeFinancialMonthRange(prevEpochDay, monthStartDay)
+            val targetSelectedDay = if (today in targetPeriod.startEpochDay..targetPeriod.endEpochDay) {
+                today
+            } else {
+                prevEpochDay
+            }
             current.copy(
                 referenceDateEpochDay = prevEpochDay,
-                selectedCalendarDayEpochDay = prevEpochDay,
+                selectedCalendarDayEpochDay = targetSelectedDay,
                 expandedWeekIndices = null,
                 expandedYearlyMonths = if (current.selectedSubTab == LedgerSubTab.MONTHLY) null else current.expandedYearlyMonths
             )
@@ -736,6 +745,7 @@ class LedgerHomeViewModel(
 
     fun navigateToNextPeriod() {
         val monthStartDay = userPreferencesFlow.value.monthStartDay
+        val today = LocalDate.now().toEpochDay()
         controlState.update { current ->
             val deltaMonths = if (current.selectedSubTab == LedgerSubTab.MONTHLY) 12L else 1L
             val nextEpochDay = LedgerPeriodCalculator.stepFinancialMonth(
@@ -743,9 +753,15 @@ class LedgerHomeViewModel(
                 monthStartDay = monthStartDay,
                 deltaMonths = deltaMonths
             )
+            val targetPeriod = LedgerPeriodCalculator.computeFinancialMonthRange(nextEpochDay, monthStartDay)
+            val targetSelectedDay = if (today in targetPeriod.startEpochDay..targetPeriod.endEpochDay) {
+                today
+            } else {
+                nextEpochDay
+            }
             current.copy(
                 referenceDateEpochDay = nextEpochDay,
-                selectedCalendarDayEpochDay = nextEpochDay,
+                selectedCalendarDayEpochDay = targetSelectedDay,
                 expandedWeekIndices = null,
                 expandedYearlyMonths = if (current.selectedSubTab == LedgerSubTab.MONTHLY) null else current.expandedYearlyMonths
             )
@@ -1190,6 +1206,21 @@ class LedgerHomeViewModel(
                     primaryCurrencySpec = primaryCurrencySpec,
                     secondaryCurrencies = secondaryCurrencies
                 )
+                val transferTxns = dayTxns.filter { it.type == TransactionType.TRANSFER }
+                val transferTotalMinor = transferTxns.sumOf { tx ->
+                    if (primaryCurrencySpec != null && tx.currencyCode != primaryCurrencySpec.code) {
+                        val rate = secondaryCurrencies.firstOrNull { it.code == tx.currencyCode }?.exchangeRateToPrimary ?: 1.0
+                        val sourceSpec = SupportedCurrencies.fromCode(tx.currencyCode)
+                        MoneyFormatterAndCalculator.convertMinorMoney(
+                            sourceMinor = tx.amount.amountMinor,
+                            sourceFractionDigits = sourceSpec.fractionDigits,
+                            targetFractionDigits = primaryCurrencySpec.fractionDigits,
+                            rateToTarget = rate
+                        )
+                    } else {
+                        tx.amount.amountMinor
+                    }
+                }
                 cells.add(
                     CalendarDayCell(
                         epochDay = epoch,
@@ -1200,6 +1231,8 @@ class LedgerHomeViewModel(
                         incomeTotal = inc,
                         expenseTotal = exp,
                         netTotal = inc - exp,
+                        transferTotal = MinorMoney(transferTotalMinor),
+                        transferCount = transferTxns.size,
                         transactionCount = dayTxns.size
                     )
                 )

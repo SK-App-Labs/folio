@@ -46,6 +46,51 @@ object MoneyFormatterAndCalculator {
         return "$signPrefix$symbolPart$formattedNumber"
     }
 
+    fun formatCompactMinorMoney(
+        money: MinorMoney,
+        currencySpec: CurrencySpec,
+        grouping: NumberGroupingSystem = currencySpec.defaultGrouping,
+        showPlusSignForPositive: Boolean = false
+    ): String {
+        val fractionDigits = currencySpec.fractionDigits.coerceAtLeast(0)
+        val divisor = Math.pow(10.0, fractionDigits.toDouble())
+        val majorValue = money.amountMinor.toDouble() / divisor
+        val absMajor = kotlin.math.abs(majorValue)
+        val sign = when {
+            majorValue < -0.001 -> "-"
+            majorValue > 0.001 && showPlusSignForPositive -> "+"
+            else -> ""
+        }
+
+        val formattedAmount = when {
+            grouping == NumberGroupingSystem.INDIAN && absMajor >= 100_000.0 -> {
+                val inLakhs = absMajor / 100_000.0
+                if (inLakhs >= 100.0) {
+                    val inCrores = inLakhs / 100.0
+                    String.format(java.util.Locale.US, "%.1fCr", inCrores).replace(".0Cr", "Cr")
+                } else {
+                    String.format(java.util.Locale.US, "%.1fL", inLakhs).replace(".0L", "L")
+                }
+            }
+            absMajor >= 1_000_000.0 -> {
+                val inMillions = absMajor / 1_000_000.0
+                String.format(java.util.Locale.US, "%.1fM", inMillions).replace(".0M", "M")
+            }
+            absMajor >= 1_000.0 -> {
+                val inThousands = absMajor / 1_000.0
+                if (absMajor >= 10_000.0) {
+                    String.format(java.util.Locale.US, "%.0fk", inThousands)
+                } else {
+                    String.format(java.util.Locale.US, "%.1fk", inThousands).replace(".0k", "k")
+                }
+            }
+            else -> {
+                kotlin.math.round(absMajor).toLong().toString()
+            }
+        }
+        return "$sign$formattedAmount"
+    }
+
     private fun formatInternationalGrouping(digits: String): String {
         if (digits.length <= 3) return digits
         val sb = StringBuilder(digits.length + digits.length / 3)

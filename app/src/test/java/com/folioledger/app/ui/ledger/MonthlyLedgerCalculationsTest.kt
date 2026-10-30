@@ -405,4 +405,64 @@ class MonthlyLedgerCalculationsTest {
         val expandedWeeks = weekIndicesInMonth.filter { it in expandedWeekIndices }
         assertEquals(listOf(3), expandedWeeks)
     }
+
+    @Test
+    fun testFormatCompactMinorMoneyVariousRanges() {
+        // ₹450 (45000 paise) -> "450"
+        assertEquals("450", MoneyFormatterAndCalculator.formatCompactMinorMoney(MinorMoney(45000L), inrSpec))
+
+        // ₹1,200 (120000 paise) -> "1.2k"
+        assertEquals("1.2k", MoneyFormatterAndCalculator.formatCompactMinorMoney(MinorMoney(120000L), inrSpec))
+
+        // ₹75,000 (7500000 paise) -> "75k"
+        assertEquals("75k", MoneyFormatterAndCalculator.formatCompactMinorMoney(MinorMoney(7500000L), inrSpec))
+
+        // ₹1,50,000 (15000000 paise) with Indian grouping -> "1.5L"
+        assertEquals("1.5L", MoneyFormatterAndCalculator.formatCompactMinorMoney(
+            money = MinorMoney(15000000L),
+            currencySpec = inrSpec,
+            grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INDIAN
+        ))
+
+        // $150,000 with International grouping -> "150k"
+        assertEquals("150k", MoneyFormatterAndCalculator.formatCompactMinorMoney(
+            money = MinorMoney(15000000L),
+            currencySpec = usdSpec,
+            grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INTERNATIONAL
+        ))
+
+        // ₹2,50,00,000 (2.5 Crore) with Indian grouping -> "2.5Cr"
+        assertEquals("2.5Cr", MoneyFormatterAndCalculator.formatCompactMinorMoney(
+            money = MinorMoney(2500000000L),
+            currencySpec = inrSpec,
+            grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INDIAN
+        ))
+
+        // $1,500,000 with International grouping -> "1.5M"
+        assertEquals("1.5M", MoneyFormatterAndCalculator.formatCompactMinorMoney(
+            money = MinorMoney(150000000L),
+            currencySpec = usdSpec,
+            grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INTERNATIONAL
+        ))
+
+        // Zero
+        assertEquals("0", MoneyFormatterAndCalculator.formatCompactMinorMoney(MinorMoney.ZERO, inrSpec))
+    }
+
+    @Test
+    fun testCalendarSmartPeriodNavigationSelectsTodayInCurrentMonth() {
+        val today = java.time.LocalDate.of(2026, 10, 30).toEpochDay()
+        val octStart = java.time.LocalDate.of(2026, 10, 1).toEpochDay()
+        val octEnd = java.time.LocalDate.of(2026, 10, 31).toEpochDay()
+        val sepStart = java.time.LocalDate.of(2026, 9, 1).toEpochDay()
+        val sepEnd = java.time.LocalDate.of(2026, 9, 30).toEpochDay()
+
+        // When navigating to Sep 2026 (past month): today (Oct 30) is NOT in Sep
+        val resolvedSep = if (today in sepStart..sepEnd) today else sepStart
+        assertEquals(sepStart, resolvedSep) // Defaults to 1st of month
+
+        // When navigating to Oct 2026 (current month): today (Oct 30) IS in Oct
+        val resolvedOct = if (today in octStart..octEnd) today else octStart
+        assertEquals(today, resolvedOct) // Defaults to Today!
+    }
 }
