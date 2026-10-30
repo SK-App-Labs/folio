@@ -52,7 +52,8 @@ class FolioViewModelFactory(
             modelClass.isAssignableFrom(SettingsViewModel::class.java) -> {
                 SettingsViewModel(
                     settingsAndBackupRepository = container.settingsAndBackupRepository,
-                    categoryAndTagRepository = container.categoryAndTagRepository
+                    categoryAndTagRepository = container.categoryAndTagRepository,
+                    accountRepository = container.accountRepository
                 ) as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")

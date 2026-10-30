@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.4.0] - Unreleased
 ### Added
+- **Branded PDF Account Statement & Universal Tax Report Export Engine**: Engineered a 100% offline, native Skia vector PDF generation engine with **0 KB APK overhead** using Android's native `android.graphics.pdf.PdfDocument`, providing publication-ready financial statements for accounting, tax filing, visa applications, and personal audits:
+  - **Dedicated Settings Entry Point**: Positioned directly under the *DATA & BACKUPS* settings card via a dedicated row: `PDF Statements & Tax Reports`, keeping daily passbook interaction clutter-free and consolidating reporting tools in one authoritative location.
+  - **Universal Annual Financial & Tax Statement**: Designed for universal applicability across global jurisdictions (USA, EU, India, UK, Australia, Singapore, etc.):
+    - *Flexible Fiscal Year Presets*: Supports Calendar Year (`Jan 1 – Dec 31`), April Fiscal Year (`Apr 1 – Mar 31`), July Fiscal Year (`Jul 1 – Jun 30`), and custom audit date ranges with intuitive year steppers.
+    - *Multi-Currency Basket & Valuation*: Evaluates foreign currency accounts into the primary currency using manual exchange rates configured in Secondary Currencies, rendering explicit audit footnotes (`1 USD = 85.00 INR`).
+    - *Itemized Tax Deductions & Business Schedule*: Automatically filters and aggregates transactions bearing `#tax`, `#business`, `#medical`, `#donation`, `#charity`, or `#deductible` tags into an audit schedule with payee, receipt notes, date, and amounts.
+    - *Income Streams & Expense Schedules*: Aggregates gross inflows by income source and itemizes expenditure by category with percentage-of-total breakdown and net savings rate %.
+    - *Year-End Wealth Snapshot*: Generates a tabular balance sheet of closing balances across liquid assets, investments, and credit liabilities on the final day of the fiscal period with final net worth.
+  - **Branded Account Passbook Statement**: Produces chronological account statements in the account's native currency (USD, EUR, INR, AED, JPY) featuring:
+    - Executive summary card (Opening Balance ➔ Inflows ➔ Outflows ➔ Net Change ➔ Closing Balance).
+    - For Credit Cards: Statement closing balance, payment due date, credit limit, available credit, and statement settlement cycle.
+    - Multi-page chronological transaction ledger with zebra striping, green inflows, bold running balances, and note/tag descriptions.
+  - **Smart Auto-Save & Dual Export Hub (Auto-Save + SAF Custom Picker)**:
+    - Automatically saves generated PDFs to `Downloads/Folio/Statements/` via MediaStore for zero-friction 1-tap exports.
+    - Completion modal surfaces immediate actions: `[ View / Print ]` (launches default PDF viewer or print spooler), `[ Share ]` (system share sheet via `FileProvider`), and `[ Save to Custom Location... ]` (launches Android Storage Access Framework document picker for saving directly to Google Drive, OneDrive, or custom folders).
 - **Secondary Currencies & Manual Exchange Rate Engine**: Added universal multi-currency support allowing users to manage foreign accounts with deterministic, manual exchange rates and consolidated net worth calculations:
   - **Dedicated Settings Row & Bottom Sheet**: Introduced a dedicated *Secondary Currencies* option in the *ORGANIZATION & TAXONOMY* settings card (directly below *Currency & Number Format*). Opening it displays all active secondary currencies with live rates, 1-tap rate editing, deletion, and an intuitive *+ Add Secondary Currency* flow with 170+ currency search and popular chips.
   - **Curated Account Currency Picker**: In `AccountEditorBottomSheet.kt`, replaced the cluttered 170+ currency picker with a clean, active currency chip row displaying the Primary currency, each added Secondary currency (with its configured exchange rate), and an expandable drawer for other currencies.

@@ -725,33 +725,7 @@ class AccountsViewModel(
     private fun computeSignedDeltaMinorForAccount(
         tx: TransactionItem,
         effectiveAccountIds: Set<Long>
-    ): Long {
-        val amt = tx.amount.amountMinor.coerceAtLeast(0L)
-        val fee = tx.transferFee.amountMinor.coerceAtLeast(0L)
-        val isSource = tx.accountId in effectiveAccountIds
-        val isTarget = tx.transferToAccountId != null && tx.transferToAccountId in effectiveAccountIds
-
-        return when (tx.type) {
-            TransactionType.INCOME,
-            TransactionType.REFUND -> if (isSource) amt else 0L
-
-            TransactionType.EXPENSE -> if (isSource) -(amt + fee) else 0L
-
-            TransactionType.TRANSFER,
-            TransactionType.CC_SETTLEMENT -> when {
-                isSource && isTarget -> -fee
-                isSource -> -(amt + fee)
-                isTarget -> amt
-                else -> 0L
-            }
-
-            TransactionType.OPENING_BALANCE,
-            TransactionType.RECONCILIATION -> {
-                val isOutflow = tx.transferToAccountId != null
-                if (isSource) (if (isOutflow) -amt else amt) else 0L
-            }
-        }
-    }
+    ): Long = com.folioledger.app.domain.usecase.AccountingRulesEngine.computeSignedDeltaMinorForAccount(tx, effectiveAccountIds)
 
     fun toggleGroupCollapsed(group: AccountGroup) {
         controlState.update { current ->

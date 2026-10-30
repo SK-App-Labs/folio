@@ -4,6 +4,9 @@ package com.folioledger.app.ui.settings
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.folioledger.app.data.pdf.FiscalYearType
+import com.folioledger.app.data.pdf.PdfExportResult
+import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.AutoBackupRetention
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.ImportCsvPreview
@@ -15,6 +18,7 @@ import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.UserPreferences
+import com.folioledger.app.domain.repository.AccountRepository
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.ui.components.suggestIconAndColorForCategoryName
@@ -26,6 +30,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
+import java.time.LocalDate
 
 @Immutable
 data class CategoryEditorDialogState(
@@ -46,6 +51,7 @@ data class CategoryEditorDialogState(
 data class SettingsUiState(
     val userPreferences: UserPreferences = UserPreferences(),
     val currencySpec: CurrencySpec = SupportedCurrencies.INR,
+    val accounts: List<AccountSummary> = emptyList(),
     val expenseCategories: List<CategoryNode> = emptyList(),
     val incomeCategories: List<CategoryNode> = emptyList(),
     val tags: List<String> = emptyList(),
@@ -55,6 +61,9 @@ data class SettingsUiState(
     val categoryEditorState: CategoryEditorDialogState? = null,
     val isTagManagerOpen: Boolean = false,
     val isBookmarkManagerOpen: Boolean = false,
+    val isPdfReportsSheetOpen: Boolean = false,
+    val lastGeneratedPdfResult: PdfExportResult? = null,
+    val isGeneratingPdf: Boolean = false,
     val pendingRestoreUriString: String? = null,
     val csvPreview: ImportCsvPreview? = null,
     val csvImportResult: ImportCsvResult? = null,
@@ -83,6 +92,9 @@ private data class SettingsInternalControlState(
     val categoryEditorState: CategoryEditorDialogState? = null,
     val isTagManagerOpen: Boolean = false,
     val isBookmarkManagerOpen: Boolean = false,
+    val isPdfReportsSheetOpen: Boolean = false,
+    val lastGeneratedPdfResult: PdfExportResult? = null,
+    val isGeneratingPdf: Boolean = false,
     val pendingRestoreUriString: String? = null,
     val csvPreview: ImportCsvPreview? = null,
     val csvImportResult: ImportCsvResult? = null,
@@ -95,7 +107,8 @@ private data class SettingsInternalControlState(
 
 class SettingsViewModel(
     private val settingsAndBackupRepository: SettingsAndBackupRepository,
-    private val categoryAndTagRepository: CategoryAndTagRepository
+    private val categoryAndTagRepository: CategoryAndTagRepository,
+    private val accountRepository: AccountRepository
 ) : ViewModel() {
 
     private val controlState = MutableStateFlow(SettingsInternalControlState())
@@ -114,15 +127,19 @@ class SettingsViewModel(
         )
     }
 
+    private val activeAccountsFlow = accountRepository.observeActiveAccounts(LocalDate.now().toEpochDay())
+
     val uiState: StateFlow<SettingsUiState> = combine(
         settingsAndBackupRepository.observeUserPreferences(),
         categoriesAndMetadataFlow,
+        activeAccountsFlow,
         controlState
-    ) { prefs, metadata, ctrl ->
+    ) { prefs, metadata, accounts, ctrl ->
         val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
         SettingsUiState(
             userPreferences = prefs,
             currencySpec = currencySpec,
+            accounts = accounts,
             expenseCategories = metadata.expenseCategories,
             incomeCategories = metadata.incomeCategories,
             tags = metadata.tags,
@@ -132,6 +149,9 @@ class SettingsViewModel(
             categoryEditorState = ctrl.categoryEditorState,
             isTagManagerOpen = ctrl.isTagManagerOpen,
             isBookmarkManagerOpen = ctrl.isBookmarkManagerOpen,
+            isPdfReportsSheetOpen = ctrl.isPdfReportsSheetOpen,
+            lastGeneratedPdfResult = ctrl.lastGeneratedPdfResult,
+            isGeneratingPdf = ctrl.isGeneratingPdf,
             pendingRestoreUriString = ctrl.pendingRestoreUriString,
             csvPreview = ctrl.csvPreview,
             csvImportResult = ctrl.csvImportResult,
@@ -853,6 +873,120 @@ class SettingsViewModel(
 
     fun clearSnackbarMessage() {
         controlState.update { it.copy(snackbarMessage = null) }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // PDF Statements & Tax Reports Actions
+    // ---------------------------------------------------------------------------------------------
+
+    fun openPdfReportsSheet() {
+        controlState.update { it.copy(isPdfReportsSheetOpen = true) }
+    }
+
+    fun closePdfReportsSheet() {
+        controlState.update { it.copy(isPdfReportsSheetOpen = false) }
+    }
+
+    fun clearLastGeneratedPdfResult() {
+        controlState.update { it.copy(lastGeneratedPdfResult = null) }
+    }
+
+    fun generateAccountStatementPdf(
+        accountId: Long,
+        startEpochDay: Long,
+        endEpochDay: Long,
+        includeNotesAndTags: Boolean = true,
+        includeRunningBalance: Boolean = true
+    ) {
+        viewModelScope.launch {
+            controlState.update {
+                it.copy(
+                    isBusyWithFileOperation = true,
+                    isGeneratingPdf = true,
+                    fileOperationStatusLabel = "Generating PDF Statement..."
+                )
+            }
+            val result = settingsAndBackupRepository.generateAccountStatementPdf(
+                accountId = accountId,
+                startEpochDay = startEpochDay,
+                endEpochDay = endEpochDay,
+                includeNotesAndTags = includeNotesAndTags,
+                includeRunningBalance = includeRunningBalance
+            )
+            result.fold(
+                onSuccess = { pdfResult ->
+                    controlState.update {
+                        it.copy(
+                            isBusyWithFileOperation = false,
+                            isGeneratingPdf = false,
+                            fileOperationStatusLabel = null,
+                            lastGeneratedPdfResult = pdfResult,
+                            lastCompletedFileForShare = pdfResult.file,
+                            snackbarMessage = "Saved to ${pdfResult.publicDisplayPath}"
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    controlState.update {
+                        it.copy(
+                            isBusyWithFileOperation = false,
+                            isGeneratingPdf = false,
+                            fileOperationStatusLabel = null,
+                            snackbarMessage = error.message ?: "Failed to generate PDF statement"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    fun generateAnnualTaxStatementPdf(
+        fiscalYearType: FiscalYearType,
+        anchorYear: Int,
+        customStartEpochDay: Long? = null,
+        customEndEpochDay: Long? = null,
+        selectedTaxTags: Set<String> = emptySet()
+    ) {
+        viewModelScope.launch {
+            controlState.update {
+                it.copy(
+                    isBusyWithFileOperation = true,
+                    isGeneratingPdf = true,
+                    fileOperationStatusLabel = "Generating Tax & Financial Report..."
+                )
+            }
+            val result = settingsAndBackupRepository.generateAnnualTaxStatementPdf(
+                fiscalYearType = fiscalYearType,
+                anchorYear = anchorYear,
+                customStartEpochDay = customStartEpochDay,
+                customEndEpochDay = customEndEpochDay,
+                selectedTaxTags = selectedTaxTags
+            )
+            result.fold(
+                onSuccess = { pdfResult ->
+                    controlState.update {
+                        it.copy(
+                            isBusyWithFileOperation = false,
+                            isGeneratingPdf = false,
+                            fileOperationStatusLabel = null,
+                            lastGeneratedPdfResult = pdfResult,
+                            lastCompletedFileForShare = pdfResult.file,
+                            snackbarMessage = "Saved to ${pdfResult.publicDisplayPath}"
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    controlState.update {
+                        it.copy(
+                            isBusyWithFileOperation = false,
+                            isGeneratingPdf = false,
+                            fileOperationStatusLabel = null,
+                            snackbarMessage = error.message ?: "Failed to generate Tax Report"
+                        )
+                    }
+                }
+            )
+        }
     }
 
     private data class CategoriesAndMetadataBundle(

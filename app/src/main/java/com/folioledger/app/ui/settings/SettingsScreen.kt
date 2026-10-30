@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.TableChart
@@ -95,6 +96,7 @@ import com.folioledger.app.ui.settings.sheets.AutoBackupBottomSheet
 import com.folioledger.app.ui.settings.sheets.CategoryEditorDialog
 import com.folioledger.app.ui.settings.sheets.CategoryManagerBottomSheet
 import com.folioledger.app.ui.settings.sheets.FeedbackBottomSheet
+import com.folioledger.app.ui.settings.sheets.PdfReportsBottomSheet
 import com.folioledger.app.ui.settings.sheets.RegionalFormatBottomSheet
 import com.folioledger.app.ui.settings.sheets.SecondaryCurrenciesBottomSheet
 import com.folioledger.app.ui.settings.sheets.SpreadsheetsBottomSheet
@@ -377,7 +379,20 @@ fun SettingsScreen(
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
 
-                        // 3. Spreadsheets & CSV
+                        // 3. PDF Statements & Tax Reports
+                        SettingsNavigationRow(
+                            icon = Icons.Default.PictureAsPdf,
+                            title = "PDF Statements & Tax Reports",
+                            valueText = "Account & Tax Reports",
+                            enabled = isNotBusy,
+                            onClick = { viewModel.openPdfReportsSheet() }
+                        )
+                        HorizontalDivider(
+                            color = semanticColors.cardStrokeSubtle,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+
+                        // 4. Spreadsheets & CSV
                         SettingsNavigationRow(
                             icon = Icons.Default.TableChart,
                             title = "Spreadsheets & CSV",
@@ -570,6 +585,19 @@ fun SettingsScreen(
                 csvDocumentPicker.launch(arrayOf("text/csv", "text/comma-separated-values", "application/vnd.ms-excel", "*/*"))
             },
             onDismiss = { isSpreadsheetsSheetOpen = false }
+        )
+    }
+
+    if (uiState.isPdfReportsSheetOpen) {
+        PdfReportsBottomSheet(
+            prefs = prefs,
+            accounts = uiState.accounts,
+            isGeneratingPdf = uiState.isGeneratingPdf,
+            lastGeneratedPdfResult = uiState.lastGeneratedPdfResult,
+            onGenerateAccountStatement = viewModel::generateAccountStatementPdf,
+            onGenerateAnnualTaxStatement = viewModel::generateAnnualTaxStatementPdf,
+            onClearLastResult = viewModel::clearLastGeneratedPdfResult,
+            onDismiss = viewModel::closePdfReportsSheet
         )
     }
 

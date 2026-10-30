@@ -200,4 +200,20 @@ interface SettingsAndBackupRepository {
     suspend fun setAutoBackupEnabled(enabled: Boolean): Result<Unit>
 
     suspend fun setAutoBackupRetention(retention: com.folioledger.app.domain.model.AutoBackupRetention): Result<Unit>
+
+    suspend fun generateAccountStatementPdf(
+        accountId: Long,
+        startEpochDay: Long,
+        endEpochDay: Long,
+        includeNotesAndTags: Boolean = true,
+        includeRunningBalance: Boolean = true
+    ): Result<com.folioledger.app.data.pdf.PdfExportResult>
+
+    suspend fun generateAnnualTaxStatementPdf(
+        fiscalYearType: com.folioledger.app.data.pdf.FiscalYearType,
+        anchorYear: Int,
+        customStartEpochDay: Long? = null,
+        customEndEpochDay: Long? = null,
+        selectedTaxTags: Set<String> = emptySet()
+    ): Result<com.folioledger.app.data.pdf.PdfExportResult>
 }

@@ -4,5 +4,7 @@
     <external-files-path name="folio_external_autobackups" path="FolioAutoBackups" />
     <files-path name="folio_internal_backups" path="FolioBackups" />
     <files-path name="folio_internal_autobackups" path="FolioAutoBackups" />
+    <external-files-path name="folio_external_statements" path="FolioStatements" />
+    <files-path name="folio_internal_statements" path="FolioStatements" />
     <cache-path name="cache" path="." />
 </paths>
