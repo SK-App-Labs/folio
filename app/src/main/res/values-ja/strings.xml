@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- File: app/src/main/res/values-ja/strings.xml -->
+<!-- Japanese (日本語) Translations for Folio -->
+<resources>
+    <string name="app_name">Folio</string>
+
+    <!-- 共通操作 -->
+    <string name="action_save">保存</string>
+    <string name="action_save_and_continue">保存して次へ</string>
+    <string name="action_cancel">キャンセル</string>
+    <string name="action_delete">削除</string>
+    <string name="action_edit">編集</string>
+    <string name="action_done">完了</string>
+    <string name="action_close">閉じる</string>
+    <string name="action_apply">適用</string>
+    <string name="action_clear">クリア</string>
+    <string name="action_clear_all">すべてクリア</string>
+    <string name="action_confirm">確認</string>
+    <string name="action_archive">アーカイブ</string>
+    <string name="action_unarchive">アーカイブ解除</string>
+    <string name="action_restore">復元</string>
+    <string name="action_share">共有</string>
+    <string name="action_export">エクスポート</string>
+    <string name="action_import">インポート</string>
+    <string name="action_view">表示</string>
+    <string name="action_print">印刷</string>
+
+    <!-- 検索と絞り込み -->
+    <string name="search_placeholder">検索</string>
+    <string name="filter_button_label">絞り込み</string>
+    <string name="filter_all_accounts">すべての口座</string>
+    <string name="filter_all_categories">すべてのカテゴリー</string>
+    <string name="filter_all_tags">すべてのタグ</string>
+    <string name="filter_active_filters">適用中の条件</string>
+
+    <!-- 状態表示 -->
+    <string name="state_no_transactions">取引記録がありません</string>
+    <string name="state_loading">読み込み中…</string>
+    <string name="state_no_data">データがありません</string>
+
+    <!-- メインナビゲーション -->
+    <string name="nav_tab_transactions">家計簿</string>
+    <string name="nav_tab_stats">統計</string>
+    <string name="nav_tab_accounts">口座・資産</string>
+    <string name="nav_tab_settings">設定</string>
+    <string name="cd_nav_transactions">取引明細タブ</string>
+    <string name="cd_nav_stats">統計・予算タブ</string>
+    <string name="cd_nav_accounts">口座・純資産タブ</string>
+    <string name="cd_nav_settings">設定タブ</string>
+    <string name="cd_add_transaction_fab">新規取引を追加</string>
+
+    <!-- 家計簿サブタブ -->
+    <string name="subtab_daily">日別</string>
+    <string name="subtab_calendar">カレンダー</string>
+    <string name="subtab_weekly">週別</string>
+    <string name="subtab_monthly">月別</string>
+    <string name="subtab_summary">収支サマリー</string>
+
+    <!-- トップサマリーバナー -->
+    <string name="ledger_banner_income">収入</string>
+    <string name="ledger_banner_expense">支出</string>
+    <string name="ledger_banner_net">収支差額</string>
+    <string name="ledger_banner_carry_over">前月繰越</string>
+    <string name="ledger_view_in_daily">日別で見る →</string>
+    <string name="ledger_no_tx_for_week">今週の取引はありません</string>
+    <string name="ledger_no_tx_for_month">今月の取引はありません</string>
+    <string name="ledger_current_month_badge">今月</string>
+
+    <!-- 統計サブタブ -->
+    <string name="stats_subtab_overview">概要</string>
+    <string name="stats_subtab_cards">カード</string>
+    <string name="stats_subtab_budgets">予算</string>
+    <string name="stats_subtab_tags">タグ</string>
+
+    <!-- 今日使える安全額 (Safe-to-Spend) -->
+    <string name="safe_to_spend_title">今日使える安全な余力</string>
+    <string name="safe_to_spend_badge">自由資金</string>
+    <string name="safe_to_spend_formula_liquid">流動性資金</string>
+    <string name="safe_to_spend_formula_cards">カード請求残高</string>
+    <string name="safe_to_spend_formula_commitments">14日以内の固定費</string>
+    <string name="shortfall_alert_title">14日以内の残高不足アラート</string>
+
+    <!-- 純資産推移 (Velocity) -->
+    <string name="nw_velocity_title">資産推移スピード</string>
+    <string name="nw_velocity_3m_avg">3ヶ月平均推移</string>
+    <string name="nw_velocity_burn_rate">月間支出ペース</string>
+    <string name="nw_velocity_runway">生活防衛資金</string>
+    <string name="nw_velocity_runway_months">%1$sヶ月分</string>
+    <string name="nw_velocity_runway_infinite">12ヶ月以上の余力</string>
+
+    <!-- クレジットカード管理 -->
+    <string name="cards_cockpit_title">クレジットカード管理</string>
+    <string name="cards_swipe_headroom_label">安全な利用可能枠 (30%目安)</string>
+    <string name="cards_status_overdue">期日超過</string>
+    <string name="cards_status_due_soon">まもなく期日</string>
+    <string name="cards_status_issued">請求確定</string>
+    <string name="cards_status_current">利用中</string>
+    <string name="cards_status_settled">完済</string>
+    <string name="cards_milestone_debt_free">すべてのカードの支払いが完了！</string>
+    <string name="cards_milestone_debt_free_sub">今サイクルのカード残高はゼロです。無借金の健全な状態です。</string>
+
+    <!-- 立替・プロジェクト管理 -->
+    <string name="hub_reimbursable_mode">立替・精算モード</string>
+    <string name="hub_event_mode">旅行・イベントモード</string>
+    <string name="hub_total_spent">総支出額</string>
+    <string name="hub_total_reimbursed">精算済受取額</string>
+    <string name="hub_pending_owed">未回収金</string>
+    <string name="hub_fully_settled">完済・精算完了</string>
+    <string name="hub_daily_average">1日あたりの平均支出</string>
+    <string name="hub_date_duration">%1$s日間</string>
+    <string name="payee_sort_outlay">支出総額順</string>
+    <string name="payee_sort_frequency">頻度順</string>
+
+    <!-- 口座と資産 -->
+    <string name="accounts_banner_net_worth">純資産</string>
+    <string name="accounts_banner_assets">総資産</string>
+    <string name="accounts_banner_liabilities">総負債</string>
+
+    <!-- 口座グループ -->
+    <string name="account_group_cash">現金</string>
+    <string name="account_group_bank_account">銀行口座</string>
+    <string name="account_group_debit_card">デビットカード</string>
+    <string name="account_group_credit_card">クレジットカード</string>
+    <string name="account_group_savings">貯蓄口座</string>
+    <string name="account_group_prepaid_wallet">電子マネー・ウォレット</string>
+    <string name="account_group_investment">証券・投資</string>
+    <string name="account_group_overdraft">当座貸越</string>
+    <string name="account_group_loan">ローン・借入</string>
+    <string name="account_group_other">その他の口座</string>
+
+    <string name="cc_label_due_now">請求額</string>
+    <string name="cc_label_unbilled">未確定</string>
+    <string name="cc_action_settle_bill">支払いを記録</string>
+    <string name="cc_action_edit_account">口座を編集</string>
+    <string name="cc_action_add_transaction">取引追加</string>
+
+    <!-- 取引入力 -->
+    <string name="entry_mode_expense">支出</string>
+    <string name="entry_mode_income">収入</string>
+    <string name="entry_mode_transfer">振替</string>
+    <string name="entry_chip_split">内訳分割</string>
+    <string name="entry_chip_installment">分割払い</string>
+    <string name="entry_chip_repeat">定期取引</string>
+    <string name="entry_hint_amount">0</string>
+    <string name="entry_hint_select_category">カテゴリーを選択</string>
+    <string name="entry_hint_payee">店名・支払先または概要</string>
+    <string name="entry_hint_note">メモ（任意）</string>
+    <string name="entry_hint_transfer_fee">振込手数料</string>
+
+    <!-- 設定 -->
+    <string name="settings_group_taxonomy">管理と分類</string>
+    <string name="settings_group_appearance">デザインとセキュリティ</string>
+    <string name="settings_group_data">データとバックアップ</string>
+    <string name="settings_group_community">ヘルプとサポート</string>
+    <string name="setting_currency_format">通貨と数値の表示形式</string>
+    <string name="setting_secondary_currencies">サブ通貨と為替レート</string>
+    <string name="setting_app_language">アプリの表示言語</string>
+    <string name="setting_categories">カテゴリーとサブカテゴリー</string>
+    <string name="setting_tags_bookmarks">タグとお気に入りテンプレート</string>
+    <string name="setting_appearance_theme">テーマとアクセントカラー</string>
+    <string name="setting_app_lock">生体認証ロック</string>
+    <string name="setting_auto_backup">セッション自動バックアップ</string>
+    <string name="setting_phone_migration">端末データ移行（ZIP）</string>
+    <string name="setting_spreadsheets">スプレッドシート（CSV入出力）</string>
+    <string name="setting_pdf_statements">PDF取引明細と確定申告レポート</string>
+    <string name="setting_user_guide">使い方ガイドとサポート</string>
+    <string name="setting_tip_jar">応援チップとバッジ</string>
+    <string name="setting_danger_reset">すべての家計簿データを消去</string>
+</resources>

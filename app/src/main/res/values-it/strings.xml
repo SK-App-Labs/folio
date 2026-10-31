@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- File: app/src/main/res/values-it/strings.xml -->
+<!-- Italian (Italiano) Translations for Folio -->
+<resources>
+    <string name="app_name">Folio</string>
+
+    <!-- Azioni Comuni -->
+    <string name="action_save">Salva</string>
+    <string name="action_save_and_continue">Salva e Continua</string>
+    <string name="action_cancel">Annulla</string>
+    <string name="action_delete">Elimina</string>
+    <string name="action_edit">Modifica</string>
+    <string name="action_done">Fatto</string>
+    <string name="action_close">Chiudi</string>
+    <string name="action_apply">Applica</string>
+    <string name="action_clear">Cancella</string>
+    <string name="action_clear_all">Cancella tutto</string>
+    <string name="action_confirm">Conferma</string>
+    <string name="action_archive">Archivia</string>
+    <string name="action_unarchive">Ripristina</string>
+    <string name="action_restore">Ripristina</string>
+    <string name="action_share">Condividi</string>
+    <string name="action_export">Esporta</string>
+    <string name="action_import">Importa</string>
+    <string name="action_view">Visualizza</string>
+    <string name="action_print">Stampa</string>
+
+    <!-- Ricerca e Filtri -->
+    <string name="search_placeholder">Cerca</string>
+    <string name="filter_button_label">Filtro</string>
+    <string name="filter_all_accounts">Tutti i conti</string>
+    <string name="filter_all_categories">Tutte le categorie</string>
+    <string name="filter_all_tags">Tutti i tag</string>
+    <string name="filter_active_filters">Filtri attivi</string>
+
+    <!-- Stati -->
+    <string name="state_no_transactions">Nessuna transazione registrata</string>
+    <string name="state_loading">Caricamento…</string>
+    <string name="state_no_data">Nessun dato disponibile</string>
+
+    <!-- Navigazione Principale -->
+    <string name="nav_tab_transactions">Trans.</string>
+    <string name="nav_tab_stats">Statistiche</string>
+    <string name="nav_tab_accounts">Conti</string>
+    <string name="nav_tab_settings">Impostazioni</string>
+    <string name="cd_nav_transactions">Scheda registro transazioni</string>
+    <string name="cd_nav_stats">Scheda statistiche e budget</string>
+    <string name="cd_nav_accounts">Scheda conti e patrimonio netto</string>
+    <string name="cd_nav_settings">Scheda impostazioni</string>
+    <string name="cd_add_transaction_fab">Aggiungi nuova transazione</string>
+
+    <!-- Sotto-schede Registro -->
+    <string name="subtab_daily">Giornaliero</string>
+    <string name="subtab_calendar">Calendario</string>
+    <string name="subtab_weekly">Settimanale</string>
+    <string name="subtab_monthly">Mensile</string>
+    <string name="subtab_summary">Riepilogo</string>
+
+    <!-- Banner Superiore -->
+    <string name="ledger_banner_income">Entrate</string>
+    <string name="ledger_banner_expense">Uscite</string>
+    <string name="ledger_banner_net">Saldo netto</string>
+    <string name="ledger_banner_carry_over">Riporto</string>
+    <string name="ledger_view_in_daily">Vedi in Giornaliero →</string>
+    <string name="ledger_no_tx_for_week">Nessuna transazione in questa settimana</string>
+    <string name="ledger_no_tx_for_month">Nessuna transazione in questo mese</string>
+    <string name="ledger_current_month_badge">Attuale</string>
+
+    <!-- Sotto-schede Statistiche -->
+    <string name="stats_subtab_overview">Panoramica</string>
+    <string name="stats_subtab_cards">Carte</string>
+    <string name="stats_subtab_budgets">Budget</string>
+    <string name="stats_subtab_tags">Tag</string>
+
+    <!-- Sicuro da Spendere (Safe-to-Spend) -->
+    <string name="safe_to_spend_title">Disponibile senza rischi oggi</string>
+    <string name="safe_to_spend_badge">Budget libero</string>
+    <string name="safe_to_spend_formula_liquid">FONDI LIQUIDI</string>
+    <string name="safe_to_spend_formula_cards">DEBITI CARTE</string>
+    <string name="safe_to_spend_formula_commitments">IMPEGNI A 14GG</string>
+    <string name="shortfall_alert_title">Avviso di scoperto a 14 giorni</string>
+
+    <!-- Velocità del Patrimonio -->
+    <string name="nw_velocity_title">Dinamica del patrimonio</string>
+    <string name="nw_velocity_3m_avg">Traiettoria mensile (3 mesi)</string>
+    <string name="nw_velocity_burn_rate">Tasso di spesa mensile</string>
+    <string name="nw_velocity_runway">Fondo di riserva di emergenza</string>
+    <string name="nw_velocity_runway_months">%1$s mesi</string>
+    <string name="nw_velocity_runway_infinite">Riserva &gt; 12 mesi</string>
+
+    <!-- Cockpit Carte di Credito -->
+    <string name="cards_cockpit_title">Cockpit carte di credito</string>
+    <string name="cards_swipe_headroom_label">Margine di spesa ottimale (Limite 30%)</string>
+    <string name="cards_status_overdue">SCADUTA</string>
+    <string name="cards_status_due_soon">IN SCADENZA</string>
+    <string name="cards_status_issued">ESTRATTA</string>
+    <string name="cards_status_current">CORRENTE</string>
+    <string name="cards_status_settled">PAGATA</string>
+    <string name="cards_milestone_debt_free">Tutte le carte saldate!</string>
+    <string name="cards_milestone_debt_free_sub">Saldo debitorio azzerato su tutte le carte. Sei completamente privo di debiti per questo ciclo.</string>
+
+    <!-- Progetti e Rimborsi -->
+    <string name="hub_reimbursable_mode">Modalità rimborsabile</string>
+    <string name="hub_event_mode">Modalità viaggio o evento</string>
+    <string name="hub_total_spent">Totale speso</string>
+    <string name="hub_total_reimbursed">Totale rimborsato</string>
+    <string name="hub_pending_owed">In attesa di rimborso</string>
+    <string name="hub_fully_settled">Completamente saldato</string>
+    <string name="hub_daily_average">Media giornaliera</string>
+    <string name="hub_date_duration">%1$s giorni di durata</string>
+    <string name="payee_sort_outlay">Spesa totale</string>
+    <string name="payee_sort_frequency">Frequenza</string>
+
+    <!-- Conti e Patrimonio -->
+    <string name="accounts_banner_net_worth">Patrimonio netto</string>
+    <string name="accounts_banner_assets">Attività</string>
+    <string name="accounts_banner_liabilities">Passività</string>
+
+    <!-- Gruppi di Conti -->
+    <string name="account_group_cash">Contanti</string>
+    <string name="account_group_bank_account">Conto corrente</string>
+    <string name="account_group_debit_card">Carte di debito</string>
+    <string name="account_group_credit_card">Carte di credito</string>
+    <string name="account_group_savings">Conti deposito</string>
+    <string name="account_group_prepaid_wallet">Portafoglio digitale</string>
+    <string name="account_group_investment">Investimenti</string>
+    <string name="account_group_overdraft">Fido bancario</string>
+    <string name="account_group_loan">Prestito</string>
+    <string name="account_group_other">Altri conti</string>
+
+    <string name="cc_label_due_now">DA PAGARE</string>
+    <string name="cc_label_unbilled">NON FATTURATO</string>
+    <string name="cc_action_settle_bill">Paga estratto conto</string>
+    <string name="cc_action_edit_account">Modifica conto</string>
+    <string name="cc_action_add_transaction">Nuovo</string>
+
+    <!-- Inserimento Transazione -->
+    <string name="entry_mode_expense">Uscita</string>
+    <string name="entry_mode_income">Entrata</string>
+    <string name="entry_mode_transfer">Giroconto</string>
+    <string name="entry_chip_split">Dividi</string>
+    <string name="entry_chip_installment">Rate</string>
+    <string name="entry_chip_repeat">Ripeti</string>
+    <string name="entry_hint_amount">0,00</string>
+    <string name="entry_hint_select_category">Seleziona categoria</string>
+    <string name="entry_hint_payee">Beneficiario o descrizione</string>
+    <string name="entry_hint_note">Nota (facoltativa)</string>
+    <string name="entry_hint_transfer_fee">Commissione giroconto</string>
+
+    <!-- Impostazioni -->
+    <string name="settings_group_taxonomy">ORGANIZZAZIONE E STRUTTURA</string>
+    <string name="settings_group_appearance">ASPETTO E SICUREZZA</string>
+    <string name="settings_group_data">DATI E BACKUP</string>
+    <string name="settings_group_community">SUPPORTO E COMMUNITY</string>
+    <string name="setting_currency_format">Valuta e formato numeri</string>
+    <string name="setting_secondary_currencies">Valute secondarie e tassi</string>
+    <string name="setting_app_language">Lingua dell\'applicazione</string>
+    <string name="setting_categories">Categorie e sottocategorie</string>
+    <string name="setting_tags_bookmarks">Tag e modelli rapidi</string>
+    <string name="setting_appearance_theme">Tema e colore primario</string>
+    <string name="setting_app_lock">Blocco biometrico</string>
+    <string name="setting_auto_backup">Backup automatico continuo</string>
+    <string name="setting_phone_migration">Migrazione dispositivo (ZIP)</string>
+    <string name="setting_spreadsheets">Fogli di calcolo (CSV)</string>
+    <string name="setting_pdf_statements">Estratti conto PDF e report fiscali</string>
+    <string name="setting_user_guide">Guida utente e supporto</string>
+    <string name="setting_tip_jar">Barattolo delle mance e badge</string>
+    <string name="setting_danger_reset">Cancella tutti i dati</string>
+</resources>

@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- File: app/src/main/res/values-ko/strings.xml -->
+<!-- Korean (한국어) Translations for Folio -->
+<resources>
+    <string name="app_name">Folio</string>
+
+    <!-- 기본 작업 -->
+    <string name="action_save">저장</string>
+    <string name="action_save_and_continue">저장 후 계속</string>
+    <string name="action_cancel">취소</string>
+    <string name="action_delete">삭제</string>
+    <string name="action_edit">수정</string>
+    <string name="action_done">완료</string>
+    <string name="action_close">닫기</string>
+    <string name="action_apply">적용</string>
+    <string name="action_clear">지우기</string>
+    <string name="action_clear_all">모두 지우기</string>
+    <string name="action_confirm">확인</string>
+    <string name="action_archive">보관</string>
+    <string name="action_unarchive">보관 해제</string>
+    <string name="action_restore">복원</string>
+    <string name="action_share">공유</string>
+    <string name="action_export">내보내기</string>
+    <string name="action_import">가져오기</string>
+    <string name="action_view">보기</string>
+    <string name="action_print">인쇄</string>
+
+    <!-- 검색 및 필터 -->
+    <string name="search_placeholder">검색</string>
+    <string name="filter_button_label">필터</string>
+    <string name="filter_all_accounts">모든 계좌</string>
+    <string name="filter_all_categories">모든 카테고리</string>
+    <string name="filter_all_tags">모든 태그</string>
+    <string name="filter_active_filters">적용된 필터</string>
+
+    <!-- 상태 메시지 -->
+    <string name="state_no_transactions">기록된 거래 내역이 없습니다</string>
+    <string name="state_loading">불러오는 중…</string>
+    <string name="state_no_data">데이터가 없습니다</string>
+
+    <!-- 메인 탐색 -->
+    <string name="nav_tab_transactions">가계부</string>
+    <string name="nav_tab_stats">통계</string>
+    <string name="nav_tab_accounts">자산·계좌</string>
+    <string name="nav_tab_settings">설정</string>
+    <string name="cd_nav_transactions">거래 내역 탭</string>
+    <string name="cd_nav_stats">통계 및 예산 탭</string>
+    <string name="cd_nav_accounts">계좌 및 순자산 탭</string>
+    <string name="cd_nav_settings">설정 탭</string>
+    <string name="cd_add_transaction_fab">새 거래 추가</string>
+
+    <!-- 가계부 서브탭 -->
+    <string name="subtab_daily">일별</string>
+    <string name="subtab_calendar">달력</string>
+    <string name="subtab_weekly">주별</string>
+    <string name="subtab_monthly">월별</string>
+    <string name="subtab_summary">요약</string>
+
+    <!-- 상단 요약 배너 -->
+    <string name="ledger_banner_income">수입</string>
+    <string name="ledger_banner_expense">지출</string>
+    <string name="ledger_banner_net">순수익</string>
+    <string name="ledger_banner_carry_over">이월금</string>
+    <string name="ledger_view_in_daily">일별 보기로 이동 →</string>
+    <string name="ledger_no_tx_for_week">이번 주 거래 내역이 없습니다</string>
+    <string name="ledger_no_tx_for_month">이번 달 거래 내역이 없습니다</string>
+    <string name="ledger_current_month_badge">이번 달</string>
+
+    <!-- 통계 서브탭 -->
+    <string name="stats_subtab_overview">개요</string>
+    <string name="stats_subtab_cards">카드</string>
+    <string name="stats_subtab_budgets">예산</string>
+    <string name="stats_subtab_tags">태그</string>
+
+    <!-- 오늘 안전 지출 가능액 (Safe-to-Spend) -->
+    <string name="safe_to_spend_title">오늘 마음 편히 쓸 수 있는 돈</string>
+    <string name="safe_to_spend_badge">여유 자금</string>
+    <string name="safe_to_spend_formula_liquid">유동성 현금</string>
+    <string name="safe_to_spend_formula_cards">카드 대금</string>
+    <string name="safe_to_spend_formula_commitments">14일 내 고정비</string>
+    <string name="shortfall_alert_title">14일 이내 잔액 부족 경고</string>
+
+    <!-- 순자산 속도 (Velocity) -->
+    <string name="nw_velocity_title">순자산 증감 속도</string>
+    <string name="nw_velocity_3m_avg">3개월 평균 궤적</string>
+    <string name="nw_velocity_burn_rate">월평균 지출 속도</string>
+    <string name="nw_velocity_runway">비상금 버팀 개월 수</string>
+    <string name="nw_velocity_runway_months">%1$s개월</string>
+    <string name="nw_velocity_runway_infinite">12개월 이상 여유</string>
+
+    <!-- 신용카드 현황 -->
+    <string name="cards_cockpit_title">신용카드 관리 현황</string>
+    <string name="cards_swipe_headroom_label">안전 한도 여유액 (30% 기준)</string>
+    <string name="cards_status_overdue">연체</string>
+    <string name="cards_status_due_soon">결제 임박</string>
+    <string name="cards_status_issued">청구됨</string>
+    <string name="cards_status_current">이용 중</string>
+    <string name="cards_status_settled">결제 완료</string>
+    <string name="cards_milestone_debt_free">모든 신용카드 결제 완료!</string>
+    <string name="cards_milestone_debt_free_sub">모든 카드의 미결제 잔액이 0원입니다. 이번 결제 주기 동안 완전한 무부채 상태입니다.</string>
+
+    <!-- 프로젝트 및 정산 허브 -->
+    <string name="hub_reimbursable_mode">정산·환급 모드</string>
+    <string name="hub_event_mode">여행·이벤트 모드</string>
+    <string name="hub_total_spent">총 지출액</string>
+    <string name="hub_total_reimbursed">정산 받은 금액</string>
+    <string name="hub_pending_owed">받을 잔액</string>
+    <string name="hub_fully_settled">정산 완료</string>
+    <string name="hub_daily_average">하루 평균 지출</string>
+    <string name="hub_date_duration">%1$s일간</string>
+    <string name="payee_sort_outlay">지출 많은 순</string>
+    <string name="payee_sort_frequency">빈도 순</string>
+
+    <!-- 계좌 및 순자산 -->
+    <string name="accounts_banner_net_worth">순자산</string>
+    <string name="accounts_banner_assets">총자산</string>
+    <string name="accounts_banner_liabilities">총부채</string>
+
+    <!-- 계좌 그룹 -->
+    <string name="account_group_cash">현금</string>
+    <string name="account_group_bank_account">입출금 통장</string>
+    <string name="account_group_debit_card">체크카드</string>
+    <string name="account_group_credit_card">신용카드</string>
+    <string name="account_group_savings">예적금</string>
+    <string name="account_group_prepaid_wallet">선불·간편결제</string>
+    <string name="account_group_investment">증권·투자</string>
+    <string name="account_group_overdraft">마이너스 통장</string>
+    <string name="account_group_loan">대출</string>
+    <string name="account_group_other">기타 계좌</string>
+
+    <string name="cc_label_due_now">결제 예정</string>
+    <string name="cc_label_unbilled">미청구액</string>
+    <string name="cc_action_settle_bill">카드값 결제</string>
+    <string name="cc_action_edit_account">계좌 수정</string>
+    <string name="cc_action_add_transaction">추가</string>
+
+    <!-- 거래 입력 -->
+    <string name="entry_mode_expense">지출</string>
+    <string name="entry_mode_income">수입</string>
+    <string name="entry_mode_transfer">이체</string>
+    <string name="entry_chip_split">금액 분할</string>
+    <string name="entry_chip_installment">할부</string>
+    <string name="entry_chip_repeat">반복</string>
+    <string name="entry_hint_amount">0</string>
+    <string name="entry_hint_select_category">카테고리 선택</string>
+    <string name="entry_hint_payee">사용처 또는 내용</string>
+    <string name="entry_hint_note">메모 (선택사항)</string>
+    <string name="entry_hint_transfer_fee">이체 수수료</string>
+
+    <!-- 설정 -->
+    <string name="settings_group_taxonomy">분류 및 체계</string>
+    <string name="settings_group_appearance">디자인 및 보안</string>
+    <string name="settings_group_data">데이터 및 백업</string>
+    <string name="settings_group_community">도움말 및 커뮤니티</string>
+    <string name="setting_currency_format">통화 및 숫자 표기</string>
+    <string name="setting_secondary_currencies">보조 통화 및 환율</string>
+    <string name="setting_app_language">앱 표시 언어</string>
+    <string name="setting_categories">카테고리 및 세부 항목</string>
+    <string name="setting_tags_bookmarks">태그 및 빠른 템플릿</string>
+    <string name="setting_appearance_theme">테마 및 강조 색상</string>
+    <string name="setting_app_lock">생체 인증 잠금</string>
+    <string name="setting_auto_backup">자동 세션 백업</string>
+    <string name="setting_phone_migration">기기 변경 데이터 이동 (ZIP)</string>
+    <string name="setting_spreadsheets">스프레드시트 (CSV 가져오기·내보내기)</string>
+    <string name="setting_pdf_statements">PDF 계좌 내역서 및 세무 보고서</string>
+    <string name="setting_user_guide">사용자 안내서 및 문의</string>
+    <string name="setting_tip_jar">개발자 후원 및 배지</string>
+    <string name="setting_danger_reset">가계부 전체 데이터 초기화</string>
+</resources>

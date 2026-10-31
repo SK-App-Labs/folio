@@ -24,12 +24,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Placed the **App Language** setting row in `SettingsScreen.kt` under **`APPEARANCE & SECURITY`** directly below **Theme & Accent Palette**, creating a perfectly balanced 3-row card.
   - Displays the active language's native name directly on the row's glanceable badge (e.g. `English`, `Español`, `Deutsch`, `日本語`, `हिन्दी`, `தமிழ்`).
   - Wired 1-tap switching via `AppCompatDelegate.setApplicationLocales` with instant activity configuration recreation.
-- **Tier 1A Financial-Grade Translations (Phase 3)**:
-  - Deployed full localized string catalogs for 4 high-priority global markets:
+- **Tier 1A & Tier 1B Financial-Grade Translations (Phase 3)**:
+  - Deployed full localized string catalogs for all 12 global Tier-1 markets (alongside English base):
     - 🇪🇸 **Spanish (`res/values-es`)**: Latin America & Spain banking terminology (*Patrimonio neto, Activos/Pasivos, Remanente, Disponible para gastar*).
     - 🇧🇷 **Portuguese - Brazil (`res/values-pt-rBR`)**: Brazil fintech & budgeting standards (*Patrimônio Líquido, A Pagar/Não Faturado, Reserva de Emergência*).
     - 🇩🇪 **German (`res/values-de`)**: DACH region privacy & ledger terminology (*Nettovermögen, Fällig/Unabgerechnet, Notgroschen-Puffer*).
     - 🇮🇳 **Hindi (`res/values-hi`)**: Indian vernacular personal finance (*कुल संपत्ति, देय राशि, आपातकालीन फंड, सुरक्षित खर्च*).
+    - 🇫🇷 **French (`res/values-fr`)**: European & global Francophone finance (*Valeur nette, Actifs/Passifs, Report à nouveau, Reste à dépenser*).
+    - 🇮🇹 **Italian (`res/values-it`)**: Italian financial management (*Patrimonio netto, Attività/Passività, Fondo d'emergenza, Da saldare*).
+    - 🇯🇵 **Japanese (`res/values-ja`)**: Japanese domestic household bookkeeping (*純資産, 資産/負債, 繰越金, 支出可能額, 締め日*).
+    - 🇰🇷 **Korean (`res/values-ko`)**: Korean fintech & ledger standards (*순자산, 자산/부채, 이월액, 지출 가능 잔액, 비상금 버퍼*).
+    - 🇨🇳 **Simplified Chinese (`res/values-zh-rCN`)**: Standard Mainland Chinese accounting (*净资产, 总资产/总负债, 前期结转, 今日安全可支配, 自由资金*).
+    - 🇹🇼 **Traditional Chinese (`res/values-zh-rTW`)**: Traditional Taiwan/HK personal finance (*淨資產, 總資產/總負債, 前期結轉, 今日安全可支配額度, 自由資金*).
+    - 🇮🇩 **Indonesian (`res/values-in`)**: Southeast Asian personal ledger terms (*Kekayaan Bersih, Aset/Liabilitas, Saldo Lalu, Dana Bebas, Landasan Dana Darurat*).
+    - 🇮🇳 **Tamil (`res/values-ta`)**: Indian regional finance (*நிகர மதிப்பு, மொத்த சொத்துக்கள்/கடன்கள், முந்தைய இருப்பு, உபரி நிதி, பில் செலுத்து*).
 
 ## [1.4.0] - 2026-10-31
 ### Fixed

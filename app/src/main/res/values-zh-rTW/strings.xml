@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- File: app/src/main/res/values-zh-rTW/strings.xml -->
+<!-- Traditional Chinese (繁體中文) Translations for Folio -->
+<resources>
+    <string name="app_name">Folio</string>
+
+    <!-- 基礎操作 -->
+    <string name="action_save">儲存</string>
+    <string name="action_save_and_continue">儲存並繼續</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_delete">刪除</string>
+    <string name="action_edit">編輯</string>
+    <string name="action_done">完成</string>
+    <string name="action_close">關閉</string>
+    <string name="action_apply">套用</string>
+    <string name="action_clear">清除</string>
+    <string name="action_clear_all">全部清除</string>
+    <string name="action_confirm">確認</string>
+    <string name="action_archive">封存</string>
+    <string name="action_unarchive">解除封存</string>
+    <string name="action_restore">還原</string>
+    <string name="action_share">分享</string>
+    <string name="action_export">匯出</string>
+    <string name="action_import">匯入</string>
+    <string name="action_view">檢視</string>
+    <string name="action_print">列印</string>
+
+    <!-- 搜尋與篩選 -->
+    <string name="search_placeholder">搜尋</string>
+    <string name="filter_button_label">篩選</string>
+    <string name="filter_all_accounts">所有帳戶</string>
+    <string name="filter_all_categories">所有類別</string>
+    <string name="filter_all_tags">所有標籤</string>
+    <string name="filter_active_filters">已套用篩選</string>
+
+    <!-- 狀態反饋 -->
+    <string name="state_no_transactions">尚無交易紀錄</string>
+    <string name="state_loading">載入中…</string>
+    <string name="state_no_data">尚無資料</string>
+
+    <!-- 底部主導航 -->
+    <string name="nav_tab_transactions">明細</string>
+    <string name="nav_tab_stats">統計</string>
+    <string name="nav_tab_accounts">帳戶</string>
+    <string name="nav_tab_settings">設定</string>
+    <string name="cd_nav_transactions">交易明細分頁</string>
+    <string name="cd_nav_stats">統計與預算分頁</string>
+    <string name="cd_nav_accounts">帳戶與淨資產分頁</string>
+    <string name="cd_nav_settings">設定選項分頁</string>
+    <string name="cd_add_transaction_fab">新增記帳</string>
+
+    <!-- 帳目子頁面 -->
+    <string name="subtab_daily">每日</string>
+    <string name="subtab_calendar">日曆</string>
+    <string name="subtab_weekly">每週</string>
+    <string name="subtab_monthly">每月</string>
+    <string name="subtab_summary">總覽</string>
+
+    <!-- 頂部彙總橫幅 -->
+    <string name="ledger_banner_income">收入</string>
+    <string name="ledger_banner_expense">支出</string>
+    <string name="ledger_banner_net">結餘</string>
+    <string name="ledger_banner_carry_over">前期結轉</string>
+    <string name="ledger_view_in_daily">在日檢視中查看 →</string>
+    <string name="ledger_no_tx_for_week">本週尚無帳目</string>
+    <string name="ledger_no_tx_for_month">本月尚無帳目</string>
+    <string name="ledger_current_month_badge">本月</string>
+
+    <!-- 統計子頁面 -->
+    <string name="stats_subtab_overview">概覽</string>
+    <string name="stats_subtab_cards">卡片</string>
+    <string name="stats_subtab_budgets">預算</string>
+    <string name="stats_subtab_tags">標籤</string>
+
+    <!-- 今日安全可支配 (Safe-to-Spend) -->
+    <string name="safe_to_spend_title">今日安全可支配額度</string>
+    <string name="safe_to_spend_badge">自由資金</string>
+    <string name="safe_to_spend_formula_liquid">可用流動現金</string>
+    <string name="safe_to_spend_formula_cards">信用卡待繳款</string>
+    <string name="safe_to_spend_formula_commitments">14天內固定支出</string>
+    <string name="shortfall_alert_title">14天內帳戶透支預警</string>
+
+    <!-- 淨資產增長速率 (Velocity) -->
+    <string name="nw_velocity_title">淨資產增長趨勢</string>
+    <string name="nw_velocity_3m_avg">3個月均速軌跡</string>
+    <string name="nw_velocity_burn_rate">月均支出消耗率</string>
+    <string name="nw_velocity_runway">緊急預備金緩衝期</string>
+    <string name="nw_velocity_runway_months">%1$s個月</string>
+    <string name="nw_velocity_runway_infinite">緩衝期 &gt; 12個月</string>
+
+    <!-- 信用卡儀表板 -->
+    <string name="cards_cockpit_title">信用卡智慧面板</string>
+    <string name="cards_swipe_headroom_label">健康刷卡安全額度 (30%警戒線)</string>
+    <string name="cards_status_overdue">已逾期</string>
+    <string name="cards_status_due_soon">即將到期</string>
+    <string name="cards_status_issued">已出帳</string>
+    <string name="cards_status_current">本期使用中</string>
+    <string name="cards_status_settled">已繳清</string>
+    <string name="cards_milestone_debt_free">所有信用卡已全額繳清！</string>
+    <string name="cards_milestone_debt_free_sub">所有卡片目前欠款為零，本計費週期處於健康的無負債狀態。</string>
+
+    <!-- 代墊與專項管理 -->
+    <string name="hub_reimbursable_mode">代墊報銷模式</string>
+    <string name="hub_event_mode">旅程與活動模式</string>
+    <string name="hub_total_spent">墊付總支出</string>
+    <string name="hub_total_reimbursed">已報銷金額</string>
+    <string name="hub_pending_owed">待收回代墊款</string>
+    <string name="hub_fully_settled">已全額結清</string>
+    <string name="hub_daily_average">日均支出</string>
+    <string name="hub_date_duration">%1$s天時長</string>
+    <string name="payee_sort_outlay">支出金額</string>
+    <string name="payee_sort_frequency">交易頻率</string>
+
+    <!-- 帳戶與淨資產 -->
+    <string name="accounts_banner_net_worth">淨資產</string>
+    <string name="accounts_banner_assets">總資產</string>
+    <string name="accounts_banner_liabilities">總負債</string>
+
+    <!-- 帳戶群組分類 -->
+    <string name="account_group_cash">現金</string>
+    <string name="account_group_bank_account">銀行帳戶</string>
+    <string name="account_group_debit_card">簽帳金融卡</string>
+    <string name="account_group_credit_card">信用卡</string>
+    <string name="account_group_savings">定期與儲蓄</string>
+    <string name="account_group_prepaid_wallet">電子錢包</string>
+    <string name="account_group_investment">投資與理財</string>
+    <string name="account_group_overdraft">透支授信帳戶</string>
+    <string name="account_group_loan">個人貸款</string>
+    <string name="account_group_other">其他帳戶</string>
+
+    <string name="cc_label_due_now">應繳金額</string>
+    <string name="cc_label_unbilled">未出帳</string>
+    <string name="cc_action_settle_bill">繳信用卡費</string>
+    <string name="cc_action_edit_account">編輯帳戶</string>
+    <string name="cc_action_add_transaction">記一筆</string>
+
+    <!-- 交易輸入 -->
+    <string name="entry_mode_expense">支出</string>
+    <string name="entry_mode_income">收入</string>
+    <string name="entry_mode_transfer">轉帳</string>
+    <string name="entry_chip_split">拆帳</string>
+    <string name="entry_chip_installment">分期</string>
+    <string name="entry_chip_repeat">定期</string>
+    <string name="entry_hint_amount">0.00</string>
+    <string name="entry_hint_select_category">選擇類別</string>
+    <string name="entry_hint_payee">商家或交易對象</string>
+    <string name="entry_hint_note">備註（選填）</string>
+    <string name="entry_hint_transfer_fee">轉帳手續費</string>
+
+    <!-- 系統設定 -->
+    <string name="settings_group_taxonomy">財務架構與分類</string>
+    <string name="settings_group_appearance">外觀與安全性</string>
+    <string name="settings_group_data">資料管理與備份</string>
+    <string name="settings_group_community">說明支援與贊助</string>
+    <string name="setting_currency_format">幣別與數字格式</string>
+    <string name="setting_secondary_currencies">多幣別管理與匯率</string>
+    <string name="setting_app_language">介面語言</string>
+    <string name="setting_categories">主類別與子類別管理</string>
+    <string name="setting_tags_bookmarks">標籤與常用記帳範本</string>
+    <string name="setting_appearance_theme">主題模式與主色調</string>
+    <string name="setting_app_lock">生物辨識與指紋鎖</string>
+    <string name="setting_auto_backup">離線自動備份</string>
+    <string name="setting_phone_migration">更換手機完整遷移 (ZIP)</string>
+    <string name="setting_spreadsheets">試算表 (CSV匯入與匯出)</string>
+    <string name="setting_pdf_statements">PDF對帳單與年度報表</string>
+    <string name="setting_user_guide">使用手冊與支援</string>
+    <string name="setting_tip_jar">請開發者喝杯咖啡與贊助徽章</string>
+    <string name="setting_danger_reset">清空並重設所有帳本資料</string>
+</resources>
