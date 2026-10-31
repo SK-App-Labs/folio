@@ -1,9 +1,11 @@
 // File: app/src/main/java/com/folioledger/app/ui/ledger/LedgerHomeViewModel.kt
 package com.folioledger.app.ui.ledger
 
+import androidx.annotation.StringRes
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.folioledger.app.R
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.BudgetProgress
 import com.folioledger.app.domain.model.CategoryNode
@@ -123,12 +125,15 @@ object LedgerPeriodCalculator {
     }
 }
 
-enum class LedgerSubTab(val title: String) {
-    DAILY("Daily"),
-    CALENDAR("Calendar"),
-    WEEKLY("Weekly"),
-    MONTHLY("Monthly"),
-    SUMMARY("Summary")
+enum class LedgerSubTab(
+    val title: String,
+    @param:StringRes val titleRes: Int,
+) {
+    DAILY("Daily", R.string.subtab_daily),
+    CALENDAR("Calendar", R.string.subtab_calendar),
+    WEEKLY("Weekly", R.string.subtab_weekly),
+    MONTHLY("Monthly", R.string.subtab_monthly),
+    SUMMARY("Summary", R.string.subtab_summary)
 }
 
 @Immutable

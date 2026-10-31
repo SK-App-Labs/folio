@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.5.0] - Unreleased
+### Added
+- **Global Localization & Tier-1 Language Architecture (Phase 1: String Extraction & Android 13+ Per-App Locale Setup)**:
+  - Engineered native Android 13+ Per-App Language Preferences (`res/xml/locales_config.xml` & `android:localeConfig`), enabling system-level and in-app language switching across 13 major global locales.
+  - Extracted centralized XML string catalogs in `res/values/`:
+    - `strings_common.xml`: Shared actions (Save, Cancel, Delete, Edit, Archive, Clear) and filter/search placeholders.
+    - `strings_nav.xml`: Bottom navigation tabs (`Trans.`, `Stats`, `Accounts`, `Settings`) and accessibility descriptions.
+    - `strings_ledger.xml`: Ledger subtabs (`Daily`, `Calendar`, `Weekly`, `Monthly`, `Summary`) and header banners.
+    - `strings_stats.xml`: Stats subtabs (`Overview`, `Cards`, `Budgets`, `Tags`), Safe-to-Spend metrics, Shortfall warnings, and Net Worth Velocity labels.
+    - `strings_accounts.xml`: Net Worth banners, Account Groups (`Cash`, `Bank`, `Debit Cards`, `Credit Cards`, etc.), and Credit Card action labels.
+    - `strings_entry.xml`: Transaction entry modes, chips (`Split`, `Inst.`, `Repeat`), and input hints.
+    - `strings_settings.xml`: Settings group headers and navigation rows.
+  - Converted hardcoded Compose literals in `FolioMainShell.kt`, `StatsAndBudgetsScreen.kt`, `LedgerHomeScreen.kt`, and `AccountGroupSectionCard.kt` to dynamic `stringResource(R.string.*)` lookups.
+
 ## [1.4.0] - 2026-10-31
 ### Fixed
 - **Ledger Summary Subtab Polish & Data Integrity**:

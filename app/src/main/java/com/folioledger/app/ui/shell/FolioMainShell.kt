@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -43,9 +44,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.folioledger.app.R
 import com.folioledger.app.ui.accounts.AccountsScreen
 import com.folioledger.app.ui.accounts.AccountsViewModel
 import com.folioledger.app.ui.entry.TransactionEntrySheet
@@ -60,11 +63,12 @@ import com.folioledger.app.ui.stats.StatsAndBudgetsViewModel
 enum class FolioMainTab(
     val label: String,
     val icon: ImageVector,
+    @param:StringRes val labelRes: Int
 ) {
-    TRANSACTIONS("Trans.", Icons.AutoMirrored.Filled.ReceiptLong),
-    STATS("Stats", Icons.Default.PieChart),
-    ACCOUNTS("Accounts", Icons.Default.AccountBalanceWallet),
-    SETTINGS("Settings", Icons.Default.Settings)
+    TRANSACTIONS("Trans.", Icons.AutoMirrored.Filled.ReceiptLong, R.string.nav_tab_transactions),
+    STATS("Stats", Icons.Default.PieChart, R.string.nav_tab_stats),
+    ACCOUNTS("Accounts", Icons.Default.AccountBalanceWallet, R.string.nav_tab_accounts),
+    SETTINGS("Settings", Icons.Default.Settings, R.string.nav_tab_settings)
 }
 
 @Composable
@@ -156,10 +160,10 @@ fun FolioMainShell(
                             icon = {
                                 Icon(
                                     imageVector = tab.icon,
-                                    contentDescription = tab.label
+                                    contentDescription = stringResource(tab.labelRes)
                                 )
                             },
-                            label = { Text(text = tab.label) }
+                            label = { Text(text = stringResource(tab.labelRes)) }
                         )
                     }
                 }
@@ -184,7 +188,7 @@ fun FolioMainShell(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
-                            contentDescription = "Add Transaction"
+                            contentDescription = stringResource(R.string.cd_add_transaction_fab)
                         )
                     }
                 }

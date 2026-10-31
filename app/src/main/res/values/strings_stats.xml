@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- File: app/src/main/res/values/strings_stats.xml -->
+<resources>
+    <!-- Stats Subtabs -->
+    <string name="stats_subtab_overview">Overview</string>
+    <string name="stats_subtab_cards">Cards</string>
+    <string name="stats_subtab_budgets">Budgets</string>
+    <string name="stats_subtab_tags">Tags</string>
+
+    <!-- Safe-to-Spend & Cashflow Radar -->
+    <string name="safe_to_spend_title">Safe-to-Spend Today</string>
+    <string name="safe_to_spend_badge">Discretionary Cash</string>
+    <string name="safe_to_spend_formula_liquid">LIQUID CASH</string>
+    <string name="safe_to_spend_formula_cards">CARD DEBT</string>
+    <string name="safe_to_spend_formula_commitments">14D COMMITMENTS</string>
+    <string name="shortfall_alert_title">14-Day Overdraft Shortfall Warning</string>
+
+    <!-- Net Worth Velocity Cockpit -->
+    <string name="nw_velocity_title">Net Worth Velocity</string>
+    <string name="nw_velocity_3m_avg">3M Monthly Trajectory</string>
+    <string name="nw_velocity_burn_rate">Expense Burn Rate</string>
+    <string name="nw_velocity_runway">Liquid Emergency Runway</string>
+    <string name="nw_velocity_runway_months">%1$s Months</string>
+    <string name="nw_velocity_runway_infinite">Runway > 12 Months</string>
+
+    <!-- Credit Cards Cockpit -->
+    <string name="cards_cockpit_title">Credit Cards Cockpit</string>
+    <string name="cards_swipe_headroom_label">Smart Swipe Headroom (30% Bureau Limit)</string>
+    <string name="cards_status_overdue">OVERDUE</string>
+    <string name="cards_status_due_soon">DUE SOON</string>
+    <string name="cards_status_issued">ISSUED</string>
+    <string name="cards_status_current">CURRENT</string>
+    <string name="cards_status_settled">SETTLED</string>
+    <string name="cards_milestone_debt_free">All Credit Cards Settled!</string>
+    <string name="cards_milestone_debt_free_sub">Zero outstanding balance across all cards. You are completely debt-free this billing cycle.</string>
+
+    <!-- Events & Reimbursements Hub -->
+    <string name="hub_reimbursable_mode">Reimbursable Mode</string>
+    <string name="hub_event_mode">Trip &amp; Event Mode</string>
+    <string name="hub_total_spent">Total Spent</string>
+    <string name="hub_total_reimbursed">Total Reimbursed</string>
+    <string name="hub_pending_owed">Pending Claim</string>
+    <string name="hub_fully_settled">Fully Settled</string>
+    <string name="hub_daily_average">Daily Burn Rate</string>
+    <string name="hub_date_duration">%1$s Days Duration</string>
+
+    <!-- Payee Intelligence -->
+    <string name="payee_sort_outlay">Total Outlay</string>
+    <string name="payee_sort_frequency">Frequency</string>
+</resources>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- File: app/src/main/res/values/strings_ledger.xml -->
+<resources>
+    <!-- Ledger Subtabs -->
+    <string name="subtab_daily">Daily</string>
+    <string name="subtab_calendar">Calendar</string>
+    <string name="subtab_weekly">Weekly</string>
+    <string name="subtab_monthly">Monthly</string>
+    <string name="subtab_summary">Summary</string>
+
+    <!-- Top Summary Banner -->
+    <string name="ledger_banner_income">Income</string>
+    <string name="ledger_banner_expense">Expense</string>
+    <string name="ledger_banner_net">Net</string>
+    <string name="ledger_banner_carry_over">Carry-Over</string>
+
+    <!-- Subtab Navigation Shortcuts -->
+    <string name="ledger_view_in_daily">View in Daily →</string>
+    <string name="ledger_no_tx_for_week">No transactions recorded for this week</string>
+    <string name="ledger_no_tx_for_month">No transactions recorded for this month</string>
+    <string name="ledger_current_month_badge">Current</string>
+</resources>

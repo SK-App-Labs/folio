@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- File: app/src/main/res/xml/locales_config.xml -->
+<!-- Tier-1 Global Language Pack for Android 13+ Per-App Language Preferences -->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="es" />
+    <locale android:name="pt-BR" />
+    <locale android:name="de" />
+    <locale android:name="fr" />
+    <locale android:name="it" />
+    <locale android:name="ja" />
+    <locale android:name="ko" />
+    <locale android:name="zh-CN" />
+    <locale android:name="zh-TW" />
+    <locale android:name="id" />
+    <locale android:name="hi" />
+    <locale android:name="ta" />
+</locale-config>

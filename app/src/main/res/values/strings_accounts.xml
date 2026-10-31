@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- File: app/src/main/res/values/strings_accounts.xml -->
+<resources>
+    <!-- Top Net Worth Banner -->
+    <string name="accounts_banner_net_worth">Net Worth</string>
+    <string name="accounts_banner_assets">Assets</string>
+    <string name="accounts_banner_liabilities">Liabilities</string>
+
+    <!-- Account Groups -->
+    <string name="account_group_cash">Cash</string>
+    <string name="account_group_bank_account">Bank Account</string>
+    <string name="account_group_debit_card">Debit Cards</string>
+    <string name="account_group_credit_card">Credit Cards</string>
+    <string name="account_group_savings">Savings</string>
+    <string name="account_group_prepaid_wallet">Prepaid Wallet</string>
+    <string name="account_group_investment">Investment</string>
+    <string name="account_group_overdraft">Overdraft</string>
+    <string name="account_group_loan">Loan</string>
+    <string name="account_group_other">Other</string>
+
+    <!-- Credit Card Rows & Details -->
+    <string name="cc_label_due_now">DUE NOW</string>
+    <string name="cc_label_unbilled">UNBILLED</string>
+    <string name="cc_action_settle_bill">Settle Bill</string>
+    <string name="cc_action_edit_account">Edit Account</string>
+    <string name="cc_action_add_transaction">Add Tx</string>
+</resources>

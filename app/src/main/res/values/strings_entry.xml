@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- File: app/src/main/res/values/strings_entry.xml -->
+<resources>
+    <!-- Transaction Modes -->
+    <string name="entry_mode_expense">Expense</string>
+    <string name="entry_mode_income">Income</string>
+    <string name="entry_mode_transfer">Transfer</string>
+
+    <!-- Entry Chips & Toggles -->
+    <string name="entry_chip_split">Split</string>
+    <string name="entry_chip_installment">Inst.</string>
+    <string name="entry_chip_repeat">Repeat</string>
+
+    <!-- Field Hints -->
+    <string name="entry_hint_amount">0.00</string>
+    <string name="entry_hint_select_category">Select Category</string>
+    <string name="entry_hint_payee">Payee or Description</string>
+    <string name="entry_hint_note">Note (Optional)</string>
+    <string name="entry_hint_transfer_fee">Transfer Fee</string>
+</resources>

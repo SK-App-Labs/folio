@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- File: app/src/main/res/values/strings_nav.xml -->
+<resources>
+    <!-- Primary Bottom Navigation Tabs -->
+    <string name="nav_tab_transactions">Trans.</string>
+    <string name="nav_tab_stats">Stats</string>
+    <string name="nav_tab_accounts">Accounts</string>
+    <string name="nav_tab_settings">Settings</string>
+
+    <!-- Content Descriptions & Accessibility -->
+    <string name="cd_nav_transactions">Transactions ledger tab</string>
+    <string name="cd_nav_stats">Analytics, intelligence and budgets tab</string>
+    <string name="cd_nav_accounts">Accounts and net worth tab</string>
+    <string name="cd_nav_settings">Settings and preferences tab</string>
+    <string name="cd_add_transaction_fab">Add new transaction</string>
+</resources>

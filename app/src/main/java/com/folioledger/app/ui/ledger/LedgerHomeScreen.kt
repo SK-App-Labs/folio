@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.res.stringResource
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -193,7 +194,7 @@ fun LedgerHomeScreen(
                                 },
                                 text = {
                                     Text(
-                                        text = tab.title,
+                                        text = stringResource(tab.titleRes),
                                         style = MaterialTheme.typography.labelLarge,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                     )

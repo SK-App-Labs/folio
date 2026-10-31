@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- File: app/src/main/res/values/strings_settings.xml -->
+<resources>
+    <!-- Settings Group Cards -->
+    <string name="settings_group_taxonomy">ORGANIZATION &amp; TAXONOMY</string>
+    <string name="settings_group_appearance">APPEARANCE &amp; SECURITY</string>
+    <string name="settings_group_data">DATA &amp; BACKUPS</string>
+    <string name="settings_group_community">HELP &amp; COMMUNITY</string>
+
+    <!-- Settings Navigation Rows -->
+    <string name="setting_currency_format">Currency &amp; Number Format</string>
+    <string name="setting_secondary_currencies">Secondary Currencies</string>
+    <string name="setting_app_language">App Language</string>
+    <string name="setting_categories">Categories &amp; Subcategories</string>
+    <string name="setting_tags_bookmarks">Tags &amp; Quick Bookmarks</string>
+    <string name="setting_appearance_theme">Theme &amp; Appearance</string>
+    <string name="setting_app_lock">Biometric App Lock</string>
+    <string name="setting_auto_backup">Auto-Backup &amp; Snapshots</string>
+    <string name="setting_phone_migration">Device Migration &amp; Full ZIP</string>
+    <string name="setting_spreadsheets">Spreadsheets (CSV Import &amp; Export)</string>
+    <string name="setting_pdf_statements">PDF Statements &amp; Tax Reports</string>
+    <string name="setting_user_guide">User Guide &amp; Support</string>
+    <string name="setting_tip_jar">Tip Jar &amp; Supporter Badge</string>
+    <string name="setting_danger_reset">Reset All Ledger Data</string>
+</resources>

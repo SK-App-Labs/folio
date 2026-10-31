@@ -1,9 +1,11 @@
 // File: app/src/main/java/com/folioledger/app/ui/stats/StatsAndBudgetsViewModel.kt
 package com.folioledger.app.ui.stats
 
+import androidx.annotation.StringRes
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.folioledger.app.R
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.BudgetProgress
@@ -61,11 +63,14 @@ enum class StatsPeriodGranularity(val title: String) {
     CUSTOM("Custom")
 }
 
-enum class StatsSubTab(val title: String) {
-    STATS("Overview"),
-    CREDIT_CARDS("Cards"),
-    BUDGETS("Budgets"),
-    TAGS_AND_NOTES("Tags")
+enum class StatsSubTab(
+    val title: String,
+    @param:StringRes val titleRes: Int,
+) {
+    STATS("Overview", R.string.stats_subtab_overview),
+    CREDIT_CARDS("Cards", R.string.stats_subtab_cards),
+    BUDGETS("Budgets", R.string.stats_subtab_budgets),
+    TAGS_AND_NOTES("Tags", R.string.stats_subtab_tags)
 }
 
 enum class TrendChartMode(val title: String) {

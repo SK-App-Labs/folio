@@ -1,5 +1,6 @@
 package com.folioledger.app.ui.accounts.components
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -21,9 +22,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.folioledger.app.R
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.CurrencySpec
@@ -67,7 +70,7 @@ internal fun AccountGroupSectionCard(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = formatAccountGroupTitle(group).uppercase(),
+                    text = stringResource(getAccountGroupTitleRes(group)).uppercase(),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -262,4 +265,18 @@ internal fun formatAccountGroupTitle(group: AccountGroup): String = when (group)
     AccountGroup.OVERDRAFT -> "Overdraft"
     AccountGroup.LOAN -> "Loans"
     AccountGroup.OTHER -> "Other Accounts"
+}
+
+@StringRes
+internal fun getAccountGroupTitleRes(group: AccountGroup): Int = when (group) {
+    AccountGroup.CASH -> R.string.account_group_cash
+    AccountGroup.BANK_ACCOUNT -> R.string.account_group_bank_account
+    AccountGroup.DEBIT_CARD -> R.string.account_group_debit_card
+    AccountGroup.CREDIT_CARD -> R.string.account_group_credit_card
+    AccountGroup.SAVINGS -> R.string.account_group_savings
+    AccountGroup.PREPAID_WALLET -> R.string.account_group_prepaid_wallet
+    AccountGroup.INVESTMENT -> R.string.account_group_investment
+    AccountGroup.OVERDRAFT -> R.string.account_group_overdraft
+    AccountGroup.LOAN -> R.string.account_group_loan
+    AccountGroup.OTHER -> R.string.account_group_other
 }
