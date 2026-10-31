@@ -84,7 +84,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.RadioButton
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
+import com.folioledger.app.R
 import com.folioledger.app.domain.model.AutoBackupRetention
 import com.folioledger.app.domain.model.ImportCsvPreview
 import com.folioledger.app.domain.model.ImportCsvResult
@@ -233,10 +235,10 @@ fun SettingsScreen(
             ) {
                 // Group 1: LEDGER & TAXONOMY
                 item {
-                    SettingsGroupCard(title = "LEDGER & TAXONOMY") {
+                    SettingsGroupCard(title = stringResource(R.string.settings_group_taxonomy)) {
                         SettingsNavigationRow(
                             icon = Icons.Default.Category,
-                            title = "Categories & Subcategories",
+                            title = stringResource(R.string.setting_categories),
                             valueText = "${uiState.expenseCategories.size + uiState.incomeCategories.size} active",
                             enabled = isNotBusy,
                             onClick = { viewModel.setCategoryManagerOpen(true) }
@@ -258,7 +260,7 @@ fun SettingsScreen(
                         )
                         SettingsNavigationRow(
                             icon = Icons.AutoMirrored.Filled.Label,
-                            title = "Tags & Bookmarks",
+                            title = stringResource(R.string.setting_tags_bookmarks),
                             valueText = "${uiState.tags.size} tags • ${uiState.bookmarks.size} saved",
                             enabled = isNotBusy,
                             onClick = { isTagsAndBookmarksSheetOpen = true }
@@ -269,7 +271,7 @@ fun SettingsScreen(
                         )
                         SettingsNavigationRow(
                             icon = Icons.Default.Payments,
-                            title = "Currency & Number Format",
+                            title = stringResource(R.string.setting_currency_format),
                             valueText = "${prefs.primaryCurrencyCode} • ${if (prefs.numberGrouping == NumberGroupingSystem.INDIAN) "12,34,567" else "1,234,567"}",
                             enabled = isNotBusy,
                             onClick = { isRegionalFormatSheetOpen = true }
@@ -280,7 +282,7 @@ fun SettingsScreen(
                         )
                         SettingsNavigationRow(
                             icon = Icons.Default.Public,
-                            title = "Secondary Currencies",
+                            title = stringResource(R.string.setting_secondary_currencies),
                             valueText = when {
                                 prefs.secondaryCurrencies.isEmpty() -> "None configured"
                                 prefs.secondaryCurrencies.size == 1 -> {
@@ -309,7 +311,7 @@ fun SettingsScreen(
                         )
                         SettingsSwitchRow(
                             icon = Icons.Default.Sync,
-                            title = "Carry-Over Monthly Balance",
+                            title = stringResource(R.string.ledger_banner_carry_over),
                             checked = prefs.carryOverEnabled,
                             enabled = isNotBusy,
                             onCheckedChange = { viewModel.setCarryOverEnabled(it) }
@@ -319,12 +321,12 @@ fun SettingsScreen(
 
                 // Group 2: APPEARANCE & SECURITY
                 item {
-                    SettingsGroupCard(title = "APPEARANCE & SECURITY") {
+                    SettingsGroupCard(title = stringResource(R.string.settings_group_appearance)) {
                         val themeModeObj = FolioThemeMode.fromKey(prefs.themeMode)
                         val accentPaletteObj = FolioAccentPalette.fromKey(prefs.accentPalette)
                         SettingsNavigationRow(
                             icon = Icons.Default.Palette,
-                            title = "Theme & Accent Palette",
+                            title = stringResource(R.string.setting_appearance_theme),
                             valueText = themeModeObj.displayName,
                             valueColorDot = accentPaletteObj.previewColor,
                             enabled = isNotBusy,
@@ -338,7 +340,7 @@ fun SettingsScreen(
                         val currentTag = if (currentLocales.isEmpty) "" else currentLocales[0]?.toLanguageTag() ?: ""
                         SettingsNavigationRow(
                             icon = Icons.Default.Language,
-                            title = "App Language",
+                            title = stringResource(R.string.setting_app_language),
                             valueText = resolveCurrentLanguageDisplayName(currentTag),
                             enabled = isNotBusy,
                             onClick = { isLanguageSheetOpen = true }
@@ -349,7 +351,7 @@ fun SettingsScreen(
                         )
                         SettingsSwitchRow(
                             icon = Icons.Default.Fingerprint,
-                            title = "Biometric App Lock",
+                            title = stringResource(R.string.setting_app_lock),
                             checked = prefs.biometricLockEnabled,
                             enabled = isNotBusy,
                             onCheckedChange = { viewModel.setBiometricLockEnabled(it) }
@@ -359,7 +361,7 @@ fun SettingsScreen(
 
                 // Group 3: DATA & BACKUPS
                 item {
-                    SettingsGroupCard(title = "DATA & BACKUPS") {
+                    SettingsGroupCard(title = stringResource(R.string.settings_group_data)) {
                         // 1. Automated Rolling Backups
                         val autoBackupValue = if (prefs.autoBackupEnabled) {
                             when (prefs.autoBackupRetention) {
@@ -371,7 +373,7 @@ fun SettingsScreen(
 
                         SettingsNavigationRow(
                             icon = Icons.Default.History,
-                            title = "Automated Rolling Backups",
+                            title = stringResource(R.string.setting_auto_backup),
                             valueText = autoBackupValue,
                             valueColorDot = if (prefs.autoBackupEnabled) semanticColors.incomeEmerald else semanticColors.warningAmber,
                             enabled = isNotBusy,
@@ -386,7 +388,7 @@ fun SettingsScreen(
                         val backupStatusText = formatBackupRelativeTime(prefs.lastBackupEpochMillis)
                         SettingsNavigationRow(
                             icon = Icons.Default.Backup,
-                            title = "Transfer & Manual Backup",
+                            title = stringResource(R.string.setting_phone_migration),
                             valueText = if (prefs.lastBackupEpochMillis != null) backupStatusText else "Downloads/Folio",
                             valueColorDot = if (prefs.lastBackupEpochMillis != null) semanticColors.incomeEmerald else null,
                             enabled = isNotBusy,
@@ -400,7 +402,7 @@ fun SettingsScreen(
                         // 3. PDF Statements & Tax Reports
                         SettingsNavigationRow(
                             icon = Icons.Default.PictureAsPdf,
-                            title = "PDF Statements & Tax Reports",
+                            title = stringResource(R.string.setting_pdf_statements),
                             valueText = "Account & Tax Reports",
                             enabled = isNotBusy,
                             onClick = { viewModel.openPdfReportsSheet() }
@@ -413,7 +415,7 @@ fun SettingsScreen(
                         // 4. Spreadsheets & CSV
                         SettingsNavigationRow(
                             icon = Icons.Default.TableChart,
-                            title = "Spreadsheets & CSV",
+                            title = stringResource(R.string.setting_spreadsheets),
                             valueText = "Export / Import",
                             enabled = isNotBusy,
                             onClick = { isSpreadsheetsSheetOpen = true }
@@ -426,7 +428,7 @@ fun SettingsScreen(
                         // 4. Reset All Ledger Data (Danger Zone)
                         SettingsNavigationRow(
                             icon = Icons.Default.DeleteForever,
-                            title = "Reset All Ledger Data",
+                            title = stringResource(R.string.setting_danger_reset),
                             valueText = null,
                             titleColor = MaterialTheme.colorScheme.error,
                             iconTint = MaterialTheme.colorScheme.error,
@@ -438,10 +440,10 @@ fun SettingsScreen(
 
                 // Group 4: HELP & COMMUNITY
                 item {
-                    SettingsGroupCard(title = "HELP & COMMUNITY") {
+                    SettingsGroupCard(title = stringResource(R.string.settings_group_community)) {
                         SettingsNavigationRow(
                             icon = Icons.AutoMirrored.Filled.MenuBook,
-                            title = "Folio User Guide & FAQs",
+                            title = stringResource(R.string.setting_user_guide),
                             valueText = null,
                             enabled = isNotBusy,
                             onClick = { showUserGuideSheet = true }
@@ -466,7 +468,7 @@ fun SettingsScreen(
 
                         SettingsNavigationRow(
                             icon = Icons.Default.LocalCafe,
-                            title = "Support Folio ☕",
+                            title = stringResource(R.string.setting_tip_jar),
                             valueText = activeSupporterTier?.badgeLabel ?: (if (prefs.isSupporter) "★ Unlocked" else null),
                             valueColorDot = activeSupporterTier?.let { parseHexColorSafely(it.accentHex) } ?: (if (prefs.isSupporter) semanticColors.warningAmber else null),
                             enabled = isNotBusy,

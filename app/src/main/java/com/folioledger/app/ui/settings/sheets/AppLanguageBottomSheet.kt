@@ -47,10 +47,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.os.LocaleListCompat
+import com.folioledger.app.R
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 
 /**
@@ -96,8 +98,11 @@ val TIER_1_LANGUAGES = listOf(
  */
 fun resolveCurrentLanguageDisplayName(currentTag: String): String {
     if (currentTag.isBlank()) return "System"
-    val match = TIER_1_LANGUAGES.firstOrNull { it.tag.equals(currentTag, ignoreCase = true) }
-        ?: TIER_1_LANGUAGES.firstOrNull { it.tag.startsWith(currentTag.take(2), ignoreCase = true) }
+    val match = TIER_1_LANGUAGES.firstOrNull {
+        it.tag.equals(currentTag, ignoreCase = true) ||
+            (currentTag.equals("in", ignoreCase = true) && it.tag.equals("id", ignoreCase = true)) ||
+            (currentTag.equals("id", ignoreCase = true) && it.tag.equals("in", ignoreCase = true))
+    } ?: TIER_1_LANGUAGES.firstOrNull { it.tag.startsWith(currentTag.take(2), ignoreCase = true) }
     return match?.nativeName ?: currentTag
 }
 
@@ -151,7 +156,7 @@ fun AppLanguageBottomSheet(
             ) {
                 Column {
                     Text(
-                        text = "App Language",
+                        text = stringResource(R.string.setting_app_language),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -236,6 +241,8 @@ fun AppLanguageBottomSheet(
                         activeTag.isEmpty()
                     } else {
                         activeTag.equals(item.tag, ignoreCase = true) ||
+                            (activeTag.equals("in", ignoreCase = true) && item.tag.equals("id", ignoreCase = true)) ||
+                            (activeTag.equals("id", ignoreCase = true) && item.tag.equals("in", ignoreCase = true)) ||
                             (activeTag.length >= 2 && item.tag.length >= 2 &&
                                 activeTag.take(2).equals(item.tag.take(2), ignoreCase = true) &&
                                 !activeTag.contains("-"))
