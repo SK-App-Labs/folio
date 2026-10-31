@@ -14,6 +14,7 @@
 - [x] **M9: Account Balance Reconciliation, Non-Polluting System Transactions, Custom Month Start Days Fix (29–31) & Debit Card Sync** (Completed — v1.2.0)
 - [x] **M10: Secondary Currencies & Deterministic Conversion, PDF Statements & Universal Tax Engine, Automated Session Backup (30-Day Tiered Retention), Modular Settings Sheets** (Completed — v1.3.0)
 - [x] **M11: Credit Cards Cockpit, Predictive Personal Finance Intelligence Suite (Phases 1–4), UI Insets & Bottom Navigation Calibration** (Completed — v1.4.0)
+- [/] **M12: Global Localization & Tier-1 Language Architecture (13 Locales), Android 13+ Per-App Locale Engine & In-App Language Picker** (In Progress — v1.5.0 Unreleased)
 
 ## File Inventory & Documentation Status
 - `docs/01_ACCOUNTING_AND_DOMAIN_RULES.md` — Updated & Synced (Secondary Currencies, Credit Card Cockpit Tiers, Predictive Calculations Formulas)
