@@ -123,12 +123,15 @@ internal fun DailyDateGroupHeaderRow(
                     )
                 }
                 if (!group.dailyIncome.isPositive && !group.dailyExpense.isPositive && group.transferCount > 0) {
+                    val formattedTransfer = remember(group.dailyTransferTotal, currencySpec, grouping) {
+                        MoneyFormatterAndCalculator.formatMinorMoney(group.dailyTransferTotal, currencySpec, grouping)
+                    }
                     Surface(
                         shape = RoundedCornerShape(6.dp),
                         color = semanticColors.transferBlueContainer.copy(alpha = 0.85f)
                     ) {
                         Text(
-                            text = "⇄ ${MoneyFormatterAndCalculator.formatMinorMoney(group.dailyTransferTotal, currencySpec, grouping)}",
+                            text = "⇄ $formattedTransfer",
                             style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
                             fontWeight = FontWeight.Bold,
                             color = semanticColors.onTransferBlueContainer,
@@ -175,7 +178,7 @@ internal fun DailyGroupedTransactionsCard(
                         scopedAccountId = scopedAccountId,
                         currencySpec = currencySpec,
                         grouping = grouping,
-                        onClick = { onTransactionClick(tx) },
+                        onTransactionClick = onTransactionClick,
                         showDate = showDate
                     )
                 }
@@ -190,10 +193,20 @@ internal fun LedgerTransactionRow(
     scopedAccountId: Long? = null,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    onClick: () -> Unit,
+    onClick: () -> Unit = {},
+    onTransactionClick: ((TransactionItem) -> Unit)? = null,
     modifier: Modifier = Modifier,
     showDate: Boolean = false
 ) {
+    val clickHandler = remember(onClick, onTransactionClick, transaction) {
+        {
+            if (onTransactionClick != null) {
+                onTransactionClick(transaction)
+            } else {
+                onClick()
+            }
+        }
+    }
     val txCurrency = remember(transaction.currencyCode, currencySpec) {
         SupportedCurrencies.getByCode(transaction.currencyCode) ?: currencySpec
     }
@@ -250,7 +263,7 @@ internal fun LedgerTransactionRow(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(onClick = clickHandler)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         CategoryIconBadge(
@@ -374,13 +387,21 @@ internal fun LedgerTransactionItemCard(
     modifier: Modifier = Modifier,
     showDate: Boolean = false
 ) {
-    DailyGroupedTransactionsCard(
-        transactions = listOf(transaction),
-        scopedAccountId = scopedAccountId,
-        currencySpec = currencySpec,
-        grouping = grouping,
-        onTransactionClick = { onClick() },
-        modifier = modifier,
-        showDate = showDate
-    )
+    val semanticColors = LocalFolioSemanticColors.current
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        LedgerTransactionRow(
+            transaction = transaction,
+            scopedAccountId = scopedAccountId,
+            currencySpec = currencySpec,
+            grouping = grouping,
+            onClick = onClick,
+            modifier = Modifier.fillMaxWidth(),
+            showDate = showDate
+        )
+    }
 }

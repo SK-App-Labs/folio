@@ -43,6 +43,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -147,7 +148,7 @@ internal fun FilteredSearchResultsContent(
         modifier = Modifier.fillMaxSize()
     ) {
         if (uiState.filteredTransactions.isNotEmpty()) {
-            item {
+            item(key = "filtered_summary_banner") {
                 val hasIncome = uiState.filteredIncomeTotal.isPositive
                 val hasExpense = uiState.filteredExpenseTotal.isPositive
                 val hasTransfer = uiState.filteredTransferTotal.isPositive
@@ -209,7 +210,7 @@ internal fun FilteredSearchResultsContent(
             }
         }
 
-        item {
+        item(key = "filtered_matches_count_row") {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -239,7 +240,7 @@ internal fun FilteredSearchResultsContent(
         }
 
         if (uiState.filteredDailyGroups.isEmpty()) {
-            item {
+            item(key = "filtered_empty_state") {
                 EmptyStateCard(
                     title = if (uiState.filterAllPeriods) {
                         "No Matching Transactions"
@@ -266,17 +267,13 @@ internal fun FilteredSearchResultsContent(
                         grouping = uiState.numberGrouping
                     )
                 }
-                items(
-                    items = group.transactions,
-                    key = { "filtered_tx_${it.id}" },
-                    contentType = { "transaction_row" }
-                ) { tx ->
-                    LedgerTransactionItemCard(
-                        transaction = tx,
+                item(key = "filtered_day_card_${group.epochDay}", contentType = "day_group_card") {
+                    DailyGroupedTransactionsCard(
+                        transactions = group.transactions,
                         scopedAccountId = uiState.scopedAccountId,
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.numberGrouping,
-                        onClick = { onTransactionClick(tx) }
+                        onTransactionClick = onTransactionClick
                     )
                 }
             }
@@ -309,7 +306,7 @@ internal fun DailyLedgerSubTabContent(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        item {
+        item(key = "daily_summary_banner") {
             ThreeColumnSummaryBanner(
                 periodSummary = uiState.periodSummary,
                 currencySpec = uiState.currencySpec,
@@ -319,7 +316,7 @@ internal fun DailyLedgerSubTabContent(
         }
 
         if (uiState.dailyGroups.isEmpty()) {
-            item {
+            item(key = "daily_empty_state") {
                 val scopedName = uiState.scopedAccount?.name
                 EmptyStateCard(
                     title = if (scopedName != null) {
@@ -357,6 +354,127 @@ internal fun DailyLedgerSubTabContent(
     }
 }
 
+private val calendarSelectedDateFormatter = DateTimeFormatter.ofPattern("EEEE, dd MMM yyyy", Locale.US)
+
+@Composable
+private fun CalendarDayCellView(
+    cell: CalendarDayCell,
+    isSelected: Boolean,
+    onSelectDay: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = when {
+            !cell.isInActivePeriod -> Color.Transparent
+            isSelected -> MaterialTheme.colorScheme.primaryContainer
+            cell.isToday -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
+            else -> MaterialTheme.colorScheme.surfaceContainer
+        },
+        border = if (isSelected) {
+            BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+        } else {
+            null
+        },
+        modifier = modifier
+            .height(62.dp)
+            .then(
+                if (cell.epochDay != null) {
+                    Modifier.clickable { onSelectDay(cell.epochDay) }
+                } else {
+                    Modifier
+                }
+            )
+    ) {
+        if (cell.isInActivePeriod && cell.dayNumber != null) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(vertical = 4.dp, horizontal = 2.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = cell.dayNumber.toString(),
+                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                        fontWeight = if (isSelected || cell.isToday) {
+                            FontWeight.Bold
+                        } else {
+                            FontWeight.Medium
+                        },
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        }
+                    )
+                    if (cell.isToday) {
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(4.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isSelected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        semanticColors.incomeEmerald
+                                    }
+                                )
+                        )
+                    }
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(1.dp)
+                ) {
+                    if (cell.formattedCompactIncome.isNotEmpty()) {
+                        Text(
+                            text = "+${cell.formattedCompactIncome}",
+                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                            fontWeight = FontWeight.Bold,
+                            color = semanticColors.incomeEmerald,
+                            maxLines = 1
+                        )
+                    }
+                    if (cell.formattedCompactExpense.isNotEmpty()) {
+                        Text(
+                            text = "-${cell.formattedCompactExpense}",
+                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                            fontWeight = FontWeight.Bold,
+                            color = semanticColors.expenseCoral,
+                            maxLines = 1
+                        )
+                    }
+                    if (cell.formattedCompactIncome.isEmpty() && cell.formattedCompactExpense.isEmpty() && cell.transferCount > 0 && cell.formattedCompactTransfer.isNotEmpty()) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = semanticColors.transferBlueContainer.copy(alpha = 0.85f),
+                            modifier = Modifier.padding(top = 1.dp)
+                        ) {
+                            Text(
+                                text = "⇄ ${cell.formattedCompactTransfer}",
+                                style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                                fontWeight = FontWeight.Bold,
+                                color = semanticColors.onTransferBlueContainer,
+                                modifier = Modifier.padding(horizontal = 3.dp, vertical = 0.5.dp),
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 internal fun CalendarLedgerSubTabContent(
     uiState: LedgerHomeUiState,
@@ -367,7 +485,7 @@ internal fun CalendarLedgerSubTabContent(
     val semanticColors = LocalFolioSemanticColors.current
     val selectedDateFormatted = remember(uiState.selectedCalendarDayEpochDay) {
         LocalDate.ofEpochDay(uiState.selectedCalendarDayEpochDay)
-            .format(DateTimeFormatter.ofPattern("EEEE, dd MMM yyyy", Locale.US))
+            .format(calendarSelectedDateFormatter)
     }
 
     val weeksOfCells = remember(uiState.calendarCells) {
@@ -384,7 +502,7 @@ internal fun CalendarLedgerSubTabContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        item {
+        item(key = "calendar_summary_banner") {
             ThreeColumnSummaryBanner(
                 periodSummary = uiState.periodSummary,
                 currencySpec = uiState.currencySpec,
@@ -393,7 +511,7 @@ internal fun CalendarLedgerSubTabContent(
             )
         }
 
-        item {
+        item(key = "calendar_grid_card") {
             Card(
                 shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(
@@ -427,119 +545,16 @@ internal fun CalendarLedgerSubTabContent(
                                 .fillMaxWidth()
                                 .padding(vertical = 2.dp)
                         ) {
-                            weekRow.forEach { cell ->
-                                val isSelected = cell.epochDay != null &&
-                                        cell.epochDay == uiState.selectedCalendarDayEpochDay
-                                Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = when {
-                                        !cell.isInActivePeriod -> Color.Transparent
-                                        isSelected -> MaterialTheme.colorScheme.primaryContainer
-                                        cell.isToday -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
-                                        else -> MaterialTheme.colorScheme.surfaceContainer
-                                    },
-                                    border = if (isSelected) {
-                                        BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
-                                    } else {
-                                        null
-                                    },
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(62.dp)
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .then(
-                                            if (cell.epochDay != null) {
-                                                Modifier.clickable { onSelectDay(cell.epochDay) }
-                                            } else {
-                                                Modifier
-                                            }
-                                        )
-                                ) {
-                                    if (cell.isInActivePeriod && cell.dayNumber != null) {
-                                        Column(
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.SpaceBetween,
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .padding(vertical = 4.dp, horizontal = 2.dp)
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.Center,
-                                                modifier = Modifier.fillMaxWidth()
-                                            ) {
-                                                Text(
-                                                    text = cell.dayNumber.toString(),
-                                                    style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                                                    fontWeight = if (isSelected || cell.isToday) {
-                                                        FontWeight.Bold
-                                                    } else {
-                                                        FontWeight.Medium
-                                                    },
-                                                    color = if (isSelected) {
-                                                        MaterialTheme.colorScheme.onPrimaryContainer
-                                                    } else {
-                                                        MaterialTheme.colorScheme.onSurface
-                                                    }
-                                                )
-                                                if (cell.isToday) {
-                                                    Spacer(modifier = Modifier.width(2.dp))
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(4.dp)
-                                                            .clip(CircleShape)
-                                                            .background(
-                                                                if (isSelected) {
-                                                                    MaterialTheme.colorScheme.primary
-                                                                } else {
-                                                                    semanticColors.incomeEmerald
-                                                                }
-                                                            )
-                                                    )
-                                                }
-                                            }
-
-                                            Column(
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                verticalArrangement = Arrangement.spacedBy(1.dp)
-                                            ) {
-                                                if (cell.incomeTotal.isPositive) {
-                                                    Text(
-                                                        text = "+${MoneyFormatterAndCalculator.formatCompactMinorMoney(cell.incomeTotal, uiState.currencySpec, uiState.numberGrouping)}",
-                                                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = semanticColors.incomeEmerald,
-                                                        maxLines = 1
-                                                    )
-                                                }
-                                                if (cell.expenseTotal.isPositive) {
-                                                    Text(
-                                                        text = "-${MoneyFormatterAndCalculator.formatCompactMinorMoney(cell.expenseTotal, uiState.currencySpec, uiState.numberGrouping)}",
-                                                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = semanticColors.expenseCoral,
-                                                        maxLines = 1
-                                                    )
-                                                }
-                                                if (!cell.incomeTotal.isPositive && !cell.expenseTotal.isPositive && cell.transferCount > 0) {
-                                                    Surface(
-                                                        shape = RoundedCornerShape(4.dp),
-                                                        color = semanticColors.transferBlueContainer.copy(alpha = 0.85f),
-                                                        modifier = Modifier.padding(top = 1.dp)
-                                                    ) {
-                                                        Text(
-                                                            text = "⇄ ${MoneyFormatterAndCalculator.formatCompactMinorMoney(cell.transferTotal, uiState.currencySpec, uiState.numberGrouping)}",
-                                                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = semanticColors.onTransferBlueContainer,
-                                                            modifier = Modifier.padding(horizontal = 3.dp, vertical = 0.5.dp),
-                                                            maxLines = 1
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
+                            weekRow.forEachIndexed { colIdx, cell ->
+                                key(cell.epochDay ?: colIdx) {
+                                    val isSelected = cell.epochDay != null &&
+                                            cell.epochDay == uiState.selectedCalendarDayEpochDay
+                                    CalendarDayCellView(
+                                        cell = cell,
+                                        isSelected = isSelected,
+                                        onSelectDay = onSelectDay,
+                                        modifier = Modifier.weight(1f)
+                                    )
                                 }
                             }
                         }
@@ -548,7 +563,7 @@ internal fun CalendarLedgerSubTabContent(
             }
         }
 
-        item {
+        item(key = "calendar_selected_date_header") {
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
@@ -622,7 +637,7 @@ internal fun CalendarLedgerSubTabContent(
         }
 
         if (uiState.selectedCalendarDayTransactions.isEmpty()) {
-            item {
+            item(key = "calendar_empty_day_tx") {
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -639,16 +654,13 @@ internal fun CalendarLedgerSubTabContent(
                 }
             }
         } else {
-            items(
-                items = uiState.selectedCalendarDayTransactions,
-                key = { "cal_tx_${it.id}" }
-            ) { tx ->
-                LedgerTransactionItemCard(
-                    transaction = tx,
+            item(key = "cal_day_tx_card_${uiState.selectedCalendarDayEpochDay}") {
+                DailyGroupedTransactionsCard(
+                    transactions = uiState.selectedCalendarDayTransactions,
                     scopedAccountId = uiState.scopedAccountId,
                     currencySpec = uiState.currencySpec,
                     grouping = uiState.numberGrouping,
-                    onClick = { onTransactionClick(tx) }
+                    onTransactionClick = onTransactionClick
                 )
             }
         }
@@ -673,7 +685,7 @@ internal fun WeeklyLedgerSubTabContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        item {
+        item(key = "weekly_summary_banner") {
             ThreeColumnSummaryBanner(
                 periodSummary = uiState.periodSummary,
                 currencySpec = uiState.currencySpec,
@@ -769,22 +781,32 @@ internal fun WeeklyLedgerSubTabContent(
                         exit = shrinkVertically()
                     ) {
                         Column(
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
-                            HorizontalDivider(color = semanticColors.cardStrokeSubtle)
+                            HorizontalDivider(
+                                color = semanticColors.cardStrokeSubtle,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
                             if (bucket.transactions.isNotEmpty()) {
-                                bucket.transactions.forEach { tx ->
-                                    LedgerTransactionItemCard(
-                                        transaction = tx,
-                                        scopedAccountId = uiState.scopedAccountId,
-                                        currencySpec = uiState.currencySpec,
-                                        grouping = uiState.numberGrouping,
-                                        showDate = true,
-                                        onClick = { onTransactionClick(tx) }
-                                    )
+                                bucket.transactions.forEachIndexed { idx, tx ->
+                                    if (idx > 0) {
+                                        HorizontalDivider(
+                                            color = semanticColors.cardStrokeSubtle.copy(alpha = 0.5f),
+                                            modifier = Modifier.padding(horizontal = 4.dp)
+                                        )
+                                    }
+                                    key(tx.id) {
+                                        LedgerTransactionRow(
+                                            transaction = tx,
+                                            scopedAccountId = uiState.scopedAccountId,
+                                            currencySpec = uiState.currencySpec,
+                                            grouping = uiState.numberGrouping,
+                                            showDate = true,
+                                            onClick = { onTransactionClick(tx) }
+                                        )
+                                    }
                                 }
                             } else {
                                 Text(
@@ -810,6 +832,9 @@ internal fun MonthlyLedgerSubTabContent(
     onDrillDownToWeek: (Long, Int) -> Unit = { _, _ -> }
 ) {
     val semanticColors = LocalFolioSemanticColors.current
+    val reversedMonthItems = remember(uiState.yearlyMonthItems) {
+        uiState.yearlyMonthItems.reversed()
+    }
 
     LazyColumn(
         contentPadding = PaddingValues(
@@ -821,7 +846,7 @@ internal fun MonthlyLedgerSubTabContent(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        item {
+        item(key = "monthly_summary_banner") {
             ThreeColumnSummaryBanner(
                 firstLabel = "Annual Income",
                 firstAmount = uiState.yearlyIncomeTotal,
@@ -834,7 +859,7 @@ internal fun MonthlyLedgerSubTabContent(
             )
         }
 
-        item {
+        item(key = "monthly_year_header") {
             Text(
                 text = "${uiState.activePeriodRange.anchorYear} Financial Year (12 Months)",
                 style = tabularMoneyStyle(MaterialTheme.typography.titleSmall),
@@ -845,7 +870,7 @@ internal fun MonthlyLedgerSubTabContent(
         }
 
         items(
-            items = uiState.yearlyMonthItems.reversed(),
+            items = reversedMonthItems,
             key = { "${it.periodRange.startEpochDay}_${it.monthIndex}" },
             contentType = { "yearly_month_card" }
         ) { monthItem ->
@@ -1102,7 +1127,7 @@ internal fun SummaryLedgerSubTabContent(
         verticalArrangement = Arrangement.spacedBy(14.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        item {
+        item(key = "summary_banner") {
             ThreeColumnSummaryBanner(
                 periodSummary = summary,
                 currencySpec = uiState.currencySpec,
@@ -1111,7 +1136,7 @@ internal fun SummaryLedgerSubTabContent(
             )
         }
 
-        item {
+        item(key = "cashflow_digest") {
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
@@ -1220,7 +1245,7 @@ internal fun SummaryLedgerSubTabContent(
         }
 
         if (uiState.accountPeriodFlows.isNotEmpty()) {
-            item {
+            item(key = "account_breakdown") {
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
@@ -1358,7 +1383,7 @@ internal fun SummaryLedgerSubTabContent(
         }
 
         if (uiState.budgetProgressList.isNotEmpty() && uiState.scopedAccountId == null) {
-            item {
+            item(key = "budget_status") {
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
@@ -1377,12 +1402,14 @@ internal fun SummaryLedgerSubTabContent(
                             fontWeight = FontWeight.Bold
                         )
 
-                        val overallBudget = uiState.budgetProgressList.firstOrNull { it.categoryId == null }
-                        val categoryBudgets = uiState.budgetProgressList.filter { it.categoryId != null }
-                        val budgetsToDisplay = if (overallBudget != null) {
-                            listOf(overallBudget) + categoryBudgets.take(2)
-                        } else {
-                            categoryBudgets.take(3)
+                        val budgetsToDisplay = remember(uiState.budgetProgressList) {
+                            val overallBudget = uiState.budgetProgressList.firstOrNull { it.categoryId == null }
+                            val categoryBudgets = uiState.budgetProgressList.filter { it.categoryId != null }
+                            if (overallBudget != null) {
+                                listOf(overallBudget) + categoryBudgets.take(2)
+                            } else {
+                                categoryBudgets.take(3)
+                            }
                         }
 
                         budgetsToDisplay.forEachIndexed { idx, budget ->
@@ -1470,7 +1497,7 @@ internal fun SummaryLedgerSubTabContent(
         }
 
         if (uiState.topExpenseCategories.isNotEmpty()) {
-            item {
+            item(key = "top_expenses") {
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
@@ -1536,7 +1563,7 @@ internal fun SummaryLedgerSubTabContent(
             }
         }
 
-        item {
+        item(key = "csv_export_button") {
             OutlinedButton(
                 onClick = onExportCsvClick,
                 enabled = !uiState.isExportingCsv,

@@ -51,12 +51,6 @@ data class CreditCardCycleWindow(
     val activeCycleEnd: LocalDate,
     val activeCycleNextDueDate: LocalDate
 ) {
-    private val shortFormatter: DateTimeFormatter
-        get() = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
-
-    private val fullFormatter: DateTimeFormatter
-        get() = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
-
     val lastStatementRangeShortText: String
         get() = "${lastStatementStart.format(shortFormatter)} – ${lastStatementEnd.format(shortFormatter)}"
 
@@ -78,6 +72,11 @@ data class CreditCardCycleWindow(
     @Suppress("unused")
     val activeCycleNextDueFullText: String
         get() = activeCycleNextDueDate.format(fullFormatter)
+
+    companion object {
+        private val shortFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
+        private val fullFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
+    }
 }
 
 object CreditCardCycleCalculator {

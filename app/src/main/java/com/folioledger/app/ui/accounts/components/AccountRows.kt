@@ -231,14 +231,16 @@ internal fun CreditCardAccountRow(
         )
     }
 
-    val totalOutstandingDebt = account.currentBalance.abs()
-    val statementPayable = account.creditCardStatementPayable ?: MinorMoney.ZERO
-    val unbilledCycleAmount = account.creditCardUnbilledAmount
-        ?: if (totalOutstandingDebt > statementPayable) {
-            totalOutstandingDebt - statementPayable
-        } else {
-            MinorMoney.ZERO
-        }
+    val totalOutstandingDebt = remember(account.currentBalance) { account.currentBalance.abs() }
+    val statementPayable = remember(account.creditCardStatementPayable) { account.creditCardStatementPayable ?: MinorMoney.ZERO }
+    val unbilledCycleAmount = remember(account.creditCardUnbilledAmount, totalOutstandingDebt, statementPayable) {
+        account.creditCardUnbilledAmount
+            ?: if (totalOutstandingDebt > statementPayable) {
+                totalOutstandingDebt - statementPayable
+            } else {
+                MinorMoney.ZERO
+            }
+    }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,

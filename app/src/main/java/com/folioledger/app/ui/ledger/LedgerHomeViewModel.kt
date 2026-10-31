@@ -53,6 +53,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+private val SHORT_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
+private val MONTH_YEAR_FORMATTER = DateTimeFormatter.ofPattern("MMM yyyy", Locale.US)
+
 @Immutable
 data class FinancialPeriodRange(
     val startEpochDay: Long,
@@ -163,7 +166,10 @@ data class CalendarDayCell(
     val netTotal: MinorMoney = MinorMoney.ZERO,
     val transferTotal: MinorMoney = MinorMoney.ZERO,
     val transferCount: Int = 0,
-    val transactionCount: Int = 0
+    val transactionCount: Int = 0,
+    val formattedCompactIncome: String = "",
+    val formattedCompactExpense: String = "",
+    val formattedCompactTransfer: String = ""
 )
 
 @Immutable
@@ -524,7 +530,8 @@ class LedgerHomeViewModel(
             todayEpochDay = todayEpochDay,
             scopedAccountId = activeScopedAccountId,
             primaryCurrencySpec = currencySpec,
-            secondaryCurrencies = prefs.secondaryCurrencies
+            secondaryCurrencies = prefs.secondaryCurrencies,
+            numberGrouping = prefs.numberGrouping
         )
 
         val effectiveSelectedCalendarDay = if (
@@ -1223,7 +1230,6 @@ class LedgerHomeViewModel(
         secondaryCurrencies: List<SecondaryCurrency> = emptyList()
     ): List<DailyLedgerGroup> {
         if (transactions.isEmpty()) return emptyList()
-        val monthYearFormatter = DateTimeFormatter.ofPattern("MMM yyyy", Locale.US)
 
         return transactions
             .groupBy { it.ledgerDateEpochDay }
@@ -1259,7 +1265,7 @@ class LedgerHomeViewModel(
                     dayOfWeekText = date.dayOfWeek
                         .getDisplayName(JavaTextStyle.SHORT, Locale.US)
                         .uppercase(Locale.US),
-                    monthYearText = date.format(monthYearFormatter),
+                    monthYearText = date.format(MONTH_YEAR_FORMATTER),
                     isToday = epochDay == todayEpochDay,
                     dailyIncome = dayInc,
                     dailyExpense = dayExp,
@@ -1286,7 +1292,8 @@ class LedgerHomeViewModel(
         todayEpochDay: Long,
         scopedAccountId: Long? = null,
         primaryCurrencySpec: CurrencySpec? = null,
-        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
+        numberGrouping: NumberGroupingSystem = NumberGroupingSystem.INDIAN
     ): List<CalendarDayCell> {
         val startDate = LocalDate.ofEpochDay(periodRange.startEpochDay)
         val endDate = LocalDate.ofEpochDay(periodRange.endEpochDay)
@@ -1297,7 +1304,7 @@ class LedgerHomeViewModel(
         val lastGridDate = endDate.with(TemporalAdjusters.nextOrSame(endDow))
 
         val txByDay = transactions.groupBy { it.ledgerDateEpochDay }
-        val shortDateFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
+        val currency = primaryCurrencySpec ?: SupportedCurrencies.INR
 
         val cells = mutableListOf<CalendarDayCell>()
         var cursor = firstGridDate
@@ -1335,11 +1342,22 @@ class LedgerHomeViewModel(
                         tx.amount.amountMinor
                     }
                 }
+
+                val formattedInc = if (inc.isPositive) {
+                    MoneyFormatterAndCalculator.formatCompactMinorMoney(inc, currency, numberGrouping)
+                } else ""
+                val formattedExp = if (exp.isPositive) {
+                    MoneyFormatterAndCalculator.formatCompactMinorMoney(exp, currency, numberGrouping)
+                } else ""
+                val formattedTransfer = if (transferTotalMinor > 0) {
+                    MoneyFormatterAndCalculator.formatCompactMinorMoney(MinorMoney(transferTotalMinor), currency, numberGrouping)
+                } else ""
+
                 cells.add(
                     CalendarDayCell(
                         epochDay = epoch,
                         dayNumber = cursor.dayOfMonth,
-                        dateLabel = cursor.format(shortDateFormatter),
+                        dateLabel = cursor.format(SHORT_DATE_FORMATTER),
                         isInActivePeriod = true,
                         isToday = epoch == todayEpochDay,
                         incomeTotal = inc,
@@ -1347,7 +1365,10 @@ class LedgerHomeViewModel(
                         netTotal = inc - exp,
                         transferTotal = MinorMoney(transferTotalMinor),
                         transferCount = transferTxns.size,
-                        transactionCount = dayTxns.size
+                        transactionCount = dayTxns.size,
+                        formattedCompactIncome = formattedInc,
+                        formattedCompactExpense = formattedExp,
+                        formattedCompactTransfer = formattedTransfer
                     )
                 )
             }
@@ -1368,7 +1389,6 @@ class LedgerHomeViewModel(
         val periodEnd = LocalDate.ofEpochDay(periodRange.endEpochDay)
         val startDow = DayOfWeek.of(weekStartDayIso.coerceIn(1, 7))
         val endDow = startDow.minus(1)
-        val dayMonthFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
 
         val buckets = mutableListOf<WeeklyLedgerBucket>()
         var currentStart = periodStart
@@ -1397,7 +1417,7 @@ class LedgerHomeViewModel(
                 WeeklyLedgerBucket(
                     weekIndex = weekNum,
                     label = "Week $weekNum",
-                    dateRangeSubtitle = "${currentStart.format(dayMonthFormatter)} – ${currentEnd.format(dayMonthFormatter)}",
+                    dateRangeSubtitle = "${currentStart.format(SHORT_DATE_FORMATTER)} – ${currentEnd.format(SHORT_DATE_FORMATTER)}",
                     startEpochDay = startEpoch,
                     endEpochDay = endEpoch,
                     incomeTotal = inc,
