@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -102,6 +103,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.folioledger.app.domain.model.BudgetProgress
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategorySpendStat
@@ -245,7 +247,8 @@ fun StatsAndBudgetsScreen(
                             onDonutSliceSelected = viewModel::onDonutSliceSelected,
                             onOpenCategoryDrillDown = viewModel::openCategoryDrillDown,
                             onSelectTrendChartMode = viewModel::selectTrendChartMode,
-                            onSelectNetWorthChartMetricFilter = viewModel::selectNetWorthChartMetricFilter
+                            onSelectNetWorthChartMetricFilter = viewModel::selectNetWorthChartMetricFilter,
+                            onToggleRunwayIncludesInvestments = viewModel::toggleRunwayIncludesInvestments
                         )
                     }
 
@@ -514,7 +517,8 @@ private fun StatsBreakdownSubTabContent(
     onDonutSliceSelected: (CategorySpendStat?) -> Unit,
     onOpenCategoryDrillDown: (CategorySpendStat) -> Unit,
     onSelectTrendChartMode: (TrendChartMode) -> Unit,
-    onSelectNetWorthChartMetricFilter: (NetWorthChartMetricFilter) -> Unit
+    onSelectNetWorthChartMetricFilter: (NetWorthChartMetricFilter) -> Unit,
+    onToggleRunwayIncludesInvestments: () -> Unit
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val activeStats = uiState.activeCategoryStats
@@ -757,6 +761,19 @@ private fun StatsBreakdownSubTabContent(
                             grouping = uiState.numberGrouping,
                             onSelectFilter = onSelectNetWorthChartMetricFilter
                         )
+
+                        NetWorthVelocityCard(
+                            velocity = uiState.netWorthVelocity,
+                            currencySpec = uiState.currencySpec,
+                            grouping = uiState.numberGrouping
+                        )
+
+                        EmergencyRunwayCard(
+                            runway = uiState.emergencyRunway,
+                            currencySpec = uiState.currencySpec,
+                            grouping = uiState.numberGrouping,
+                            onToggleIncludeInvestments = onToggleRunwayIncludesInvestments
+                        )
                     }
                     TrendChartMode.CREDIT_ANALYSIS -> {
                         // Fallback for backwards compatibility if mode is set externally
@@ -771,6 +788,353 @@ private fun StatsBreakdownSubTabContent(
         }
     }
 }
+
+@Composable
+private fun NetWorthVelocityCard(
+    velocity: NetWorthVelocityState,
+    currencySpec: CurrencySpec,
+    grouping: NumberGroupingSystem,
+    modifier: Modifier = Modifier
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+    val isPositive = velocity.isPositive
+    val accentColor = if (isPositive) semanticColors.incomeEmerald else semanticColors.expenseCoral
+    val badgeBg = if (isPositive) semanticColors.incomeEmeraldContainer.copy(alpha = 0.5f) else semanticColors.expenseCoralContainer.copy(alpha = 0.5f)
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(14.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(badgeBg),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isPositive) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                        Text(
+                            text = "Net Worth Velocity",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "30-Day Growth Rate",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = badgeBg
+                ) {
+                    Text(
+                        text = "${if (isPositive) "+" else ""}${String.format(Locale.US, "%.1f", velocity.percentageChange)}% MoM",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = accentColor,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "MONTH-OVER-MONTH CHANGE",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = if (isPositive) "+" else "-",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = accentColor
+                        )
+                        MoneyText(
+                            money = velocity.absoluteChange.abs(),
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            colorMode = if (isPositive) MoneyColorMode.INCOME else MoneyColorMode.EXPENSE,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = "CURRENT NET WORTH",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                    MoneyText(
+                        money = velocity.currentNetWorth,
+                        currencySpec = currencySpec,
+                        grouping = grouping,
+                        colorMode = MoneyColorMode.NEUTRAL,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmergencyRunwayCard(
+    runway: EmergencyRunwayState,
+    currencySpec: CurrencySpec,
+    grouping: NumberGroupingSystem,
+    onToggleIncludeInvestments: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+    val tierColor = when (runway.healthTier) {
+        RunwayHealthTier.RESILIENT -> semanticColors.incomeEmerald
+        RunwayHealthTier.ADEQUATE -> semanticColors.warningAmber
+        RunwayHealthTier.VULNERABLE -> semanticColors.expenseCoral
+    }
+    val tierBg = when (runway.healthTier) {
+        RunwayHealthTier.RESILIENT -> semanticColors.incomeEmeraldContainer.copy(alpha = 0.5f)
+        RunwayHealthTier.ADEQUATE -> semanticColors.warningAmberContainer.copy(alpha = 0.5f)
+        RunwayHealthTier.VULNERABLE -> semanticColors.expenseCoralContainer.copy(alpha = 0.5f)
+    }
+    val tierLabel = when (runway.healthTier) {
+        RunwayHealthTier.RESILIENT -> "Resilient (>6 mos)"
+        RunwayHealthTier.ADEQUATE -> "Adequate (3–6 mos)"
+        RunwayHealthTier.VULNERABLE -> "Vulnerable (<3 mos)"
+    }
+
+    val animatedFraction by animateFloatAsState(
+        targetValue = (runway.runwayMonths / runway.targetMonths).coerceIn(0f, 1f),
+        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
+        label = "RunwayProgress"
+    )
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(14.dp)
+        ) {
+            // Header Row
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(tierBg),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Shield,
+                            contentDescription = null,
+                            tint = tierColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                        Text(
+                            text = "Emergency Fund Runway",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = tierLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = tierColor
+                        )
+                    }
+                }
+
+                FilterChip(
+                    selected = runway.includesInvestments,
+                    onClick = onToggleIncludeInvestments,
+                    label = {
+                        Text(
+                            text = if (runway.includesInvestments) "+ Investments" else "Liquid Only",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                    },
+                    modifier = Modifier.height(28.dp)
+                )
+            }
+
+            // Big Metric + Progress Bar
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = String.format(Locale.US, "%.1f", runway.runwayMonths),
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Black,
+                            color = tierColor
+                        )
+                        Text(
+                            text = "Months Covered",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                    }
+
+                    Text(
+                        text = "Target: ${String.format(Locale.US, "%.0f", runway.targetMonths)} mos",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                }
+
+                LinearProgressIndicator(
+                    progress = { animatedFraction },
+                    color = tierColor,
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    strokeCap = StrokeCap.Round,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                )
+            }
+
+            HorizontalDivider(
+                color = semanticColors.cardStrokeSubtle,
+                thickness = 1.dp
+            )
+
+            // Sub-metrics: 2 columns
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = if (runway.includesInvestments) "TOTAL AVAILABLE FUNDS" else "LIQUID EMERGENCY FUNDS",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                    val funds = if (runway.includesInvestments) {
+                        runway.totalLiquidFunds + runway.totalInvestmentFunds
+                    } else {
+                        runway.totalLiquidFunds
+                    }
+                    MoneyText(
+                        money = funds,
+                        currencySpec = currencySpec,
+                        grouping = grouping,
+                        colorMode = MoneyColorMode.NEUTRAL,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = if (runway.includesInvestments) "Bank + Cash + Savings + Invest" else "Bank + Cash + Savings",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = "AVG MONTHLY LIVING EXPENSE",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                    MoneyText(
+                        money = MinorMoney(runway.averageMonthlyBurnMinor),
+                        currencySpec = currencySpec,
+                        grouping = grouping,
+                        colorMode = MoneyColorMode.EXPENSE,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Past 6-Month Average",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
+            }
+        }
+    }
+}
+
 
 @Composable
 private fun RankedCategoryBreakdownGroupedCard(

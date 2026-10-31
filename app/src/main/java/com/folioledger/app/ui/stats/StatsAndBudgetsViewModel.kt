@@ -15,6 +15,7 @@ import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.MonthlyTrendBar
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.PeriodLedgerSummary
+import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SpendRankingItem
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
@@ -91,6 +92,32 @@ data class NetWorthGrowthTrendItem(
     val assets: MinorMoney,
     val liabilities: MinorMoney,
     val netWorth: MinorMoney
+)
+
+enum class RunwayHealthTier {
+    RESILIENT,
+    ADEQUATE,
+    VULNERABLE
+}
+
+@Immutable
+data class NetWorthVelocityState(
+    val currentNetWorth: MinorMoney = MinorMoney.ZERO,
+    val previousMonthNetWorth: MinorMoney = MinorMoney.ZERO,
+    val absoluteChange: MinorMoney = MinorMoney.ZERO,
+    val percentageChange: Float = 0f,
+    val isPositive: Boolean = true
+)
+
+@Immutable
+data class EmergencyRunwayState(
+    val totalLiquidFunds: MinorMoney = MinorMoney.ZERO,
+    val totalInvestmentFunds: MinorMoney = MinorMoney.ZERO,
+    val averageMonthlyBurnMinor: Long = 0L,
+    val runwayMonths: Float = 0f,
+    val healthTier: RunwayHealthTier = RunwayHealthTier.ADEQUATE,
+    val targetMonths: Float = 6.0f,
+    val includesInvestments: Boolean = false
 )
 
 @Immutable
@@ -411,6 +438,8 @@ data class StatsAndBudgetsUiState(
     val highlightedDonutCategoryId: Long? = null,
     val sixMonthTrendBars: List<MonthlyTrendBar> = emptyList(),
     val sixMonthNetWorthTrend: List<NetWorthGrowthTrendItem> = emptyList(),
+    val netWorthVelocity: NetWorthVelocityState = NetWorthVelocityState(),
+    val emergencyRunway: EmergencyRunwayState = EmergencyRunwayState(),
     val totalAvailableCredit: MinorMoney = MinorMoney.ZERO,
     val totalCreditLimit: MinorMoney = MinorMoney.ZERO,
     val totalUsedCredit: MinorMoney = MinorMoney.ZERO,
@@ -461,6 +490,7 @@ private data class StatsInternalControlState(
     val drillDownCategoryId: Long? = null,
     val budgetEditorDialogState: BudgetEditorDialogState? = null,
     val isSavingBudget: Boolean = false,
+    val isRunwayIncludingInvestments: Boolean = false,
     val settlementSheetState: CreditCardSettlementSheetState? = null,
     val isSettlementSaving: Boolean = false,
     val snackbarMessage: String? = null
@@ -798,6 +828,14 @@ class StatsAndBudgetsViewModel(
             highlightedDonutCategoryId = ctrl.highlightedDonutCategoryId,
             sixMonthTrendBars = bundle.trendBars,
             sixMonthNetWorthTrend = netWorthTrend,
+            netWorthVelocity = StatsPredictiveCalculations.computeNetWorthVelocity(netWorthTrend),
+            emergencyRunway = StatsPredictiveCalculations.computeEmergencyRunway(
+                allAccounts = allAccounts,
+                trendBars = bundle.trendBars,
+                primaryCurrencyCode = prefs.primaryCurrencyCode,
+                secondaryCurrencies = prefs.secondaryCurrencies,
+                includesInvestments = ctrl.isRunwayIncludingInvestments
+            ),
             totalAvailableCredit = creditCockpitState.totalAvailableCredit,
             totalCreditLimit = creditCockpitState.totalCreditLimit,
             totalUsedCredit = creditCockpitState.totalCcDebt,
@@ -1049,6 +1087,10 @@ class StatsAndBudgetsViewModel(
 
     fun selectNetWorthChartMetricFilter(filter: NetWorthChartMetricFilter) {
         controlState.update { it.copy(selectedNetWorthMetricFilter = filter) }
+    }
+
+    fun toggleRunwayIncludesInvestments() {
+        controlState.update { it.copy(isRunwayIncludingInvestments = !it.isRunwayIncludingInvestments) }
     }
 
     // Budget CRUD Actions
@@ -1805,5 +1847,122 @@ class StatsAndBudgetsViewModel(
                 }
             )
         }
+    }
+}
+
+object StatsPredictiveCalculations {
+
+    fun computeNetWorthVelocity(
+        netWorthTrend: List<NetWorthGrowthTrendItem>
+    ): NetWorthVelocityState {
+        if (netWorthTrend.isEmpty()) {
+            return NetWorthVelocityState()
+        }
+        val currentItem = netWorthTrend.last()
+        val currentNW = currentItem.netWorth
+        val previousItem = if (netWorthTrend.size >= 2) netWorthTrend[netWorthTrend.size - 2] else currentItem
+        val previousNW = previousItem.netWorth
+        val absChange = currentNW - previousNW
+        val isPositive = absChange.amountMinor >= 0L
+        val pct = if (previousNW.amountMinor != 0L) {
+            (absChange.amountMinor.toFloat() / Math.abs(previousNW.amountMinor).toFloat()) * 100f
+        } else {
+            if (absChange.amountMinor > 0L) 100f else if (absChange.amountMinor < 0L) -100f else 0f
+        }
+        return NetWorthVelocityState(
+            currentNetWorth = currentNW,
+            previousMonthNetWorth = previousNW,
+            absoluteChange = absChange,
+            percentageChange = pct,
+            isPositive = isPositive
+        )
+    }
+
+    fun computeEmergencyRunway(
+        allAccounts: List<AccountSummary>,
+        trendBars: List<MonthlyTrendBar>,
+        primaryCurrencyCode: String,
+        secondaryCurrencies: List<SecondaryCurrency>,
+        includesInvestments: Boolean
+    ): EmergencyRunwayState {
+        val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+
+        var totalLiquidMinor = 0L
+        var totalInvestmentsMinor = 0L
+
+        for (acc in allAccounts) {
+            if (acc.isArchived || acc.currentBalance.amountMinor <= 0L) continue
+
+            val isLiquid = acc.groupType == AccountGroup.BANK_ACCOUNT ||
+                    acc.groupType == AccountGroup.CASH ||
+                    acc.groupType == AccountGroup.SAVINGS ||
+                    acc.groupType == AccountGroup.PREPAID_WALLET
+            val isInvestment = acc.groupType == AccountGroup.INVESTMENT
+
+            if (!isLiquid && !isInvestment) continue
+
+            val rawBalanceMinor = acc.currentBalance.amountMinor
+            val accountCurrency = acc.currencyCode.trim().uppercase()
+            val convertedBalanceMinor = if (accountCurrency == primarySpec.code.uppercase()) {
+                rawBalanceMinor
+            } else {
+                val secondary = secondaryMap[accountCurrency]
+                if (secondary != null && secondary.exchangeRateToPrimary > 0.0) {
+                    val accSpec = SupportedCurrencies.fromCode(accountCurrency)
+                    MoneyFormatterAndCalculator.convertMinorMoney(
+                        sourceMinor = rawBalanceMinor,
+                        sourceFractionDigits = accSpec.fractionDigits,
+                        targetFractionDigits = primarySpec.fractionDigits,
+                        rateToTarget = secondary.exchangeRateToPrimary
+                    )
+                } else {
+                    rawBalanceMinor
+                }
+            }
+
+            if (isLiquid) {
+                totalLiquidMinor = Math.addExact(totalLiquidMinor, convertedBalanceMinor)
+            } else if (isInvestment) {
+                totalInvestmentsMinor = Math.addExact(totalInvestmentsMinor, convertedBalanceMinor)
+            }
+        }
+
+        val positiveExpenseMonths = trendBars.map { it.totalExpense.amountMinor }.filter { it > 0L }
+        val averageBurnMinor = if (positiveExpenseMonths.isNotEmpty()) {
+            positiveExpenseMonths.average().toLong()
+        } else if (trendBars.isNotEmpty()) {
+            trendBars.map { it.totalExpense.amountMinor }.average().toLong()
+        } else {
+            0L
+        }
+
+        val applicableFundsMinor = if (includesInvestments) {
+            Math.addExact(totalLiquidMinor, totalInvestmentsMinor)
+        } else {
+            totalLiquidMinor
+        }
+
+        val runwayMonths = if (averageBurnMinor > 0L) {
+            (applicableFundsMinor.toFloat() / averageBurnMinor.toFloat()).coerceIn(0f, 99.9f)
+        } else {
+            if (applicableFundsMinor > 0L) 99.9f else 0f
+        }
+
+        val healthTier = when {
+            runwayMonths >= 6.0f -> RunwayHealthTier.RESILIENT
+            runwayMonths >= 3.0f -> RunwayHealthTier.ADEQUATE
+            else -> RunwayHealthTier.VULNERABLE
+        }
+
+        return EmergencyRunwayState(
+            totalLiquidFunds = MinorMoney(totalLiquidMinor),
+            totalInvestmentFunds = MinorMoney(totalInvestmentsMinor),
+            averageMonthlyBurnMinor = averageBurnMinor,
+            runwayMonths = runwayMonths,
+            healthTier = healthTier,
+            targetMonths = 6.0f,
+            includesInvestments = includesInvestments
+        )
     }
 }
