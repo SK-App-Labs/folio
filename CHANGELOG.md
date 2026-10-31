@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## [1.4.0] - Unreleased
+## [1.4.0] - 2026-10-31
 ### Fixed
 - **Ledger Summary Subtab Polish & Data Integrity**:
   - *Scoped CSV Export Isolation*: Upgraded `exportTransactionsToCsv` and `exportTransactionsToCsvStream` in `SettingsAndBackupRepository` and `LedgerHomeViewModel` to filter strictly by `accountId` when an account filter is active, preventing transaction leakage from other accounts into scoped exports and personalizing the export filename (e.g. `Folio_HDFC_Bank_Oct_2026.csv`).
