@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `strings_entry.xml`: Transaction entry modes, chips (`Split`, `Inst.`, `Repeat`), and input hints.
     - `strings_settings.xml`: Settings group headers and navigation rows.
   - Converted hardcoded Compose literals in `FolioMainShell.kt`, `StatsAndBudgetsScreen.kt`, `LedgerHomeScreen.kt`, and `AccountGroupSectionCard.kt` to dynamic `stringResource(R.string.*)` lookups.
+- **Interactive In-App Language Picker (Phase 2)**:
+  - Added `AppLanguageBottomSheet.kt` in `ui/settings/sheets/` featuring all 13 Tier-1 languages with native autonyms, national flags, and real-time search filtering.
+  - Placed the **App Language** setting row in `SettingsScreen.kt` under **`APPEARANCE & SECURITY`** directly below **Theme & Accent Palette**, creating a perfectly balanced 3-row card.
+  - Displays the active language's native name directly on the row's glanceable badge (e.g. `English`, `Español`, `Deutsch`, `日本語`, `हिन्दी`, `தமிழ்`).
+  - Wired 1-tap switching via `AppCompatDelegate.setApplicationLocales` with instant activity configuration recreation.
 
 ## [1.4.0] - 2026-10-31
 ### Fixed

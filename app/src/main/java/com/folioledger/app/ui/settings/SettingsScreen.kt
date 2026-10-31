@@ -91,7 +91,11 @@ import com.folioledger.app.domain.model.ImportCsvResult
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupporterTier
 import com.folioledger.app.ui.components.parseHexColorSafely
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.material.icons.filled.Language
+import com.folioledger.app.ui.settings.sheets.AppLanguageBottomSheet
 import com.folioledger.app.ui.settings.sheets.AppearanceBottomSheet
+import com.folioledger.app.ui.settings.sheets.resolveCurrentLanguageDisplayName
 import com.folioledger.app.ui.settings.sheets.AutoBackupBottomSheet
 import com.folioledger.app.ui.settings.sheets.CategoryEditorDialog
 import com.folioledger.app.ui.settings.sheets.CategoryManagerBottomSheet
@@ -129,6 +133,7 @@ fun SettingsScreen(
     val coroutineScope = rememberCoroutineScope()
 
     var isAppearanceSheetOpen by rememberSaveable { mutableStateOf(false) }
+    var isLanguageSheetOpen by rememberSaveable { mutableStateOf(false) }
     var isRegionalFormatSheetOpen by rememberSaveable { mutableStateOf(false) }
     var isSecondaryCurrenciesSheetOpen by rememberSaveable { mutableStateOf(false) }
     var isAutoBackupSheetOpen by rememberSaveable { mutableStateOf(false) }
@@ -329,6 +334,19 @@ fun SettingsScreen(
                             color = semanticColors.cardStrokeSubtle,
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
+                        val currentLocales = AppCompatDelegate.getApplicationLocales()
+                        val currentTag = if (currentLocales.isEmpty) "" else currentLocales[0]?.toLanguageTag() ?: ""
+                        SettingsNavigationRow(
+                            icon = Icons.Default.Language,
+                            title = "App Language",
+                            valueText = resolveCurrentLanguageDisplayName(currentTag),
+                            enabled = isNotBusy,
+                            onClick = { isLanguageSheetOpen = true }
+                        )
+                        HorizontalDivider(
+                            color = semanticColors.cardStrokeSubtle,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
                         SettingsSwitchRow(
                             icon = Icons.Default.Fingerprint,
                             title = "Biometric App Lock",
@@ -507,6 +525,12 @@ fun SettingsScreen(
             onSelectAccentPaletteString = viewModel::setAccentPalette,
             onToggleDynamicColor = viewModel::setDynamicColorEnabled,
             onDismiss = { isAppearanceSheetOpen = false }
+        )
+    }
+
+    if (isLanguageSheetOpen) {
+        AppLanguageBottomSheet(
+            onDismissRequest = { isLanguageSheetOpen = false }
         )
     }
 
