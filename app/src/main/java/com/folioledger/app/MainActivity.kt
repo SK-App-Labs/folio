@@ -39,7 +39,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
-import androidx.appcompat.app.AppCompatActivity
+import android.content.Context
+import androidx.fragment.app.FragmentActivity
+import com.folioledger.app.ui.settings.sheets.FolioLocaleManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -55,9 +57,13 @@ class MainLockViewModel : ViewModel() {
     val isSessionUnlocked = mutableStateOf(false)
 }
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : FragmentActivity() {
 
     private val lockViewModel: MainLockViewModel by viewModels()
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(FolioLocaleManager.wrapContextIfNeeded(newBase))
+    }
 
     override fun onStop() {
         super.onStop()

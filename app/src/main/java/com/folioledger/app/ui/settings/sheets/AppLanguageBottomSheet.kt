@@ -1,7 +1,7 @@
 // File: app/src/main/java/com/folioledger/app/ui/settings/sheets/AppLanguageBottomSheet.kt
 package com.folioledger.app.ui.settings.sheets
 
-import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -116,8 +116,8 @@ fun AppLanguageBottomSheet(
     val semanticColors = LocalFolioSemanticColors.current
     var searchQuery by remember { mutableStateOf("") }
 
-    val currentLocales = AppCompatDelegate.getApplicationLocales()
-    val activeTag = if (currentLocales.isEmpty) "" else currentLocales[0]?.toLanguageTag() ?: ""
+    val context = LocalContext.current
+    val activeTag = remember { FolioLocaleManager.getCurrentLanguageTag(context) }
 
     val filteredLanguages = remember(searchQuery) {
         val query = searchQuery.trim().lowercase()
@@ -252,12 +252,7 @@ fun AppLanguageBottomSheet(
                         item = item,
                         isSelected = isSelected,
                         onClick = {
-                            val targetLocales = if (item.tag.isEmpty()) {
-                                LocaleListCompat.getEmptyLocaleList()
-                            } else {
-                                LocaleListCompat.forLanguageTags(item.tag)
-                            }
-                            AppCompatDelegate.setApplicationLocales(targetLocales)
+                            FolioLocaleManager.setAppLanguage(context, item.tag)
                             onDismissRequest()
                         }
                     )

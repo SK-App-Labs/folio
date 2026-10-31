@@ -96,6 +96,7 @@ import com.folioledger.app.ui.components.parseHexColorSafely
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.material.icons.filled.Language
 import com.folioledger.app.ui.settings.sheets.AppLanguageBottomSheet
+import com.folioledger.app.ui.settings.sheets.FolioLocaleManager
 import com.folioledger.app.ui.settings.sheets.AppearanceBottomSheet
 import com.folioledger.app.ui.settings.sheets.resolveCurrentLanguageDisplayName
 import com.folioledger.app.ui.settings.sheets.AutoBackupBottomSheet
@@ -336,8 +337,7 @@ fun SettingsScreen(
                             color = semanticColors.cardStrokeSubtle,
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
-                        val currentLocales = AppCompatDelegate.getApplicationLocales()
-                        val currentTag = if (currentLocales.isEmpty) "" else currentLocales[0]?.toLanguageTag() ?: ""
+                        val currentTag = FolioLocaleManager.getCurrentLanguageTag(context)
                         SettingsNavigationRow(
                             icon = Icons.Default.Language,
                             title = stringResource(R.string.setting_app_language),
