@@ -120,6 +120,24 @@ data class EmergencyRunwayState(
     val includesInvestments: Boolean = false
 )
 
+enum class PayeeSortMode(val title: String) {
+    BY_SPEND("By Spend"),
+    BY_FREQUENCY("By Visits")
+}
+
+@Immutable
+data class PayeeDrillDownState(
+    val payeeName: String,
+    val totalPeriodSpend: MinorMoney,
+    val totalAllTimeSpend: MinorMoney,
+    val periodVisitCount: Int,
+    val allTimeVisitCount: Int,
+    val averageTicketSize: MinorMoney,
+    val categoryDistribution: List<CategorySpendStat>,
+    val monthlyTrendBars: List<MonthlyTrendBar>,
+    val transactions: List<TransactionItem>
+)
+
 @Immutable
 data class CreditCardHealthUiModel(
     val account: AccountSummary,
@@ -456,7 +474,9 @@ data class StatsAndBudgetsUiState(
     val incomeCategoryTree: List<CategoryNode> = emptyList(),
     val tagRankings: List<SpendRankingItem> = emptyList(),
     val payeeOrNoteRankings: List<SpendRankingItem> = emptyList(),
+    val selectedPayeeRankingSortMode: PayeeSortMode = PayeeSortMode.BY_SPEND,
     val drillDownState: CategoryDrillDownState? = null,
+    val payeeDrillDownState: PayeeDrillDownState? = null,
     val budgetEditorDialogState: BudgetEditorDialogState? = null,
     val isSavingBudget: Boolean = false,
     val snackbarMessage: String? = null
@@ -488,6 +508,8 @@ private data class StatsInternalControlState(
     val isCustomDatePickerOpen: Boolean = false,
     val highlightedDonutCategoryId: Long? = null,
     val drillDownCategoryId: Long? = null,
+    val selectedPayeeRankingSortMode: PayeeSortMode = PayeeSortMode.BY_SPEND,
+    val drillDownPayeeName: String? = null,
     val budgetEditorDialogState: BudgetEditorDialogState? = null,
     val isSavingBudget: Boolean = false,
     val isRunwayIncludingInvestments: Boolean = false,
@@ -789,6 +811,27 @@ class StatsAndBudgetsViewModel(
             }
         }
 
+        val sortedPayees = if (ctrl.selectedPayeeRankingSortMode == PayeeSortMode.BY_FREQUENCY) {
+            bundle.payeeRankings.sortedWith(
+                compareByDescending<SpendRankingItem> { it.transactionCount }
+                    .thenByDescending { it.totalAmount }
+            )
+        } else {
+            bundle.payeeRankings
+        }
+
+        val payeeDrillDownState = ctrl.drillDownPayeeName?.let { targetPayee ->
+            StatsPredictiveCalculations.computePayeeDrillDownState(
+                payeeName = targetPayee,
+                allTxs = allTxs,
+                trendBars = bundle.trendBars,
+                startEpochDay = bundle.periodRange.startEpochDay,
+                endEpochDay = bundle.periodRange.endEpochDay,
+                isAllTime = ctrl.isRankingsAllTime,
+                primaryCurrencyCode = prefs.primaryCurrencyCode
+            )
+        }
+
         val assetAccountsForSettlement = allAccounts.filter {
             !it.isArchived && (
                 it.groupType == AccountGroup.BANK_ACCOUNT ||
@@ -851,8 +894,10 @@ class StatsAndBudgetsViewModel(
             expenseCategoryTree = expenseTree,
             incomeCategoryTree = incomeTree,
             tagRankings = bundle.tagRankings,
-            payeeOrNoteRankings = bundle.payeeRankings,
+            payeeOrNoteRankings = sortedPayees,
+            selectedPayeeRankingSortMode = ctrl.selectedPayeeRankingSortMode,
             drillDownState = drillDownState,
+            payeeDrillDownState = payeeDrillDownState,
             budgetEditorDialogState = ctrl.budgetEditorDialogState,
             isSavingBudget = ctrl.isSavingBudget,
             snackbarMessage = ctrl.snackbarMessage
@@ -941,6 +986,18 @@ class StatsAndBudgetsViewModel(
 
     fun selectRankingMode(mode: RankingMode) {
         controlState.update { it.copy(selectedRankingMode = mode) }
+    }
+
+    fun selectPayeeSortMode(mode: PayeeSortMode) {
+        controlState.update { it.copy(selectedPayeeRankingSortMode = mode) }
+    }
+
+    fun openPayeeDrillDown(payeeName: String) {
+        controlState.update { it.copy(drillDownPayeeName = payeeName) }
+    }
+
+    fun dismissPayeeDrillDown() {
+        controlState.update { it.copy(drillDownPayeeName = null) }
     }
 
     fun navigateToPreviousPeriod() {
@@ -1963,6 +2020,130 @@ object StatsPredictiveCalculations {
             healthTier = healthTier,
             targetMonths = 6.0f,
             includesInvestments = includesInvestments
+        )
+    }
+
+    fun computePayeeDrillDownState(
+        payeeName: String,
+        allTxs: List<TransactionItem>,
+        trendBars: List<MonthlyTrendBar>,
+        startEpochDay: Long,
+        endEpochDay: Long,
+        isAllTime: Boolean,
+        primaryCurrencyCode: String
+    ): PayeeDrillDownState {
+        val trimmedTarget = payeeName.trim().lowercase()
+
+        val allMatchingTxs = allTxs.filter { tx ->
+            val raw = tx.payeeOrDescription.trim().ifEmpty { tx.note.trim() }.lowercase()
+            raw == trimmedTarget && (tx.type == TransactionType.EXPENSE || tx.type == TransactionType.REFUND)
+        }
+
+        val periodMatchingTxs = if (isAllTime) {
+            allMatchingTxs
+        } else {
+            allMatchingTxs.filter { it.ledgerDateEpochDay in startEpochDay..endEpochDay }
+        }
+
+        var totalPeriodMinor = 0L
+        var periodVisitCount = 0
+        for (tx in periodMatchingTxs) {
+            if (tx.type == TransactionType.EXPENSE) {
+                totalPeriodMinor += Math.abs(tx.amount.amountMinor) + Math.abs(tx.transferFee.amountMinor)
+                periodVisitCount++
+            } else if (tx.type == TransactionType.REFUND) {
+                totalPeriodMinor -= Math.abs(tx.amount.amountMinor)
+            }
+        }
+        totalPeriodMinor = Math.max(0L, totalPeriodMinor)
+
+        var totalAllTimeMinor = 0L
+        var allTimeVisitCount = 0
+        for (tx in allMatchingTxs) {
+            if (tx.type == TransactionType.EXPENSE) {
+                totalAllTimeMinor += Math.abs(tx.amount.amountMinor) + Math.abs(tx.transferFee.amountMinor)
+                allTimeVisitCount++
+            } else if (tx.type == TransactionType.REFUND) {
+                totalAllTimeMinor -= Math.abs(tx.amount.amountMinor)
+            }
+        }
+        totalAllTimeMinor = Math.max(0L, totalAllTimeMinor)
+
+        val averageTicketMinor = if (periodVisitCount > 0) {
+            totalPeriodMinor / periodVisitCount
+        } else if (allTimeVisitCount > 0) {
+            totalAllTimeMinor / allTimeVisitCount
+        } else {
+            0L
+        }
+
+        // Category distribution for this merchant
+        val catAmountMap = mutableMapOf<String, Long>()
+        val catCountMap = mutableMapOf<String, Int>()
+        val catColorMap = mutableMapOf<String, String>()
+        val catIconMap = mutableMapOf<String, String>()
+
+        val activeForCategories = if (periodMatchingTxs.isNotEmpty()) periodMatchingTxs else allMatchingTxs
+        for (tx in activeForCategories) {
+            val catName = tx.categoryName ?: "General"
+            val amt = Math.abs(tx.amount.amountMinor)
+            catAmountMap[catName] = (catAmountMap[catName] ?: 0L) + amt
+            catCountMap[catName] = (catCountMap[catName] ?: 0) + 1
+            if (tx.categoryColorHex != null) catColorMap[catName] = tx.categoryColorHex
+            if (tx.categoryIconName != null) catIconMap[catName] = tx.categoryIconName
+        }
+
+        val grandCategoryMinor = catAmountMap.values.sum().coerceAtLeast(1L)
+        val catDistribution = catAmountMap.map { (catName, minorSum) ->
+            CategorySpendStat(
+                categoryId = 0L,
+                categoryName = catName,
+                colorHex = catColorMap[catName] ?: "#8B5CF6",
+                iconName = catIconMap[catName] ?: "category",
+                netAmount = MinorMoney(minorSum),
+                percentageOfTotal = (minorSum.toFloat() / grandCategoryMinor.toFloat() * 100f).coerceIn(0f, 100f),
+                transactionCount = catCountMap[catName] ?: 1
+            )
+        }.sortedByDescending { it.netAmount }
+
+        // 6-month monthly spend bars for this merchant
+        val payeeMonthlyBars = trendBars.map { bar ->
+            var barExpenseMinor = 0L
+            for (tx in allMatchingTxs) {
+                if (tx.ledgerDateEpochDay in bar.startEpochDay..bar.endEpochDay) {
+                    if (tx.type == TransactionType.EXPENSE) {
+                        barExpenseMinor += Math.abs(tx.amount.amountMinor) + Math.abs(tx.transferFee.amountMinor)
+                    } else if (tx.type == TransactionType.REFUND) {
+                        barExpenseMinor -= Math.abs(tx.amount.amountMinor)
+                    }
+                }
+            }
+            val safeMinor = Math.max(0L, barExpenseMinor)
+            MonthlyTrendBar(
+                periodLabel = bar.periodLabel,
+                startEpochDay = bar.startEpochDay,
+                endEpochDay = bar.endEpochDay,
+                totalIncome = MinorMoney.ZERO,
+                totalExpense = MinorMoney(safeMinor),
+                netSavings = MinorMoney(-safeMinor)
+            )
+        }
+
+        val sortedTransactions = activeForCategories.sortedWith(
+            compareByDescending<TransactionItem> { it.ledgerDateEpochDay }
+                .thenByDescending { it.timestampEpochMillis }
+        )
+
+        return PayeeDrillDownState(
+            payeeName = payeeName,
+            totalPeriodSpend = MinorMoney(totalPeriodMinor),
+            totalAllTimeSpend = MinorMoney(totalAllTimeMinor),
+            periodVisitCount = periodVisitCount,
+            allTimeVisitCount = allTimeVisitCount,
+            averageTicketSize = MinorMoney(averageTicketMinor),
+            categoryDistribution = catDistribution,
+            monthlyTrendBars = payeeMonthlyBars,
+            transactions = sortedTransactions
         )
     }
 }
