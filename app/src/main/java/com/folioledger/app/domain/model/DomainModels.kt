@@ -206,6 +206,20 @@ data class SpendRankingItem(
 )
 
 @Immutable
+data class RecurringCommitmentItem(
+    val id: Long,
+    val title: String,
+    val type: TransactionType,
+    val amount: MinorMoney,
+    val currencyCode: String,
+    val accountId: Long,
+    val frequency: RepeatFrequency,
+    val nextOccurrenceEpochDay: Long,
+    val payeeOrDescription: String = "",
+    val isActive: Boolean = true
+)
+
+@Immutable
 data class TransactionBookmark(
     val id: Long = 0L,
     val title: String,

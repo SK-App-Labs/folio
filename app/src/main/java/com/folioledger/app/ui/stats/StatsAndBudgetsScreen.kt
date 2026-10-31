@@ -567,6 +567,16 @@ private fun StatsBreakdownSubTabContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
     ) {
+        if (uiState.safeToSpend.isCurrentPeriod && uiState.shortfallAlerts.isNotEmpty()) {
+            item(contentType = "shortfall_alert") {
+                ShortfallAlertCard(
+                    alerts = uiState.shortfallAlerts,
+                    currencySpec = uiState.currencySpec,
+                    grouping = uiState.numberGrouping
+                )
+            }
+        }
+
         item(contentType = "stats_summary_banner") {
             ThreeColumnSummaryBanner(
                 firstLabel = "Income",
@@ -586,6 +596,16 @@ private fun StatsBreakdownSubTabContent(
                     null
                 }
             )
+        }
+
+        if (uiState.safeToSpend.isCurrentPeriod) {
+            item(contentType = "safe_to_spend") {
+                SafeToSpendCard(
+                    safeToSpend = uiState.safeToSpend,
+                    currencySpec = uiState.currencySpec,
+                    grouping = uiState.numberGrouping
+                )
+            }
         }
 
         // Segmented Expenses vs Income Toggle
@@ -1162,6 +1182,248 @@ private fun EmergencyRunwayCard(
                         style = MaterialTheme.typography.bodySmall,
                         fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.outline
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShortfallAlertCard(
+    alerts: List<AccountShortfallAlert>,
+    currencySpec: CurrencySpec,
+    grouping: NumberGroupingSystem
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = semanticColors.warningAmberContainer),
+        border = BorderStroke(1.dp, semanticColors.warningAmber.copy(alpha = 0.5f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(14.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = semanticColors.onWarningAmberContainer,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    text = "14-Day Overdraft / Shortfall Warning",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = semanticColors.onWarningAmberContainer
+                )
+            }
+
+            alerts.forEach { alert ->
+                val balFormatted = remember(alert.currentBalance, currencySpec, grouping) {
+                    MoneyFormatterAndCalculator.formatMinorMoney(alert.currentBalance, currencySpec)
+                }
+                val debFormatted = remember(alert.upcomingDebits, currencySpec, grouping) {
+                    MoneyFormatterAndCalculator.formatMinorMoney(alert.upcomingDebits, currencySpec)
+                }
+                val shortFormatted = remember(alert.shortfallAmount, currencySpec, grouping) {
+                    MoneyFormatterAndCalculator.formatMinorMoney(alert.shortfallAmount, currencySpec)
+                }
+
+                Text(
+                    text = "⚠️ ${alert.accountName}: Current balance ($balFormatted) may not cover upcoming commitments ($debFormatted) due in ${alert.daysUntilShortfall} ${if (alert.daysUntilShortfall == 1L) "day" else "days"} (Shortfall: $shortFormatted).",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                    color = semanticColors.onWarningAmberContainer
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SafeToSpendCard(
+    safeToSpend: SafeToSpendState,
+    currencySpec: CurrencySpec,
+    grouping: NumberGroupingSystem
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(16.dp)
+        ) {
+            // Header Row: Shield Icon, Title, Status Pill
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = if (safeToSpend.isPositive) {
+                            semanticColors.incomeEmeraldContainer
+                        } else {
+                            semanticColors.warningAmberContainer
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Shield,
+                                contentDescription = null,
+                                tint = if (safeToSpend.isPositive) {
+                                    semanticColors.onIncomeEmeraldContainer
+                                } else {
+                                    semanticColors.onWarningAmberContainer
+                                },
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Safe-to-Spend Today",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (safeToSpend.isPositive) {
+                        semanticColors.incomeEmeraldContainer
+                    } else {
+                        semanticColors.warningAmberContainer
+                    }
+                ) {
+                    Text(
+                        text = if (safeToSpend.isPositive) "🛡️ Safe Discretionary Cash" else "⚠️ Commitments Exceed Cash",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (safeToSpend.isPositive) {
+                            semanticColors.onIncomeEmeraldContainer
+                        } else {
+                            semanticColors.onWarningAmberContainer
+                        },
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            // Big Headline Money
+            MoneyText(
+                money = safeToSpend.trueSafeToSpend,
+                currencySpec = currencySpec,
+                grouping = grouping,
+                colorMode = if (safeToSpend.isPositive) MoneyColorMode.INCOME else MoneyColorMode.EXPENSE,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Black
+            )
+
+            Text(
+                text = if (safeToSpend.isPositive) {
+                    "Unencumbered cash you can safely spend without impacting unpaid credit cards or bills due in the next 14 days."
+                } else {
+                    "Your liquid bank balances are insufficient to cover your unpaid card debt and commitments due in the next 14 days."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            HorizontalDivider(color = semanticColors.cardStrokeSubtle)
+
+            // Equation Breakdown Row: Liquid Cash - CC Debt - 14d Bills
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "LIQUID CASH",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                    MoneyText(
+                        money = safeToSpend.totalLiquidBankAndCash,
+                        currencySpec = currencySpec,
+                        grouping = grouping,
+                        colorMode = MoneyColorMode.NEUTRAL,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Text(
+                    text = "−",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.outline
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "CARD DEBT",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                    MoneyText(
+                        money = safeToSpend.totalCreditCardDebt,
+                        currencySpec = currencySpec,
+                        grouping = grouping,
+                        colorMode = MoneyColorMode.EXPENSE,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Text(
+                    text = "−",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.outline
+                )
+
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = "14D BILLS",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                    MoneyText(
+                        money = safeToSpend.upcoming14DayCommitments,
+                        currencySpec = currencySpec,
+                        grouping = grouping,
+                        colorMode = MoneyColorMode.EXPENSE,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }

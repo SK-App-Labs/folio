@@ -15,6 +15,8 @@ import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.MonthlyTrendBar
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.PeriodLedgerSummary
+import com.folioledger.app.domain.model.RecurringCommitmentItem
+import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SpendRankingItem
 import com.folioledger.app.domain.model.SupportedCurrencies
@@ -153,6 +155,26 @@ data class TagProjectDrillDownState(
     val categoryDistribution: List<CategorySpendStat>,
     val monthlyTrendBars: List<MonthlyTrendBar>,
     val transactions: List<TransactionItem>
+)
+
+@Immutable
+data class SafeToSpendState(
+    val totalLiquidBankAndCash: MinorMoney = MinorMoney.ZERO,
+    val totalCreditCardDebt: MinorMoney = MinorMoney.ZERO,
+    val upcoming14DayCommitments: MinorMoney = MinorMoney.ZERO,
+    val trueSafeToSpend: MinorMoney = MinorMoney.ZERO,
+    val isPositive: Boolean = true,
+    val isCurrentPeriod: Boolean = true
+)
+
+@Immutable
+data class AccountShortfallAlert(
+    val accountId: Long,
+    val accountName: String,
+    val currentBalance: MinorMoney,
+    val upcomingDebits: MinorMoney,
+    val shortfallAmount: MinorMoney,
+    val daysUntilShortfall: Long
 )
 
 @Immutable
@@ -495,6 +517,8 @@ data class StatsAndBudgetsUiState(
     val drillDownState: CategoryDrillDownState? = null,
     val payeeDrillDownState: PayeeDrillDownState? = null,
     val tagDrillDownState: TagProjectDrillDownState? = null,
+    val safeToSpend: SafeToSpendState = SafeToSpendState(),
+    val shortfallAlerts: List<AccountShortfallAlert> = emptyList(),
     val budgetEditorDialogState: BudgetEditorDialogState? = null,
     val isSavingBudget: Boolean = false,
     val snackbarMessage: String? = null
@@ -546,6 +570,13 @@ private data class PeriodQueryParameters(
     val prefs: UserPreferences
 )
 
+private data class TrendsAndBudgetsBundle(
+    val trendBars: List<MonthlyTrendBar>,
+    val budgets: List<BudgetProgress>,
+    val periodTransactions: List<TransactionItem>,
+    val recurringCommitments: List<RecurringCommitmentItem>
+)
+
 private data class PeriodAnalyticsBundle(
     val prefs: UserPreferences,
     val periodRange: StatsPeriodRange,
@@ -556,7 +587,8 @@ private data class PeriodAnalyticsBundle(
     val budgets: List<BudgetProgress>,
     val tagRankings: List<SpendRankingItem>,
     val payeeRankings: List<SpendRankingItem>,
-    val periodTransactions: List<TransactionItem>
+    val periodTransactions: List<TransactionItem>,
+    val recurringCommitments: List<RecurringCommitmentItem> = emptyList()
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -653,9 +685,10 @@ class StatsAndBudgetsViewModel(
             transactionRepository.observeTransactionsInRange(
                 startEpochDay = periodRange.startEpochDay,
                 endEpochDay = periodRange.endEpochDay
-            )
-        ) { trendBars, budgets, periodTxns ->
-            Triple(trendBars, budgets, periodTxns)
+            ),
+            analyticsAndBudgetRepository.observeActiveRecurringCommitments()
+        ) { trendBars, budgets, periodTxns, commitments ->
+            TrendsAndBudgetsBundle(trendBars, budgets, periodTxns, commitments)
         }
 
         val rankingsStartDay = if (params.isRankingsAllTime) 0L else periodRange.startEpochDay
@@ -677,18 +710,19 @@ class StatsAndBudgetsViewModel(
             summaryAndCategoryStatsFlow,
             trendsAndBudgetsFlow,
             rankingsFlow
-        ) { (summary, expenseStats, incomeStats), (trendBars, budgets, periodTxns), (tags, payees) ->
+        ) { (summary, expenseStats, incomeStats), trendsBundle, (tags, payees) ->
             PeriodAnalyticsBundle(
                 prefs = prefs,
                 periodRange = periodRange,
                 periodSummary = summary,
                 expenseStats = expenseStats,
                 incomeStats = incomeStats,
-                trendBars = trendBars,
-                budgets = budgets,
+                trendBars = trendsBundle.trendBars,
+                budgets = trendsBundle.budgets,
                 tagRankings = tags,
                 payeeRankings = payees,
-                periodTransactions = periodTxns
+                periodTransactions = trendsBundle.periodTransactions,
+                recurringCommitments = trendsBundle.recurringCommitments
             )
         }
     }.flowOn(Dispatchers.Default)
@@ -881,6 +915,27 @@ class StatsAndBudgetsViewModel(
             referenceDateEpochDay = ctrl.referenceDateEpochDay
         )
 
+        val todayEpochDay = LocalDate.now().toEpochDay()
+        val safeToSpendState = StatsPredictiveCalculations.computeSafeToSpend(
+            allAccounts = allAccounts,
+            recurringRules = bundle.recurringCommitments,
+            futureTransactions = allTxs,
+            todayEpochDay = todayEpochDay,
+            periodStartEpochDay = bundle.periodRange.startEpochDay,
+            periodEndEpochDay = bundle.periodRange.endEpochDay,
+            primaryCurrencyCode = prefs.primaryCurrencyCode,
+            secondaryCurrencies = prefs.secondaryCurrencies
+        )
+
+        val shortfallAlerts = StatsPredictiveCalculations.computeShortfallAlerts(
+            allAccounts = allAccounts,
+            recurringRules = bundle.recurringCommitments,
+            futureTransactions = allTxs,
+            todayEpochDay = todayEpochDay,
+            primaryCurrencyCode = prefs.primaryCurrencyCode,
+            secondaryCurrencies = prefs.secondaryCurrencies
+        )
+
         StatsAndBudgetsUiState(
             selectedSubTab = ctrl.selectedSubTab,
             periodGranularity = ctrl.periodGranularity,
@@ -931,6 +986,8 @@ class StatsAndBudgetsViewModel(
             drillDownState = drillDownState,
             payeeDrillDownState = payeeDrillDownState,
             tagDrillDownState = tagDrillDownState,
+            safeToSpend = safeToSpendState,
+            shortfallAlerts = shortfallAlerts,
             budgetEditorDialogState = ctrl.budgetEditorDialogState,
             isSavingBudget = ctrl.isSavingBudget,
             snackbarMessage = ctrl.snackbarMessage
@@ -2369,5 +2426,232 @@ object StatsPredictiveCalculations {
             monthlyTrendBars = tagMonthlyBars,
             transactions = sortedTransactions
         )
+    }
+
+    fun projectRecurringOccurrencesInHorizon(
+        startDay: Long,
+        frequency: RepeatFrequency,
+        todayEpochDay: Long,
+        horizonEpochDay: Long
+    ): List<Long> {
+        val occurrences = mutableListOf<Long>()
+        var cursor = LocalDate.ofEpochDay(startDay)
+
+        // Advance cursor until it reaches or exceeds today
+        while (cursor.toEpochDay() < todayEpochDay) {
+            cursor = when (frequency) {
+                RepeatFrequency.DAILY -> cursor.plusDays(1)
+                RepeatFrequency.WEEKLY -> cursor.plusWeeks(1)
+                RepeatFrequency.BIWEEKLY -> cursor.plusWeeks(2)
+                RepeatFrequency.MONTHLY -> cursor.plusMonths(1)
+                RepeatFrequency.YEARLY -> cursor.plusYears(1)
+            }
+        }
+
+        while (cursor.toEpochDay() <= horizonEpochDay) {
+            occurrences.add(cursor.toEpochDay())
+            cursor = when (frequency) {
+                RepeatFrequency.DAILY -> cursor.plusDays(1)
+                RepeatFrequency.WEEKLY -> cursor.plusWeeks(1)
+                RepeatFrequency.BIWEEKLY -> cursor.plusWeeks(2)
+                RepeatFrequency.MONTHLY -> cursor.plusMonths(1)
+                RepeatFrequency.YEARLY -> cursor.plusYears(1)
+            }
+        }
+
+        return occurrences
+    }
+
+    fun computeSafeToSpend(
+        allAccounts: List<AccountSummary>,
+        recurringRules: List<RecurringCommitmentItem>,
+        futureTransactions: List<TransactionItem>,
+        todayEpochDay: Long,
+        periodStartEpochDay: Long,
+        periodEndEpochDay: Long,
+        primaryCurrencyCode: String,
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
+    ): SafeToSpendState {
+        val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+
+        fun convertToPrimary(rawAmountMinor: Long, currencyCode: String): Long {
+            val accCurr = currencyCode.trim().uppercase()
+            if (accCurr == primarySpec.code.uppercase()) return rawAmountMinor
+            val secondary = secondaryMap[accCurr]
+            return if (secondary != null && secondary.exchangeRateToPrimary > 0.0) {
+                val accSpec = SupportedCurrencies.fromCode(accCurr)
+                MoneyFormatterAndCalculator.convertMinorMoney(
+                    sourceMinor = rawAmountMinor,
+                    sourceFractionDigits = accSpec.fractionDigits,
+                    targetFractionDigits = primarySpec.fractionDigits,
+                    rateToTarget = secondary.exchangeRateToPrimary
+                )
+            } else {
+                rawAmountMinor
+            }
+        }
+
+        // 1. Total Liquid Cash & Bank Balances
+        var totalLiquidMinor = 0L
+        for (acc in allAccounts) {
+            if (acc.isArchived || acc.currentBalance.amountMinor <= 0L) continue
+            val isLiquid = acc.groupType == AccountGroup.BANK_ACCOUNT ||
+                    acc.groupType == AccountGroup.CASH ||
+                    acc.groupType == AccountGroup.SAVINGS ||
+                    acc.groupType == AccountGroup.PREPAID_WALLET
+            if (isLiquid) {
+                totalLiquidMinor += convertToPrimary(acc.currentBalance.amountMinor, acc.currencyCode)
+            }
+        }
+
+        // 2. Total Credit Card Debt (Billed + Unbilled)
+        var totalCcDebtMinor = 0L
+        for (acc in allAccounts) {
+            if (acc.isArchived || acc.groupType != AccountGroup.CREDIT_CARD) continue
+            val debtMinor = acc.currentBalance.abs().amountMinor
+            totalCcDebtMinor += convertToPrimary(debtMinor, acc.currencyCode)
+        }
+
+        // 3. Upcoming 14-Day Commitments
+        val horizonEpochDay = todayEpochDay + 14L
+        var upcomingCommitmentsMinor = 0L
+
+        // a. Recurring Rules
+        for (rule in recurringRules) {
+            if (!rule.isActive) continue
+            if (rule.type != TransactionType.EXPENSE && rule.type != TransactionType.TRANSFER) continue
+
+            val occurrences = projectRecurringOccurrencesInHorizon(
+                startDay = rule.nextOccurrenceEpochDay,
+                frequency = rule.frequency,
+                todayEpochDay = todayEpochDay,
+                horizonEpochDay = horizonEpochDay
+            )
+
+            val singleAmt = convertToPrimary(rule.amount.amountMinor, rule.currencyCode)
+            upcomingCommitmentsMinor += (singleAmt * occurrences.size)
+        }
+
+        // b. Future Scheduled Transactions
+        for (tx in futureTransactions) {
+            if (tx.ledgerDateEpochDay in (todayEpochDay + 1L)..horizonEpochDay) {
+                if (tx.type == TransactionType.EXPENSE) {
+                    val amt = convertToPrimary(Math.abs(tx.amount.amountMinor) + Math.abs(tx.transferFee.amountMinor), tx.currencyCode)
+                    upcomingCommitmentsMinor += amt
+                }
+            }
+        }
+
+        val trueSafeToSpendMinor = totalLiquidMinor - totalCcDebtMinor - upcomingCommitmentsMinor
+        val isPositive = trueSafeToSpendMinor >= 0L
+        val isCurrentPeriod = todayEpochDay in periodStartEpochDay..periodEndEpochDay
+
+        return SafeToSpendState(
+            totalLiquidBankAndCash = MinorMoney(totalLiquidMinor),
+            totalCreditCardDebt = MinorMoney(totalCcDebtMinor),
+            upcoming14DayCommitments = MinorMoney(upcomingCommitmentsMinor),
+            trueSafeToSpend = MinorMoney(trueSafeToSpendMinor),
+            isPositive = isPositive,
+            isCurrentPeriod = isCurrentPeriod
+        )
+    }
+
+    fun computeShortfallAlerts(
+        allAccounts: List<AccountSummary>,
+        recurringRules: List<RecurringCommitmentItem>,
+        futureTransactions: List<TransactionItem>,
+        todayEpochDay: Long,
+        primaryCurrencyCode: String,
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
+    ): List<AccountShortfallAlert> {
+        val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+
+        fun convertToPrimary(rawAmountMinor: Long, currencyCode: String): Long {
+            val accCurr = currencyCode.trim().uppercase()
+            if (accCurr == primarySpec.code.uppercase()) return rawAmountMinor
+            val secondary = secondaryMap[accCurr]
+            return if (secondary != null && secondary.exchangeRateToPrimary > 0.0) {
+                val accSpec = SupportedCurrencies.fromCode(accCurr)
+                MoneyFormatterAndCalculator.convertMinorMoney(
+                    sourceMinor = rawAmountMinor,
+                    sourceFractionDigits = accSpec.fractionDigits,
+                    targetFractionDigits = primarySpec.fractionDigits,
+                    rateToTarget = secondary.exchangeRateToPrimary
+                )
+            } else {
+                rawAmountMinor
+            }
+        }
+
+        val horizonEpochDay = todayEpochDay + 14L
+        val debitsByAccount = mutableMapOf<Long, Long>()
+        val earliestDebitByAccount = mutableMapOf<Long, Long>()
+
+        // 1. Recurring Rules
+        for (rule in recurringRules) {
+            if (!rule.isActive) continue
+            if (rule.type != TransactionType.EXPENSE && rule.type != TransactionType.TRANSFER) continue
+
+            val occurrences = projectRecurringOccurrencesInHorizon(
+                startDay = rule.nextOccurrenceEpochDay,
+                frequency = rule.frequency,
+                todayEpochDay = todayEpochDay,
+                horizonEpochDay = horizonEpochDay
+            )
+
+            val singleAmt = convertToPrimary(rule.amount.amountMinor, rule.currencyCode)
+            for (occDay in occurrences) {
+                debitsByAccount[rule.accountId] = (debitsByAccount[rule.accountId] ?: 0L) + singleAmt
+                val curr = earliestDebitByAccount[rule.accountId]
+                earliestDebitByAccount[rule.accountId] = if (curr == null) occDay else minOf(curr, occDay)
+            }
+        }
+
+        // 2. Future Scheduled Transactions
+        for (tx in futureTransactions) {
+            if (tx.ledgerDateEpochDay in (todayEpochDay + 1L)..horizonEpochDay) {
+                if (tx.type == TransactionType.EXPENSE) {
+                    val amt = convertToPrimary(Math.abs(tx.amount.amountMinor) + Math.abs(tx.transferFee.amountMinor), tx.currencyCode)
+                    debitsByAccount[tx.accountId] = (debitsByAccount[tx.accountId] ?: 0L) + amt
+                    val curr = earliestDebitByAccount[tx.accountId]
+                    earliestDebitByAccount[tx.accountId] = if (curr == null) tx.ledgerDateEpochDay else minOf(curr, tx.ledgerDateEpochDay)
+                }
+            }
+        }
+
+        // 3. Match against live liquid account balances
+        val alerts = mutableListOf<AccountShortfallAlert>()
+        for (acc in allAccounts) {
+            if (acc.isArchived) continue
+            val isLiquidBank = acc.groupType == AccountGroup.BANK_ACCOUNT ||
+                    acc.groupType == AccountGroup.SAVINGS ||
+                    acc.groupType == AccountGroup.PREPAID_WALLET
+            if (!isLiquidBank) continue
+
+            val scheduledDebitsMinor = debitsByAccount[acc.id] ?: 0L
+            if (scheduledDebitsMinor <= 0L) continue
+
+            val liveBalanceMinor = convertToPrimary(acc.currentBalance.amountMinor, acc.currencyCode)
+            if (liveBalanceMinor < scheduledDebitsMinor) {
+                val shortfallMinor = scheduledDebitsMinor - liveBalanceMinor
+                val earliestDay = earliestDebitByAccount[acc.id] ?: todayEpochDay
+                val daysUntil = maxOf(0L, earliestDay - todayEpochDay)
+
+                alerts.add(
+                    AccountShortfallAlert(
+                        accountId = acc.id,
+                        accountName = acc.name,
+                        currentBalance = acc.currentBalance,
+                        upcomingDebits = MinorMoney(scheduledDebitsMinor),
+                        shortfallAmount = MinorMoney(shortfallMinor),
+                        daysUntilShortfall = daysUntil
+                    )
+                )
+            }
+        }
+
+        return alerts.sortedBy { it.daysUntilShortfall }
     }
 }

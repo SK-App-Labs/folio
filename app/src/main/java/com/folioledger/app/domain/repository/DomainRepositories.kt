@@ -10,6 +10,7 @@ import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.MonthlyTrendBar
 import com.folioledger.app.domain.model.NetWorthOverview
 import com.folioledger.app.domain.model.PeriodLedgerSummary
+import com.folioledger.app.domain.model.RecurringCommitmentItem
 import com.folioledger.app.domain.model.SpendRankingItem
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.TransactionItem
@@ -154,6 +155,8 @@ interface AnalyticsAndBudgetRepository {
         startEpochDay: Long,
         endEpochDay: Long
     ): Flow<List<BudgetProgress>>
+
+    fun observeActiveRecurringCommitments(): Flow<List<RecurringCommitmentItem>>
 
     suspend fun upsertBudget(
         budgetId: Long = 0L,

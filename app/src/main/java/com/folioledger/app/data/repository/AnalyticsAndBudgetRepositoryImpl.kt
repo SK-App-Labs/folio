@@ -13,6 +13,7 @@ import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.MonthlyTrendBar
 import com.folioledger.app.domain.model.PeriodLedgerSummary
+import com.folioledger.app.domain.model.RecurringCommitmentItem
 import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SpendRankingItem
 import com.folioledger.app.domain.model.SupportedCurrencies
@@ -607,6 +608,25 @@ class AnalyticsAndBudgetRepositoryImpl(
                     remainingAmount = remainingMoney,
                     usagePercentage = usagePct,
                     alertThresholdPercent = budget.alertThresholdPercent
+                )
+            }
+        }
+    }
+
+    override fun observeActiveRecurringCommitments(): Flow<List<RecurringCommitmentItem>> {
+        return budgetAndRecurringDao.observeAllRecurringRules().map { rules ->
+            rules.filter { it.isActive }.map { rule ->
+                RecurringCommitmentItem(
+                    id = rule.id,
+                    title = rule.title,
+                    type = rule.type,
+                    amount = MinorMoney(rule.amountMinor),
+                    currencyCode = rule.currencyCode,
+                    accountId = rule.accountId,
+                    frequency = rule.frequency,
+                    nextOccurrenceEpochDay = rule.nextOccurrenceEpochDay,
+                    payeeOrDescription = rule.payeeOrDescription,
+                    isActive = rule.isActive
                 )
             }
         }
