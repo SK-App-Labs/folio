@@ -33,8 +33,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-Currency Aggregation in Ledger Calculations**:
   - Upgraded `computeIncomeAndExpenseTotals`, `buildDailyGroups`, `buildCalendarGridCells`, and `buildWeeklyBucketsForPeriod` to convert non-primary account transactions into the user's configured primary currency using manual exchange rates from `prefs.secondaryCurrencies`.
   - Eliminates 1:1 raw summation errors when viewing multi-currency transactions across accounts in the aggregate view while preserving native currencies for single-account scopes.
+- **UI Edge-to-Edge Insets & Gesture Navigation Calibration**:
+  - *Eliminated Double Bottom Insets Gap*: Fixed redundant window insets padding between the bottom navigation bar and lazy lists, establishing uniform, calibrated scroll-to-bottom clearance across Transactions, Stats, Accounts, and Settings.
+  - *Ledger Search & Filter Streamlining*: Simplified the search field placeholder to `"Search"` and slimmed the filter button for improved density on narrow phone viewports.
+  - *Bottom Sheet Drag-to-Dismiss Gesture*: Corrected gesture handling in ledger filter and passbook bottom sheets to ensure smooth, natural pull-to-dismiss interactions.
+- **Stats Tab Granularity & Budget Lock**:
+  - *Category-Specific Drill-Down Trend*: Isolated the 6-month historical trend area chart in category drill-down to display strictly that category's spending rather than aggregate totals.
+  - *Monthly Budget Enforcement*: Locked the Budgets subtab to the monthly financial horizon, eliminating confusing empty states on weekly or annual granularities.
+  - *All-Time Rankings Toggle*: Added an all-time spend ranking mode in category breakdown alongside monthly rankings.
 
 ### Added
+- **Predictive Personal Finance Intelligence Suite (Phases 1–4)**:
+  - **Phase 1: Net Worth Velocity & Emergency Runway Cockpit**:
+    - Embedded dynamic wealth velocity indicators directly into the Overview subtab's Net Worth view (`NetWorthVelocityCockpit`).
+    - Calculates month-over-month wealth trajectory ($\Delta\text{Net Worth}$), 3-month trailing expense burn rate, and liquid cash emergency runway in months.
+    - Features smart badging (`Surplus / Building Wealth`, `Runway > 12 Months`, or warning alerts when expenses exceed inflows).
+  - **Phase 2: Merchant & Payee Intelligence**:
+    - Upgraded Payee rankings with dual sorting modes: **Total Outlay** (highest spend) vs. **Frequency** (most frequent transactions).
+    - Added an interactive `PayeeDrillDownBottomSheet` featuring 6-month outlay trends, cross-category distribution, and automated cadence detection (e.g., `"Recurring: ~Every 30 days"`).
+  - **Phase 3: Events, Trips & Reimbursements Hub in Tags**:
+    - Upgraded the Tags subtab (`StatsSubTab.TAGS_AND_NOTES`) with smart mode detection: automatically distinguishes reimbursable claims (e.g. `#office`, `#reimbursable`, `#split`, `#claim`) from trips or events (e.g. `#trip`, `#vacation`, `#wedding`).
+    - *Reimbursable Mode*: Computes total spent, total reimbursed, net pending owed balance, and displays a prominent settlement badge (`✓ Fully Settled` or `Pending Claim: ₹X,XXX`).
+    - *Trip / Event Mode*: Computes trip date duration span (e.g. `12 Days`), daily average spend burn rate, and cross-category expense distributions.
+    - Added `TagProjectDrillDownBottomSheet` with 1-tap receipt inspection jumping directly to transaction details.
+  - **Phase 4: Safe-to-Spend & 14-Day Overdraft Shortfall Radar**:
+    - Integrated safe-to-spend intelligence into the Overview subtab's Cashflow view (`SafeToSpendCard`).
+    - Computes unencumbered discretionary cash available for immediate spending: $\text{Safe-to-Spend} = \text{Liquid Cash} - \text{Unpaid Credit Card Debt} - \text{14-Day Active Recurring Commitments}$.
+    - Added proactive `ShortfallAlertCard` radar: projects future cashflows per bank account over a 14-day rolling horizon and alerts the user immediately if any upcoming commitment exceeds projected account balance.
+- **Credit Cards Cockpit (Stats Tab)**:
+  - Elevated credit card analytics into a dedicated top-level subtab: `StatsSubTab.CREDIT_CARDS` ("Cards").
+  - *Statement Status Pipeline*: Intelligently maps credit card cycles into 5 real-time states: `OVERDUE`, `DUE_SOON` ($\le 3$ days), `ISSUED`, `CURRENT`, and `SETTLED`.
+  - *Credit Bureau Threshold Calibration*: Evaluates total credit utilization against official credit scoring standards: `SAFE` ($<30\%$), `CAUTION` ($30\%–50\%$), `WARNING` ($50\%–75\%$), and `CRITICAL` ($>75\%$).
+  - *Smart Swipe Headroom Metric*: Displays the exact headroom in primary currency before the user breaches the 30% credit bureau threshold.
+  - *Multi-Currency Card Valuation*: Converts foreign-currency credit card limits and balances into the primary currency using manual exchange rates.
+  - *Celebratory Milestone Banner*: Surfaces an animated celebration card when all card statement balances and unbilled charges are settled to zero.
+  - *Top Category Badge*: Displays the card's highest spend category with native category icon and color pill.
 - **Branded PDF Account Statement & Universal Tax Report Export Engine**: Engineered a 100% offline, native Skia vector PDF generation engine with **0 KB APK overhead** using Android's native `android.graphics.pdf.PdfDocument`, providing publication-ready financial statements for accounting, tax filing, visa applications, and personal audits:
   - **Dedicated Settings Entry Point**: Positioned directly under the *DATA & BACKUPS* settings card via a dedicated row: `PDF Statements & Tax Reports`, keeping daily passbook interaction clutter-free and consolidating reporting tools in one authoritative location.
   - **Universal Annual Financial & Tax Statement**: Designed for universal applicability across global jurisdictions (USA, EU, India, UK, Australia, Singapore, etc.):

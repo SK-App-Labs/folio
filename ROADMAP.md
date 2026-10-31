@@ -2,6 +2,32 @@
 
 ---
 
+## ✅ Completed Feature Milestones (v1.3.0 – v1.4.0)
+
+- `[x]` **M10: Secondary Currencies, PDF Statements & Auto-Backup Engine**
+  - `[x]` Multi-currency engine with manual exchange rates and dynamic net worth valuation.
+  - `[x]` Zero-dependency Skia vector PDF generator for branded passbooks and universal annual tax statements.
+  - `[x]` Automated rolling session backup engine with 30-day tiered retention and local/SAF dual restore.
+  - `[x]` Modular data management bottom sheets (`Spreadsheets`, `Transfer & Manual Backup`, `Auto-Backup`).
+
+- `[x]` **M11: Credit Cards Cockpit & Predictive Financial Intelligence Suite**
+  - `[x]` Credit Cards Cockpit (`StatsSubTab.CREDIT_CARDS`): Statement status pipeline, bureau threshold calibration (30% benchmark), smart swipe headroom, and celebratory debt-free milestone banner.
+  - `[x]` Phase 1: Net Worth Velocity & Emergency Runway Cockpit (monthly trajectory delta, burn rate, runway in months).
+  - `[x]` Phase 2: Merchant & Payee Intelligence (dual sort by Outlay vs Frequency, 6-month trends, cadence detection, drill-down sheet).
+  - `[x]` Phase 3: Events, Trips & Reimbursements Hub in Tags (smart mode detection: reimbursable claim netting vs trip burn rate, 1-tap receipt drill-down).
+  - `[x]` Phase 4: Safe-to-Spend & 14-Day Overdraft Shortfall Radar (unencumbered discretionary cash protecting card debt and recurring commitments, proactive shortfall warnings).
+
+---
+
+## 🔮 Upcoming Feature Milestones
+
+- `[ ]` **Phase 4: Loan EMI Auto-Balancing Split & Native Recurring Commitments**
+  - `[ ]` **Native `[🔁 Repeat]` Commitment Toggle**: Add repeat frequency selection in `TransactionEntrySheet.kt` wired to `budgetAndRecurringDao.upsertRecurringRule(...)` with 0 database migrations.
+  - `[ ]` **Auto-Balancing 1-Tap Loan Transfer Split**: When transferring from Bank to `AccountGroup.LOAN`, auto-calculate Principal paydown ($P = E - I$) from entered Interest ($I$), recording both Transfer and Expense atomically.
+  - `[ ]` **Active Commitments Management Hub**: Provide a dedicated sheet to view, pause, resume, and delete recurring commitments.
+
+---
+
 ## 🚀 Phase 2: Google Play Billing Setup (Post-Closed Testing / Pre-Launch)
 
 **Goal:** Wire Google Play’s official billing engine so users can make real micro-transactions using their local currencies.

@@ -40,6 +40,7 @@
 - **Tabular Numbers:** Every currency amount component (`MoneyText`) applies `fontFeatureSettings = "tnum"` so digits align vertically and never jitter during animations.
 - **Category Typography Standard:** Parent titles = `titleMedium` (16sp Bold); Subcategory counts = `bodySmall` (12sp); Subcategory items = `bodyLarge` (15sp–16sp SemiBold); Subcategory icon badges = `32.dp`.
 - **Accordion Chevron Rule:** 16.dp IconButton (`ExpandMore`/`ExpandLess`) is rendered on ALL main category cards (including empty ones) to reveal subcategories or the `+ Add Subcategory under [Parent]` button with empty state guidance.
+- **Edge-to-Edge Navigation Bar Insets:** Avoids double window insets padding between the bottom bar and list viewports, guaranteeing uniform, comfortable bottom list clearance across all devices.
 
 ## 4. Navigation Architecture (4 Primary Bottom Tabs + Scoped FAB)
 1. **Tab 1: `Trans.` (Ledger Home)**
@@ -47,10 +48,23 @@
     - Decomposed into 5 domain sub-files (`LedgerHeaderBanners`, `LedgerItemCards`, `LedgerSubTabs`, `LedgerSheetsAndDialogs`, `LedgerHomeScreen`).
     - Sticky daily date headers with scroll-fading daily totals.
     - 5 Horizontal Sub-Tabs: `Daily` | `Calendar` | `Weekly` | `Monthly` | `Summary`.
-2. **Tab 2: `Stats` (Analytics & Budgets)**
+2. **Tab 2: `Stats` (Analytics, Intelligence & Budgets)**
     - Top-bar chip dropdown granularity selector (`StatsPeriodGranularityDropdownChip`).
-    - Main parent category donut & ranked list rollup.
-    - 3 Horizontal Sub-Tabs: `Stats` (Interactive Donut Chart + Main Category Rank + Drill-down Subcategory Breakdown & `SixMonthSmoothTrendAreaChart`) | `Budget` (Overall + Category Progress Bars) | `Note & Tags` (Ranked aggregation).
+    - 4 Horizontal Sub-Tabs:
+      - **`Overview` (`StatsSubTab.STATS`)**:
+        - Donut chart + Ranked main category list with drill-down breakdown and category-specific 6-month historical trend.
+        - Cashflow section featuring **Safe-to-Spend Card** (`SafeToSpendCard`) and 14-day proactive **Shortfall Alert Radar** (`ShortfallAlertCard`).
+        - Net Worth section featuring **Net Worth Velocity Cockpit** (`NetWorthVelocityCockpit`), monthly burn rate, and liquid cash emergency runway.
+      - **`Cards` (`StatsSubTab.CREDIT_CARDS`)**:
+        - Credit Cards Cockpit with Statement Status Pipeline (`OVERDUE`, `DUE_SOON`, `ISSUED`, `CURRENT`, `SETTLED`).
+        - Credit Bureau 30% Threshold Calibration and **Smart Swipe Headroom** indicator.
+        - Celebratory milestone banner when all card dues are zero.
+      - **`Budgets` (`StatsSubTab.BUDGETS`)**:
+        - Monthly-locked budget progress bars (Overall + Category-specific) with dynamic threshold color alerts.
+      - **`Tags` (`StatsSubTab.TAGS_AND_NOTES`)**:
+        - **Events, Trips & Reimbursements Hub**: Smart mode detection (Reimbursable claims with pending owed balance vs Trip/Event passbook with burn rate) + 1-tap receipt drill-down sheet (`TagProjectDrillDownBottomSheet`).
+        - **Merchant & Payee Intelligence**: Dual sort (Total Outlay vs Frequency) + Payee drill-down sheet (`PayeeDrillDownBottomSheet`).
+        - Note Rankings.
 3. **Tab 3: `Accounts` (Assets, Liabilities & Cards)**
     - Top 3-Column Net Worth Banner: `Assets` | `Liabilities` | `Net Worth`.
     - Grouped Account Cards matching `SettingsGroupCard` pattern (`labelLarge` uppercase primary titles: `CASH (1)`, `SAVINGS (2)`, `DEBIT CARDS (2)`, etc.). Whole-header row tap toggles expand/collapse without chevron icons.
@@ -60,11 +74,13 @@
     - **Strict Ledger Safety Deletion Rule**: Accounts with 0 transactions can be permanently deleted after confirmation. Accounts with 1+ linked transactions cannot be deleted to protect historical reports, guiding the user to **Archive Account** instead.
     - **Decluttered Account Passbook Sheet (`AccountPassbookBottomSheet`)**: Header uncluttered by moving `Edit Account` to the Quick Action Bar (`Add Tx` | `Settle Bill` | `Edit Account`). Removed repeated `"Day End Bal:"` label prefix from day-grouped transaction section headers.
 4. **Tab 4: `Settings` (Configuration & Data)**
-    - Modularized into `com.folioledger.app.ui.settings.sheets` package (`AppearanceBottomSheet`, `RegionalFormatBottomSheet`, `DataAndBackupBottomSheet`, `CategoryManagerBottomSheet`, `TagsAndBookmarksBottomSheet`).
-    - 3 Grouped Cards (`LEDGER & TAXONOMY`, `APPEARANCE & SECURITY`, `DATA, BACKUPS & HELP`).
+    - Modularized into `com.folioledger.app.ui.settings.sheets` package (`AppearanceBottomSheet`, `RegionalFormatBottomSheet`, `DataAndBackupBottomSheet`, `CategoryManagerBottomSheet`, `TagsAndBookmarksBottomSheet`, `AutoBackupBottomSheet`, `TransferAndManualBackupBottomSheet`, `SpreadsheetsBottomSheet`, `SecondaryCurrenciesBottomSheet`, `PdfStatementExportBottomSheet`).
+    - 4 Grouped Cards (`ORGANIZATION & TAXONOMY`, `APPEARANCE & SECURITY`, `DATA & BACKUPS`, `HELP & COMMUNITY`).
     - Currency & Number Formatting Sheet (`RegionalFormatBottomSheet` with 1-line `Standard` vs `Indian` grouping, real-time currency search bar, popular currency chips, and full-width currency cards).
+    - Secondary Currencies & Exchange Rates (`SecondaryCurrenciesBottomSheet` with active rate editing and 170+ currency picker).
+    - PDF Account Statement & Tax Reports (`PdfStatementExportBottomSheet` with universal tax schedule and branded passbook exports).
+    - Automated Backup Engine (`AutoBackupBottomSheet` with 30-day tiered retention and local/SAF dual restore).
     - Category & Subcategory Manager (`CategoryManagerBottomSheet` with scaled typography and always-present chevrons).
     - Unified Tags & Bookmarks (`TagsAndBookmarksBottomSheet` with `#Tags` and `Bookmarks ★` tabs).
     - Appearance & Theme Sheet (`AppearanceBottomSheet` with Live Theme & Accent Preview card, 6 visual theme mode cards, and guaranteed 6x2 accent swatch grid).
-    - Backup/Restore (`DataAndBackupBottomSheet` for portable .zip and CSV export), App Lock, User Guide & Tip Jar.
-- **Floating Action Button (`+`):** Scoped strictly to `TRANSACTIONS` and `STATS` tabs using `AnimatedVisibility` (hidden on `ACCOUNTS` and `SETTINGS`). Opens `TransactionEntrySheet` with calculator keypad, mode tabs, Splits, Bookmarks, and `CategoryPickerBottomSheet`.
+- **Floating Action Button (`+`):** Scoped strictly to the `TRANSACTIONS` tab (`FolioMainTab.TRANSACTIONS`) using `AnimatedVisibility`. Completely unblocks the bottom-right corner of the `Stats`, `Accounts`, and `Settings` tabs. Opens `TransactionEntrySheet` with calculator keypad, mode tabs, Splits, Bookmarks, and `CategoryPickerBottomSheet`.

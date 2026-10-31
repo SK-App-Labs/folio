@@ -78,3 +78,62 @@ When `isSplit == true` on an `EXPENSE` or `INCOME` transaction:
     - If `monthStartDay == 25`, the "October 2026" financial month spans `2026-09-25` through `2026-10-24` inclusive.
 - **Carry-Over Toggle (`carryOverEnabled`):**
     - When enabled, the previous financial period's net cashflow ($\text{Income} - \text{Expense}$) is displayed as a distinct **"Carry-Over Balance"** line item in the Summary view without polluting current-month Category Income or Category Expense charts.
+
+## 8. Secondary Currencies & Deterministic Conversion Rules
+- **Manual Exchange Rate Storage:** Secondary currencies are stored as key-value pairs in Android DataStore (`secondaryCurrencies: Map<String, Double>`), mapping ISO 4217 currency code to units of primary currency (e.g. `"USD": 85.0`).
+- **Precision Preservation:** Converted minor money calculations account for differing decimal scales between currencies:
+  $$\text{ConvertedMinor} = \left\lfloor \frac{\text{amountMinor}}{10^{\text{sourceDecimals}}} \times \text{rate} \times 10^{\text{targetDecimals}} + 0.5 \right\rfloor$$
+- **Unified Valuation:** All multi-account aggregations (Net Worth header, Stats Donut, Budget Progress, Payee rankings, and Tag aggregations) evaluate foreign accounts through their manual exchange rate, eliminating distorted 1:1 cross-currency additions.
+
+## 9. Credit Card Cockpit & Bureau Utilization Dynamics
+- **Credit Bureau Risk Tiers (30% Benchmark):**
+  - **SAFE** ($< 30\%$): Low credit risk, optimal for credit score preservation.
+  - **CAUTION** ($30\% - 49.9\%$): Moderate utilization, approaching bureau penalty threshold.
+  - **WARNING** ($50\% - 74.9\%$): Elevated risk of credit rating downgrade.
+  - **CRITICAL** ($\ge 75\%$): Maxed-out utilization penalty zone.
+- **Smart Swipe Headroom:**
+  $$\text{Headroom} = \max\left(0L, \left\lfloor \text{CreditLimit} \times 0.30 \right\rfloor - \text{TotalCurrentDebt}\right)$$
+  Quantifies the exact unencumbered spending capacity remaining on credit cards before exceeding the 30% credit bureau threshold.
+- **Statement Status Pipeline:**
+  - `OVERDUE`: Current date $>$ `paymentDueDay` and statement balance $> 0$.
+  - `DUE_SOON`: Current date within 3 days of `paymentDueDay` and statement balance $> 0$.
+  - `ISSUED`: Statement closed, bill due within the month.
+  - `CURRENT`: Unbilled activity only; previous statement settled.
+  - `SETTLED`: All statement dues and unbilled balances are zero. Triggers celebratory emerald milestone card.
+
+## 10. Predictive Financial Intelligence Suite
+Pure-calculation functions reside in `StatsPredictiveCalculations.kt` running asynchronously on `Dispatchers.Default`:
+
+### 10.1 Net Worth Velocity & Emergency Runway
+- **Net Worth Velocity:** Compares current net worth with trailing periods:
+  $$\Delta\text{NetWorth} = \text{NetWorth}_{\text{Current}} - \text{NetWorth}_{\text{PreviousMonth}}$$
+- **Monthly Burn Rate:** Average monthly expense across the last 3 closed financial months:
+  $$\text{MonthlyBurnRate} = \frac{\sum_{m=1}^{3} \text{Expense}_m}{3}$$
+- **Emergency Runway (Months):**
+  $$\text{RunwayMonths} = \begin{cases} \infty & \text{if } \text{MonthlyBurnRate} \le 0 \\ \frac{\text{LiquidCashAssets}}{\text{MonthlyBurnRate}} & \text{otherwise} \end{cases}$$
+  Liquid cash includes `CASH`, `BANK_ACCOUNT`, `SAVINGS`, and `PREPAID_WALLET`. Excludes investments and fixed assets.
+
+### 10.2 Merchant & Payee Intelligence
+- **Dual Ranking Modes:**
+  - *Outlay Mode*: Sorts payees descending by total aggregate spend ($\sum \text{amountMinor}$).
+  - *Frequency Mode*: Sorts payees descending by transaction count ($\text{count}$), surfacing low-ticket high-frequency habits.
+- **Cadence Detection:** Evaluates consecutive transaction intervals: if the standard deviation of inter-transaction days is $< 4$ days and count $\ge 3$, classifies payee as recurring (e.g., `"Recurring: ~Every 30 days"`).
+
+### 10.3 Reimbursable Claims vs. Event Project Netting
+- **Mode Classification:** If transactions under a tag contain `REFUND` or `INCOME` types, or tag matches `[reimbursable, claim, split, office, work, bill]`, tag activates **Reimbursable Mode**. Otherwise, defaults to **Event / Trip Mode**.
+- **Reimbursable Claim Netting:**
+  $$\text{TotalSpent} = \sum \text{ExpenseTransactions}$$
+  $$\text{TotalReimbursed} = \sum \text{InflowTransactions}$$
+  $$\text{NetPendingOwed} = \max(0L, \text{TotalSpent} - \text{TotalReimbursed})$$
+  Displays `✓ Fully Settled` when $\text{NetPendingOwed} == 0$.
+- **Trip / Event Burn Rate:**
+  $$\text{DateSpanDays} = \max(1, \text{LatestEpochDay} - \text{EarliestEpochDay} + 1)$$
+  $$\text{DailyAverageSpend} = \frac{\text{TotalSpent}}{\text{DateSpanDays}}$$
+
+### 10.4 Safe-to-Spend & 14-Day Overdraft Shortfall Radar
+- **Safe-to-Spend (Unencumbered Liquid Cash):**
+  $$\text{SafeToSpend} = \text{LiquidAssets} - \text{CreditCardDebtDue} - \text{14DayRecurringCommitments}$$
+- **14-Day Account Shortfall Warning:**
+  For each individual liquid bank account $A$, projects future balance over rolling 14 days:
+  $$\text{ProjectedBalance}(A) = \text{CurrentBalance}(A) - \sum \text{CommitmentsIn14Days}(A)$$
+  If $\text{ProjectedBalance}(A) < 0$, generates `AccountShortfallAlert` notifying the user of exact shortfall and due date before bank overdraft fees occur.
