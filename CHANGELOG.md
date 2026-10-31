@@ -38,6 +38,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - 🇹🇼 **Traditional Chinese (`res/values-zh-rTW`)**: Traditional Taiwan/HK personal finance (*淨資產, 總資產/總負債, 前期結轉, 今日安全可支配額度, 自由資金*).
     - 🇮🇩 **Indonesian (`res/values-in`)**: Southeast Asian personal ledger terms (*Kekayaan Bersih, Aset/Liabilitas, Saldo Lalu, Dana Bebas, Landasan Dana Darurat*).
     - 🇮🇳 **Tamil (`res/values-ta`)**: Indian regional finance (*நிகர மதிப்பு, மொத்த சொத்துக்கள்/கடன்கள், முந்தைய இருப்பு, உபரி நிதி, பில் செலுத்து*).
+### Fixed
+- **In-App Language Switching Execution & AppCompat Lifecycle Wiring**:
+  - Upgraded `MainActivity` from `FragmentActivity` to `AppCompatActivity`, enabling AndroidX's `AppCompatDelegate.setApplicationLocales()` to register the activity, intercept base context, and trigger automatic configuration recreation on locale changes across all Android versions.
+  - Migrated `Theme.Folio` parent in `res/values/themes.xml` to `Theme.AppCompat.DayNight.NoActionBar` to satisfy AppCompat theme requirements while retaining edge-to-edge transparent system bars and Compose splash screen transitions.
+  - Declared `androidx.appcompat.app.AppLocalesMetadataHolderService` with `autoStoreLocales=true` in `AndroidManifest.xml` for persistent cross-session locale storage on pre-Android 13 devices.
+  - Converted hardcoded section headers and navigation rows in `SettingsScreen.kt` to dynamic `stringResource(R.string.*)` lookups so that the settings screen reflects the selected language immediately.
+  - Added bidirectional normalization for Indonesian locale tags (`id` and `in`) in `AppLanguageBottomSheet.kt`.
 
 ## [1.4.0] - 2026-10-31
 ### Fixed
