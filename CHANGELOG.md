@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Placed the **App Language** setting row in `SettingsScreen.kt` under **`APPEARANCE & SECURITY`** directly below **Theme & Accent Palette**, creating a perfectly balanced 3-row card.
   - Displays the active language's native name directly on the row's glanceable badge (e.g. `English`, `Español`, `Deutsch`, `日本語`, `हिन्दी`, `தமிழ்`).
   - Wired 1-tap switching via `AppCompatDelegate.setApplicationLocales` with instant activity configuration recreation.
+- **Tier 1A Financial-Grade Translations (Phase 3)**:
+  - Deployed full localized string catalogs for 4 high-priority global markets:
+    - 🇪🇸 **Spanish (`res/values-es`)**: Latin America & Spain banking terminology (*Patrimonio neto, Activos/Pasivos, Remanente, Disponible para gastar*).
+    - 🇧🇷 **Portuguese - Brazil (`res/values-pt-rBR`)**: Brazil fintech & budgeting standards (*Patrimônio Líquido, A Pagar/Não Faturado, Reserva de Emergência*).
+    - 🇩🇪 **German (`res/values-de`)**: DACH region privacy & ledger terminology (*Nettovermögen, Fällig/Unabgerechnet, Notgroschen-Puffer*).
+    - 🇮🇳 **Hindi (`res/values-hi`)**: Indian vernacular personal finance (*कुल संपत्ति, देय राशि, आपातकालीन फंड, सुरक्षित खर्च*).
 
 ## [1.4.0] - 2026-10-31
 ### Fixed

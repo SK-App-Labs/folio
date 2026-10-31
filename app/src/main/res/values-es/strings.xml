@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- File: app/src/main/res/values-es/strings.xml -->
+<!-- Spanish (Español) Translations for Folio -->
+<resources>
+    <string name="app_name">Folio</string>
+
+    <!-- Acciones Comunes -->
+    <string name="action_save">Guardar</string>
+    <string name="action_save_and_continue">Guardar y continuar</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_edit">Editar</string>
+    <string name="action_done">Listo</string>
+    <string name="action_close">Cerrar</string>
+    <string name="action_apply">Aplicar</string>
+    <string name="action_clear">Borrar</string>
+    <string name="action_clear_all">Borrar todo</string>
+    <string name="action_confirm">Confirmar</string>
+    <string name="action_archive">Archivar</string>
+    <string name="action_unarchive">Desarchivar</string>
+    <string name="action_restore">Restaurar</string>
+    <string name="action_share">Compartir</string>
+    <string name="action_export">Exportar</string>
+    <string name="action_import">Importar</string>
+    <string name="action_view">Ver</string>
+    <string name="action_print">Imprimir</string>
+
+    <!-- Búsqueda y Filtros -->
+    <string name="search_placeholder">Buscar</string>
+    <string name="filter_button_label">Filtro</string>
+    <string name="filter_all_accounts">Todas las cuentas</string>
+    <string name="filter_all_categories">Todas las categorías</string>
+    <string name="filter_all_tags">Todas las etiquetas</string>
+    <string name="filter_active_filters">Filtros activos</string>
+
+    <!-- Estados -->
+    <string name="state_no_transactions">No hay transacciones registradas</string>
+    <string name="state_loading">Cargando…</string>
+    <string name="state_no_data">Sin datos disponibles</string>
+
+    <!-- Navegación Principal -->
+    <string name="nav_tab_transactions">Trans.</string>
+    <string name="nav_tab_stats">Estadísticas</string>
+    <string name="nav_tab_accounts">Cuentas</string>
+    <string name="nav_tab_settings">Ajustes</string>
+    <string name="cd_nav_transactions">Pestaña de libro de transacciones</string>
+    <string name="cd_nav_stats">Pestaña de análisis y presupuestos</string>
+    <string name="cd_nav_accounts">Pestaña de cuentas y patrimonio neto</string>
+    <string name="cd_nav_settings">Pestaña de configuración</string>
+    <string name="cd_add_transaction_fab">Añadir nueva transacción</string>
+
+    <!-- Subpestañas del Libro -->
+    <string name="subtab_daily">Diario</string>
+    <string name="subtab_calendar">Calendario</string>
+    <string name="subtab_weekly">Semanal</string>
+    <string name="subtab_monthly">Mensual</string>
+    <string name="subtab_summary">Resumen</string>
+
+    <!-- Resumen Superior -->
+    <string name="ledger_banner_income">Ingresos</string>
+    <string name="ledger_banner_expense">Gastos</string>
+    <string name="ledger_banner_net">Neto</string>
+    <string name="ledger_banner_carry_over">Remanente</string>
+    <string name="ledger_view_in_daily">Ver en Diario →</string>
+    <string name="ledger_no_tx_for_week">No hay transacciones esta semana</string>
+    <string name="ledger_no_tx_for_month">No hay transacciones este mes</string>
+    <string name="ledger_current_month_badge">Actual</string>
+
+    <!-- Subpestañas de Estadísticas -->
+    <string name="stats_subtab_overview">Resumen</string>
+    <string name="stats_subtab_cards">Tarjetas</string>
+    <string name="stats_subtab_budgets">Presupuestos</string>
+    <string name="stats_subtab_tags">Etiquetas</string>
+
+    <!-- Disponible para Gastar (Safe-to-Spend) -->
+    <string name="safe_to_spend_title">Disponible para gastar hoy</string>
+    <string name="safe_to_spend_badge">Dinero libre</string>
+    <string name="safe_to_spend_formula_liquid">EFECTIVO LÍQUIDO</string>
+    <string name="safe_to_spend_formula_cards">DEUDA DE TARJETAS</string>
+    <string name="safe_to_spend_formula_commitments">COMPROMISOS 14D</string>
+    <string name="shortfall_alert_title">Alerta de descubierto a 14 días</string>
+
+    <!-- Velocidad del Patrimonio Neto -->
+    <string name="nw_velocity_title">Velocidad del patrimonio</string>
+    <string name="nw_velocity_3m_avg">Trayectoria mensual (3 meses)</string>
+    <string name="nw_velocity_burn_rate">Tasa de gasto mensual</string>
+    <string name="nw_velocity_runway">Fondo de reserva de emergencia</string>
+    <string name="nw_velocity_runway_months">%1$s meses</string>
+    <string name="nw_velocity_runway_infinite">Reserva &gt; 12 meses</string>
+
+    <!-- Panel de Tarjetas de Crédito -->
+    <string name="cards_cockpit_title">Panel de tarjetas de crédito</string>
+    <string name="cards_swipe_headroom_label">Margen de uso óptimo (Límite 30%)</string>
+    <string name="cards_status_overdue">VENCIDA</string>
+    <string name="cards_status_due_soon">VENCE PRONTO</string>
+    <string name="cards_status_issued">EMITIDA</string>
+    <string name="cards_status_current">AL CORRIENTE</string>
+    <string name="cards_status_settled">LIQUIDADA</string>
+    <string name="cards_milestone_debt_free">¡Todas las tarjetas al corriente!</string>
+    <string name="cards_milestone_debt_free_sub">Saldo pendiente cero en todas las tarjetas. Estás libre de deudas en este ciclo.</string>
+
+    <!-- Proyectos y Reembolsos -->
+    <string name="hub_reimbursable_mode">Modo reembolsable</string>
+    <string name="hub_event_mode">Modo viaje o evento</string>
+    <string name="hub_total_spent">Total gastado</string>
+    <string name="hub_total_reimbursed">Total reembolsado</string>
+    <string name="hub_pending_owed">Pendiente de cobro</string>
+    <string name="hub_fully_settled">Liquidado por completo</string>
+    <string name="hub_daily_average">Gasto medio diario</string>
+    <string name="hub_date_duration">%1$s días de duración</string>
+    <string name="payee_sort_outlay">Mayor gasto</string>
+    <string name="payee_sort_frequency">Frecuencia</string>
+
+    <!-- Cuentas y Patrimonio -->
+    <string name="accounts_banner_net_worth">Patrimonio neto</string>
+    <string name="accounts_banner_assets">Activos</string>
+    <string name="accounts_banner_liabilities">Pasivos</string>
+
+    <!-- Grupos de Cuentas -->
+    <string name="account_group_cash">Efectivo</string>
+    <string name="account_group_bank_account">Cuenta bancaria</string>
+    <string name="account_group_debit_card">Tarjetas de débito</string>
+    <string name="account_group_credit_card">Tarjetas de crédito</string>
+    <string name="account_group_savings">Ahorros</string>
+    <string name="account_group_prepaid_wallet">Billetera virtual</string>
+    <string name="account_group_investment">Inversiones</string>
+    <string name="account_group_overdraft">Sobregiro</string>
+    <string name="account_group_loan">Préstamo</string>
+    <string name="account_group_other">Otras cuentas</string>
+
+    <string name="cc_label_due_now">PENDIENTE</string>
+    <string name="cc_label_unbilled">NO FACTURADO</string>
+    <string name="cc_action_settle_bill">Pagar factura</string>
+    <string name="cc_action_edit_account">Editar cuenta</string>
+    <string name="cc_action_add_transaction">Añadir</string>
+
+    <!-- Entrada de Transacción -->
+    <string name="entry_mode_expense">Gasto</string>
+    <string name="entry_mode_income">Ingreso</string>
+    <string name="entry_mode_transfer">Transferencia</string>
+    <string name="entry_chip_split">Dividir</string>
+    <string name="entry_chip_installment">Plazos</string>
+    <string name="entry_chip_repeat">Repetir</string>
+    <string name="entry_hint_amount">0,00</string>
+    <string name="entry_hint_select_category">Seleccionar categoría</string>
+    <string name="entry_hint_payee">Beneficiario o descripción</string>
+    <string name="entry_hint_note">Nota (opcional)</string>
+    <string name="entry_hint_transfer_fee">Comisión de transferencia</string>
+
+    <!-- Ajustes -->
+    <string name="settings_group_taxonomy">ORGANIZACIÓN Y TAXONOMÍA</string>
+    <string name="settings_group_appearance">APARIENCIA Y SEGURIDAD</string>
+    <string name="settings_group_data">DATOS Y COPIAS DE SEGURIDAD</string>
+    <string name="settings_group_community">AYUDA Y COMUNIDAD</string>
+    <string name="setting_currency_format">Moneda y formato numérico</string>
+    <string name="setting_secondary_currencies">Monedas secundarias</string>
+    <string name="setting_app_language">Idioma de la aplicación</string>
+    <string name="setting_categories">Categorías y subcategorías</string>
+    <string name="setting_tags_bookmarks">Etiquetas y marcadores</string>
+    <string name="setting_appearance_theme">Tema y apariencia</string>
+    <string name="setting_app_lock">Bloqueo biométrico</string>
+    <string name="setting_auto_backup">Copia de seguridad automática</string>
+    <string name="setting_phone_migration">Migración de dispositivo (ZIP)</string>
+    <string name="setting_spreadsheets">Hojas de cálculo (CSV)</string>
+    <string name="setting_pdf_statements">Extractos PDF e informes fiscales</string>
+    <string name="setting_user_guide">Guía de usuario y soporte</string>
+    <string name="setting_tip_jar">Bote de propinas y badge</string>
+    <string name="setting_danger_reset">Restablecer todos los datos</string>
+</resources>

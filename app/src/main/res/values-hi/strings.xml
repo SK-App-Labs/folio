@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- File: app/src/main/res/values-hi/strings.xml -->
+<!-- Hindi (हिन्दी) Translations for Folio -->
+<resources>
+    <string name="app_name">Folio</string>
+
+    <!-- सामान्य क्रियाएं (Common Actions) -->
+    <string name="action_save">सहेजें</string>
+    <string name="action_save_and_continue">सहेजें और जारी रखें</string>
+    <string name="action_cancel">रद्द करें</string>
+    <string name="action_delete">हटाएं</string>
+    <string name="action_edit">संपादित करें</string>
+    <string name="action_done">पूर्ण</string>
+    <string name="action_close">बंद करें</string>
+    <string name="action_apply">लागू करें</string>
+    <string name="action_clear">हटाएं</string>
+    <string name="action_clear_all">सभी हटाएं</string>
+    <string name="action_confirm">पुष्टि करें</string>
+    <string name="action_archive">संग्रहीत करें</string>
+    <string name="action_unarchive">संग्रह से निकालें</string>
+    <string name="action_restore">पुनर्स्थापित करें</string>
+    <string name="action_share">साझा करें</string>
+    <string name="action_export">निर्यात करें</string>
+    <string name="action_import">आयात करें</string>
+    <string name="action_view">देखें</string>
+    <string name="action_print">प्रिंट करें</string>
+
+    <!-- खोज और फ़िल्टर (Search & Filter) -->
+    <string name="search_placeholder">खोजें</string>
+    <string name="filter_button_label">फ़िल्टर</string>
+    <string name="filter_all_accounts">सभी खाते</string>
+    <string name="filter_all_categories">सभी श्रेणियां</string>
+    <string name="filter_all_tags">सभी टैग</string>
+    <string name="filter_active_filters">सक्रिय फ़िल्टर</string>
+
+    <!-- स्थितियां (States) -->
+    <string name="state_no_transactions">कोई लेन-देन दर्ज नहीं है</string>
+    <string name="state_loading">लोड हो रहा है…</string>
+    <string name="state_no_data">कोई डेटा उपलब्ध नहीं</string>
+
+    <!-- मुख्य नेविगेशन (Navigation) -->
+    <string name="nav_tab_transactions">बहीखाता</string>
+    <string name="nav_tab_stats">आंकड़े</string>
+    <string name="nav_tab_accounts">खाते</string>
+    <string name="nav_tab_settings">सेटिंग्स</string>
+    <string name="cd_nav_transactions">लेन-देन बहीखाता टैब</string>
+    <string name="cd_nav_stats">विश्लेषण और बजट टैब</string>
+    <string name="cd_nav_accounts">खाते और कुल संपत्ति टैब</string>
+    <string name="cd_nav_settings">सेटिंग्स टैब</string>
+    <string name="cd_add_transaction_fab">नया लेन-देन जोड़ें</string>
+
+    <!-- बहीखाता सब-टैब (Ledger Subtabs) -->
+    <string name="subtab_daily">दैनिक</string>
+    <string name="subtab_calendar">कैलेंडर</string>
+    <string name="subtab_weekly">साप्ताहिक</string>
+    <string name="subtab_monthly">मासिक</string>
+    <string name="subtab_summary">सारांश</string>
+
+    <!-- शीर्ष सारांश (Banners) -->
+    <string name="ledger_banner_income">आय</string>
+    <string name="ledger_banner_expense">खर्च</string>
+    <string name="ledger_banner_net">शुद्ध शेष</string>
+    <string name="ledger_banner_carry_over">पिछला शेष</string>
+    <string name="ledger_view_in_daily">दैनिक में देखें →</string>
+    <string name="ledger_no_tx_for_week">इस सप्ताह कोई लेन-देन नहीं</string>
+    <string name="ledger_no_tx_for_month">इस महीने कोई लेन-देन नहीं</string>
+    <string name="ledger_current_month_badge">चालू</string>
+
+    <!-- आंकड़े सब-टैब (Stats Subtabs) -->
+    <string name="stats_subtab_overview">अवलोकन</string>
+    <string name="stats_subtab_cards">कार्ड</string>
+    <string name="stats_subtab_budgets">बजट</string>
+    <string name="stats_subtab_tags">टैग</string>
+
+    <!-- सुरक्षित खर्च (Safe-to-Spend) -->
+    <string name="safe_to_spend_title">आज खर्च करने हेतु सुरक्षित राशि</string>
+    <string name="safe_to_spend_badge">मुक्त राशि</string>
+    <string name="safe_to_spend_formula_liquid">तरल नकद राशि</string>
+    <string name="safe_to_spend_formula_cards">कार्ड बकाया</string>
+    <string name="safe_to_spend_formula_commitments">14 दिनों की प्रतिबद्धताएं</string>
+    <string name="shortfall_alert_title">14-दिवसीय ओवरड्राफ्ट कमी चेतावनी</string>
+
+    <!-- कुल संपत्ति वेग (Velocity) -->
+    <string name="nw_velocity_title">संपत्ति विकास गति</string>
+    <string name="nw_velocity_3m_avg">3 महीने की औसत गति</string>
+    <string name="nw_velocity_burn_rate">मासिक खर्च दर</string>
+    <string name="nw_velocity_runway">आपातकालीन फंड बैकअप</string>
+    <string name="nw_velocity_runway_months">%1$s महीने</string>
+    <string name="nw_velocity_runway_infinite">बैकअप &gt; 12 महीने</string>
+
+    <!-- क्रेडिट कार्ड कॉकपिट (Cards Cockpit) -->
+    <string name="cards_cockpit_title">क्रेडिट कार्ड कॉकपिट</string>
+    <string name="cards_swipe_headroom_label">स्मार्ट स्वाइप सीमा (30% सुरक्षित दायरा)</string>
+    <string name="cards_status_overdue">अतिदेय</string>
+    <string name="cards_status_due_soon">शीघ्र देय</string>
+    <string name="cards_status_issued">बिल जारी</string>
+    <string name="cards_status_current">चालू</string>
+    <string name="cards_status_settled">चुकता</string>
+    <string name="cards_milestone_debt_free">सभी कार्ड का भुगतान हो गया!</string>
+    <string name="cards_milestone_debt_free_sub">सभी कार्डों पर शून्य बकाया राशि। इस बिलिंग चक्र में आप पूरी तरह से ऋणमुक्त हैं।</string>
+
+    <!-- प्रोजेक्ट और प्रतिपूर्ति (Projects Hub) -->
+    <string name="hub_reimbursable_mode">प्रतिपूर्ति मोड</string>
+    <string name="hub_event_mode">यात्रा या कार्यक्रम मोड</string>
+    <string name="hub_total_spent">कुल खर्च</string>
+    <string name="hub_total_reimbursed">कुल प्राप्त प्रतिपूर्ति</string>
+    <string name="hub_pending_owed">प्राप्य शेष राशि</string>
+    <string name="hub_fully_settled">पूर्णतः चुकता</string>
+    <string name="hub_daily_average">दैनिक औसत खर्च</string>
+    <string name="hub_date_duration">%1$s दिनों की अवधि</string>
+    <string name="payee_sort_outlay">अधिकतम खर्च</string>
+    <string name="payee_sort_frequency">आवृत्ति</string>
+
+    <!-- खाते और संपत्ति (Accounts) -->
+    <string name="accounts_banner_net_worth">कुल संपत्ति (नेट वर्थ)</string>
+    <string name="accounts_banner_assets">परिसंपत्तियां</string>
+    <string name="accounts_banner_liabilities">देनदारियां</string>
+
+    <!-- खाता समूह (Account Groups) -->
+    <string name="account_group_cash">नकद</string>
+    <string name="account_group_bank_account">बैंक खाता</string>
+    <string name="account_group_debit_card">डेबिट कार्ड</string>
+    <string name="account_group_credit_card">क्रेडिट कार्ड</string>
+    <string name="account_group_savings">बचत खाता</string>
+    <string name="account_group_prepaid_wallet">प्रीपेड वॉलेट</string>
+    <string name="account_group_investment">निवेश</string>
+    <string name="account_group_overdraft">ओवरड्राफ्ट</string>
+    <string name="account_group_loan">ऋण (लोन)</string>
+    <string name="account_group_other">अन्य खाते</string>
+
+    <string name="cc_label_due_now">देय राशि</string>
+    <string name="cc_label_unbilled">गैर-बिलिंग</string>
+    <string name="cc_action_settle_bill">बिल चुकाएं</string>
+    <string name="cc_action_edit_account">खाता बदलें</string>
+    <string name="cc_action_add_transaction">नया</string>
+
+    <!-- लेन-देन प्रविष्टि (Entry) -->
+    <string name="entry_mode_expense">खर्च</string>
+    <string name="entry_mode_income">आय</string>
+    <string name="entry_mode_transfer">स्थानांतरण</string>
+    <string name="entry_chip_split">विभाजित करें</string>
+    <string name="entry_chip_installment">किस्त</string>
+    <string name="entry_chip_repeat">दोहराएं</string>
+    <string name="entry_hint_amount">0.00</string>
+    <string name="entry_hint_select_category">श्रेणी चुनें</string>
+    <string name="entry_hint_payee">प्राप्तकर्ता या विवरण</string>
+    <string name="entry_hint_note">टिप्पणी (वैकल्पिक)</string>
+    <string name="entry_hint_transfer_fee">ट्रांसफर शुल्क</string>
+
+    <!-- सेटिंग्स (Settings) -->
+    <string name="settings_group_taxonomy">वर्गीकरण और संगठन</string>
+    <string name="settings_group_appearance">दिखावट और सुरक्षा</string>
+    <string name="settings_group_data">डेटा और बैकअप</string>
+    <string name="settings_group_community">सहायता और समुदाय</string>
+    <string name="setting_currency_format">मुद्रा और संख्या प्रारूप</string>
+    <string name="setting_secondary_currencies">द्वितीयक मुद्राएं</string>
+    <string name="setting_app_language">ऐप की भाषा</string>
+    <string name="setting_categories">श्रेणियां और उप-श्रेणियां</string>
+    <string name="setting_tags_bookmarks">टैग और बुकमार्क</string>
+    <string name="setting_appearance_theme">थीम और रंग पैलेट</string>
+    <string name="setting_app_lock">बायोमेट्रिक ऐप लॉक</string>
+    <string name="setting_auto_backup">स्वचालित बैकअप और स्नैपशॉट</string>
+    <string name="setting_phone_migration">फ़ोन माइग्रेशन (ZIP)</string>
+    <string name="setting_spreadsheets">स्प्रेडशीट (CSV आयात और निर्यात)</string>
+    <string name="setting_pdf_statements">PDF विवरण और कर रिपोर्ट</string>
+    <string name="setting_user_guide">उपयोगकर्ता गाइड और सहायता</string>
+    <string name="setting_tip_jar">टिप जार और सपोर्टर बैज</string>
+    <string name="setting_danger_reset">सभी बहीखाता डेटा हटाएं</string>
+</resources>
