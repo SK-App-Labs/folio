@@ -139,6 +139,23 @@ data class PayeeDrillDownState(
 )
 
 @Immutable
+data class TagProjectDrillDownState(
+    val tagName: String,
+    val isReimbursableProject: Boolean,
+    val totalSpent: MinorMoney,
+    val totalReimbursed: MinorMoney,
+    val netPendingOwed: MinorMoney,
+    val isFullySettled: Boolean,
+    val dateSpanDays: Int,
+    val minEpochDay: Long? = null,
+    val maxEpochDay: Long? = null,
+    val dailyAverageSpend: MinorMoney,
+    val categoryDistribution: List<CategorySpendStat>,
+    val monthlyTrendBars: List<MonthlyTrendBar>,
+    val transactions: List<TransactionItem>
+)
+
+@Immutable
 data class CreditCardHealthUiModel(
     val account: AccountSummary,
     val statementPayable: MinorMoney,
@@ -477,6 +494,7 @@ data class StatsAndBudgetsUiState(
     val selectedPayeeRankingSortMode: PayeeSortMode = PayeeSortMode.BY_SPEND,
     val drillDownState: CategoryDrillDownState? = null,
     val payeeDrillDownState: PayeeDrillDownState? = null,
+    val tagDrillDownState: TagProjectDrillDownState? = null,
     val budgetEditorDialogState: BudgetEditorDialogState? = null,
     val isSavingBudget: Boolean = false,
     val snackbarMessage: String? = null
@@ -510,6 +528,7 @@ private data class StatsInternalControlState(
     val drillDownCategoryId: Long? = null,
     val selectedPayeeRankingSortMode: PayeeSortMode = PayeeSortMode.BY_SPEND,
     val drillDownPayeeName: String? = null,
+    val drillDownTagName: String? = null,
     val budgetEditorDialogState: BudgetEditorDialogState? = null,
     val isSavingBudget: Boolean = false,
     val isRunwayIncludingInvestments: Boolean = false,
@@ -832,6 +851,19 @@ class StatsAndBudgetsViewModel(
             )
         }
 
+        val tagDrillDownState = ctrl.drillDownTagName?.let { targetTag ->
+            StatsPredictiveCalculations.computeTagProjectDrillDownState(
+                tagName = targetTag,
+                allTxs = allTxs,
+                trendBars = bundle.trendBars,
+                startEpochDay = bundle.periodRange.startEpochDay,
+                endEpochDay = bundle.periodRange.endEpochDay,
+                isAllTime = ctrl.isRankingsAllTime,
+                primaryCurrencyCode = prefs.primaryCurrencyCode,
+                secondaryCurrencies = prefs.secondaryCurrencies
+            )
+        }
+
         val assetAccountsForSettlement = allAccounts.filter {
             !it.isArchived && (
                 it.groupType == AccountGroup.BANK_ACCOUNT ||
@@ -898,6 +930,7 @@ class StatsAndBudgetsViewModel(
             selectedPayeeRankingSortMode = ctrl.selectedPayeeRankingSortMode,
             drillDownState = drillDownState,
             payeeDrillDownState = payeeDrillDownState,
+            tagDrillDownState = tagDrillDownState,
             budgetEditorDialogState = ctrl.budgetEditorDialogState,
             isSavingBudget = ctrl.isSavingBudget,
             snackbarMessage = ctrl.snackbarMessage
@@ -998,6 +1031,14 @@ class StatsAndBudgetsViewModel(
 
     fun dismissPayeeDrillDown() {
         controlState.update { it.copy(drillDownPayeeName = null) }
+    }
+
+    fun openTagDrillDown(tagName: String) {
+        controlState.update { it.copy(drillDownTagName = tagName) }
+    }
+
+    fun dismissTagDrillDown() {
+        controlState.update { it.copy(drillDownTagName = null) }
     }
 
     fun navigateToPreviousPeriod() {
@@ -2143,6 +2184,189 @@ object StatsPredictiveCalculations {
             averageTicketSize = MinorMoney(averageTicketMinor),
             categoryDistribution = catDistribution,
             monthlyTrendBars = payeeMonthlyBars,
+            transactions = sortedTransactions
+        )
+    }
+
+    fun computeTagProjectDrillDownState(
+        tagName: String,
+        allTxs: List<TransactionItem>,
+        trendBars: List<MonthlyTrendBar>,
+        startEpochDay: Long,
+        endEpochDay: Long,
+        isAllTime: Boolean,
+        primaryCurrencyCode: String,
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
+    ): TagProjectDrillDownState {
+        val cleanTargetTag = tagName.removePrefix("#").trim().lowercase()
+
+        val allMatchingTxs = allTxs.filter { tx ->
+            tx.tags.any { it.removePrefix("#").trim().lowercase() == cleanTargetTag }
+        }
+
+        val periodMatchingTxs = if (isAllTime) {
+            allMatchingTxs
+        } else {
+            val inPeriod = allMatchingTxs.filter { it.ledgerDateEpochDay in startEpochDay..endEpochDay }
+            if (inPeriod.isNotEmpty()) inPeriod else allMatchingTxs
+        }
+
+        val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+
+        fun convertToPrimary(rawAmountMinor: Long, currencyCode: String): Long {
+            val accCurr = currencyCode.trim().uppercase()
+            if (accCurr == primarySpec.code.uppercase()) return rawAmountMinor
+            val secondary = secondaryMap[accCurr]
+            return if (secondary != null && secondary.exchangeRateToPrimary > 0.0) {
+                val accSpec = SupportedCurrencies.fromCode(accCurr)
+                MoneyFormatterAndCalculator.convertMinorMoney(
+                    sourceMinor = rawAmountMinor,
+                    sourceFractionDigits = accSpec.fractionDigits,
+                    targetFractionDigits = primarySpec.fractionDigits,
+                    rateToTarget = secondary.exchangeRateToPrimary
+                )
+            } else {
+                rawAmountMinor
+            }
+        }
+
+        val isReimbursableKeyword = cleanTargetTag.contains("reimburs") ||
+                cleanTargetTag.contains("claim") ||
+                cleanTargetTag.contains("split") ||
+                cleanTargetTag.contains("office") ||
+                cleanTargetTag.contains("work") ||
+                cleanTargetTag.contains("bill") ||
+                cleanTargetTag.contains("owed") ||
+                cleanTargetTag.contains("due")
+
+        val hasInflowTransactions = allMatchingTxs.any {
+            it.type == TransactionType.REFUND || it.type == TransactionType.INCOME
+        }
+
+        val isReimbursableProject = isReimbursableKeyword || hasInflowTransactions
+
+        var totalSpentMinor = 0L
+        var totalReimbursedMinor = 0L
+        var minEpochDay: Long? = null
+        var maxEpochDay: Long? = null
+
+        val activeTxs = if (periodMatchingTxs.isNotEmpty()) periodMatchingTxs else allMatchingTxs
+
+        for (tx in activeTxs) {
+            val convertedAmount = convertToPrimary(Math.abs(tx.amount.amountMinor), tx.currencyCode)
+            val convertedFee = convertToPrimary(Math.abs(tx.transferFee.amountMinor), tx.currencyCode)
+
+            when (tx.type) {
+                TransactionType.EXPENSE -> {
+                    totalSpentMinor += convertedAmount + convertedFee
+                    val d = tx.ledgerDateEpochDay
+                    minEpochDay = if (minEpochDay == null) d else minOf(minEpochDay, d)
+                    maxEpochDay = if (maxEpochDay == null) d else maxOf(maxEpochDay, d)
+                }
+                TransactionType.REFUND, TransactionType.INCOME -> {
+                    totalReimbursedMinor += convertedAmount
+                    val d = tx.ledgerDateEpochDay
+                    minEpochDay = if (minEpochDay == null) d else minOf(minEpochDay, d)
+                    maxEpochDay = if (maxEpochDay == null) d else maxOf(maxEpochDay, d)
+                }
+                TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> {
+                    if (convertedFee > 0L) {
+                        totalSpentMinor += convertedFee
+                    }
+                }
+                TransactionType.OPENING_BALANCE, TransactionType.RECONCILIATION -> {}
+            }
+        }
+
+        val netPendingOwedMinor = Math.max(0L, totalSpentMinor - totalReimbursedMinor)
+        val isFullySettled = totalSpentMinor > 0L && netPendingOwedMinor == 0L
+
+        val dateSpanDays = if (minEpochDay != null && maxEpochDay != null) {
+            (maxEpochDay - minEpochDay + 1).toInt().coerceAtLeast(1)
+        } else {
+            1
+        }
+
+        val dailyAverageSpendMinor = if (dateSpanDays > 0) {
+            totalSpentMinor / dateSpanDays
+        } else {
+            totalSpentMinor
+        }
+
+        // Category distribution for this project
+        val catAmountMap = mutableMapOf<String, Long>()
+        val catCountMap = mutableMapOf<String, Int>()
+        val catColorMap = mutableMapOf<String, String>()
+        val catIconMap = mutableMapOf<String, String>()
+
+        for (tx in activeTxs) {
+            if (tx.type == TransactionType.EXPENSE) {
+                val catName = tx.categoryName ?: "General"
+                val amt = convertToPrimary(Math.abs(tx.amount.amountMinor), tx.currencyCode)
+                catAmountMap[catName] = (catAmountMap[catName] ?: 0L) + amt
+                catCountMap[catName] = (catCountMap[catName] ?: 0) + 1
+                if (tx.categoryColorHex != null) catColorMap[catName] = tx.categoryColorHex
+                if (tx.categoryIconName != null) catIconMap[catName] = tx.categoryIconName
+            }
+        }
+
+        val grandCategoryMinor = catAmountMap.values.sum().coerceAtLeast(1L)
+        val catDistribution = catAmountMap.map { (catName, minorSum) ->
+            CategorySpendStat(
+                categoryId = 0L,
+                categoryName = catName,
+                colorHex = catColorMap[catName] ?: "#8B5CF6",
+                iconName = catIconMap[catName] ?: "category",
+                netAmount = MinorMoney(minorSum),
+                percentageOfTotal = (minorSum.toFloat() / grandCategoryMinor.toFloat() * 100f).coerceIn(0f, 100f),
+                transactionCount = catCountMap[catName] ?: 1
+            )
+        }.sortedByDescending { it.netAmount }
+
+        // 6-month monthly spend bars for this tag
+        val tagMonthlyBars = trendBars.map { bar ->
+            var barExpenseMinor = 0L
+            for (tx in allMatchingTxs) {
+                if (tx.ledgerDateEpochDay in bar.startEpochDay..bar.endEpochDay) {
+                    val amt = convertToPrimary(Math.abs(tx.amount.amountMinor), tx.currencyCode)
+                    if (tx.type == TransactionType.EXPENSE) {
+                        val fee = convertToPrimary(Math.abs(tx.transferFee.amountMinor), tx.currencyCode)
+                        barExpenseMinor += amt + fee
+                    } else if (tx.type == TransactionType.REFUND) {
+                        barExpenseMinor -= amt
+                    }
+                }
+            }
+            val safeMinor = Math.max(0L, barExpenseMinor)
+            MonthlyTrendBar(
+                periodLabel = bar.periodLabel,
+                startEpochDay = bar.startEpochDay,
+                endEpochDay = bar.endEpochDay,
+                totalIncome = MinorMoney.ZERO,
+                totalExpense = MinorMoney(safeMinor),
+                netSavings = MinorMoney(-safeMinor)
+            )
+        }
+
+        val sortedTransactions = activeTxs.sortedWith(
+            compareByDescending<TransactionItem> { it.ledgerDateEpochDay }
+                .thenByDescending { it.timestampEpochMillis }
+        )
+
+        return TagProjectDrillDownState(
+            tagName = tagName,
+            isReimbursableProject = isReimbursableProject,
+            totalSpent = MinorMoney(totalSpentMinor),
+            totalReimbursed = MinorMoney(totalReimbursedMinor),
+            netPendingOwed = MinorMoney(netPendingOwedMinor),
+            isFullySettled = isFullySettled,
+            dateSpanDays = dateSpanDays,
+            minEpochDay = minEpochDay,
+            maxEpochDay = maxEpochDay,
+            dailyAverageSpend = MinorMoney(dailyAverageSpendMinor),
+            categoryDistribution = catDistribution,
+            monthlyTrendBars = tagMonthlyBars,
             transactions = sortedTransactions
         )
     }

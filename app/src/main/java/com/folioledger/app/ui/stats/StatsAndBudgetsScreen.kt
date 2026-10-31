@@ -284,7 +284,8 @@ fun StatsAndBudgetsScreen(
                             onSelectRankingMode = viewModel::selectRankingMode,
                             onSelectPayeeSortMode = viewModel::selectPayeeSortMode,
                             onToggleRankingsAllTime = viewModel::toggleRankingsAllTime,
-                            onPayeeClick = viewModel::openPayeeDrillDown
+                            onPayeeClick = viewModel::openPayeeDrillDown,
+                            onTagClick = viewModel::openTagDrillDown
                         )
                     }
                 }
@@ -331,6 +332,21 @@ fun StatsAndBudgetsScreen(
                 onInspectTransaction(tx)
             },
             onDismiss = viewModel::dismissPayeeDrillDown
+        )
+    }
+
+    uiState.tagDrillDownState?.let { tagDrillDown ->
+        TagProjectDrillDownBottomSheet(
+            drillDownState = tagDrillDown,
+            periodTitle = uiState.activePeriodRange.title,
+            isAllTime = uiState.isRankingsAllTime,
+            currencySpec = uiState.currencySpec,
+            grouping = uiState.numberGrouping,
+            onTransactionClick = { tx ->
+                viewModel.dismissTagDrillDown()
+                onInspectTransaction(tx)
+            },
+            onDismiss = viewModel::dismissTagDrillDown
         )
     }
 
@@ -1824,7 +1840,8 @@ private fun TagsAndNotesRankingsSubTabContent(
     onSelectRankingMode: (RankingMode) -> Unit,
     onSelectPayeeSortMode: (PayeeSortMode) -> Unit,
     onToggleRankingsAllTime: () -> Unit,
-    onPayeeClick: (String) -> Unit
+    onPayeeClick: (String) -> Unit,
+    onTagClick: (String) -> Unit
 ) {
     val items = uiState.activeRankingItems
 
@@ -1976,7 +1993,7 @@ private fun TagsAndNotesRankingsSubTabContent(
                     onClick = if (uiState.selectedRankingMode == RankingMode.PAYEES_AND_NOTES) {
                         { onPayeeClick(item.label) }
                     } else {
-                        null
+                        { onTagClick(item.label) }
                     }
                 )
             }
@@ -2840,6 +2857,525 @@ private fun PayeeDrillDownBottomSheet(
                             colorMode = if (tx.type == TransactionType.REFUND) MoneyColorMode.INCOME else MoneyColorMode.EXPENSE,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TagProjectDrillDownBottomSheet(
+    drillDownState: TagProjectDrillDownState,
+    periodTitle: String,
+    isAllTime: Boolean,
+    currencySpec: CurrencySpec,
+    grouping: NumberGroupingSystem,
+    onTransactionClick: (TransactionItem) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val semanticColors = LocalFolioSemanticColors.current
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US) }
+    val shortDateFormatter = remember { DateTimeFormatter.ofPattern("d MMM", Locale.US) }
+    val cleanName = remember(drillDownState.tagName) {
+        drillDownState.tagName.removePrefix("#").trim()
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        LazyColumn(
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            // Header: Tag Avatar, Tag Name, Mode Context Subtitle, Headline Amount, Close Button
+            item {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = if (drillDownState.isReimbursableProject) {
+                                MaterialTheme.colorScheme.secondaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.primaryContainer
+                            },
+                            modifier = Modifier.size(44.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = if (drillDownState.isReimbursableProject) {
+                                        Icons.AutoMirrored.Filled.ReceiptLong
+                                    } else {
+                                        Icons.AutoMirrored.Filled.Label
+                                    },
+                                    contentDescription = null,
+                                    tint = if (drillDownState.isReimbursableProject) {
+                                        MaterialTheme.colorScheme.onSecondaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    },
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column {
+                            Text(
+                                text = "#$cleanName",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = if (drillDownState.isReimbursableProject) {
+                                    "Reimbursements & Claims · ${if (isAllTime) "All-Time" else periodTitle}"
+                                } else {
+                                    "Event & Trip Passbook · ${if (isAllTime) "All-Time" else periodTitle}"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    MoneyText(
+                        money = if (drillDownState.isReimbursableProject) {
+                            if (drillDownState.netPendingOwed.isPositive) {
+                                drillDownState.netPendingOwed
+                            } else {
+                                drillDownState.totalSpent
+                            }
+                        } else {
+                            drillDownState.totalSpent
+                        },
+                        currencySpec = currencySpec,
+                        grouping = grouping,
+                        colorMode = if (drillDownState.isReimbursableProject && drillDownState.netPendingOwed.isPositive) {
+                            MoneyColorMode.NEUTRAL
+                        } else {
+                            MoneyColorMode.EXPENSE
+                        },
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    IconButton(onClick = onDismiss) {
+                        Icon(imageVector = Icons.Filled.Close, contentDescription = "Close")
+                    }
+                }
+            }
+
+            // Hero Card: Reimbursable vs Event/Trip
+            item {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                    border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.padding(14.dp)
+                    ) {
+                        if (drillDownState.isReimbursableProject) {
+                            // Reimbursement status badge
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (drillDownState.isFullySettled) {
+                                        semanticColors.incomeEmeraldContainer
+                                    } else {
+                                        semanticColors.warningAmberContainer
+                                    }
+                                ) {
+                                    Text(
+                                        text = if (drillDownState.isFullySettled) {
+                                            "✓ Fully Settled & Reimbursed"
+                                        } else if (drillDownState.netPendingOwed.isPositive) {
+                                            "⏳ Pending Claim / Owed to You"
+                                        } else {
+                                            "✓ No Pending Dues"
+                                        },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (drillDownState.isFullySettled) {
+                                            semanticColors.onIncomeEmeraldContainer
+                                        } else {
+                                            semanticColors.onWarningAmberContainer
+                                        },
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+
+                                Text(
+                                    text = "${drillDownState.transactions.size} transactions",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.outline
+                                )
+                            }
+
+                            // 3-Column Metrics: Outlay | Reimbursed | Still Owed
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        text = "TOTAL SPENT",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                    MoneyText(
+                                        money = drillDownState.totalSpent,
+                                        currencySpec = currencySpec,
+                                        grouping = grouping,
+                                        colorMode = MoneyColorMode.EXPENSE,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        text = "REIMBURSED",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                    MoneyText(
+                                        money = drillDownState.totalReimbursed,
+                                        currencySpec = currencySpec,
+                                        grouping = grouping,
+                                        colorMode = MoneyColorMode.INCOME,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                Column(
+                                    horizontalAlignment = Alignment.End,
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = "STILL OWED",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                    MoneyText(
+                                        money = drillDownState.netPendingOwed,
+                                        currencySpec = currencySpec,
+                                        grouping = grouping,
+                                        colorMode = if (drillDownState.netPendingOwed.isPositive) MoneyColorMode.NEUTRAL else MoneyColorMode.INCOME,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            // Settlement progress bar
+                            val progressFraction = if (drillDownState.totalSpent.amountMinor > 0L) {
+                                (drillDownState.totalReimbursed.amountMinor.toFloat() / drillDownState.totalSpent.amountMinor.toFloat()).coerceIn(0f, 1f)
+                            } else {
+                                1f
+                            }
+                            LinearProgressIndicator(
+                                progress = { progressFraction },
+                                color = semanticColors.incomeEmerald,
+                                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                strokeCap = StrokeCap.Round,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(6.dp)
+                            )
+                        } else {
+                            // Event / Trip Hero: Duration | Daily Burn | Total Spend
+                            val dateSubtext = remember(drillDownState.minEpochDay, drillDownState.maxEpochDay) {
+                                if (drillDownState.minEpochDay != null && drillDownState.maxEpochDay != null) {
+                                    val start = LocalDate.ofEpochDay(drillDownState.minEpochDay).format(shortDateFormatter)
+                                    val end = LocalDate.ofEpochDay(drillDownState.maxEpochDay).format(shortDateFormatter)
+                                    if (drillDownState.minEpochDay == drillDownState.maxEpochDay) start else "$start – $end"
+                                } else {
+                                    "Active"
+                                }
+                            }
+
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        text = "DURATION",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                    Text(
+                                        text = "${drillDownState.dateSpanDays} ${if (drillDownState.dateSpanDays == 1) "Day" else "Days"}",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = dateSubtext,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                }
+
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        text = "DAILY BURN",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                    MoneyText(
+                                        money = drillDownState.dailyAverageSpend,
+                                        currencySpec = currencySpec,
+                                        grouping = grouping,
+                                        colorMode = MoneyColorMode.EXPENSE,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "per day avg",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                }
+
+                                Column(
+                                    horizontalAlignment = Alignment.End,
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = "TOTAL SPENT",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                    MoneyText(
+                                        money = drillDownState.totalSpent,
+                                        currencySpec = currencySpec,
+                                        grouping = grouping,
+                                        colorMode = MoneyColorMode.EXPENSE,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "${drillDownState.transactions.size} records",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 6-Month Monthly Spend Trend Bars
+            if (drillDownState.monthlyTrendBars.any { it.totalExpense.isPositive }) {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "6-Month Outlay Trend",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        SixMonthTrendBarChart(
+                            bars = drillDownState.monthlyTrendBars,
+                            currencySpec = currencySpec,
+                            grouping = grouping
+                        )
+                    }
+                }
+            }
+
+            // Categories Distribution
+            if (drillDownState.categoryDistribution.isNotEmpty()) {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Category Distribution",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                drillDownState.categoryDistribution.forEach { catStat ->
+                                    val catColor = parseHexColorSafely(catStat.colorHex)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            CategoryIconBadge(
+                                                iconName = catStat.iconName,
+                                                colorHex = catStat.colorHex,
+                                                size = 28.dp,
+                                                iconSize = 16.dp
+                                            )
+                                            Text(
+                                                text = catStat.categoryName,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            MoneyText(
+                                                money = catStat.netAmount,
+                                                currencySpec = currencySpec,
+                                                grouping = grouping,
+                                                colorMode = MoneyColorMode.EXPENSE,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Surface(
+                                                shape = RoundedCornerShape(6.dp),
+                                                color = catColor.copy(alpha = 0.15f)
+                                            ) {
+                                                Text(
+                                                    text = "${String.format(Locale.US, "%.0f", catStat.percentageOfTotal)}%",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = catColor,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Tagged Transactions List Header
+            item {
+                Text(
+                    text = "Passbook Transactions (${drillDownState.transactions.size})",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
+            // Tagged Transaction Items
+            items(
+                items = drillDownState.transactions,
+                key = { "tag_drill_${it.id}" }
+            ) { tx ->
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onTransactionClick(tx) }
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            CategoryIconBadge(
+                                iconName = tx.categoryIconName ?: "category",
+                                colorHex = tx.categoryColorHex ?: "#8B5CF6",
+                                size = 32.dp,
+                                iconSize = 16.dp
+                            )
+                            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                                Text(
+                                    text = tx.payeeOrDescription.ifBlank { tx.note.ifBlank { tx.categoryName ?: "Expense" } },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "${tx.accountName} · ${LocalDate.ofEpochDay(tx.ledgerDateEpochDay).format(dateFormatter)}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        MoneyText(
+                            money = tx.amount,
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            colorMode = if (tx.type == TransactionType.REFUND || tx.type == TransactionType.INCOME) {
+                                MoneyColorMode.INCOME
+                            } else {
+                                MoneyColorMode.EXPENSE
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = "Edit receipt",
+                            tint = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier
+                                .padding(start = 4.dp)
+                                .size(18.dp)
                         )
                     }
                 }
