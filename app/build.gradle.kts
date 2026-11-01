@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.spotless)
+    alias(libs.plugins.baselineprofile)
 }
 
 android {
@@ -106,4 +107,8 @@ dependencies {
 
     // Debug Memory Leak Detection
     debugImplementation(libs.leakcanary.android)
+
+    // Baseline Profile Installer
+    implementation(libs.androidx.profileinstaller)
+    baselineProfile(project(":macrobenchmark"))
 }
