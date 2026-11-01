@@ -744,13 +744,13 @@ internal fun WeeklyLedgerSubTabContent(
                         }
 
                         Column(horizontalAlignment = Alignment.End) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(if (uiState.currencySpec.symbol.length > 2) 6.dp else 10.dp)) {
                                 MoneyText(
                                     money = bucket.incomeTotal,
                                     currencySpec = uiState.currencySpec,
                                     grouping = uiState.numberGrouping,
                                     colorMode = MoneyColorMode.INCOME,
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = if (uiState.currencySpec.symbol.length > 2) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     showPlusSignForPositive = true
                                 )
@@ -759,7 +759,7 @@ internal fun WeeklyLedgerSubTabContent(
                                     currencySpec = uiState.currencySpec,
                                     grouping = uiState.numberGrouping,
                                     colorMode = MoneyColorMode.EXPENSE,
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = if (uiState.currencySpec.symbol.length > 2) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -951,13 +951,13 @@ internal fun MonthlyLedgerSubTabContent(
                         }
 
                         Column(horizontalAlignment = Alignment.End) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(if (uiState.currencySpec.symbol.length > 2) 6.dp else 10.dp)) {
                                 MoneyText(
                                     money = monthItem.incomeTotal,
                                     currencySpec = uiState.currencySpec,
                                     grouping = uiState.numberGrouping,
                                     colorMode = MoneyColorMode.INCOME,
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = if (uiState.currencySpec.symbol.length > 2) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 MoneyText(
@@ -965,7 +965,7 @@ internal fun MonthlyLedgerSubTabContent(
                                     currencySpec = uiState.currencySpec,
                                     grouping = uiState.numberGrouping,
                                     colorMode = MoneyColorMode.EXPENSE,
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = if (uiState.currencySpec.symbol.length > 2) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }

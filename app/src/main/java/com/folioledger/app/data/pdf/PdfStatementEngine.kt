@@ -605,7 +605,8 @@ object PdfStatementEngine {
             val outflowStr = MoneyFormatterAndCalculator.formatMinorMoney(
                 outflowMoney, currencySpec, grouping, showPlusSignForPositive = false
             )
-            drawTextRight(canvas, outflowStr, MARGIN_LEFT + 460f, textY, textPaint)
+            val outflowTargetX = if (currencySpec.symbol.length > 2) MARGIN_LEFT + 475f else MARGIN_LEFT + 460f
+            drawTextRight(canvas, outflowStr, outflowTargetX, textY, textPaint)
         } else {
             drawTextRight(canvas, "—", MARGIN_LEFT + 460f, textY, mutedPaint)
         }

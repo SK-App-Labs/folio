@@ -2001,7 +2001,7 @@ private fun BudgetProgressCard(
                         currencySpec = currencySpec,
                         grouping = grouping,
                         colorMode = MoneyColorMode.EXPENSE,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -2017,7 +2017,7 @@ private fun BudgetProgressCard(
                         currencySpec = currencySpec,
                         grouping = grouping,
                         colorMode = MoneyColorMode.NEUTRAL,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -2033,7 +2033,7 @@ private fun BudgetProgressCard(
                         currencySpec = currencySpec,
                         grouping = grouping,
                         colorMode = MoneyColorMode.AUTO_SIGN,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
                 }

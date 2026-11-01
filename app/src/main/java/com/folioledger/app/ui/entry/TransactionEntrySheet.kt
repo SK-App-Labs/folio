@@ -572,7 +572,7 @@ fun TransactionEntryFormContent(
                                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                                     modifier = Modifier
                                         .focusRequester(amountFocusRequester)
-                                        .widthIn(min = 40.dp, max = 220.dp),
+                                        .widthIn(min = 40.dp, max = 260.dp),
                                     decorationBox = { innerTextField ->
                                         Box(contentAlignment = Alignment.CenterEnd) {
                                             if (uiState.expressionBuffer == "0" || uiState.expressionBuffer.isEmpty()) {
