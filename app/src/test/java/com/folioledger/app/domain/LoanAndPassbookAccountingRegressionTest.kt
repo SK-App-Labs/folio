@@ -173,4 +173,51 @@ class LoanAndPassbookAccountingRegressionTest {
         val augClosingBalance = augStartBalance + emiDelta
         assertEquals(-3588717_00L, augClosingBalance)
     }
+
+    @Test
+    fun transactionMapper_preservesTransferToAccountIdForOpeningBalanceAndReconciliation() {
+        val loanAccountId = 55L
+        val txEntity = com.folioledger.app.data.local.entity.TransactionEntity(
+            id = 1L,
+            type = TransactionType.OPENING_BALANCE,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 100L,
+            amountMinor = 3638717_00L,
+            currencyCode = "INR",
+            accountId = loanAccountId,
+            transferToAccountId = loanAccountId, // outflow flag
+            payeeOrDescription = "Opening Balance",
+            note = "Initial starting balance"
+        )
+
+        val preservesTransferTarget = txEntity.type == TransactionType.TRANSFER ||
+                txEntity.type == TransactionType.CC_SETTLEMENT ||
+                txEntity.type == TransactionType.OPENING_BALANCE ||
+                txEntity.type == TransactionType.RECONCILIATION
+
+        val effectiveTransferToAccountId = if (preservesTransferTarget) txEntity.transferToAccountId else null
+
+        val mappedItem = TransactionItem(
+            id = txEntity.id,
+            type = txEntity.type,
+            timestampEpochMillis = txEntity.timestampEpochMillis,
+            ledgerDateEpochDay = txEntity.ledgerDateEpochDay,
+            amount = MinorMoney(txEntity.amountMinor),
+            currencyCode = txEntity.currencyCode,
+            accountId = txEntity.accountId,
+            accountName = "ICICI Loan",
+            transferToAccountId = effectiveTransferToAccountId,
+            payeeOrDescription = txEntity.payeeOrDescription,
+            note = txEntity.note
+        )
+
+        // Must retain transferToAccountId as outflow flag
+        org.junit.Assert.assertNotNull(mappedItem.transferToAccountId)
+        assertEquals(loanAccountId, mappedItem.transferToAccountId)
+
+        // When evaluating signed delta for passbook, must be OUTFLOW (-36,38,717), NOT inflow (+36,38,717)
+        val delta = AccountingRulesEngine.computeSignedDeltaMinorForAccount(mappedItem, setOf(loanAccountId))
+        assertEquals(-3638717_00L, delta)
+        assertNotEquals(3638717_00L, delta)
+    }
 }

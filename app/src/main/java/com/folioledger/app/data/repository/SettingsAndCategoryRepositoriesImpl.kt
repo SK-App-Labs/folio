@@ -2037,6 +2037,10 @@ class SettingsAndBackupRepositoryImpl(
         }
 
         val mappedTags = txWithDetails.tags.map { it.name }
+        val preservesTransferTarget = tx.type == TransactionType.TRANSFER ||
+                tx.type == TransactionType.CC_SETTLEMENT ||
+                tx.type == TransactionType.OPENING_BALANCE ||
+                tx.type == TransactionType.RECONCILIATION
         val isTransferType = tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT
 
         return TransactionItem(
@@ -2048,7 +2052,7 @@ class SettingsAndBackupRepositoryImpl(
             currencyCode = tx.currencyCode,
             accountId = tx.accountId,
             accountName = sourceAccount?.name ?: "Unknown Account",
-            transferToAccountId = if (isTransferType) tx.transferToAccountId else null,
+            transferToAccountId = if (preservesTransferTarget) tx.transferToAccountId else null,
             transferToAccountName = if (isTransferType) targetAccount?.name else null,
             transferFee = if (isTransferType) MinorMoney(tx.transferFeeMinor) else MinorMoney.ZERO,
             categoryId = if (isTransferType) null else tx.categoryId,

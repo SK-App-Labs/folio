@@ -997,8 +997,12 @@ class TransactionRepositoryImpl(
 
         val mappedTags = txWithDetails.tags.map { it.name }
 
+        val preservesTransferTarget = tx.type == TransactionType.TRANSFER ||
+                tx.type == TransactionType.CC_SETTLEMENT ||
+                tx.type == TransactionType.OPENING_BALANCE ||
+                tx.type == TransactionType.RECONCILIATION
         val isTransferType = tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT
-        val effectiveTransferToAccountId = if (isTransferType) tx.transferToAccountId else null
+        val effectiveTransferToAccountId = if (preservesTransferTarget) tx.transferToAccountId else null
         val effectiveTransferToAccountName = if (isTransferType) targetAccount?.name else null
         val effectiveTransferFee = if (isTransferType) MinorMoney(tx.transferFeeMinor) else MinorMoney.ZERO
         val effectiveCategoryId = if (isTransferType) null else tx.categoryId
