@@ -2123,7 +2123,16 @@ class SettingsAndBackupRepositoryImpl(
                 tx to deltaMinor
             }
 
-            var runningBalanceMinor = accountEntity.openingBalanceMinor
+            val hasOpeningTx = deltasWithTx.any { it.first.type == TransactionType.OPENING_BALANCE }
+            val initialAnchor = if (hasOpeningTx) {
+                0L
+            } else if (accountEntity.groupType.isLiabilityByDefault && accountEntity.openingBalanceMinor > 0L) {
+                Math.negateExact(accountEntity.openingBalanceMinor)
+            } else {
+                accountEntity.openingBalanceMinor
+            }
+
+            var runningBalanceMinor = initialAnchor
             var periodOpeningBalanceMinor = runningBalanceMinor
             var periodInflowsMinor = 0L
             var periodOutflowsMinor = 0L
@@ -2383,7 +2392,15 @@ class SettingsAndBackupRepositoryImpl(
                         }
                     }
 
-                var running = acc.openingBalanceMinor
+                val hasOpening = accTxChronological.any { it.type == TransactionType.OPENING_BALANCE }
+                val initialAnchor = if (hasOpening) {
+                    0L
+                } else if (acc.groupType.isLiabilityByDefault && acc.openingBalanceMinor > 0L) {
+                    Math.negateExact(acc.openingBalanceMinor)
+                } else {
+                    acc.openingBalanceMinor
+                }
+                var running = initialAnchor
                 for (tx in accTxChronological) {
                     if (tx.ledgerDateEpochDay <= endEpochDay) {
                         val delta = AccountingRulesEngine.computeSignedDeltaMinorForAccount(tx, accEffectiveIds)

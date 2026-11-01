@@ -746,6 +746,8 @@ private fun PassbookTransactionEntryRowCard(
                 "Transfer Out → ${transaction.transferToAccountName ?: "Account"}"
             }
         }
+        transaction.type == TransactionType.OPENING_BALANCE -> "Opening Balance"
+        transaction.type == TransactionType.RECONCILIATION -> "Balance Reconciliation"
         transaction.isSplit -> "Split (${transaction.splits.size} categories)"
         !transaction.parentCategoryName.isNullOrBlank() -> {
             "${transaction.parentCategoryName} › ${transaction.categoryName ?: ""}"
@@ -774,11 +776,13 @@ private fun PassbookTransactionEntryRowCard(
                 iconName = transaction.categoryIconName ?: when (transaction.type) {
                     TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> "swap_horiz"
                     TransactionType.REFUND -> "autorenew"
+                    TransactionType.OPENING_BALANCE -> "account_balance_wallet"
+                    TransactionType.RECONCILIATION -> "tune"
                     else -> "category"
                 },
-                colorHex = transaction.categoryColorHex ?: when {
-                    entry.isInflow -> "#059669"
-                    else -> "#E11D48"
+                colorHex = transaction.categoryColorHex ?: when (transaction.type) {
+                    TransactionType.OPENING_BALANCE, TransactionType.RECONCILIATION -> "#0284C7"
+                    else -> if (entry.isInflow) "#059669" else "#E11D48"
                 },
                 size = 38.dp,
                 iconSize = 19.dp
@@ -795,7 +799,11 @@ private fun PassbookTransactionEntryRowCard(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                val subline = transaction.payeeOrDescription.ifBlank { transaction.note }
+                val subline = when (transaction.type) {
+                    TransactionType.OPENING_BALANCE -> transaction.note.ifBlank { "Initial starting balance" }
+                    TransactionType.RECONCILIATION -> transaction.note.ifBlank { "Manual balance adjustment" }
+                    else -> transaction.payeeOrDescription.ifBlank { transaction.note }
+                }
                 if (subline.isNotBlank()) {
                     Text(
                         text = subline,
@@ -830,10 +838,9 @@ private fun PassbookTransactionEntryRowCard(
                     money = entry.signedDelta,
                     currencySpec = currencySpec,
                     grouping = grouping,
-                    colorMode = if (entry.isInflow) {
-                        MoneyColorMode.INCOME
-                    } else {
-                        MoneyColorMode.EXPENSE
+                    colorMode = when (transaction.type) {
+                        TransactionType.OPENING_BALANCE, TransactionType.RECONCILIATION -> MoneyColorMode.NEUTRAL
+                        else -> if (entry.isInflow) MoneyColorMode.INCOME else MoneyColorMode.EXPENSE
                     },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,

@@ -348,13 +348,22 @@ class AccountRepositoryImpl(
         fun resolveEffectiveAccountId(rawAccountId: Long): Long =
             debitCardParentMap[rawAccountId] ?: rawAccountId
 
+        val hasOpeningBalanceTx = HashSet<Long>()
+        for (tx in allTransactions) {
+            if (tx.type == TransactionType.OPENING_BALANCE) {
+                hasOpeningBalanceTx.add(tx.accountId)
+            }
+        }
+
         val runningBalancesMinor = HashMap<Long, Long>(accountEntities.size)
         for (entity in accountEntities) {
             if (
                 entity.groupType != AccountGroup.CREDIT_CARD &&
                 entity.groupType != AccountGroup.DEBIT_CARD
             ) {
-                val initialSigned = if (
+                val initialSigned = if (hasOpeningBalanceTx.contains(entity.id)) {
+                    0L
+                } else if (
                     entity.groupType.isLiabilityByDefault && entity.openingBalanceMinor > 0L
                 ) {
                     Math.negateExact(entity.openingBalanceMinor)
@@ -561,7 +570,7 @@ class AccountRepositoryImpl(
                 }
 
                 else -> {
-                    val liveBalanceMinor = runningBalancesMinor[entity.id] ?: entity.openingBalanceMinor
+                    val liveBalanceMinor = runningBalancesMinor[entity.id] ?: if (hasOpeningBalanceTx.contains(entity.id)) 0L else entity.openingBalanceMinor
                     AccountSummary(
                         id = entity.id,
                         name = entity.name,
