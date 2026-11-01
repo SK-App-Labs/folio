@@ -50,8 +50,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -615,10 +617,15 @@ class StatsAndBudgetsViewModel(
         )
 
     private val allAccountsFlow = accountRepository.observeAllAccounts(LocalDate.now().toEpochDay())
-    private val netWorthWindowTxsFlow = controlState.flatMapLatest { ctrl ->
-        val refDate = LocalDate.ofEpochDay(ctrl.referenceDateEpochDay)
+
+    private val netWorthQueryParamsFlow = controlState
+        .map { ctrl -> ctrl.periodGranularity to ctrl.referenceDateEpochDay }
+        .distinctUntilChanged()
+
+    private val netWorthWindowTxsFlow = netWorthQueryParamsFlow.flatMapLatest { (granularity, refEpochDay) ->
+        val refDate = LocalDate.ofEpochDay(refEpochDay)
         val todayEpochDay = LocalDate.now().toEpochDay()
-        val windowStartEpochDay = if (ctrl.periodGranularity == StatsPeriodGranularity.ANNUALLY) {
+        val windowStartEpochDay = if (granularity == StatsPeriodGranularity.ANNUALLY) {
             LocalDate.of(refDate.year, 1, 1).toEpochDay()
         } else {
             refDate.minusMonths(7).withDayOfMonth(1).toEpochDay()
@@ -634,19 +641,37 @@ class StatsAndBudgetsViewModel(
         expenseTree to incomeTree
     }
 
-    private val periodAnalyticsFlow: Flow<PeriodAnalyticsBundle> = combine(
-        controlState,
-        settingsAndBackupRepository.observeUserPreferences()
-    ) { ctrl, prefs ->
+    private data class PeriodQueryParametersKey(
+        val granularity: StatsPeriodGranularity,
+        val referenceDateEpochDay: Long,
+        val customStartEpochDay: Long,
+        val customEndEpochDay: Long,
+        val isRankingsAllTime: Boolean
+    )
+
+    private val periodQueryParametersFlow = combine(
+        controlState.map { ctrl ->
+            PeriodQueryParametersKey(
+                granularity = ctrl.periodGranularity,
+                referenceDateEpochDay = ctrl.referenceDateEpochDay,
+                customStartEpochDay = ctrl.customStartEpochDay,
+                customEndEpochDay = ctrl.customEndEpochDay,
+                isRankingsAllTime = ctrl.isRankingsAllTime
+            )
+        }.distinctUntilChanged(),
+        settingsAndBackupRepository.observeUserPreferences().distinctUntilChanged()
+    ) { key, prefs ->
         PeriodQueryParameters(
-            granularity = ctrl.periodGranularity,
-            referenceDateEpochDay = ctrl.referenceDateEpochDay,
-            customStartEpochDay = ctrl.customStartEpochDay,
-            customEndEpochDay = ctrl.customEndEpochDay,
-            isRankingsAllTime = ctrl.isRankingsAllTime,
+            granularity = key.granularity,
+            referenceDateEpochDay = key.referenceDateEpochDay,
+            customStartEpochDay = key.customStartEpochDay,
+            customEndEpochDay = key.customEndEpochDay,
+            isRankingsAllTime = key.isRankingsAllTime,
             prefs = prefs
         )
-    }.flatMapLatest { params ->
+    }.distinctUntilChanged()
+
+    private val periodAnalyticsFlow: Flow<PeriodAnalyticsBundle> = periodQueryParametersFlow.flatMapLatest { params ->
         val prefs = params.prefs
         val periodRange = StatsPeriodCalculator.computePeriodRange(
             granularity = params.granularity,

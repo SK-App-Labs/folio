@@ -237,7 +237,7 @@ private fun CreditHeroArcGaugeCard(
                 LaunchedEffect(cockpit.aggregateUtilizationPercent) {
                     animTarget = (cockpit.aggregateUtilizationPercent / 100f).coerceIn(0f, 1f)
                 }
-                val animProgress by animateFloatAsState(
+                val animProgressState = animateFloatAsState(
                     targetValue = animTarget,
                     animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
                     label = "HeroGaugeAnim"
@@ -262,6 +262,29 @@ private fun CreditHeroArcGaugeCard(
                             val arcTopLeft = Offset(arcPadding, arcPadding)
                             val arcSize = Size(arcWidth, arcHeight)
 
+                            val tickStrokePx = 2.dp.toPx()
+                            val tickColor = trackColor.copy(alpha = 0.8f)
+                            val oneDpPx = 1.dp.toPx()
+
+                            val cx = size.width / 2f
+                            val cy = arcHeight / 2f + arcPadding
+                            val r = arcWidth / 2f
+                            val tickRatios = floatArrayOf(0.10f, 0.30f, 0.50f)
+                            val cachedTickLines = tickRatios.map { t ->
+                                val rad = Math.toRadians((180f + t * 180f).toDouble())
+                                val innerR = r - strokeWidth / 2f - oneDpPx
+                                val outerR = r + strokeWidth / 2f + oneDpPx
+                                val p1 = Offset(
+                                    (cx + innerR * cos(rad)).toFloat(),
+                                    (cy + innerR * sin(rad)).toFloat()
+                                )
+                                val p2 = Offset(
+                                    (cx + outerR * cos(rad)).toFloat(),
+                                    (cy + outerR * sin(rad)).toFloat()
+                                )
+                                p1 to p2
+                            }
+
                             onDrawBehind {
                                 // Background Track
                                 drawArc(
@@ -274,8 +297,8 @@ private fun CreditHeroArcGaugeCard(
                                     style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
                                 )
 
-                                // Active Arc
-                                val sweep = animProgress * 180f
+                                // Active Arc (Reads animProgressState.value directly during draw phase)
+                                val sweep = animProgressState.value * 180f
                                 if (sweep > 0f) {
                                     drawArc(
                                         color = progressColor,
@@ -288,28 +311,13 @@ private fun CreditHeroArcGaugeCard(
                                     )
                                 }
 
-                                // Tick marks at 10%, 30%, 50%
-                                val cx = size.width / 2f
-                                val cy = arcHeight / 2f + arcPadding
-                                val r = arcWidth / 2f
-                                val ticks = floatArrayOf(0.10f, 0.30f, 0.50f)
-                                for (t in ticks) {
-                                    val rad = Math.toRadians((180f + t * 180f).toDouble())
-                                    val innerR = r - strokeWidth / 2f - 1.dp.toPx()
-                                    val outerR = r + strokeWidth / 2f + 1.dp.toPx()
-                                    val p1 = Offset(
-                                        (cx + innerR * cos(rad)).toFloat(),
-                                        (cy + innerR * sin(rad)).toFloat()
-                                    )
-                                    val p2 = Offset(
-                                        (cx + outerR * cos(rad)).toFloat(),
-                                        (cy + outerR * sin(rad)).toFloat()
-                                    )
+                                // Cached tick marks
+                                for ((p1, p2) in cachedTickLines) {
                                     drawLine(
-                                        color = trackColor.copy(alpha = 0.8f),
+                                        color = tickColor,
                                         start = p1,
                                         end = p2,
-                                        strokeWidth = 2.dp.toPx()
+                                        strokeWidth = tickStrokePx
                                     )
                                 }
                             }

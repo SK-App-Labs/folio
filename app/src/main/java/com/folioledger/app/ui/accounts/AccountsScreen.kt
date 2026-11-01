@@ -345,15 +345,24 @@ fun AccountsScreenContent(
                 orderedGroups.forEach { group ->
                     val groupAccounts = uiState.netWorthOverview.accountsByGroup[group].orEmpty()
                     val isCollapsed = group in uiState.collapsedGroups
-                    val groupTotalMinor = groupAccounts.fold(0L) { sum, acc ->
-                        if (acc.groupType == AccountGroup.DEBIT_CARD) {
-                            sum + (acc.debitCardPeriodSpend?.amountMinor ?: 0L)
-                        } else {
-                            sum + acc.currentBalance.amountMinor
-                        }
-                    }
 
                     item(key = "group_header_${group.name}", contentType = "account_group_card") {
+                        val groupTotalMinor = remember(groupAccounts) {
+                            groupAccounts.fold(0L) { sum, acc ->
+                                if (acc.groupType == AccountGroup.DEBIT_CARD) {
+                                    sum + (acc.debitCardPeriodSpend?.amountMinor ?: 0L)
+                                } else {
+                                    sum + acc.currentBalance.amountMinor
+                                }
+                            }
+                        }
+                        val onToggleCollapseGroup = remember(group, onToggleGroupCollapsed) {
+                            { onToggleGroupCollapsed(group) }
+                        }
+                        val onAddAccountInGroup = remember(group, onOpenCreateAccount) {
+                            { onOpenCreateAccount(group) }
+                        }
+
                         AccountGroupSectionCard(
                             group = group,
                             accounts = groupAccounts,
@@ -363,8 +372,8 @@ fun AccountsScreenContent(
                             currencySpec = uiState.currencySpec,
                             grouping = uiState.numberGrouping,
                             isCollapsed = isCollapsed,
-                            onToggleCollapse = { onToggleGroupCollapsed(group) },
-                            onAddAccountInGroup = { onOpenCreateAccount(group) },
+                            onToggleCollapse = onToggleCollapseGroup,
+                            onAddAccountInGroup = onAddAccountInGroup,
                             onEditAccount = onOpenEditAccount,
                             onSettleCreditCard = onOpenSettlementSheet,
                             onAccountClick = onAccountClick

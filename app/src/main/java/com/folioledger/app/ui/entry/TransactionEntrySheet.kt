@@ -87,7 +87,6 @@ import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.components.fromTransactionType
-import com.folioledger.app.ui.entry.components.AccountPickerDialog
 import com.folioledger.app.ui.entry.components.BookmarksTemplateDialog
 import com.folioledger.app.ui.entry.components.CalculatorNumericKeypad
 import com.folioledger.app.ui.entry.components.CategoryPickerBottomSheet
@@ -104,7 +103,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-enum class LowerDockContent { KEYPAD, ACCOUNT_GRID, CATEGORY_TREE, HIDDEN }
+enum class LowerDockContent { KEYPAD, ACCOUNT_GRID, DEST_ACCOUNT_GRID, CATEGORY_TREE, HIDDEN }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -210,10 +209,9 @@ fun TransactionEntryFormContent(
     val haptic = LocalHapticFeedback.current
     val amountFocusRequester = remember { FocusRequester() }
 
-    var lowerDockContent by remember { mutableStateOf(LowerDockContent.HIDDEN) }
+    var lowerDockContent by remember { mutableStateOf(LowerDockContent.KEYPAD) }
 
     androidx.compose.runtime.LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(200)
         if (lowerDockContent == LowerDockContent.HIDDEN) {
             amountFocusRequester.requestFocus()
             keyboardController?.show()
@@ -222,8 +220,6 @@ fun TransactionEntryFormContent(
 
     var showDatePickerDialog by rememberSaveable { mutableStateOf(false) }
     var showTimePickerDialog by rememberSaveable { mutableStateOf(false) }
-    var showSourceAccountDialog by rememberSaveable { mutableStateOf(false) }
-    var showDestAccountDialog by rememberSaveable { mutableStateOf(false) }
     var showCategorySheet by rememberSaveable { mutableStateOf(false) }
     var splitLineIdForCategoryPicker by rememberSaveable { mutableStateOf<Long?>(null) }
     var showBookmarksDialog by rememberSaveable { mutableStateOf(false) }
@@ -709,7 +705,11 @@ fun TransactionEntryFormContent(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(14.dp))
-                                .clickable { showDestAccountDialog = true }
+                                .clickable {
+                                    focusManager.clearFocus()
+                                    keyboardController?.hide()
+                                    lowerDockContent = LowerDockContent.DEST_ACCOUNT_GRID
+                                }
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -948,11 +948,26 @@ fun TransactionEntryFormContent(
                         selectedAccountId = uiState.selectedAccount?.id,
                         onAccountSelected = { acc ->
                             onSelectSourceAccount(acc.id)
-                            if (uiState.mode != TransactionType.TRANSFER && !uiState.isSplit) {
+                            if (uiState.mode == TransactionType.TRANSFER) {
+                                lowerDockContent = LowerDockContent.DEST_ACCOUNT_GRID
+                            } else if (!uiState.isSplit) {
                                 lowerDockContent = LowerDockContent.CATEGORY_TREE
                             } else {
                                 lowerDockContent = LowerDockContent.HIDDEN
                             }
+                        },
+                        onCloseClick = { lowerDockContent = LowerDockContent.HIDDEN }
+                    )
+                }
+
+                LowerDockContent.DEST_ACCOUNT_GRID -> {
+                    DockedAccountPicker(
+                        title = "Select Destination Account",
+                        accounts = uiState.activeAccounts.filter { it.id != uiState.selectedAccount?.id },
+                        selectedAccountId = uiState.transferToAccount?.id,
+                        onAccountSelected = { acc ->
+                            onSelectDestinationAccount(acc.id)
+                            lowerDockContent = LowerDockContent.HIDDEN
                         },
                         onCloseClick = { lowerDockContent = LowerDockContent.HIDDEN }
                     )
@@ -1044,34 +1059,6 @@ fun TransactionEntryFormContent(
                 }
             }
         }
-    }
-
-    if (showSourceAccountDialog) {
-        AccountPickerDialog(
-            title = if (uiState.mode == TransactionType.TRANSFER) "Select Source Account" else "Select Account",
-            accounts = uiState.activeAccounts,
-            selectedAccountId = uiState.selectedAccount?.id,
-            grouping = uiState.numberGrouping,
-            onAccountSelected = { acc ->
-                onSelectSourceAccount(acc.id)
-                showSourceAccountDialog = false
-            },
-            onDismiss = { showSourceAccountDialog = false }
-        )
-    }
-
-    if (showDestAccountDialog) {
-        AccountPickerDialog(
-            title = "Select Destination Account",
-            accounts = uiState.activeAccounts.filter { it.id != uiState.selectedAccount?.id },
-            selectedAccountId = uiState.transferToAccount?.id,
-            grouping = uiState.numberGrouping,
-            onAccountSelected = { acc ->
-                onSelectDestinationAccount(acc.id)
-                showDestAccountDialog = false
-            },
-            onDismiss = { showDestAccountDialog = false }
-        )
     }
 
     if (showCategorySheet) {

@@ -572,6 +572,16 @@ fun SixMonthTrendBarChart(
                 with(density) { CornerRadius(8.dp.toPx(), 8.dp.toPx()) }
             }
 
+            val topPaddingPx = remember(density) { with(density) { 6.dp.toPx() } }
+            val twelveDpPx = remember(density) { with(density) { 12.dp.toPx() } }
+            val oneDpPx = remember(density) { with(density) { 1.dp.toPx() } }
+            val oneAndHalfDpPx = remember(density) { with(density) { 1.5.dp.toPx() } }
+            val threeDpPx = remember(density) { with(density) { 3.dp.toPx() } }
+            val fourDpPx = remember(density) { with(density) { 4.dp.toPx() } }
+            val eightDpPx = remember(density) { with(density) { 8.dp.toPx() } }
+            val eighteenDpPx = remember(density) { with(density) { 18.dp.toPx() } }
+            val twentyFourDpPx = remember(density) { with(density) { 24.dp.toPx() } }
+
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -586,8 +596,8 @@ fun SixMonthTrendBarChart(
                     }
             ) {
                 val horizontalLines = 4
-                val usableHeight = size.height - 12.dp.toPx()
-                val topPadding = 6.dp.toPx()
+                val usableHeight = size.height - twelveDpPx
+                val topPadding = topPaddingPx
 
                 for (i in 0..horizontalLines) {
                     val y = topPadding + (usableHeight / horizontalLines) * i
@@ -595,7 +605,7 @@ fun SixMonthTrendBarChart(
                         color = gridColor,
                         start = Offset(0f, y),
                         end = Offset(size.width, y),
-                        strokeWidth = 1.dp.toPx(),
+                        strokeWidth = oneDpPx,
                         pathEffect = if (i == horizontalLines) null else dashEffect
                     )
                 }
@@ -611,15 +621,15 @@ fun SixMonthTrendBarChart(
                     if (isSelected) {
                         drawRoundRect(
                             color = highlightSurface,
-                            topLeft = Offset(slotLeft + 4.dp.toPx(), 0f),
-                            size = Size(slotWidth - 8.dp.toPx(), usableHeight + topPadding),
+                            topLeft = Offset(slotLeft + fourDpPx, 0f),
+                            size = Size(slotWidth - eightDpPx, usableHeight + topPadding),
                             cornerRadius = highlightCornerRadius
                         )
                     }
 
                     if (!showNetMode) {
-                        val barWidth = (slotWidth * 0.28f).coerceAtMost(18.dp.toPx())
-                        val gap = 4.dp.toPx()
+                        val barWidth = (slotWidth * 0.28f).coerceAtMost(eighteenDpPx)
+                        val gap = fourDpPx
                         val groupWidth = barWidth * 2f + gap
                         val startX = slotLeft + (slotWidth - groupWidth) / 2f
                         val baselineY = topPadding + usableHeight
@@ -629,8 +639,8 @@ fun SixMonthTrendBarChart(
                         val expenseRatio = (bar.totalExpense.amountMinor.toFloat() / maxMagnitudeMinor.toFloat())
                             .coerceIn(0f, 1f) * entryProgress
 
-                        val incomeHeight = (usableHeight * incomeRatio).coerceAtLeast(3.dp.toPx())
-                        val expenseHeight = (usableHeight * expenseRatio).coerceAtLeast(3.dp.toPx())
+                        val incomeHeight = (usableHeight * incomeRatio).coerceAtLeast(threeDpPx)
+                        val expenseHeight = (usableHeight * expenseRatio).coerceAtLeast(threeDpPx)
 
                         drawRoundRect(
                             color = if (isSelected) incomeColor else incomeColor.copy(alpha = 0.78f),
@@ -651,10 +661,10 @@ fun SixMonthTrendBarChart(
                             color = gridColor,
                             start = Offset(0f, zeroY),
                             end = Offset(size.width, zeroY),
-                            strokeWidth = 1.5.dp.toPx()
+                            strokeWidth = oneAndHalfDpPx
                         )
 
-                        val barWidth = (slotWidth * 0.42f).coerceAtMost(24.dp.toPx())
+                        val barWidth = (slotWidth * 0.42f).coerceAtMost(twentyFourDpPx)
                         val startX = slotLeft + (slotWidth - barWidth) / 2f
                         val netMinor = bar.netSavings.amountMinor
                         val ratio = (kotlin.math.abs(netMinor).toFloat() / maxMagnitudeMinor.toFloat())
@@ -856,6 +866,25 @@ fun SixMonthSmoothTrendAreaChart(
                 with(density) { CornerRadius(8.dp.toPx(), 8.dp.toPx()) }
             }
 
+            val topPaddingPx = remember(density) { with(density) { 12.dp.toPx() } }
+            val bottomPaddingPx = remember(density) { with(density) { 24.dp.toPx() } }
+            val oneDpPx = remember(density) { with(density) { 1.dp.toPx() } }
+            val threeDpPx = remember(density) { with(density) { 3.dp.toPx() } }
+            val fourDpPx = remember(density) { with(density) { 4.dp.toPx() } }
+            val sixDpPx = remember(density) { with(density) { 6.dp.toPx() } }
+            val eightDpPx = remember(density) { with(density) { 8.dp.toPx() } }
+            val twelveDpPx = remember(density) { with(density) { 12.dp.toPx() } }
+            val sixteenDpPx = remember(density) { with(density) { 16.dp.toPx() } }
+
+            val textPaint = remember(density) {
+                android.graphics.Paint().apply {
+                    color = android.graphics.Color.GRAY
+                    textSize = with(density) { 10.dp.toPx() }
+                    textAlign = android.graphics.Paint.Align.CENTER
+                    isAntiAlias = true
+                }
+            }
+
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -870,17 +899,15 @@ fun SixMonthSmoothTrendAreaChart(
                     }
             ) {
                 val horizontalLines = 3
-                val topPadding = 12.dp.toPx()
-                val bottomPadding = 24.dp.toPx()
-                val usableHeight = size.height - topPadding - bottomPadding
+                val usableHeight = size.height - topPaddingPx - bottomPaddingPx
 
                 for (i in 0..horizontalLines) {
-                    val y = topPadding + (usableHeight / horizontalLines) * i
+                    val y = topPaddingPx + (usableHeight / horizontalLines) * i
                     drawLine(
                         color = gridColor,
                         start = Offset(0f, y),
                         end = Offset(size.width, y),
-                        strokeWidth = 1.dp.toPx(),
+                        strokeWidth = oneDpPx,
                         pathEffect = if (i == horizontalLines) null else dashEffect
                     )
                 }
@@ -896,7 +923,7 @@ fun SixMonthSmoothTrendAreaChart(
                         bar.totalIncome.amountMinor
                     }
                     val ratio = (rawVal.toFloat() / maxAmountMinor.toFloat()).coerceIn(0f, 1f) * entryProgress
-                    val y = topPadding + usableHeight * (1f - ratio)
+                    val y = topPaddingPx + usableHeight * (1f - ratio)
                     Offset(x, y)
                 }
 
@@ -904,8 +931,8 @@ fun SixMonthSmoothTrendAreaChart(
                     val selX = points[selectedIndex].x
                     drawRoundRect(
                         color = highlightBg,
-                        topLeft = Offset(selX - slotWidth / 2f + 4.dp.toPx(), topPadding),
-                        size = Size(slotWidth - 8.dp.toPx(), usableHeight),
+                        topLeft = Offset(selX - slotWidth / 2f + fourDpPx, topPaddingPx),
+                        size = Size(slotWidth - eightDpPx, usableHeight),
                         cornerRadius = highlightCornerRadius
                     )
                 }
@@ -914,7 +941,7 @@ fun SixMonthSmoothTrendAreaChart(
                 fillPath.reset()
 
                 strokePath.moveTo(points.first().x, points.first().y)
-                fillPath.moveTo(points.first().x, topPadding + usableHeight)
+                fillPath.moveTo(points.first().x, topPaddingPx + usableHeight)
                 fillPath.lineTo(points.first().x, points.first().y)
 
                 for (i in 0 until points.size - 1) {
@@ -929,7 +956,7 @@ fun SixMonthSmoothTrendAreaChart(
                     fillPath.cubicTo(controlX1, controlY1, controlX2, controlY2, p2.x, p2.y)
                 }
 
-                fillPath.lineTo(points.last().x, topPadding + usableHeight)
+                fillPath.lineTo(points.last().x, topPaddingPx + usableHeight)
                 fillPath.close()
 
                 drawPath(
@@ -939,8 +966,8 @@ fun SixMonthSmoothTrendAreaChart(
                             lineColor.copy(alpha = 0.35f),
                             lineColor.copy(alpha = 0.02f)
                         ),
-                        startY = topPadding,
-                        endY = topPadding + usableHeight
+                        startY = topPaddingPx,
+                        endY = topPaddingPx + usableHeight
                     )
                 )
 
@@ -948,41 +975,34 @@ fun SixMonthSmoothTrendAreaChart(
                     path = strokePath,
                     color = lineColor,
                     style = Stroke(
-                        width = 3.dp.toPx(),
+                        width = threeDpPx,
                         cap = StrokeCap.Round,
                         join = StrokeJoin.Round
                     )
                 )
-
-                val textPaint = android.graphics.Paint().apply {
-                    color = android.graphics.Color.GRAY
-                    textSize = 10.dp.toPx()
-                    textAlign = android.graphics.Paint.Align.CENTER
-                    isAntiAlias = true
-                }
 
                 points.forEachIndexed { idx, pt ->
                     val isSelected = idx == selectedIndex
                     if (isSelected) {
                         drawCircle(
                             color = lineColor.copy(alpha = 0.22f),
-                            radius = 12.dp.toPx(),
+                            radius = twelveDpPx,
                             center = pt
                         )
                         drawCircle(
                             color = lineColor,
-                            radius = 6.dp.toPx(),
+                            radius = sixDpPx,
                             center = pt
                         )
                         drawCircle(
                             color = Color.White,
-                            radius = 3.dp.toPx(),
+                            radius = threeDpPx,
                             center = pt
                         )
                     } else {
                         drawCircle(
                             color = lineColor,
-                            radius = 4.dp.toPx(),
+                            radius = fourDpPx,
                             center = pt
                         )
                     }
@@ -991,7 +1011,7 @@ fun SixMonthSmoothTrendAreaChart(
                     drawContext.canvas.nativeCanvas.drawText(
                         monthLabel,
                         pt.x,
-                        topPadding + usableHeight + 16.dp.toPx(),
+                        topPaddingPx + usableHeight + sixteenDpPx,
                         textPaint
                     )
                 }

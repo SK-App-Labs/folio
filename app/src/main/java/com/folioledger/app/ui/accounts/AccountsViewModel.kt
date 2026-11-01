@@ -164,6 +164,8 @@ private object PassbookPeriodCalculator {
     private val shortMonthYearFormatter = DateTimeFormatter.ofPattern("MMM yyyy", Locale.US)
     private val shortDayMonthFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
     private val fullDayMonthYearFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
+    val fullDateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy (EEE)", Locale.US)
+    val monthYearFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM yyyy", Locale.US)
 
     private fun resolveClampedDate(yearMonth: YearMonth, desiredDayOfMonth: Int): LocalDate {
         val safeDay = desiredDayOfMonth.coerceIn(1, 31)
@@ -658,8 +660,8 @@ class AccountsViewModel(
                 )
             }
 
-        val fullDateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy (EEE)", Locale.US)
-        val monthYearFormatter = DateTimeFormatter.ofPattern("MMM yyyy", Locale.US)
+        val fullDateFormatter = PassbookPeriodCalculator.fullDateFormatter
+        val monthYearFormatter = PassbookPeriodCalculator.monthYearFormatter
 
         val dayGroups = periodEntriesNewestFirst
             .groupBy { it.transaction.ledgerDateEpochDay }
