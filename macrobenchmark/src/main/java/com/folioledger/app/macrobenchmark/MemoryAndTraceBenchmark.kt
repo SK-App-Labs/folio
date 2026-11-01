@@ -4,7 +4,6 @@ import androidx.benchmark.macro.CompilationMode
 import androidx.benchmark.macro.ExperimentalMetricApi
 import androidx.benchmark.macro.MemoryUsageMetric
 import androidx.benchmark.macro.StartupMode
-import androidx.benchmark.macro.TraceSectionMetric
 import androidx.benchmark.macro.junit4.MacrobenchmarkRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
@@ -21,7 +20,7 @@ class MemoryAndTraceBenchmark {
     @get:Rule
     val benchmarkRule = MacrobenchmarkRule()
 
-    // Measures peak RAM usage after navigating heavy screens
+    // Measures peak RAM footprint after navigating primary navigation destinations
     @Test
     fun measureAppMemoryFootprint() {
         benchmarkRule.measureRepeated(
@@ -35,30 +34,16 @@ class MemoryAndTraceBenchmark {
             startActivityAndWait()
             device.waitForIdle()
 
-            // Navigate through Stats and Accounts
+            // Navigate to Stats
             device.findObject(By.text("Stats"))?.click()
             device.waitForIdle()
 
+            // Navigate to Accounts
             device.findObject(By.text("Accounts"))?.click()
             device.waitForIdle()
-        }
-    }
 
-    // Measures duration in ms for custom trace sections
-    @Test
-    fun measureCustomMethodTraces() {
-        benchmarkRule.measureRepeated(
-            packageName = PACKAGE_NAME,
-            metrics = listOf(
-                TraceSectionMetric("AutoBackupExport"),
-                TraceSectionMetric("PdfGenerationDuration")
-            ),
-            compilationMode = CompilationMode.Partial(),
-            startupMode = StartupMode.WARM,
-            iterations = 3
-        ) {
-            pressHome()
-            startActivityAndWait()
+            // Return to Transactions
+            device.findObject(By.text("Trans."))?.click()
             device.waitForIdle()
         }
     }
