@@ -898,11 +898,11 @@ private fun SummaryColumnCell(
                     Modifier
                 }
             )
-            .padding(horizontal = 6.dp)
+            .padding(horizontal = if (currencySpec.symbol.length > 2) 4.dp else 6.dp)
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelMedium,
+            style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -913,7 +913,7 @@ private fun SummaryColumnCell(
             currencySpec = currencySpec,
             grouping = grouping,
             colorMode = colorMode,
-            style = MaterialTheme.typography.titleMedium,
+            style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             showPlusSignForPositive = showPlusSignForPositive

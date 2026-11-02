@@ -1055,7 +1055,7 @@ internal fun MonthlyLedgerSubTabContent(
                                             style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
-                                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        Row(horizontalArrangement = Arrangement.spacedBy(if (uiState.currencySpec.symbol.length > 2) 6.dp else 10.dp)) {
                                             MoneyText(
                                                 money = week.incomeTotal,
                                                 currencySpec = uiState.currencySpec,
@@ -1369,7 +1369,7 @@ internal fun SummaryLedgerSubTabContent(
                                             currencySpec = flowCurrencySpec,
                                             grouping = uiState.numberGrouping,
                                             colorMode = MoneyColorMode.AUTO_SIGN,
-                                            style = MaterialTheme.typography.titleSmall,
+                                            style = if (flowCurrencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
                                             fontWeight = FontWeight.Bold,
                                             showPlusSignForPositive = true
                                         )

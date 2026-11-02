@@ -97,8 +97,10 @@ internal fun DailyDateGroupHeaderRow(
                 )
             }
 
+            val isMultiCharCurrency = currencySpec.symbol.length > 2
+            val dailyMoneyStyle = if (isMultiCharCurrency) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelLarge
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(if (isMultiCharCurrency) 6.dp else 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (group.dailyIncome.isPositive) {
@@ -107,7 +109,7 @@ internal fun DailyDateGroupHeaderRow(
                         currencySpec = currencySpec,
                         grouping = grouping,
                         colorMode = MoneyColorMode.INCOME,
-                        style = MaterialTheme.typography.labelLarge,
+                        style = dailyMoneyStyle,
                         fontWeight = FontWeight.SemiBold,
                         showPlusSignForPositive = true
                     )
@@ -118,7 +120,7 @@ internal fun DailyDateGroupHeaderRow(
                         currencySpec = currencySpec,
                         grouping = grouping,
                         colorMode = MoneyColorMode.EXPENSE,
-                        style = MaterialTheme.typography.labelLarge,
+                        style = dailyMoneyStyle,
                         fontWeight = FontWeight.SemiBold
                     )
                 }

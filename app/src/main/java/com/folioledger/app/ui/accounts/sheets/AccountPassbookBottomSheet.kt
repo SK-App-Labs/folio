@@ -588,7 +588,7 @@ private fun PassbookTwoTierSummaryCard(
                         currencySpec = currencySpec,
                         grouping = grouping,
                         colorMode = MoneyColorMode.INCOME,
-                        style = MaterialTheme.typography.labelMedium,
+                        style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         showPlusSignForPositive = true
                     )
@@ -614,7 +614,7 @@ private fun PassbookTwoTierSummaryCard(
                         currencySpec = currencySpec,
                         grouping = grouping,
                         colorMode = MoneyColorMode.EXPENSE,
-                        style = MaterialTheme.typography.labelMedium,
+                        style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -651,7 +651,7 @@ private fun PassbookSummaryMetricCell(
             currencySpec = currencySpec,
             grouping = grouping,
             colorMode = colorMode,
-            style = MaterialTheme.typography.labelLarge,
+            style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             showPlusSignForPositive = showPlusSign
@@ -1088,7 +1088,7 @@ private fun CreditCardPassbookHeroCard(
                         } else {
                             MoneyColorMode.INCOME
                         },
-                        style = MaterialTheme.typography.titleMedium,
+                        style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     )
@@ -1140,7 +1140,7 @@ private fun CreditCardPassbookHeroCard(
                         currencySpec = currencySpec,
                         grouping = grouping,
                         colorMode = MoneyColorMode.NEUTRAL,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     )

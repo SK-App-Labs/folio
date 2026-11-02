@@ -947,7 +947,7 @@ private fun NetWorthVelocityCard(
                             currencySpec = currencySpec,
                             grouping = grouping,
                             colorMode = if (isPositive) MoneyColorMode.INCOME else MoneyColorMode.EXPENSE,
-                            style = MaterialTheme.typography.titleMedium,
+                            style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -1352,6 +1352,7 @@ private fun SafeToSpendCard(
             HorizontalDivider(color = semanticColors.cardStrokeSubtle)
 
             // Equation Breakdown Row: Liquid Cash - CC Debt - 14d Bills
+            val equationMetricStyle = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1370,7 +1371,7 @@ private fun SafeToSpendCard(
                         currencySpec = currencySpec,
                         grouping = grouping,
                         colorMode = MoneyColorMode.NEUTRAL,
-                        style = MaterialTheme.typography.labelLarge,
+                        style = equationMetricStyle,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -1395,7 +1396,7 @@ private fun SafeToSpendCard(
                         currencySpec = currencySpec,
                         grouping = grouping,
                         colorMode = MoneyColorMode.EXPENSE,
-                        style = MaterialTheme.typography.labelLarge,
+                        style = equationMetricStyle,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -1423,7 +1424,7 @@ private fun SafeToSpendCard(
                         currencySpec = currencySpec,
                         grouping = grouping,
                         colorMode = MoneyColorMode.EXPENSE,
-                        style = MaterialTheme.typography.labelLarge,
+                        style = equationMetricStyle,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -2881,6 +2882,7 @@ private fun PayeeDrillDownBottomSheet(
                     border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    val drillMetricStyle = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier
@@ -2900,7 +2902,7 @@ private fun PayeeDrillDownBottomSheet(
                                 currencySpec = currencySpec,
                                 grouping = grouping,
                                 colorMode = MoneyColorMode.EXPENSE,
-                                style = MaterialTheme.typography.titleSmall,
+                                style = drillMetricStyle,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
@@ -2924,7 +2926,7 @@ private fun PayeeDrillDownBottomSheet(
                                 currencySpec = currencySpec,
                                 grouping = grouping,
                                 colorMode = MoneyColorMode.NEUTRAL,
-                                style = MaterialTheme.typography.titleSmall,
+                                style = drillMetricStyle,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
@@ -2951,7 +2953,7 @@ private fun PayeeDrillDownBottomSheet(
                                 currencySpec = currencySpec,
                                 grouping = grouping,
                                 colorMode = MoneyColorMode.NEUTRAL,
-                                style = MaterialTheme.typography.titleSmall,
+                                style = drillMetricStyle,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
@@ -3301,6 +3303,7 @@ private fun TagProjectDrillDownBottomSheet(
                             }
 
                             // 3-Column Metrics: Outlay | Reimbursed | Still Owed
+                            val reimbursableMetricStyle = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall
                             Row(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 modifier = Modifier.fillMaxWidth()
@@ -3318,7 +3321,7 @@ private fun TagProjectDrillDownBottomSheet(
                                         currencySpec = currencySpec,
                                         grouping = grouping,
                                         colorMode = MoneyColorMode.EXPENSE,
-                                        style = MaterialTheme.typography.titleSmall,
+                                        style = reimbursableMetricStyle,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -3336,7 +3339,7 @@ private fun TagProjectDrillDownBottomSheet(
                                         currencySpec = currencySpec,
                                         grouping = grouping,
                                         colorMode = MoneyColorMode.INCOME,
-                                        style = MaterialTheme.typography.titleSmall,
+                                        style = reimbursableMetricStyle,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -3357,7 +3360,7 @@ private fun TagProjectDrillDownBottomSheet(
                                         currencySpec = currencySpec,
                                         grouping = grouping,
                                         colorMode = if (drillDownState.netPendingOwed.isPositive) MoneyColorMode.NEUTRAL else MoneyColorMode.INCOME,
-                                        style = MaterialTheme.typography.titleSmall,
+                                        style = reimbursableMetricStyle,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -3390,6 +3393,7 @@ private fun TagProjectDrillDownBottomSheet(
                                 }
                             }
 
+                            val catDrillMetricStyle = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall
                             Row(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 modifier = Modifier.fillMaxWidth()
@@ -3428,7 +3432,7 @@ private fun TagProjectDrillDownBottomSheet(
                                         currencySpec = currencySpec,
                                         grouping = grouping,
                                         colorMode = MoneyColorMode.EXPENSE,
-                                        style = MaterialTheme.typography.titleSmall,
+                                        style = catDrillMetricStyle,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
@@ -3455,7 +3459,7 @@ private fun TagProjectDrillDownBottomSheet(
                                         currencySpec = currencySpec,
                                         grouping = grouping,
                                         colorMode = MoneyColorMode.EXPENSE,
-                                        style = MaterialTheme.typography.titleSmall,
+                                        style = catDrillMetricStyle,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(

@@ -103,8 +103,13 @@ internal fun AccountGroupSectionCard(
                         sum + unbilled
                     }
 
+                    val isMultiCharCurrency = currencySpec.symbol.length > 2
+                    val payableBoxWidth = if (isMultiCharCurrency) 88.dp else 78.dp
+                    val unbilledBoxWidth = if (isMultiCharCurrency) 80.dp else 72.dp
+                    val ccMoneyStyle = if (isMultiCharCurrency) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge
+
                     Box(
-                        modifier = Modifier.width(78.dp),
+                        modifier = Modifier.width(payableBoxWidth),
                         contentAlignment = Alignment.CenterEnd
                     ) {
                         MoneyText(
@@ -116,13 +121,13 @@ internal fun AccountGroupSectionCard(
                             } else {
                                 MoneyColorMode.INCOME
                             },
-                            style = MaterialTheme.typography.labelLarge,
+                            style = ccMoneyStyle,
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(if (isMultiCharCurrency) 6.dp else 10.dp))
                     Box(
-                        modifier = Modifier.width(72.dp),
+                        modifier = Modifier.width(unbilledBoxWidth),
                         contentAlignment = Alignment.CenterEnd
                     ) {
                         MoneyText(
@@ -130,7 +135,7 @@ internal fun AccountGroupSectionCard(
                             currencySpec = currencySpec,
                             grouping = grouping,
                             colorOverride = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.labelLarge,
+                            style = ccMoneyStyle,
                             fontWeight = FontWeight.Bold
                         )
                     }

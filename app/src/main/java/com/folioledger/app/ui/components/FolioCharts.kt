@@ -277,7 +277,7 @@ fun InteractiveCategoryDonutChart(
                             currencySpec = currencySpec,
                             grouping = grouping,
                             colorMode = MoneyColorMode.NEUTRAL,
-                            style = MaterialTheme.typography.titleMedium,
+                            style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center
                         )
@@ -309,7 +309,7 @@ fun InteractiveCategoryDonutChart(
                             currencySpec = currencySpec,
                             grouping = grouping,
                             colorMode = MoneyColorMode.NEUTRAL,
-                            style = MaterialTheme.typography.titleLarge,
+                            style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center
                         )
@@ -503,7 +503,8 @@ fun SixMonthTrendBarChart(
                             color = MaterialTheme.colorScheme.primary
                         )
 
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        val isMultiCharCurrency = currencySpec.symbol.length > 2
+                        Row(horizontalArrangement = Arrangement.spacedBy(if (isMultiCharCurrency) 6.dp else 12.dp)) {
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
                                     text = "Income",
@@ -515,7 +516,7 @@ fun SixMonthTrendBarChart(
                                     currencySpec = currencySpec,
                                     grouping = grouping,
                                     colorMode = MoneyColorMode.INCOME,
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = if (isMultiCharCurrency) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -531,7 +532,7 @@ fun SixMonthTrendBarChart(
                                     currencySpec = currencySpec,
                                     grouping = grouping,
                                     colorMode = MoneyColorMode.EXPENSE,
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = if (isMultiCharCurrency) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -547,7 +548,7 @@ fun SixMonthTrendBarChart(
                                     currencySpec = currencySpec,
                                     grouping = grouping,
                                     colorMode = MoneyColorMode.AUTO_SIGN,
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = if (isMultiCharCurrency) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
                                     showPlusSignForPositive = true
                                 )

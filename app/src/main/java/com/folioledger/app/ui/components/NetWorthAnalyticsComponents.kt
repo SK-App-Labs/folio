@@ -183,6 +183,8 @@ fun NetWorthGrowthCanvasChart(
                             color = MaterialTheme.colorScheme.primary
                         )
 
+                        val netWorthMetricStyle = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall
+
                         Row(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             modifier = Modifier.fillMaxWidth()
@@ -198,7 +200,7 @@ fun NetWorthGrowthCanvasChart(
                                     currencySpec = currencySpec,
                                     grouping = grouping,
                                     colorMode = MoneyColorMode.INCOME,
-                                    style = MaterialTheme.typography.titleSmall,
+                                    style = netWorthMetricStyle,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -214,7 +216,7 @@ fun NetWorthGrowthCanvasChart(
                                     currencySpec = currencySpec,
                                     grouping = grouping,
                                     colorMode = MoneyColorMode.EXPENSE,
-                                    style = MaterialTheme.typography.titleSmall,
+                                    style = netWorthMetricStyle,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -230,7 +232,7 @@ fun NetWorthGrowthCanvasChart(
                                     currencySpec = currencySpec,
                                     grouping = grouping,
                                     colorMode = MoneyColorMode.AUTO_SIGN,
-                                    style = MaterialTheme.typography.titleSmall,
+                                    style = netWorthMetricStyle,
                                     fontWeight = FontWeight.Bold
                                 )
                                 if (momDeltaMinor != null && momDeltaPercent != null) {
@@ -853,7 +855,7 @@ fun CreditHealthDashboardCard(
                         currencySpec = currencySpec,
                         grouping = grouping,
                         colorMode = MoneyColorMode.EXPENSE,
-                        style = MaterialTheme.typography.labelLarge,
+                        style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold
                     )
                 }
