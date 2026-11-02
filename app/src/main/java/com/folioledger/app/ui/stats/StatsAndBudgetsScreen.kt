@@ -317,11 +317,9 @@ fun StatsAndBudgetsScreen(
             grouping = uiState.numberGrouping,
             onConfigureBudgetForCategory = {
                 val categoryId = drillDown.categoryStat.categoryId
-                viewModel.dismissCategoryDrillDown()
                 viewModel.openCreateBudgetDialog(categoryId)
             },
             onTransactionClick = { tx ->
-                viewModel.dismissCategoryDrillDown()
                 onInspectTransaction(tx)
             },
             onDismiss = viewModel::dismissCategoryDrillDown
@@ -335,7 +333,6 @@ fun StatsAndBudgetsScreen(
             currencySpec = uiState.currencySpec,
             grouping = uiState.numberGrouping,
             onTransactionClick = { tx ->
-                viewModel.dismissPayeeDrillDown()
                 onInspectTransaction(tx)
             },
             onDismiss = viewModel::dismissPayeeDrillDown
@@ -350,7 +347,6 @@ fun StatsAndBudgetsScreen(
             currencySpec = uiState.currencySpec,
             grouping = uiState.numberGrouping,
             onTransactionClick = { tx ->
-                viewModel.dismissTagDrillDown()
                 onInspectTransaction(tx)
             },
             onDismiss = viewModel::dismissTagDrillDown

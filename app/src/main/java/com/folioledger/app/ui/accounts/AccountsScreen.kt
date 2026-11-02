@@ -59,7 +59,8 @@ fun AccountsScreen(
     onAccountClick: ((AccountSummary) -> Unit)? = null,
     onViewAccountInLedger: ((AccountSummary) -> Unit)? = null,
     onAddTransactionForAccount: (AccountSummary) -> Unit = {},
-    onEditTransaction: (TransactionItem) -> Unit = {}
+    onEditTransaction: (TransactionItem) -> Unit = {},
+    onPassbookDismissed: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -98,19 +99,15 @@ fun AccountsScreen(
             onNextPeriod = { viewModel.stepPassbookMonth(1) },
             onResetToCurrentMonth = viewModel::resetPassbookToCurrentMonth,
             onEditAccountClick = {
-                viewModel.dismissInspectedAccountSheet()
                 viewModel.openEditAccountDialog(passbook.account)
             },
             onAddTransactionClick = {
-                viewModel.dismissInspectedAccountSheet()
                 onAddTransactionForAccount(passbook.account)
             },
             onSettleBillClick = {
-                viewModel.dismissInspectedAccountSheet()
                 viewModel.openSettlementSheet(passbook.account)
             },
             onReconcileClick = {
-                viewModel.dismissInspectedAccountSheet()
                 viewModel.openReconcileDialog(passbook.account)
             },
             onViewInLedgerClick = {
@@ -118,10 +115,12 @@ fun AccountsScreen(
                 onViewAccountInLedger?.invoke(passbook.account)
             },
             onTransactionRowClick = { tx ->
-                viewModel.dismissInspectedAccountSheet()
                 onEditTransaction(tx)
             },
-            onDismiss = viewModel::dismissInspectedAccountSheet
+            onDismiss = {
+                viewModel.dismissInspectedAccountSheet()
+                onPassbookDismissed?.invoke()
+            }
         )
     }
 

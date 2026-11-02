@@ -87,6 +87,7 @@ fun FolioMainShell(
 
     var selectedTab by rememberSaveable { mutableStateOf(FolioMainTab.TRANSACTIONS) }
     var isEntrySheetOpen by rememberSaveable { mutableStateOf(false) }
+    var originTabBeforeAccountInspection by rememberSaveable { mutableStateOf<FolioMainTab?>(null) }
 
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -98,9 +99,14 @@ fun FolioMainShell(
         if (selectedTab == FolioMainTab.ACCOUNTS && accountsUiState.inspectedAccount != null) {
             // First collapse inspected account detail view
             accountsViewModel.selectAccountForInspection(null)
+            originTabBeforeAccountInspection?.let { origin ->
+                selectedTab = origin
+                originTabBeforeAccountInspection = null
+            }
         } else {
             // Return to primary TRANSACTIONS tab
             selectedTab = FolioMainTab.TRANSACTIONS
+            originTabBeforeAccountInspection = null
         }
     }
 
@@ -134,6 +140,7 @@ fun FolioMainShell(
                             onClick = {
                                 val now = System.currentTimeMillis()
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                originTabBeforeAccountInspection = null
                                 if (selectedTab == FolioMainTab.ACCOUNTS && tab == FolioMainTab.ACCOUNTS) {
                                     // Tapping Accounts tab icon again returns to main accounts list
                                     accountsViewModel.selectAccountForInspection(null)
@@ -241,6 +248,7 @@ fun FolioMainShell(
                                     isEntrySheetOpen = true
                                 },
                                 onAccountClick = { account ->
+                                    originTabBeforeAccountInspection = FolioMainTab.STATS
                                     accountsViewModel.selectAccountForInspection(account.id)
                                     selectedTab = FolioMainTab.ACCOUNTS
                                 },
@@ -259,10 +267,12 @@ fun FolioMainShell(
                                 viewModel = accountsViewModel,
                                 contentPadding = screenContentPadding,
                                 onAccountClick = { account ->
+                                    originTabBeforeAccountInspection = null
                                     accountsViewModel.selectAccountForInspection(account.id)
                                 },
                                 onViewAccountInLedger = { account ->
                                     accountsViewModel.selectAccountForInspection(null)
+                                    originTabBeforeAccountInspection = null
                                     ledgerViewModel.setScopedAccount(account.id)
                                     selectedTab = FolioMainTab.TRANSACTIONS
                                 },
@@ -276,6 +286,12 @@ fun FolioMainShell(
                                 onEditTransaction = { transaction ->
                                     entryViewModel.loadTransactionItemForEdit(transaction)
                                     isEntrySheetOpen = true
+                                },
+                                onPassbookDismissed = {
+                                    originTabBeforeAccountInspection?.let { origin ->
+                                        selectedTab = origin
+                                        originTabBeforeAccountInspection = null
+                                    }
                                 }
                             )
                         }
