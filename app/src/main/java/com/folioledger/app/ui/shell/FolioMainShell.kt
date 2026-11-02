@@ -239,6 +239,17 @@ fun FolioMainShell(
                                 onInspectTransaction = { transaction ->
                                     entryViewModel.loadTransactionItemForEdit(transaction)
                                     isEntrySheetOpen = true
+                                },
+                                onAccountClick = { account ->
+                                    accountsViewModel.selectAccountForInspection(account.id)
+                                    selectedTab = FolioMainTab.ACCOUNTS
+                                },
+                                onAddTransactionForAccount = { account ->
+                                    entryViewModel.resetForNewTransaction(
+                                        preselectedAccountId = account.id,
+                                        initialEpochDay = null
+                                    )
+                                    isEntrySheetOpen = true
                                 }
                             )
                         }

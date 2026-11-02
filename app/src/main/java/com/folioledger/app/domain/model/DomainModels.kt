@@ -2,6 +2,7 @@
 package com.folioledger.app.domain.model
 
 import androidx.compose.runtime.Immutable
+import java.time.LocalDate
 
 @Immutable
 data class AccountSummary(
@@ -135,7 +136,35 @@ data class UserPreferences(
     val supporterTier: String? = null,
     val lastBackupEpochMillis: Long? = null,
     val autoBackupEnabled: Boolean = true,
-    val autoBackupRetention: AutoBackupRetention = AutoBackupRetention.THIRTY_DAYS
+    val autoBackupRetention: AutoBackupRetention = AutoBackupRetention.THIRTY_DAYS,
+    val cardMilestonesJson: String = "{}"
+)
+
+@Immutable
+data class CardMilestoneConfig(
+    val accountId: Long,
+    val milestoneTitle: String = "Annual Fee Waiver",
+    val cycleStartDateEpochDay: Long,
+    val targetAmountMinor: Long = 100_000_00L,
+    val annualFeeSavedMinor: Long? = 1_000_00L,
+    val isAutoRenewing: Boolean = true
+)
+
+@Immutable
+data class CardMilestoneInfo(
+    val milestoneTitle: String = "Annual Fee Waiver",
+    val cycleStartDate: LocalDate,
+    val cycleEndDate: LocalDate,
+    val qualifyingSpend: MinorMoney,
+    val targetAmount: MinorMoney,
+    val remainingSpend: MinorMoney,
+    val progressPercentage: Float, // 0..100
+    val daysRemaining: Long,
+    val requiredDailySpend: MinorMoney,
+    val isAheadOfPace: Boolean,
+    val isAchieved: Boolean,
+    val annualFeeSaved: MinorMoney? = null,
+    val isAutoRenewing: Boolean = true
 )
 
 @Immutable

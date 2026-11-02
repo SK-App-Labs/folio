@@ -1,12 +1,12 @@
 // File: app/src/main/java/com/folioledger/app/ui/stats/CreditCardsCockpitSubTabContent.kt
 package com.folioledger.app.ui.stats
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,24 +23,42 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.Payment
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -59,10 +77,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.folioledger.app.domain.model.AccountSummary
+import com.folioledger.app.domain.model.CardMilestoneConfig
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.CurrencySpec
+import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
+import com.folioledger.app.domain.util.CardMilestoneCalculator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.EmptyStateCard
@@ -72,23 +93,35 @@ import com.folioledger.app.ui.components.SixMonthSmoothTrendAreaChart
 import com.folioledger.app.ui.components.parseHexColorSafely
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
 
 private val shortDateFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
+private val fullDateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreditCardsCockpitSubTabContent(
     uiState: StatsAndBudgetsUiState,
     onOpenSettlement: (AccountSummary) -> Unit,
+    onAccountClick: ((AccountSummary) -> Unit)? = null,
+    onAddTransactionForAccount: ((AccountSummary) -> Unit)? = null,
+    onSaveCardMilestone: ((accountId: Long, title: String, startDateEpochDay: Long, targetMinor: Long, feeMinor: Long?, autoRenew: Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val cockpit = uiState.creditCockpitState
     val semanticColors = LocalFolioSemanticColors.current
+
+    var selectedMilestoneCard by remember { mutableStateOf<CreditCardAnalyticsItem?>(null) }
+    var isPaydownSimulatorOpen by remember { mutableStateOf(false) }
+    var isFloatRankingOpen by remember { mutableStateOf(false) }
 
     if (cockpit.activeCards.isEmpty()) {
         Box(
@@ -117,43 +150,37 @@ fun CreditCardsCockpitSubTabContent(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = modifier.fillMaxSize()
     ) {
-        // SECTION 1: HERO UTILIZATION GAUGE & CASH COVERAGE
+        // SECTION 1: HERO UTILIZATION GAUGE & CASH SAFETY HUB
         item(key = "hero_gauge_card") {
             CreditHeroArcGaugeCard(
                 cockpit = cockpit,
                 currencySpec = uiState.currencySpec,
-                grouping = uiState.numberGrouping
+                grouping = uiState.numberGrouping,
+                onOpenPaydownSimulator = { isPaydownSimulatorOpen = true }
             )
         }
 
-        // PRO FEATURE 1: SMART SWIPE ADVISOR BANNER
+        // SECTION 2: SMART SWIPE ADVISOR BANNER (ACTIONABLE)
         cockpit.smartSwipeRecommendation?.let { recommendation ->
             item(key = "smart_swipe_advisor") {
                 SmartSwipeAdvisorBanner(
-                    recommendation = recommendation
+                    recommendation = recommendation,
+                    onUseCard = { onAddTransactionForAccount?.invoke(recommendation.account) },
+                    onOpenFloatRanking = { isFloatRankingOpen = true }
                 )
             }
         }
 
-        // SECTION 2: PAYMENT & CYCLE TIMELINE
-        if (cockpit.timelineItems.isNotEmpty()) {
-            item(key = "payment_timeline_section") {
-                CreditPaymentTimelineSection(
-                    timelineItems = cockpit.timelineItems,
+        // SECTION 3: UNIFIED CARDS PORTFOLIO (ELIMINATES DUPLICATION & NESTED BOXES)
+        if (cockpit.cardAnalyticsItems.isNotEmpty()) {
+            item(key = "unified_cards_portfolio") {
+                UnifiedCardsPortfolioSection(
+                    cards = cockpit.cardAnalyticsItems,
                     currencySpec = uiState.currencySpec,
                     grouping = uiState.numberGrouping,
-                    onOpenSettlement = onOpenSettlement
-                )
-            }
-        }
-
-        // SECTION 3: REFINED CARD HEALTH BREAKDOWN
-        if (cockpit.cardAnalyticsItems.isNotEmpty()) {
-            item(key = "card_health_breakdown_section") {
-                CardHealthBreakdownSection(
-                    items = cockpit.cardAnalyticsItems,
-                    currencySpec = uiState.currencySpec,
-                    grouping = uiState.numberGrouping
+                    onOpenSettlement = onOpenSettlement,
+                    onCardClick = onAccountClick,
+                    onOpenMilestoneEditor = { cardItem -> selectedMilestoneCard = cardItem }
                 )
             }
         }
@@ -179,10 +206,59 @@ fun CreditCardsCockpitSubTabContent(
             }
         }
     }
+
+    // MODAL BOTTOM SHEETS & DIALOGS
+    selectedMilestoneCard?.let { card ->
+        CardMilestoneEditorBottomSheet(
+            card = card,
+            currencySpec = uiState.currencySpec,
+            grouping = uiState.numberGrouping,
+            onDismiss = { selectedMilestoneCard = null },
+            onSave = { title, startDateEpoch, targetMinor, feeMinor, autoRenew ->
+                onSaveCardMilestone?.invoke(
+                    card.account.id,
+                    title,
+                    startDateEpoch,
+                    targetMinor,
+                    feeMinor,
+                    autoRenew
+                )
+                selectedMilestoneCard = null
+            }
+        )
+    }
+
+    if (isPaydownSimulatorOpen) {
+        CreditPaydownSimulatorBottomSheet(
+            cockpit = cockpit,
+            currencySpec = uiState.currencySpec,
+            grouping = uiState.numberGrouping,
+            onDismiss = { isPaydownSimulatorOpen = false },
+            onSettleTargetDebt = {
+                isPaydownSimulatorOpen = false
+                val targetCard = cockpit.cardAnalyticsItems.maxByOrNull { it.utilizationPercent }?.account
+                    ?: cockpit.activeCards.firstOrNull()
+                if (targetCard != null) {
+                    onOpenSettlement(targetCard)
+                }
+            }
+        )
+    }
+
+    if (isFloatRankingOpen) {
+        AllCardsFloatRankingDialog(
+            cards = cockpit.cardAnalyticsItems,
+            onDismiss = { isFloatRankingOpen = false },
+            onSelectCard = { account ->
+                isFloatRankingOpen = false
+                onAddTransactionForAccount?.invoke(account)
+            }
+        )
+    }
 }
 
 // -------------------------------------------------------------------------
-// SECTION 1: HERO GAUGE & CASH COVERAGE
+// SECTION 1: HERO GAUGE & CASH SAFETY HUB
 // -------------------------------------------------------------------------
 
 @Composable
@@ -190,6 +266,7 @@ private fun CreditHeroArcGaugeCard(
     cockpit: CreditCardCockpitUiState,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
+    onOpenPaydownSimulator: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
@@ -297,7 +374,7 @@ private fun CreditHeroArcGaugeCard(
                                     style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
                                 )
 
-                                // Active Arc (Reads animProgressState.value directly during draw phase)
+                                // Active Arc
                                 val sweep = animProgressState.value * 180f
                                 if (sweep > 0f) {
                                     drawArc(
@@ -324,10 +401,14 @@ private fun CreditHeroArcGaugeCard(
                         }
                 )
 
-                // Center Content
+                // Center Content (Interactive to open Paydown Simulator)
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(top = 28.dp)
+                    modifier = Modifier
+                        .padding(top = 28.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(onClick = onOpenPaydownSimulator)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = "${String.format(Locale.US, "%.1f", cockpit.aggregateUtilizationPercent)}%",
@@ -342,27 +423,35 @@ private fun CreditHeroArcGaugeCard(
                             CreditUtilizationStatus.MODERATE -> semanticColors.warningAmberContainer
                             CreditUtilizationStatus.SAFE -> semanticColors.incomeEmeraldContainer
                         },
-                        border = BorderStroke(
-                            1.dp,
-                            progressColor.copy(alpha = 0.3f)
-                        ),
+                        border = BorderStroke(1.dp, progressColor.copy(alpha = 0.3f)),
                         modifier = Modifier.padding(top = 4.dp)
                     ) {
-                        Text(
-                            text = when (cockpit.aggregateStatus) {
-                                CreditUtilizationStatus.WARNING -> "● High Risk (>50%)"
-                                CreditUtilizationStatus.MODERATE -> "● Warning (30-50%)"
-                                CreditUtilizationStatus.SAFE -> "● Safe Tier (<30%)"
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = when (cockpit.aggregateStatus) {
-                                CreditUtilizationStatus.WARNING -> semanticColors.onExpenseCoralContainer
-                                CreditUtilizationStatus.MODERATE -> semanticColors.onWarningAmberContainer
-                                CreditUtilizationStatus.SAFE -> semanticColors.onIncomeEmeraldContainer
-                            },
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                        )
+                        ) {
+                            Text(
+                                text = when (cockpit.aggregateStatus) {
+                                    CreditUtilizationStatus.WARNING -> "● High Risk (>50%)"
+                                    CreditUtilizationStatus.MODERATE -> "● Warning (30-50%)"
+                                    CreditUtilizationStatus.SAFE -> "● Safe Tier (<30%)"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = when (cockpit.aggregateStatus) {
+                                    CreditUtilizationStatus.WARNING -> semanticColors.onExpenseCoralContainer
+                                    CreditUtilizationStatus.MODERATE -> semanticColors.onWarningAmberContainer
+                                    CreditUtilizationStatus.SAFE -> semanticColors.onIncomeEmeraldContainer
+                                }
+                            )
+                            Icon(
+                                imageVector = Icons.Filled.Info,
+                                contentDescription = "Safe Tier Simulator",
+                                tint = progressColor,
+                                modifier = Modifier.size(11.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -445,7 +534,7 @@ private fun CreditHeroArcGaugeCard(
                 }
             }
 
-            // PRO FEATURE 2: LIQUID CASH COVERAGE BANNER
+            // LIQUID CASH COVERAGE BANNER
             val coverage = cockpit.liquidCoverage
             Surface(
                 shape = RoundedCornerShape(12.dp),
@@ -555,21 +644,24 @@ private fun CreditHeroArcGaugeCard(
 }
 
 // -------------------------------------------------------------------------
-// PRO FEATURE 1: SMART SWIPE ADVISOR BANNER
+// SECTION 2: SMART SWIPE ADVISOR BANNER (ACTIONABLE)
 // -------------------------------------------------------------------------
 
 @Composable
 private fun SmartSwipeAdvisorBanner(
     recommendation: SmartSwipeRecommendation,
+    onUseCard: () -> Unit,
+    onOpenFloatRanking: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val cardColor = parseHexColorSafely(recommendation.account.colorHex)
-
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onOpenFloatRanking)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -595,7 +687,7 @@ private fun SmartSwipeAdvisorBanner(
 
             // Details
             Column(
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
                 modifier = Modifier.weight(1f)
             ) {
                 Row(
@@ -630,23 +722,45 @@ private fun SmartSwipeAdvisorBanner(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+
+            // 1-Tap Action: Use This Card to record expense
+            Button(
+                onClick = onUseCard,
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                modifier = Modifier.height(34.dp)
+            ) {
+                Text(
+                    text = "+ Spend",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }
 
 // -------------------------------------------------------------------------
-// SECTION 2: PAYMENT & CYCLE TIMELINE
+// SECTION 3: UNIFIED CARDS PORTFOLIO SECTION
 // -------------------------------------------------------------------------
 
 @Composable
-private fun CreditPaymentTimelineSection(
-    timelineItems: List<CreditCardTimelineItem>,
+private fun UnifiedCardsPortfolioSection(
+    cards: List<CreditCardAnalyticsItem>,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onOpenSettlement: (AccountSummary) -> Unit,
+    onCardClick: ((AccountSummary) -> Unit)?,
+    onOpenMilestoneEditor: (CreditCardAnalyticsItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val semanticColors = LocalFolioSemanticColors.current
+    val sortedCards = remember(cards) {
+        cards.sortedWith(
+            compareBy<CreditCardAnalyticsItem> { !it.isBilled }
+                .thenBy { it.daysRemaining }
+                .thenByDescending { it.utilizationPercent }
+        )
+    }
 
     Column(
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -658,217 +772,126 @@ private fun CreditPaymentTimelineSection(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = "Payment & Cycle Timeline",
+                text = "My Cards Portfolio (${cards.size})",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "${timelineItems.size} Cards",
+                text = "Tap card for passbook",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.outline
             )
         }
 
-        val allBilledSettled = timelineItems.none { it.isBilled && it.amountDue.isPositive }
-        if (allBilledSettled) {
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = semanticColors.incomeEmeraldContainer.copy(alpha = 0.5f),
-                border = BorderStroke(1.dp, semanticColors.incomeEmerald.copy(alpha = 0.35f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(
-                            text = "🎉",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                            Text(
-                                text = "All Statements Settled!",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = semanticColors.incomeEmerald
-                            )
-                            Text(
-                                text = "Zero card bills due right now. Enjoy your grace float.",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        modifier = Modifier.padding(start = 6.dp)
-                    ) {
-                        Text(
-                            text = "CLEAR",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Black,
-                            color = semanticColors.incomeEmerald,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                        )
-                    }
-                }
-            }
-        }
-
-        Card(
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            ),
-            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(12.dp)
-            ) {
-                timelineItems.forEach { item ->
-                    TimelineItemRow(
-                        item = item,
-                        currencySpec = currencySpec,
-                        grouping = grouping,
-                        onOpenSettlement = onOpenSettlement
-                    )
-                }
-            }
+        sortedCards.forEach { cardItem ->
+            CardPortfolioItemCard(
+                card = cardItem,
+                currencySpec = currencySpec,
+                grouping = grouping,
+                onOpenSettlement = { onOpenSettlement(cardItem.account) },
+                onCardClick = { onCardClick?.invoke(cardItem.account) },
+                onOpenMilestoneEditor = { onOpenMilestoneEditor(cardItem) }
+            )
         }
     }
 }
 
 @Composable
-private fun TimelineItemRow(
-    item: CreditCardTimelineItem,
+private fun CardPortfolioItemCard(
+    card: CreditCardAnalyticsItem,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    onOpenSettlement: (AccountSummary) -> Unit
+    onOpenSettlement: () -> Unit,
+    onCardClick: () -> Unit,
+    onOpenMilestoneEditor: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
-    val cardColor = remember(item.account.colorHex) { parseHexColorSafely(item.account.colorHex) }
-    val cardSpec = remember(item.account.currencyCode) {
-        SupportedCurrencies.getByCode(item.account.currencyCode)
-            ?: SupportedCurrencies.fromCode(item.account.currencyCode)
+    val cardSpec = remember(card.account.currencyCode) {
+        SupportedCurrencies.getByCode(card.account.currencyCode)
+            ?: SupportedCurrencies.fromCode(card.account.currencyCode)
+    }
+    val progressColor = when (card.status) {
+        CreditUtilizationStatus.WARNING -> semanticColors.expenseCoral
+        CreditUtilizationStatus.MODERATE -> semanticColors.warningAmber
+        CreditUtilizationStatus.SAFE -> semanticColors.incomeEmerald
     }
 
-    val borderLeftColor = when {
-        item.isOverdue || item.isUrgent -> semanticColors.expenseCoral
-        item.isBilled -> semanticColors.warningAmber
-        else -> MaterialTheme.colorScheme.primary
-    }
-
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .clickable(onClick = onCardClick)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .background(
-                    if (item.isUrgent || item.isOverdue) {
-                        Brush.horizontalGradient(
-                            listOf(semanticColors.expenseCoral.copy(alpha = 0.08f), Color.Transparent)
-                        )
-                    } else {
-                        Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
-                    }
-                )
-                .padding(12.dp)
+        Column(
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(14.dp)
         ) {
-            // Left color indicator bar
-            Box(
-                modifier = Modifier
-                    .width(4.dp)
-                    .height(38.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(borderLeftColor)
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-
-            // Card details
-            Column(
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-                modifier = Modifier.weight(1f)
+            // Top Row: Logo + Name + Status + Pay Button or Float Tag
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(cardColor)
+                    CategoryIconBadge(
+                        iconName = card.account.iconName,
+                        colorHex = card.account.colorHex,
+                        size = 36.dp,
+                        iconSize = 18.dp
                     )
-                    Text(
-                        text = item.account.name,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                        Text(
+                            text = card.account.name,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = when {
+                                card.isBilled && card.isOverdue -> "🚨 Overdue (${card.targetDate.format(shortDateFormatter)})"
+                                card.isBilled && card.isUrgent -> "🚨 Due in ${card.daysRemaining}d (${card.targetDate.format(shortDateFormatter)})"
+                                card.isBilled -> "Due in ${card.daysRemaining}d (${card.targetDate.format(shortDateFormatter)})"
+                                !card.currentDebt.isPositive -> "● Zero Balance Due"
+                                else -> "Bill closes in ${card.daysRemaining}d (${card.targetDate.format(shortDateFormatter)})"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (card.isUrgent || card.isOverdue) FontWeight.Bold else FontWeight.Medium,
+                            color = when {
+                                card.isBilled && (card.isOverdue || card.isUrgent) -> semanticColors.expenseCoral
+                                card.isBilled -> semanticColors.warningAmber
+                                !card.currentDebt.isPositive -> semanticColors.incomeEmerald
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                    }
                 }
 
-                Text(
-                    text = when {
-                        item.isOverdue -> "🚨 Overdue by ${Math.abs(item.daysRemaining)} days (${item.targetDate.format(shortDateFormatter)})"
-                        item.isUrgent -> "🚨 Due in ${item.daysRemaining} days (${item.targetDate.format(shortDateFormatter)})"
-                        item.isBilled -> "Due in ${item.daysRemaining} days (${item.targetDate.format(shortDateFormatter)})"
-                        else -> "Bill generates in ${item.daysRemaining} days (${item.targetDate.format(shortDateFormatter)})"
-                    },
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = if (item.isUrgent || item.isOverdue) FontWeight.Bold else FontWeight.Medium,
-                    color = when {
-                        item.isOverdue || item.isUrgent -> semanticColors.expenseCoral
-                        item.isBilled -> semanticColors.warningAmber
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                    }
-                )
-            }
-
-            // Right: Amount and Pay button (or Float badge)
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                MoneyText(
-                    money = item.amountDue,
-                    currencySpec = cardSpec,
-                    grouping = grouping,
-                    colorMode = if (item.isBilled) MoneyColorMode.EXPENSE else MoneyColorMode.NEUTRAL,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-
-                if (item.isBilled) {
+                // Action Area: Pay Button if Billed, otherwise Float or Clear Pill
+                if (card.isBilled && card.billedAmount.isPositive) {
                     Button(
-                        onClick = { onOpenSettlement(item.account) },
+                        onClick = onOpenSettlement,
                         shape = RoundedCornerShape(8.dp),
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (item.isUrgent || item.isOverdue) {
+                            containerColor = if (card.isUrgent || card.isOverdue) {
                                 semanticColors.expenseCoral
                             } else {
                                 semanticColors.warningAmber
                             }
                         ),
-                        modifier = Modifier.height(26.dp)
+                        modifier = Modifier.height(28.dp)
                     ) {
                         Text(
                             text = "Pay Now",
@@ -877,223 +900,157 @@ private fun TimelineItemRow(
                             color = Color.White
                         )
                     }
+                } else if (card.currentDebt.isPositive) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh
+                    ) {
+                        Text(
+                            text = "✨ ${card.floatDaysRemaining}d Float",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                        )
+                    }
                 } else {
                     Surface(
                         shape = RoundedCornerShape(6.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerHigh
                     ) {
                         Text(
-                            text = "✨ ${item.floatDays}d Float",
+                            text = "Clear",
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            color = semanticColors.incomeEmerald,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                         )
                     }
-                }
-            }
-        }
-    }
-}
-
-// -------------------------------------------------------------------------
-// SECTION 3: REFINED CARD HEALTH BREAKDOWN
-// -------------------------------------------------------------------------
-
-@Composable
-private fun CardHealthBreakdownSection(
-    items: List<CreditCardAnalyticsItem>,
-    currencySpec: CurrencySpec,
-    grouping: NumberGroupingSystem,
-    modifier: Modifier = Modifier
-) {
-    val semanticColors = LocalFolioSemanticColors.current
-
-    Column(
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Text(
-            text = "Card Health & Utilization (${items.size})",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-
-        Card(
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            ),
-            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.padding(14.dp)
-            ) {
-                items.forEach { cardItem ->
-                    CardAnalyticsItemRow(
-                        item = cardItem,
-                        currencySpec = currencySpec,
-                        grouping = grouping
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CardAnalyticsItemRow(
-    item: CreditCardAnalyticsItem,
-    currencySpec: CurrencySpec,
-    grouping: NumberGroupingSystem
-) {
-    val semanticColors = LocalFolioSemanticColors.current
-    val cardSpec = remember(item.account.currencyCode) {
-        SupportedCurrencies.getByCode(item.account.currencyCode)
-            ?: SupportedCurrencies.fromCode(item.account.currencyCode)
-    }
-    val progressColor = when (item.status) {
-        CreditUtilizationStatus.WARNING -> semanticColors.expenseCoral
-        CreditUtilizationStatus.MODERATE -> semanticColors.warningAmber
-        CreditUtilizationStatus.SAFE -> semanticColors.incomeEmerald
-    }
-
-    Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(12.dp)
-        ) {
-            // Header Row
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    CategoryIconBadge(
-                        iconName = item.account.iconName,
-                        colorHex = item.account.colorHex,
-                        size = 34.dp,
-                        iconSize = 18.dp
-                    )
-                    Column {
-                        Text(
-                            text = item.account.name,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Limit: ",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            MoneyText(
-                                money = item.creditLimit,
-                                currencySpec = cardSpec,
-                                grouping = grouping,
-                                colorMode = MoneyColorMode.NEUTRAL,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    }
-                }
-
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "${String.format(Locale.US, "%.1f", item.utilizationPercent)}%",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = progressColor
-                    )
-                    Text(
-                        text = when (item.status) {
-                            CreditUtilizationStatus.WARNING -> "Warning (>50%)"
-                            CreditUtilizationStatus.MODERATE -> "Moderate (30-50%)"
-                            CreditUtilizationStatus.SAFE -> "Safe (<30%)"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        fontSize = 10.sp,
-                        color = progressColor
-                    )
                 }
             }
 
             // Utilization Progress Bar
-            LinearProgressIndicator(
-                progress = { (item.utilizationPercent / 100f).coerceIn(0f, 1f) },
-                color = progressColor,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                strokeCap = StrokeCap.Round,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp)
-                    .clip(CircleShape)
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                LinearProgressIndicator(
+                    progress = { (card.utilizationPercent / 100f).coerceIn(0f, 1f) },
+                    color = progressColor,
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    strokeCap = StrokeCap.Round,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(CircleShape)
+                )
 
-            // PRO FEATURE 3: Fee Waiver Tracker & Top Spend Category Footer
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Used: ",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        MoneyText(
+                            money = card.currentDebt,
+                            currencySpec = cardSpec,
+                            grouping = grouping,
+                            colorMode = MoneyColorMode.EXPENSE,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = " / ",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        MoneyText(
+                            money = card.creditLimit,
+                            currencySpec = cardSpec,
+                            grouping = grouping,
+                            colorMode = MoneyColorMode.NEUTRAL,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+
+                    Text(
+                        text = "${String.format(Locale.US, "%.1f", card.utilizationPercent)}%",
+                        style = tabularMoneyStyle(MaterialTheme.typography.titleSmall),
+                        fontWeight = FontWeight.Bold,
+                        color = progressColor
+                    )
+                }
+            }
+
+            // Interactive Ribbon Footer: Fee Waiver Chip + Top Category
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
-                        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
-                        RoundedCornerShape(8.dp)
+                        MaterialTheme.colorScheme.surfaceContainer,
+                        RoundedCornerShape(10.dp)
                     )
                     .padding(horizontal = 10.dp, vertical = 6.dp)
             ) {
-                // Annual / YTD Spend
-                Column {
-                    Text(
-                        text = "ANNUAL / YTD SPEND",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                    MoneyText(
-                        money = item.ytdSpend,
-                        currencySpec = cardSpec,
-                        grouping = grouping,
-                        colorMode = MoneyColorMode.NEUTRAL,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
+                // Interactive Fee Waiver Chip
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (card.milestoneInfo?.isAchieved == true) {
+                        semanticColors.incomeEmeraldContainer.copy(alpha = 0.6f)
+                    } else {
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                    },
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onOpenMilestoneEditor)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = when {
+                                card.milestoneInfo == null -> "🎯 Set Fee Waiver Target ✏️"
+                                card.milestoneInfo.isAchieved -> "🎉 Waiver Done! (100%)"
+                                else -> {
+                                    val remFormatted = MoneyFormatterAndCalculator.formatCompactMinorMoney(
+                                        card.milestoneInfo.remainingSpend,
+                                        cardSpec,
+                                        grouping
+                                    )
+                                    "🎯 Waiver: ${String.format(Locale.US, "%.0f", card.milestoneInfo.progressPercentage)}% ($remFormatted left) ✏️"
+                                }
+                            },
+                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                            fontWeight = FontWeight.Bold,
+                            color = if (card.milestoneInfo?.isAchieved == true) {
+                                semanticColors.onIncomeEmeraldContainer
+                            } else {
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            }
+                        )
+                    }
                 }
 
                 // Top Category
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "TOP CATEGORY",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                    Text(
-                        text = if (item.topCategoryName != null) {
-                            "${item.topCategoryName} · ${String.format(Locale.US, "%.0f", item.topCategoryPercent)}%"
-                        } else {
-                            "None Yet"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
+                Text(
+                    text = if (card.topCategoryName != null) {
+                        "Top: ${card.topCategoryName} (${String.format(Locale.US, "%.0f", card.topCategoryPercent)}%)"
+                    } else {
+                        "Top: None Yet"
+                    },
+                    style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
@@ -1318,4 +1275,650 @@ private fun CreditSpendTrendCard(
             )
         }
     }
+}
+
+// -------------------------------------------------------------------------
+// MODAL BOTTOM SHEET: CARD MILESTONE & ANNUAL FEE WAIVER EDITOR
+// -------------------------------------------------------------------------
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CardMilestoneEditorBottomSheet(
+    card: CreditCardAnalyticsItem,
+    currencySpec: CurrencySpec,
+    grouping: NumberGroupingSystem,
+    onDismiss: () -> Unit,
+    onSave: (title: String, startDateEpoch: Long, targetMinor: Long, feeMinor: Long?, autoRenew: Boolean) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val semanticColors = LocalFolioSemanticColors.current
+    val cardSpec = remember(card.account.currencyCode) {
+        SupportedCurrencies.getByCode(card.account.currencyCode)
+            ?: SupportedCurrencies.fromCode(card.account.currencyCode)
+    }
+
+    var milestoneTitle by remember {
+        mutableStateOf(card.milestoneInfo?.milestoneTitle ?: "Annual Fee Waiver")
+    }
+    var startDateEpochDay by remember {
+        mutableLongStateOf(card.milestoneInfo?.cycleStartDate?.toEpochDay() ?: LocalDate.now().toEpochDay())
+    }
+    var targetAmountInput by remember {
+        val currentTarget = card.milestoneInfo?.targetAmount?.amountMinor ?: 100_000_00L
+        mutableStateOf((currentTarget / 100L).toString())
+    }
+    var feeSavedInput by remember {
+        val currentFee = card.milestoneInfo?.annualFeeSaved?.amountMinor ?: 1_000_00L
+        mutableStateOf((currentFee / 100L).toString())
+    }
+    var isAutoRenewing by remember {
+        mutableStateOf(card.milestoneInfo?.isAutoRenewing ?: true)
+    }
+    var showDatePickerDialog by remember { mutableStateOf(false) }
+
+    val parsedTargetMinor = (targetAmountInput.toDoubleOrNull() ?: 0.0) * 100.0
+    val parsedFeeMinor = feeSavedInput.toDoubleOrNull()?.let { (it * 100.0).toLong() }
+
+    // Live preview evaluation
+    val liveConfig = remember(milestoneTitle, startDateEpochDay, parsedTargetMinor, parsedFeeMinor, isAutoRenewing) {
+        CardMilestoneConfig(
+            accountId = card.account.id,
+            milestoneTitle = milestoneTitle.ifBlank { "Annual Fee Waiver" },
+            cycleStartDateEpochDay = startDateEpochDay,
+            targetAmountMinor = parsedTargetMinor.toLong(),
+            annualFeeSavedMinor = parsedFeeMinor,
+            isAutoRenewing = isAutoRenewing
+        )
+    }
+    val livePreviewInfo = remember(liveConfig, card.ytdSpend) {
+        CardMilestoneCalculator.evaluateMilestone(
+            config = liveConfig,
+            qualifyingSpendMinor = card.ytdSpend.amountMinor,
+            referenceDate = LocalDate.now()
+        )
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            // Header
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    CategoryIconBadge(
+                        iconName = card.account.iconName,
+                        colorHex = card.account.colorHex,
+                        size = 36.dp,
+                        iconSize = 18.dp
+                    )
+                    Column {
+                        Text(
+                            text = "${card.account.name} Milestone",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Track fee waivers and spend bonuses",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(imageVector = Icons.Filled.Close, contentDescription = "Close")
+                }
+            }
+
+            // Milestone Title
+            OutlinedTextField(
+                value = milestoneTitle,
+                onValueChange = { milestoneTitle = it },
+                label = { Text("Milestone Title") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // START DATE / ANNIVERSARY DATE PICKER
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { showDatePickerDialog = true }
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.padding(14.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = "CYCLE / ANNIVERSARY START DATE",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = LocalDate.ofEpochDay(startDateEpochDay).format(fullDateFormatter),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Filled.CalendarToday,
+                        contentDescription = "Pick Date",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            // Target Spend & Annual Fee Inputs
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = targetAmountInput,
+                    onValueChange = { targetAmountInput = it.filter { char -> char.isDigit() } },
+                    label = { Text("Target Spend (${cardSpec.symbol})") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedTextField(
+                    value = feeSavedInput,
+                    onValueChange = { feeSavedInput = it.filter { char -> char.isDigit() } },
+                    label = { Text("Fee Saved (${cardSpec.symbol})") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            // Auto-Renewal Switch (Card Anniversary)
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Auto-renew each anniversary year",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Automatically advances by 1 year each card anniversary.",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = isAutoRenewing,
+                        onCheckedChange = { isAutoRenewing = it }
+                    )
+                }
+            }
+
+            // Live Calculated Insights Box
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.padding(12.dp)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Active Window:", style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            "${livePreviewInfo.cycleStartDate.format(shortDateFormatter)} – ${livePreviewInfo.cycleEndDate.format(fullDateFormatter)}",
+                            style = tabularMoneyStyle(MaterialTheme.typography.bodySmall),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Current Spend:", style = MaterialTheme.typography.bodySmall)
+                        MoneyText(
+                            money = livePreviewInfo.qualifyingSpend,
+                            currencySpec = cardSpec,
+                            grouping = grouping,
+                            colorMode = MoneyColorMode.INCOME,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Remaining to Waive:", style = MaterialTheme.typography.bodySmall)
+                        MoneyText(
+                            money = livePreviewInfo.remainingSpend,
+                            currencySpec = cardSpec,
+                            grouping = grouping,
+                            colorMode = MoneyColorMode.EXPENSE,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Days Remaining:", style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            "${livePreviewInfo.daysRemaining} Days",
+                            style = tabularMoneyStyle(MaterialTheme.typography.bodySmall),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Required Daily Pace:", style = MaterialTheme.typography.bodySmall)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            MoneyText(
+                                money = livePreviewInfo.requiredDailySpend,
+                                currencySpec = cardSpec,
+                                grouping = grouping,
+                                colorMode = MoneyColorMode.NEUTRAL,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = " / day",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Save Button
+            Button(
+                onClick = {
+                    onSave(
+                        milestoneTitle.ifBlank { "Annual Fee Waiver" },
+                        startDateEpochDay,
+                        parsedTargetMinor.toLong(),
+                        parsedFeeMinor,
+                        isAutoRenewing
+                    )
+                },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                Text(
+                    text = "Save Milestone Target",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+
+    if (showDatePickerDialog) {
+        val initialMillis = remember(startDateEpochDay) {
+            LocalDate.ofEpochDay(startDateEpochDay)
+                .atStartOfDay(ZoneId.of("UTC"))
+                .toInstant()
+                .toEpochMilli()
+        }
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+        DatePickerDialog(
+            onDismissRequest = { showDatePickerDialog = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val picked = datePickerState.selectedDateMillis
+                        if (picked != null) {
+                            val epochDay = Instant.ofEpochMilli(picked)
+                                .atZone(ZoneId.of("UTC"))
+                                .toLocalDate()
+                                .toEpochDay()
+                            startDateEpochDay = epochDay
+                        }
+                        showDatePickerDialog = false
+                    }
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePickerDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+}
+
+// -------------------------------------------------------------------------
+// MODAL BOTTOM SHEET: CREDIT BUREAU SAFE TIER PAYDOWN SIMULATOR
+// -------------------------------------------------------------------------
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CreditPaydownSimulatorBottomSheet(
+    cockpit: CreditCardCockpitUiState,
+    currencySpec: CurrencySpec,
+    grouping: NumberGroupingSystem,
+    onDismiss: () -> Unit,
+    onSettleTargetDebt: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val semanticColors = LocalFolioSemanticColors.current
+
+    val totalLimitMinor = cockpit.totalCreditLimit.amountMinor
+    val totalDebtMinor = cockpit.totalCcDebt.amountMinor
+    val safe30Minor = (totalLimitMinor * 0.30).toLong()
+    val neededPaydownMinor = (totalDebtMinor - safe30Minor).coerceAtLeast(0L)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Shield,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text(
+                        text = "Bureau Safe Tier Simulator",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(imageVector = Icons.Filled.Close, contentDescription = "Close")
+                }
+            }
+
+            Text(
+                text = "Credit bureaus (CIBIL / Experian) reward keeping overall credit card utilization below 30%. Single card spikes (>30%) can also temporarily lower scores.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(14.dp)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Current Aggregate Debt:", style = MaterialTheme.typography.bodyMedium)
+                        MoneyText(
+                            money = cockpit.totalCcDebt,
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            colorMode = MoneyColorMode.EXPENSE,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Safe Tier Ceiling (30%):", style = MaterialTheme.typography.bodyMedium)
+                        MoneyText(
+                            money = MinorMoney(safe30Minor),
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            colorMode = MoneyColorMode.NEUTRAL,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    HorizontalDivider(color = semanticColors.cardStrokeSubtle)
+
+                    if (neededPaydownMinor > 0L) {
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Paydown Needed for <30%:",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = semanticColors.warningAmber
+                            )
+                            MoneyText(
+                                money = MinorMoney(neededPaydownMinor),
+                                currencySpec = currencySpec,
+                                grouping = grouping,
+                                colorMode = MoneyColorMode.EXPENSE,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+                    } else {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Shield,
+                                contentDescription = null,
+                                tint = semanticColors.incomeEmerald,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "Your overall debt is already in the Safe Tier (<30%)!",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = semanticColors.incomeEmerald
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (neededPaydownMinor > 0L) {
+                Button(
+                    onClick = onSettleTargetDebt,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                ) {
+                    Text(
+                        text = "Pay Down Debt Now",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            } else {
+                FilledTonalButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                ) {
+                    Text("Done")
+                }
+            }
+        }
+    }
+}
+
+// -------------------------------------------------------------------------
+// DIALOG: ALL CARDS FLOAT RANKING DRAWER
+// -------------------------------------------------------------------------
+
+@Composable
+private fun AllCardsFloatRankingDialog(
+    cards: List<CreditCardAnalyticsItem>,
+    onDismiss: () -> Unit,
+    onSelectCard: (AccountSummary) -> Unit
+) {
+    val sortedByFloat = remember(cards) {
+        cards.sortedByDescending { it.floatDaysRemaining }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Smart Float Rankings",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Cards ranked by interest-free grace float if swiped today:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                sortedByFloat.forEachIndexed { index, item ->
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (index == 0) {
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainer
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onSelectCard(item.account) }
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.padding(12.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                CategoryIconBadge(
+                                    iconName = item.account.iconName,
+                                    colorHex = item.account.colorHex,
+                                    size = 28.dp,
+                                    iconSize = 14.dp
+                                )
+                                Column {
+                                    Text(
+                                        text = item.account.name,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = if (index == 0) "Top recommendation" else "Due ${item.targetDate.format(shortDateFormatter)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = if (index == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh
+                            ) {
+                                Text(
+                                    text = "✨ ${item.floatDaysRemaining}d",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (index == 0) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
 }

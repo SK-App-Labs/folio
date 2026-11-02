@@ -9,6 +9,8 @@ import com.folioledger.app.R
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.BudgetProgress
+import com.folioledger.app.domain.model.CardMilestoneConfig
+import com.folioledger.app.domain.model.CardMilestoneInfo
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategorySpendStat
 import com.folioledger.app.domain.model.CategoryType
@@ -31,6 +33,7 @@ import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
+import com.folioledger.app.domain.util.CardMilestoneCalculator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.accounts.CreditCardCycleCalculator
 import com.folioledger.app.ui.accounts.CreditCardCycleWindow
@@ -238,7 +241,13 @@ data class CreditCardAnalyticsItem(
     val ytdSpend: MinorMoney,
     val topCategoryName: String?,
     val topCategoryPercent: Float,
-    val floatDaysRemaining: Long
+    val floatDaysRemaining: Long,
+    val isBilled: Boolean = false,
+    val daysRemaining: Long = 0L,
+    val targetDate: LocalDate = LocalDate.now(),
+    val isUrgent: Boolean = false,
+    val isOverdue: Boolean = false,
+    val milestoneInfo: CardMilestoneInfo? = null
 )
 
 @Immutable
@@ -603,7 +612,7 @@ class StatsAndBudgetsViewModel(
     private val analyticsAndBudgetRepository: AnalyticsAndBudgetRepository,
     categoryAndTagRepository: CategoryAndTagRepository,
     transactionRepository: TransactionRepository,
-    settingsAndBackupRepository: SettingsAndBackupRepository,
+    private val settingsAndBackupRepository: SettingsAndBackupRepository,
     private val accountRepository: AccountRepository
 ) : ViewModel() {
 
@@ -942,7 +951,8 @@ class StatsAndBudgetsViewModel(
             allTxs = allTxs,
             periodTransactions = bundle.periodTransactions,
             trendBars = bundle.trendBars,
-            referenceDateEpochDay = ctrl.referenceDateEpochDay
+            referenceDateEpochDay = ctrl.referenceDateEpochDay,
+            milestonesJson = prefs.cardMilestonesJson
         )
 
         val todayEpochDay = LocalDate.now().toEpochDay()
@@ -1637,7 +1647,8 @@ class StatsAndBudgetsViewModel(
         allTxs: List<TransactionItem>,
         periodTransactions: List<TransactionItem>,
         trendBars: List<MonthlyTrendBar>,
-        referenceDateEpochDay: Long
+        referenceDateEpochDay: Long,
+        milestonesJson: String? = null
     ): CreditCardCockpitUiState {
         val today = LocalDate.ofEpochDay(referenceDateEpochDay)
         val creditCards = allAccounts.filter { !it.isArchived && it.groupType == AccountGroup.CREDIT_CARD }
@@ -1706,6 +1717,7 @@ class StatsAndBudgetsViewModel(
         var bestSmartSwipe: SmartSwipeRecommendation? = null
         var maxFloatDays = -1L
         var singleCardExceeding30: CreditCardAnalyticsItem? = null
+        val milestoneMap = CardMilestoneCalculator.parseMilestones(milestonesJson)
 
         for (card in creditCards) {
             val stmtDay = (card.settlementDayOfMonth ?: 1).coerceIn(1, 31)
@@ -1777,6 +1789,30 @@ class StatsAndBudgetsViewModel(
                 )
             }
 
+            // Milestone calculation (supports recurring 1-year auto-renewal)
+            val milestoneConfig = milestoneMap[card.id]
+            val milestoneInfo = if (milestoneConfig != null) {
+                val (cycleStart, _) = CardMilestoneCalculator.computeCurrentAnniversaryWindow(
+                    startDateEpochDay = milestoneConfig.cycleStartDateEpochDay,
+                    referenceDateEpochDay = today.toEpochDay(),
+                    isAutoRenewing = milestoneConfig.isAutoRenewing
+                )
+                val cycleStartEpoch = cycleStart.toEpochDay()
+                val todayEpoch = today.toEpochDay()
+
+                var qualifyingMinor = 0L
+                for (tx in allTxs) {
+                    if (tx.accountId == card.id && tx.type == TransactionType.EXPENSE && tx.ledgerDateEpochDay in cycleStartEpoch..todayEpoch) {
+                        qualifyingMinor += Math.abs(tx.amount.amountMinor)
+                    }
+                }
+                CardMilestoneCalculator.evaluateMilestone(
+                    config = milestoneConfig,
+                    qualifyingSpendMinor = qualifyingMinor,
+                    referenceDate = today
+                )
+            } else null
+
             // Card YTD Spend & Top Category
             var ytdMinor = 0L
             val catSpendMap = mutableMapOf<String, Long>()
@@ -1797,6 +1833,12 @@ class StatsAndBudgetsViewModel(
                 0f
             }
 
+            val isBilled = cardPayable.isPositive
+            val targetDueDateOrCut = if (isBilled) cycle.lastStatementDueDate else cycle.activeCycleEnd
+            val daysRem = ChronoUnit.DAYS.between(today, targetDueDateOrCut)
+            val isOverdue = isBilled && daysRem < 0
+            val isUrgent = isBilled && daysRem in 0..3
+
             val analyticsItem = CreditCardAnalyticsItem(
                 account = card,
                 currentDebt = cardDebt,
@@ -1809,7 +1851,13 @@ class StatsAndBudgetsViewModel(
                 ytdSpend = ytdSpend,
                 topCategoryName = topCategoryName,
                 topCategoryPercent = topCategoryPercent,
-                floatDaysRemaining = floatDays
+                floatDaysRemaining = floatDays,
+                isBilled = isBilled,
+                daysRemaining = daysRem,
+                targetDate = targetDueDateOrCut,
+                isUrgent = isUrgent,
+                isOverdue = isOverdue,
+                milestoneInfo = milestoneInfo
             )
             cardAnalyticsItems.add(analyticsItem)
 
@@ -2031,6 +2079,32 @@ class StatsAndBudgetsViewModel(
                     }
                 }
             )
+        }
+    }
+
+    fun saveCardMilestoneConfig(
+        accountId: Long,
+        milestoneTitle: String,
+        cycleStartDateEpochDay: Long,
+        targetAmountMinor: Long,
+        annualFeeSavedMinor: Long?,
+        isAutoRenewing: Boolean
+    ) {
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                val updatedJson = CardMilestoneCalculator.upsertMilestone(
+                    currentJson = current.cardMilestonesJson,
+                    config = CardMilestoneConfig(
+                        accountId = accountId,
+                        milestoneTitle = milestoneTitle.ifBlank { "Annual Fee Waiver" },
+                        cycleStartDateEpochDay = cycleStartDateEpochDay,
+                        targetAmountMinor = targetAmountMinor,
+                        annualFeeSavedMinor = annualFeeSavedMinor,
+                        isAutoRenewing = isAutoRenewing
+                    )
+                )
+                current.copy(cardMilestonesJson = updatedJson)
+            }
         }
     }
 }

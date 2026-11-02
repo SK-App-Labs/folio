@@ -105,6 +105,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.BudgetProgress
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategorySpendStat
@@ -143,6 +144,8 @@ fun StatsAndBudgetsScreen(
     viewModel: StatsAndBudgetsViewModel,
     contentPadding: PaddingValues = PaddingValues(0.dp),
     onInspectTransaction: (TransactionItem) -> Unit = {},
+    onAccountClick: ((AccountSummary) -> Unit)? = null,
+    onAddTransactionForAccount: ((AccountSummary) -> Unit)? = null,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -259,6 +262,9 @@ fun StatsAndBudgetsScreen(
                         CreditCardsCockpitSubTabContent(
                             uiState = uiState,
                             onOpenSettlement = viewModel::openCreditCardSettlementSheet,
+                            onAccountClick = onAccountClick,
+                            onAddTransactionForAccount = onAddTransactionForAccount,
+                            onSaveCardMilestone = viewModel::saveCardMilestoneConfig,
                             contentPadding = contentPadding
                         )
                     }

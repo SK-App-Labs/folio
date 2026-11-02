@@ -118,6 +118,7 @@ class SettingsAndBackupRepositoryImpl(
         val LAST_BACKUP_EPOCH_MILLIS = longPreferencesKey("last_backup_epoch_millis")
         val AUTO_BACKUP_ENABLED = booleanPreferencesKey("auto_backup_enabled")
         val AUTO_BACKUP_RETENTION = stringPreferencesKey("auto_backup_retention")
+        val CARD_MILESTONES_JSON = stringPreferencesKey("card_milestones_json")
     }
 
     override fun observeUserPreferences(): Flow<UserPreferences> {
@@ -165,6 +166,7 @@ class SettingsAndBackupRepositoryImpl(
             }
             mutablePrefs[PreferenceKeys.AUTO_BACKUP_ENABLED] = updated.autoBackupEnabled
             mutablePrefs[PreferenceKeys.AUTO_BACKUP_RETENTION] = updated.autoBackupRetention.name
+            mutablePrefs[PreferenceKeys.CARD_MILESTONES_JSON] = updated.cardMilestonesJson
         }
         Unit
     }
@@ -417,6 +419,7 @@ class SettingsAndBackupRepositoryImpl(
                     put("biometricLockEnabled", currentPrefs.biometricLockEnabled)
                     put("isSupporter", currentPrefs.isSupporter)
                     putNullableString("supporterTier", currentPrefs.supporterTier)
+                    put("cardMilestonesJson", currentPrefs.cardMilestonesJson)
                 }
             )
 
@@ -813,7 +816,8 @@ class SettingsAndBackupRepositoryImpl(
                         current.isSupporter
                     ),
                     supporterTier = if (prefsObj.isNull("supporterTier")) current.supporterTier else prefsObj.optString("supporterTier").ifBlank { null },
-                    lastBackupEpochMillis = current.lastBackupEpochMillis
+                    lastBackupEpochMillis = current.lastBackupEpochMillis,
+                    cardMilestonesJson = prefsObj.optString("cardMilestonesJson", current.cardMilestonesJson)
                 )
             }
         }
@@ -847,7 +851,8 @@ class SettingsAndBackupRepositoryImpl(
             autoBackupEnabled = prefs[PreferenceKeys.AUTO_BACKUP_ENABLED] ?: true,
             autoBackupRetention = runCatching {
                 AutoBackupRetention.valueOf(prefs[PreferenceKeys.AUTO_BACKUP_RETENTION] ?: AutoBackupRetention.THIRTY_DAYS.name)
-            }.getOrDefault(AutoBackupRetention.THIRTY_DAYS)
+            }.getOrDefault(AutoBackupRetention.THIRTY_DAYS),
+            cardMilestonesJson = prefs[PreferenceKeys.CARD_MILESTONES_JSON] ?: "{}"
         )
     }
 
