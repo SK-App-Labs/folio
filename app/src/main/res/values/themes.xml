@@ -10,7 +10,7 @@
     </style>
 
     <style name="Theme.Folio.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">#0F172A</item>
+        <item name="windowSplashScreenBackground">#F8FAFC</item>
         <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_round</item>
         <item name="postSplashScreenTheme">@style/Theme.Folio</item>
         <item name="android:windowBackground">#F8FAFC</item>

@@ -32,7 +32,7 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.view.View
-import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.PathInterpolator
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -99,20 +99,17 @@ class MainActivity : FragmentActivity() {
             val splashView = splashViewProvider.view
             val iconView = splashViewProvider.iconView
 
-            val iconScaleX = ObjectAnimator.ofFloat(iconView, View.SCALE_X, 1f, 0.55f)
-            val iconScaleY = ObjectAnimator.ofFloat(iconView, View.SCALE_Y, 1f, 0.55f)
-            val iconTranslationY = ObjectAnimator.ofFloat(
-                iconView,
-                View.TRANSLATION_Y,
-                0f,
-                -iconView.height.toFloat() * 1.6f
-            )
+            // Seamless Dissolve: Keep icon centered (0 translation).
+            // Gently scale (1.0 -> 1.05) and fade out softly with Material 3 ease-out curve.
+            val iconScaleX = ObjectAnimator.ofFloat(iconView, View.SCALE_X, 1f, 1.05f)
+            val iconScaleY = ObjectAnimator.ofFloat(iconView, View.SCALE_Y, 1f, 1.05f)
+            val iconAlpha = ObjectAnimator.ofFloat(iconView, View.ALPHA, 1f, 0f)
             val splashAlpha = ObjectAnimator.ofFloat(splashView, View.ALPHA, 1f, 0f)
 
             AnimatorSet().apply {
-                playTogether(iconScaleX, iconScaleY, iconTranslationY, splashAlpha)
-                duration = 380L
-                interpolator = AccelerateDecelerateInterpolator()
+                playTogether(iconScaleX, iconScaleY, iconAlpha, splashAlpha)
+                duration = 240L
+                interpolator = PathInterpolator(0.2f, 0f, 0f, 1f)
                 addListener(object : AnimatorListenerAdapter() {
                     override fun onAnimationEnd(animation: Animator) {
                         splashViewProvider.remove()
