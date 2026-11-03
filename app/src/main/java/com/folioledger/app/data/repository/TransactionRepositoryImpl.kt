@@ -26,6 +26,7 @@ import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.RecurringScheduleCalculator
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -192,7 +193,8 @@ class TransactionRepositoryImpl(
     }
 
     override suspend fun upsertSingleTransaction(transaction: TransactionItem): Result<Long> =
-        runCatching {
+        withContext(Dispatchers.IO) {
+            runCatchingNonCancellation {
             require(transaction.amount.isPositive) {
                 "Transaction amount must be strictly positive."
             }
@@ -226,15 +228,17 @@ class TransactionRepositoryImpl(
                 recurringRuleId = transaction.recurringRuleId
             )
 
-            transactionDao.upsertTransactionWithDetails(
-                transaction = entity,
-                splits = emptyList(),
-                tagNames = transaction.tags
-            )
+                transactionDao.upsertTransactionWithDetails(
+                    transaction = entity,
+                    splits = emptyList(),
+                    tagNames = transaction.tags
+                )
+            }
         }
 
     override suspend fun upsertSplitTransaction(transaction: TransactionItem): Result<Long> =
-        runCatching {
+        withContext(Dispatchers.IO) {
+            runCatchingNonCancellation {
             AccountingRulesEngine.validateSplitTransaction(
                 totalAmount = transaction.amount,
                 splits = transaction.splits
@@ -274,11 +278,12 @@ class TransactionRepositoryImpl(
                 )
             }
 
-            transactionDao.upsertTransactionWithDetails(
-                transaction = entity,
-                splits = splitEntities,
-                tagNames = transaction.tags
-            )
+                transactionDao.upsertTransactionWithDetails(
+                    transaction = entity,
+                    splits = splitEntities,
+                    tagNames = transaction.tags
+                )
+            }
         }
 
     override suspend fun recordTransfer(
@@ -290,7 +295,8 @@ class TransactionRepositoryImpl(
         ledgerDateEpochDay: Long,
         note: String,
         tags: List<String>
-    ): Result<Long> = runCatching {
+    ): Result<Long> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
         require(fromAccountId != toAccountId) {
             "Source and destination accounts for a transfer must be different."
         }
@@ -322,11 +328,12 @@ class TransactionRepositoryImpl(
             note = note.trim()
         )
 
-        transactionDao.upsertTransactionWithDetails(
-            transaction = entity,
-            splits = emptyList(),
-            tagNames = tags
-        )
+            transactionDao.upsertTransactionWithDetails(
+                transaction = entity,
+                splits = emptyList(),
+                tagNames = tags
+            )
+        }
     }
 
     override suspend fun recordRefund(
@@ -338,7 +345,8 @@ class TransactionRepositoryImpl(
         originalTransactionId: Long?,
         payeeOrDescription: String,
         note: String
-    ): Result<Long> = runCatching {
+    ): Result<Long> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
         require(refundAmount.isPositive) {
             "Refund amount must be strictly positive."
         }
@@ -363,7 +371,8 @@ class TransactionRepositoryImpl(
             originalTransactionId = originalTransactionId
         )
 
-        transactionDao.insertTransactionRaw(entity)
+            transactionDao.insertTransactionRaw(entity)
+        }
     }
 
     override suspend fun createInstallmentPlanTransactions(
@@ -371,7 +380,8 @@ class TransactionRepositoryImpl(
         totalInstallmentAmount: MinorMoney,
         monthsCount: Int,
         startDateEpochDay: Long
-    ): Result<List<Long>> = runCatching {
+    ): Result<List<Long>> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
         val schedule = AccountingRulesEngine.generateInstallmentSchedule(
             totalAmount = totalInstallmentAmount,
             monthsCount = monthsCount,
@@ -415,18 +425,20 @@ class TransactionRepositoryImpl(
             )
         }
 
-        transactionDao.insertInstallmentPlanWithTransactions(
-            plan = planEntity,
-            installmentTransactions = installmentEntities,
-            tagNames = baseTransaction.tags
-        )
+            transactionDao.insertInstallmentPlanWithTransactions(
+                plan = planEntity,
+                installmentTransactions = installmentEntities,
+                tagNames = baseTransaction.tags
+            )
+        }
     }
 
     override suspend fun upsertRecurringTransaction(
         transaction: TransactionItem,
         frequency: RepeatFrequency
-    ): Result<Long> = runCatching {
-        database.withTransaction {
+    ): Result<Long> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            database.withTransaction {
             val nextOccurrenceDate = RecurringScheduleCalculator.computeNextOccurrence(
                 currentDate = LocalDate.ofEpochDay(transaction.ledgerDateEpochDay),
                 frequency = frequency
@@ -468,16 +480,19 @@ class TransactionRepositoryImpl(
             val ruleId = budgetAndRecurringDao.upsertRecurringRule(ruleEntity)
 
             val txWithRule = transaction.copy(recurringRuleId = ruleId)
-            if (transaction.isSplit) {
-                upsertSplitTransaction(txWithRule).getOrThrow()
-            } else {
-                upsertSingleTransaction(txWithRule).getOrThrow()
+                if (transaction.isSplit) {
+                    upsertSplitTransaction(txWithRule).getOrThrow()
+                } else {
+                    upsertSingleTransaction(txWithRule).getOrThrow()
+                }
             }
         }
     }
 
-    override suspend fun deleteTransaction(transactionId: Long): Result<Unit> = runCatching {
-        transactionDao.deleteTransactionById(transactionId)
+    override suspend fun deleteTransaction(transactionId: Long): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            transactionDao.deleteTransactionById(transactionId)
+        }
     }
 
     private fun combineWithMetadata(

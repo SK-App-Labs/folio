@@ -28,6 +28,8 @@ import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.RecurringScheduleCalculator
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
@@ -665,7 +667,8 @@ class AnalyticsAndBudgetRepositoryImpl(
         }
     }
 
-    override suspend fun upsertRecurringRule(rule: RecurringCommitmentItem): Result<Long> = runCatching {
+    override suspend fun upsertRecurringRule(rule: RecurringCommitmentItem): Result<Long> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
         val entity = RecurringRuleEntity(
             id = rule.id,
             title = rule.title.trim(),
@@ -682,15 +685,20 @@ class AnalyticsAndBudgetRepositoryImpl(
             note = rule.note.trim(),
             isActive = rule.isActive
         )
-        budgetAndRecurringDao.upsertRecurringRule(entity)
+            budgetAndRecurringDao.upsertRecurringRule(entity)
+        }
     }
 
-    override suspend fun updateRecurringRuleActive(ruleId: Long, isActive: Boolean): Result<Unit> = runCatching {
-        budgetAndRecurringDao.updateRecurringRuleActive(ruleId, isActive)
+    override suspend fun updateRecurringRuleActive(ruleId: Long, isActive: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            budgetAndRecurringDao.updateRecurringRuleActive(ruleId, isActive)
+        }
     }
 
-    override suspend fun deleteRecurringRule(ruleId: Long): Result<Unit> = runCatching {
-        budgetAndRecurringDao.deleteRecurringRuleById(ruleId)
+    override suspend fun deleteRecurringRule(ruleId: Long): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            budgetAndRecurringDao.deleteRecurringRuleById(ruleId)
+        }
     }
 
     override fun observeInstallmentPlansWithProgress(): Flow<List<InstallmentPlanWithProgress>> {
@@ -742,11 +750,14 @@ class AnalyticsAndBudgetRepositoryImpl(
         }
     }
 
-    override suspend fun deleteInstallmentPlan(planId: Long): Result<Unit> = runCatching {
-        transactionDao.deleteInstallmentPlanById(planId)
+    override suspend fun deleteInstallmentPlan(planId: Long): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            transactionDao.deleteInstallmentPlanById(planId)
+        }
     }
 
-    override suspend fun processDueRecurringRulesOnce(todayEpochDay: Long): Result<Int> = runCatching {
+    override suspend fun processDueRecurringRulesOnce(todayEpochDay: Long): Result<Int> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
         val executeBatch: suspend () -> Int = {
             val dueRules = budgetAndRecurringDao.getDueRecurringRulesOnce(todayEpochDay)
             var generatedCount = 0
@@ -785,10 +796,11 @@ class AnalyticsAndBudgetRepositoryImpl(
             generatedCount
         }
 
-        if (database != null) {
-            database.withTransaction { executeBatch() }
-        } else {
-            executeBatch()
+            if (database != null) {
+                database.withTransaction { executeBatch() }
+            } else {
+                executeBatch()
+            }
         }
     }
 
@@ -797,7 +809,8 @@ class AnalyticsAndBudgetRepositoryImpl(
         categoryId: Long?,
         limitAmount: MinorMoney,
         alertThresholdPercent: Int
-    ): Result<Long> = runCatching {
+    ): Result<Long> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
         require(limitAmount.isPositive) {
             "Budget limit amount must be strictly positive."
         }
@@ -817,11 +830,14 @@ class AnalyticsAndBudgetRepositoryImpl(
             alertThresholdPercent = validatedThreshold,
             updatedAtEpochMillis = System.currentTimeMillis()
         )
-        budgetAndRecurringDao.upsertBudget(entity)
+            budgetAndRecurringDao.upsertBudget(entity)
+        }
     }
 
-    override suspend fun deleteBudget(budgetId: Long): Result<Unit> = runCatching {
-        budgetAndRecurringDao.deleteBudgetById(budgetId)
+    override suspend fun deleteBudget(budgetId: Long): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            budgetAndRecurringDao.deleteBudgetById(budgetId)
+        }
     }
 
     private fun applyCashflowDelta(

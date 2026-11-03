@@ -1,4 +1,4 @@
-﻿// File: app/src/main/java/com/folioledger/app/data/repository/SettingsAndBackupRepositoryImpl.kt
+// File: app/src/main/java/com/folioledger/app/data/repository/SettingsAndBackupRepositoryImpl.kt
 package com.folioledger.app.data.repository
 
 import android.content.Context
@@ -135,7 +135,8 @@ class SettingsAndBackupRepositoryImpl(
 
     override suspend fun updateUserPreferences(
         transform: (UserPreferences) -> UserPreferences
-    ): Result<Unit> = runCatching {
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
         context.folioUserPreferencesDataStore.edit { mutablePrefs ->
             val current = mapPreferencesToDomain(mutablePrefs)
             val updated = transform(current)
@@ -170,6 +171,7 @@ class SettingsAndBackupRepositoryImpl(
         }
         Unit
     }
+    }
 
     override suspend fun exportTransactionsToCsv(
         destinationUriString: String,
@@ -177,7 +179,7 @@ class SettingsAndBackupRepositoryImpl(
         endEpochDay: Long?,
         accountId: Long?
     ): Result<Int> = withContext(Dispatchers.IO) {
-        runCatching {
+        runCatchingNonCancellation {
             openOutputStreamForLocation(destinationUriString).use { rawStream ->
                 exportTransactionsToCsvStream(
                     outputStream = rawStream,
@@ -192,7 +194,7 @@ class SettingsAndBackupRepositoryImpl(
     override suspend fun previewTransactionsCsv(
         sourceUriString: String
     ): Result<ImportCsvPreview> = withContext(Dispatchers.IO) {
-        runCatching {
+        runCatchingNonCancellation {
             // Cache incoming file locally to prevent Android Scoped Storage URI permission expiration
             val cachedFile = File(context.cacheDir, "pending_import_${System.currentTimeMillis()}.csv")
             openInputStreamForLocation(sourceUriString).use { input ->
@@ -210,7 +212,7 @@ class SettingsAndBackupRepositoryImpl(
         sourceUriString: String,
         skipDuplicates: Boolean
     ): Result<ImportCsvResult> = withContext(Dispatchers.IO) {
-        runCatching {
+        runCatchingNonCancellation {
             openInputStreamForLocation(sourceUriString).use { rawStream ->
                 importCsvStream(rawStream, skipDuplicates)
             }
@@ -377,7 +379,7 @@ class SettingsAndBackupRepositoryImpl(
     override suspend fun createPortableZipBackup(
         destinationUriString: String
     ): Result<String> = withContext(Dispatchers.IO) {
-        runCatching {
+        runCatchingNonCancellation {
             openOutputStreamForLocation(destinationUriString).use { rawStream ->
                 createBackupToStream(rawStream)
             }
@@ -649,7 +651,7 @@ class SettingsAndBackupRepositoryImpl(
     override suspend fun restoreFromZipBackup(
         sourceUriString: String
     ): Result<Unit> = withContext(Dispatchers.IO) {
-        runCatching {
+        runCatchingNonCancellation {
             createSafetyRollbackSnapshot()
             openInputStreamForLocation(sourceUriString).use { rawStream ->
                 restoreBackupFromStream(rawStream)
@@ -668,7 +670,7 @@ class SettingsAndBackupRepositoryImpl(
     }
 
     override suspend fun clearAllData(): Result<Unit> = withContext(Dispatchers.IO) {
-        runCatching {
+        runCatchingNonCancellation {
             database.withTransaction {
                 val txDao = database.transactionDao()
                 val catTagDao = database.categoryAndTagDao()
@@ -1021,13 +1023,13 @@ class SettingsAndBackupRepositoryImpl(
     }
 
     override suspend fun triggerSessionAutoBackupIfDirty(): Result<String?> = withContext(Dispatchers.IO) {
-        runCatching {
+        runCatchingNonCancellation {
             val currentPrefs = observeUserPreferences().first()
             if (!currentPrefs.autoBackupEnabled) {
-                return@runCatching null
+                return@runCatchingNonCancellation null
             }
             if (!SessionChangeTracker.canBackupNow()) {
-                return@runCatching null
+                return@runCatchingNonCancellation null
             }
 
             val autoDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioAutoBackups").apply {
@@ -2087,7 +2089,7 @@ class SettingsAndBackupRepositoryImpl(
         includeNotesAndTags: Boolean,
         includeRunningBalance: Boolean
     ): Result<PdfExportResult> = withContext(Dispatchers.IO) {
-        runCatching {
+        runCatchingNonCancellation {
             val prefs = observeUserPreferences().first()
             val allAccountEntities = database.accountDao().getAllAccountsOnce()
             val accountEntity = allAccountEntities.firstOrNull { it.id == accountId }

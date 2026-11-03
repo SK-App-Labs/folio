@@ -13,6 +13,8 @@ import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
@@ -65,7 +67,8 @@ class CategoryAndTagRepositoryImpl(
             }
     }
 
-    override suspend fun upsertCategory(category: CategoryNode): Result<Long> = runCatching {
+    override suspend fun upsertCategory(category: CategoryNode): Result<Long> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
         val trimmedName = category.name.trim()
         require(trimmedName.isNotEmpty()) { "Category name cannot be blank." }
 
@@ -85,45 +88,56 @@ class CategoryAndTagRepositoryImpl(
             sortOrder = existing?.sortOrder ?: 0,
             isArchived = existing?.isArchived ?: false
         )
-        categoryAndTagDao.insertCategory(entity)
+            categoryAndTagDao.insertCategory(entity)
+        }
     }
 
     override suspend fun deleteCategory(
         categoryId: Long,
         reassignToCategoryId: Long?
-    ): Result<Unit> = runCatching {
-        database.withTransaction {
-            if (reassignToCategoryId != null && reassignToCategoryId != categoryId) {
-                categoryAndTagDao.reassignTransactionsCategory(categoryId, reassignToCategoryId)
-                categoryAndTagDao.reassignSplitsCategory(categoryId, reassignToCategoryId)
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            database.withTransaction {
+                if (reassignToCategoryId != null && reassignToCategoryId != categoryId) {
+                    categoryAndTagDao.reassignTransactionsCategory(categoryId, reassignToCategoryId)
+                    categoryAndTagDao.reassignSplitsCategory(categoryId, reassignToCategoryId)
+                }
+                categoryAndTagDao.deleteCategoryById(categoryId)
             }
-            categoryAndTagDao.deleteCategoryById(categoryId)
         }
     }
 
-    override suspend fun createTag(tagName: String): Result<Unit> = runCatching {
-        val trimmed = tagName.trim()
-        require(trimmed.isNotEmpty()) { "Tag name cannot be blank." }
-        categoryAndTagDao.insertTag(TagEntity(name = trimmed))
-    }
-
-    override suspend fun renameTag(oldTagName: String, newTagName: String): Result<Unit> = runCatching {
-        val oldTrimmed = oldTagName.trim()
-        val newTrimmed = newTagName.trim()
-        require(oldTrimmed.isNotEmpty() && newTrimmed.isNotEmpty()) {
-            "Tag names cannot be blank."
-        }
-        categoryAndTagDao.renameTag(oldTrimmed, newTrimmed)
-    }
-
-    override suspend fun deleteTag(tagName: String): Result<Unit> = runCatching {
-        val trimmed = tagName.trim()
-        if (trimmed.isNotEmpty()) {
-            categoryAndTagDao.deleteTagByName(trimmed)
+    override suspend fun createTag(tagName: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            val trimmed = tagName.trim()
+            require(trimmed.isNotEmpty()) { "Tag name cannot be blank." }
+            categoryAndTagDao.insertTag(TagEntity(name = trimmed))
+            Unit
         }
     }
 
-    override suspend fun upsertBookmark(bookmark: TransactionBookmark): Result<Long> = runCatching {
+    override suspend fun renameTag(oldTagName: String, newTagName: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            val oldTrimmed = oldTagName.trim()
+            val newTrimmed = newTagName.trim()
+            require(oldTrimmed.isNotEmpty() && newTrimmed.isNotEmpty()) {
+                "Tag names cannot be blank."
+            }
+            categoryAndTagDao.renameTag(oldTrimmed, newTrimmed)
+        }
+    }
+
+    override suspend fun deleteTag(tagName: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            val trimmed = tagName.trim()
+            if (trimmed.isNotEmpty()) {
+                categoryAndTagDao.deleteTagByName(trimmed)
+            }
+        }
+    }
+
+    override suspend fun upsertBookmark(bookmark: TransactionBookmark): Result<Long> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
         val trimmedTitle = bookmark.title.trim()
         require(trimmedTitle.isNotEmpty()) { "Bookmark title cannot be blank." }
         require(bookmark.amount.isPositive) { "Bookmark amount must be greater than zero." }
@@ -146,11 +160,14 @@ class CategoryAndTagRepositoryImpl(
             note = bookmark.note.trim(),
             tagsCsv = tagsCsv
         )
-        categoryAndTagDao.upsertBookmark(entity)
+            categoryAndTagDao.upsertBookmark(entity)
+        }
     }
 
-    override suspend fun deleteBookmark(bookmarkId: Long): Result<Unit> = runCatching {
-        categoryAndTagDao.deleteBookmarkById(bookmarkId)
+    override suspend fun deleteBookmark(bookmarkId: Long): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            categoryAndTagDao.deleteBookmarkById(bookmarkId)
+        }
     }
 
     private fun buildCategoryTree(entities: List<CategoryEntity>): List<CategoryNode> {

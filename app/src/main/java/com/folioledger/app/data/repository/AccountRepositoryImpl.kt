@@ -18,6 +18,7 @@ import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -127,7 +128,8 @@ class AccountRepositoryImpl(
         account: AccountSummary,
         openingBalance: MinorMoney,
         openingDateEpochDay: Long
-    ): Result<Long> = runCatching {
+    ): Result<Long> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
         val trimmedName = account.name.trim()
         require(trimmedName.isNotEmpty()) { "Account name cannot be blank." }
 
@@ -217,7 +219,8 @@ class AccountRepositoryImpl(
             createdAtEpochMillis = existing?.createdAtEpochMillis ?: System.currentTimeMillis()
         )
 
-        accountDao.insertAccountWithInitialBalance(entity, initialTx)
+            accountDao.insertAccountWithInitialBalance(entity, initialTx)
+        }
     }
 
     override suspend fun reconcileAccountBalance(
@@ -225,7 +228,8 @@ class AccountRepositoryImpl(
         reconciledBalance: MinorMoney,
         reconciledDateEpochDay: Long,
         note: String
-    ): Result<Long> = runCatching {
+    ): Result<Long> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
         val account = accountDao.getAccountByIdOnce(accountId)
             ?: throw IllegalArgumentException("Account #$accountId not found.")
 
@@ -237,7 +241,7 @@ class AccountRepositoryImpl(
         val deltaMinor = Math.subtractExact(targetMinor, currentMinor)
 
         if (deltaMinor == 0L) {
-            return@runCatching 0L
+            return@runCatchingNonCancellation 0L
         }
 
         val isOutflow = deltaMinor < 0L
@@ -255,31 +259,38 @@ class AccountRepositoryImpl(
             note = note.trim().ifEmpty { "Manual balance adjustment" }
         )
 
-        transactionDao.insertTransactionRaw(reconciliationTx)
+            transactionDao.insertTransactionRaw(reconciliationTx)
+        }
     }
 
     override suspend fun setAccountArchived(
         accountId: Long,
         isArchived: Boolean
-    ): Result<Unit> = runCatching {
-        accountDao.setAccountArchived(accountId = accountId, isArchived = isArchived)
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            accountDao.setAccountArchived(accountId = accountId, isArchived = isArchived)
+        }
     }
 
     override suspend fun deleteAccount(
         accountId: Long,
         deleteTransactions: Boolean
-    ): Result<Unit> = runCatching {
-        database.withTransaction {
-            if (deleteTransactions) {
-                transactionDao.deleteTransactionsForAccount(accountId)
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            database.withTransaction {
+                if (deleteTransactions) {
+                    transactionDao.deleteTransactionsForAccount(accountId)
+                }
+                accountDao.deleteAccountById(accountId)
             }
-            accountDao.deleteAccountById(accountId)
         }
     }
 
-    override suspend fun getTransactionCountForAccount(accountId: Long): Int = runCatching {
-        transactionDao.getTransactionCountForAccount(accountId)
-    }.getOrDefault(0)
+    override suspend fun getTransactionCountForAccount(accountId: Long): Int = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            transactionDao.getTransactionCountForAccount(accountId)
+        }.getOrDefault(0)
+    }
 
     override suspend fun settleCreditCardStatement(
         sourceAssetAccountId: Long,
@@ -288,7 +299,8 @@ class AccountRepositoryImpl(
         timestampEpochMillis: Long,
         ledgerDateEpochDay: Long,
         note: String
-    ): Result<Long> = runCatching {
+    ): Result<Long> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
         require(sourceAssetAccountId != creditCardAccountId) {
             "Source payment account and destination credit card must be distinct."
         }
@@ -323,7 +335,8 @@ class AccountRepositoryImpl(
             note = note.trim()
         )
 
-        transactionDao.insertTransactionRaw(settlementTx)
+            transactionDao.insertTransactionRaw(settlementTx)
+        }
     }
 
     private fun computeAccountSummaries(
