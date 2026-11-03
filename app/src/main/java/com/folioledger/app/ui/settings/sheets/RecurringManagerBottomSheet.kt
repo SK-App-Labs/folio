@@ -66,6 +66,7 @@ import com.folioledger.app.domain.model.InstallmentPlanWithProgress
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.RecurringCommitmentItem
 import com.folioledger.app.domain.model.RepeatFrequency
+import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.RecurringScheduleCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
@@ -221,9 +222,10 @@ fun RecurringManagerBottomSheet(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         // Subscriptions Breakdown
+                        val activeSubscriptionsCount = uiState.recurringRules.count { it.isActive && it.type == TransactionType.EXPENSE }
                         Column {
                             Text(
-                                text = "Subscriptions (${uiState.activeRecurringCount} active)",
+                                text = "Subscriptions ($activeSubscriptionsCount active)",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -235,6 +237,26 @@ fun RecurringManagerBottomSheet(
                                 style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
                                 colorMode = MoneyColorMode.NEUTRAL
                             )
+                        }
+
+                        // Auto-Savings / Transfers Breakdown (if any active transfers exist)
+                        val activeTransfersCount = uiState.recurringRules.count { it.isActive && it.type == TransactionType.TRANSFER }
+                        if (activeTransfersCount > 0) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "Auto-Save ($activeTransfersCount active)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                MoneyText(
+                                    money = uiState.activeMonthlyTransfersBurden,
+                                    currencySpec = uiState.currencySpec,
+                                    grouping = uiState.userPreferences.numberGrouping,
+                                    style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
+                                    colorMode = MoneyColorMode.NEUTRAL
+                                )
+                            }
                         }
 
                         // EMIs Breakdown
@@ -271,7 +293,7 @@ fun RecurringManagerBottomSheet(
                     onClick = { selectedTab = 0 },
                     text = {
                         Text(
-                            text = "Subscriptions (${uiState.recurringRules.size})",
+                            text = "Recurring Rules (${uiState.recurringRules.size})",
                             fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal
                         )
                     }
@@ -482,12 +504,21 @@ private fun SubscriptionsTabContent(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            CategoryIconBadge(
-                                iconName = rule.categoryIconName ?: "autorenew",
-                                colorHex = rule.categoryColorHex ?: "#059669",
-                                size = 36.dp,
-                                iconSize = 18.dp
-                            )
+                            if (rule.type == TransactionType.TRANSFER) {
+                                CategoryIconBadge(
+                                    iconName = "swap_horiz",
+                                    colorHex = "#2563EB",
+                                    size = 36.dp,
+                                    iconSize = 18.dp
+                                )
+                            } else {
+                                CategoryIconBadge(
+                                    iconName = rule.categoryIconName ?: "autorenew",
+                                    colorHex = rule.categoryColorHex ?: "#059669",
+                                    size = 36.dp,
+                                    iconSize = 18.dp
+                                )
+                            }
                             Spacer(modifier = Modifier.width(10.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
@@ -502,8 +533,13 @@ private fun SubscriptionsTabContent(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
+                                    val accountDisplay = if (rule.type == TransactionType.TRANSFER && rule.transferToAccountName != null) {
+                                        "${rule.accountName} → ${rule.transferToAccountName}"
+                                    } else {
+                                        rule.accountName
+                                    }
                                     Text(
-                                        text = rule.accountName,
+                                        text = accountDisplay,
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
@@ -802,6 +838,23 @@ private fun EditRecurringRuleDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
+                if (rule.type == TransactionType.TRANSFER && rule.transferToAccountName != null) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Transfer: ${rule.accountName} → ${rule.transferToAccountName}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },

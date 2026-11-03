@@ -969,15 +969,25 @@ class TransactionRepositoryImpl(
             frequency = frequency
         )
         val sourceAccount = accountDao.getAccountByIdOnce(transaction.accountId)
+        val targetAccount = if (transaction.transferToAccountId != null) {
+            accountDao.getAccountByIdOnce(transaction.transferToAccountId)
+        } else null
         val resolvedCurrency = transaction.currencyCode.ifBlank {
             sourceAccount?.currencyCode ?: "INR"
         }
 
+        val resolvedTitle = transaction.payeeOrDescription.trim().ifEmpty {
+            when {
+                transaction.type == TransactionType.TRANSFER && targetAccount != null ->
+                    "${sourceAccount?.name ?: "Account"} → ${targetAccount.name}"
+                transaction.categoryName != null -> transaction.categoryName
+                else -> "Recurring ${frequency.displayName}"
+            }
+        }
+
         val ruleEntity = RecurringRuleEntity(
             id = 0L,
-            title = transaction.payeeOrDescription.trim().ifEmpty {
-                transaction.categoryName ?: "Recurring ${frequency.displayName}"
-            },
+            title = resolvedTitle,
             type = transaction.type,
             amountMinor = transaction.amount.amountMinor,
             currencyCode = resolvedCurrency,
@@ -988,7 +998,7 @@ class TransactionRepositoryImpl(
             startDateEpochDay = transaction.ledgerDateEpochDay,
             nextOccurrenceEpochDay = nextOccurrenceDate.toEpochDay(),
             endDateEpochDay = null,
-            payeeOrDescription = transaction.payeeOrDescription.trim(),
+            payeeOrDescription = transaction.payeeOrDescription.trim().ifEmpty { resolvedTitle },
             note = transaction.note.trim(),
             isActive = true
         )

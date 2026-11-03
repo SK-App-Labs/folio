@@ -636,6 +636,7 @@ class AnalyticsAndBudgetRepositoryImpl(
             rules.map { rule ->
                 val cat = categoriesById[rule.categoryId]
                 val acc = accountsById[rule.accountId]
+                val targetAcc = accountsById[rule.transferToAccountId]
                 RecurringCommitmentItem(
                     id = rule.id,
                     title = rule.title,
@@ -644,6 +645,8 @@ class AnalyticsAndBudgetRepositoryImpl(
                     currencyCode = rule.currencyCode,
                     accountId = rule.accountId,
                     accountName = acc?.name ?: "Account #${rule.accountId}",
+                    transferToAccountId = rule.transferToAccountId,
+                    transferToAccountName = targetAcc?.name,
                     frequency = rule.frequency,
                     nextOccurrenceEpochDay = rule.nextOccurrenceEpochDay,
                     payeeOrDescription = rule.payeeOrDescription,
@@ -667,6 +670,7 @@ class AnalyticsAndBudgetRepositoryImpl(
             amountMinor = rule.amount.amountMinor,
             currencyCode = rule.currencyCode,
             accountId = rule.accountId,
+            transferToAccountId = rule.transferToAccountId,
             categoryId = rule.categoryId,
             frequency = rule.frequency,
             startDateEpochDay = rule.startDateEpochDay,

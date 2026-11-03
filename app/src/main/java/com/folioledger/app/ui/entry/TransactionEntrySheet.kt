@@ -459,7 +459,7 @@ fun TransactionEntryFormContent(
                     )
                 }
 
-                if (uiState.mode == TransactionType.EXPENSE || uiState.mode == TransactionType.INCOME) {
+                if (uiState.mode == TransactionType.EXPENSE || uiState.mode == TransactionType.INCOME || uiState.mode == TransactionType.TRANSFER) {
                     ActionToggleButton(
                         selected = uiState.isRecurring,
                         onClick = {

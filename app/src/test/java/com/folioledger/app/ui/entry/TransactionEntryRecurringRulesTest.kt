@@ -124,4 +124,72 @@ class TransactionEntryRecurringRulesTest {
         assertEquals("Health & Fitness", item.categoryName)
         assertEquals(RepeatFrequency.EVERY_MONTH, item.frequency)
     }
+
+    @Test
+    fun testRecurringCommitmentItem_transferRuleWithTargetAccount() {
+        val transferRule = RecurringCommitmentItem(
+            id = 20L,
+            title = "Checking → Emergency Fund",
+            type = TransactionType.TRANSFER,
+            amount = MinorMoney(10_000_00L),
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "HDFC Checking",
+            transferToAccountId = 2L,
+            transferToAccountName = "SBI Emergency Fund",
+            frequency = RepeatFrequency.EVERY_MONTH,
+            nextOccurrenceEpochDay = LocalDate.of(2026, 12, 1).toEpochDay(),
+            isActive = true
+        )
+
+        assertEquals(TransactionType.TRANSFER, transferRule.type)
+        assertEquals(1L, transferRule.accountId)
+        assertEquals("HDFC Checking", transferRule.accountName)
+        assertEquals(2L, transferRule.transferToAccountId)
+        assertEquals("SBI Emergency Fund", transferRule.transferToAccountName)
+        assertEquals("Checking → Emergency Fund", transferRule.title)
+        assertTrue(transferRule.isActive)
+    }
+
+    @Test
+    fun testRecurringBurden_separatesExpensesFromTransfers() {
+        val expenseRule = RecurringCommitmentItem(
+            id = 1L,
+            title = "Netflix",
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(650_00L),
+            currencyCode = "INR",
+            accountId = 1L,
+            frequency = RepeatFrequency.EVERY_MONTH,
+            nextOccurrenceEpochDay = LocalDate.of(2026, 12, 1).toEpochDay()
+        )
+
+        val transferRule = RecurringCommitmentItem(
+            id = 2L,
+            title = "Mutual Fund SIP",
+            type = TransactionType.TRANSFER,
+            amount = MinorMoney(5_000_00L),
+            currencyCode = "INR",
+            accountId = 1L,
+            transferToAccountId = 3L,
+            frequency = RepeatFrequency.EVERY_MONTH,
+            nextOccurrenceEpochDay = LocalDate.of(2026, 12, 5).toEpochDay()
+        )
+
+        val rules = listOf(expenseRule, transferRule)
+
+        var expenseBurden = 0L
+        var transferBurden = 0L
+
+        for (rule in rules) {
+            when (rule.type) {
+                TransactionType.EXPENSE -> expenseBurden += rule.amount.amountMinor
+                TransactionType.TRANSFER -> transferBurden += rule.amount.amountMinor
+                else -> Unit
+            }
+        }
+
+        assertEquals(650_00L, expenseBurden)
+        assertEquals(5_000_00L, transferBurden)
+    }
 }

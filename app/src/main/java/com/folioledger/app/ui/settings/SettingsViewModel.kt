@@ -21,6 +21,7 @@ import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionBookmark
+import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.repository.AccountRepository
 import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
@@ -66,6 +67,7 @@ data class SettingsUiState(
     val installmentPlans: List<InstallmentPlanWithProgress> = emptyList(),
     val activeRecurringCount: Int = 0,
     val activeMonthlyRecurringBurden: MinorMoney = MinorMoney.ZERO,
+    val activeMonthlyTransfersBurden: MinorMoney = MinorMoney.ZERO,
     val activeMonthlyInstallmentsBurden: MinorMoney = MinorMoney.ZERO,
     val totalMonthlyFixedBurden: MinorMoney = MinorMoney.ZERO,
     val formattedMonthlyBurden: String = "",
@@ -163,7 +165,8 @@ class SettingsViewModel(
         val activeRules = recurringRules.filter { it.isActive }
         val activeRecurringCount = activeRules.size
 
-        var monthlyRecurringMinor = 0L
+        var monthlyRecurringExpenseMinor = 0L
+        var monthlyRecurringTransferMinor = 0L
         for (rule in activeRules) {
             val amountMinor = rule.amount.amountMinor
             val monthlyEquivalent = when (rule.frequency) {
@@ -180,12 +183,16 @@ class SettingsViewModel(
                 RepeatFrequency.EVERY_6_MONTHS -> amountMinor / 6L
                 RepeatFrequency.ANNUALLY -> amountMinor / 12L
             }
-            monthlyRecurringMinor += monthlyEquivalent
+            when (rule.type) {
+                TransactionType.EXPENSE -> monthlyRecurringExpenseMinor += monthlyEquivalent
+                TransactionType.TRANSFER -> monthlyRecurringTransferMinor += monthlyEquivalent
+                else -> Unit
+            }
         }
 
         val activeInstallments = installmentPlans.filter { it.remainingInstallmentsCount > 0 }
         val monthlyInstallmentsMinor = activeInstallments.sumOf { it.monthlyAmount.amountMinor }
-        val totalMonthlyFixedMinor = monthlyRecurringMinor + monthlyInstallmentsMinor
+        val totalMonthlyFixedMinor = monthlyRecurringExpenseMinor + monthlyInstallmentsMinor
         val formattedMonthly = MoneyFormatterAndCalculator.formatMinorMoney(
             money = MinorMoney(totalMonthlyFixedMinor),
             currencySpec = currencySpec,
@@ -204,7 +211,8 @@ class SettingsViewModel(
             recurringRules = recurringRules,
             installmentPlans = installmentPlans,
             activeRecurringCount = activeRecurringCount,
-            activeMonthlyRecurringBurden = MinorMoney(monthlyRecurringMinor),
+            activeMonthlyRecurringBurden = MinorMoney(monthlyRecurringExpenseMinor),
+            activeMonthlyTransfersBurden = MinorMoney(monthlyRecurringTransferMinor),
             activeMonthlyInstallmentsBurden = MinorMoney(monthlyInstallmentsMinor),
             totalMonthlyFixedBurden = MinorMoney(totalMonthlyFixedMinor),
             formattedMonthlyBurden = formattedMonthly,
