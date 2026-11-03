@@ -71,6 +71,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -347,10 +348,10 @@ fun TransactionEntryFormContent(
                 }
             }
 
-            // Unified Date, Time & Split Feature Bar
+            // Unified Date, Time & Feature Actions Bar
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 2.dp)
@@ -370,16 +371,16 @@ fun TransactionEntryFormContent(
                     ) {
                         // Left: Date Stepper
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             IconButton(
                                 onClick = { onStepDateByDays(-1L) },
-                                modifier = Modifier.size(30.dp)
+                                modifier = Modifier.size(28.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                                    contentDescription = "Previous Day"
+                                    contentDescription = "Previous Day",
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
 
@@ -388,30 +389,32 @@ fun TransactionEntryFormContent(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
                                     .clickable { showDatePickerDialog = true }
-                                    .padding(horizontal = 4.dp, vertical = 6.dp)
+                                    .padding(horizontal = 3.dp, vertical = 4.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.CalendarToday,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(15.dp)
+                                    modifier = Modifier.size(14.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = formattedDate,
-                                    style = tabularMoneyStyle(MaterialTheme.typography.labelLarge),
+                                    style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
                                     fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
 
                             IconButton(
                                 onClick = { onStepDateByDays(1L) },
-                                modifier = Modifier.size(30.dp)
+                                modifier = Modifier.size(28.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                    contentDescription = "Next Day"
+                                    contentDescription = "Next Day",
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
                         }
@@ -427,18 +430,18 @@ fun TransactionEntryFormContent(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 5.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.AccessTime,
                                     contentDescription = "Select Time",
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(14.dp)
+                                    modifier = Modifier.size(13.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = formattedTime,
-                                    style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
+                                    style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
@@ -448,22 +451,16 @@ fun TransactionEntryFormContent(
                 }
 
                 if (uiState.mode == TransactionType.EXPENSE || uiState.mode == TransactionType.INCOME) {
-                    FilterChip(
+                    ActionToggleButton(
                         selected = uiState.isSplit,
                         onClick = onToggleSplit,
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Filled.Layers,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        },
-                        label = { Text("Split") }
+                        icon = Icons.Filled.Layers,
+                        contentDescription = "Split Transaction"
                     )
                 }
 
                 if (uiState.mode == TransactionType.EXPENSE || uiState.mode == TransactionType.INCOME) {
-                    FilterChip(
+                    ActionToggleButton(
                         selected = uiState.isRecurring,
                         onClick = {
                             if (uiState.isRecurring) {
@@ -473,33 +470,17 @@ fun TransactionEntryFormContent(
                                 showRecurrencePicker = true
                             }
                         },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Filled.Repeat,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        },
-                        label = {
-                            Text(
-                                if (uiState.isRecurring) uiState.recurringFrequency.shortLabel else "Repeat"
-                            )
-                        }
+                        icon = Icons.Filled.Repeat,
+                        contentDescription = "Repeat Transaction"
                     )
                 }
 
                 if (uiState.isCreditCardExpense) {
-                    FilterChip(
+                    ActionToggleButton(
                         selected = uiState.isInstallmentEnabled,
                         onClick = onToggleInstallment,
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Filled.CreditCard,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        },
-                        label = { Text("Inst.") }
+                        icon = Icons.Filled.CreditCard,
+                        contentDescription = "Installment Plan (EMI)"
                     )
                 }
             }
@@ -535,12 +516,29 @@ fun TransactionEntryFormContent(
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.weight(1f)
                         )
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit Frequency",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp)
-                        )
+                        IconButton(
+                            onClick = { showRecurrencePicker = true },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit Frequency",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                        IconButton(
+                            onClick = onDisableRecurring,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Turn Off Repeat",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -1230,5 +1228,46 @@ fun TransactionEntryFormContent(
             },
             onDismiss = { showRecurrencePicker = false }
         )
+    }
+}
+
+@Composable
+private fun ActionToggleButton(
+    selected: Boolean,
+    onClick: () -> Unit,
+    icon: ImageVector,
+    contentDescription: String,
+    modifier: Modifier = Modifier
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+    Surface(
+        selected = selected,
+        onClick = onClick,
+        shape = RoundedCornerShape(10.dp),
+        color = if (selected) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceContainer
+        },
+        border = BorderStroke(
+            1.dp,
+            if (selected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
+        ),
+        modifier = modifier
+            .size(38.dp)
+            .clip(RoundedCornerShape(10.dp))
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier.size(18.dp)
+            )
+        }
     }
 }
