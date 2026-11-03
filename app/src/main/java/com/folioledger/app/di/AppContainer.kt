@@ -33,13 +33,15 @@ class AppContainer(context: Context) {
         AccountRepositoryImpl(
             accountDao = database.accountDao(),
             transactionDao = database.transactionDao(),
-            settingsRepository = settingsAndBackupRepository
+            settingsRepository = settingsAndBackupRepository,
+            database = database
         )
     }
 
     val categoryAndTagRepository: CategoryAndTagRepository by lazy {
         CategoryAndTagRepositoryImpl(
-            categoryAndTagDao = database.categoryAndTagDao()
+            categoryAndTagDao = database.categoryAndTagDao(),
+            database = database
         )
     }
 
@@ -48,7 +50,8 @@ class AppContainer(context: Context) {
             transactionDao = database.transactionDao(),
             accountDao = database.accountDao(),
             categoryAndTagDao = database.categoryAndTagDao(),
-            budgetAndRecurringDao = database.budgetAndRecurringDao()
+            budgetAndRecurringDao = database.budgetAndRecurringDao(),
+            database = database
         )
     }
 
@@ -58,7 +61,8 @@ class AppContainer(context: Context) {
             categoryAndTagDao = database.categoryAndTagDao(),
             budgetAndRecurringDao = database.budgetAndRecurringDao(),
             settingsRepository = settingsAndBackupRepository,
-            accountDao = database.accountDao()
+            accountDao = database.accountDao(),
+            database = database
         )
     }
 }

@@ -37,13 +37,16 @@ import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import androidx.room.withTransaction
+import com.folioledger.app.data.local.FolioDatabase
 
 class AnalyticsAndBudgetRepositoryImpl(
     private val transactionDao: TransactionDao,
     private val categoryAndTagDao: CategoryAndTagDao,
     private val budgetAndRecurringDao: BudgetAndRecurringDao,
     private val settingsRepository: SettingsAndBackupRepository? = null,
-    private val accountDao: AccountDao? = null
+    private val accountDao: AccountDao? = null,
+    private val database: FolioDatabase? = null
 ) : AnalyticsAndBudgetRepository {
 
     private val userPreferencesFlow: Flow<UserPreferences> =
@@ -744,41 +747,49 @@ class AnalyticsAndBudgetRepositoryImpl(
     }
 
     override suspend fun processDueRecurringRulesOnce(todayEpochDay: Long): Result<Int> = runCatching {
-        val dueRules = budgetAndRecurringDao.getDueRecurringRulesOnce(todayEpochDay)
-        var generatedCount = 0
-        for (rule in dueRules) {
-            if (!rule.isActive) continue
+        val executeBatch: suspend () -> Int = {
+            val dueRules = budgetAndRecurringDao.getDueRecurringRulesOnce(todayEpochDay)
+            var generatedCount = 0
+            for (rule in dueRules) {
+                if (!rule.isActive) continue
 
-            val txEntity = TransactionEntity(
-                id = 0L,
-                type = rule.type,
-                timestampEpochMillis = System.currentTimeMillis(),
-                ledgerDateEpochDay = rule.nextOccurrenceEpochDay,
-                amountMinor = rule.amountMinor,
-                currencyCode = rule.currencyCode,
-                accountId = rule.accountId,
-                transferToAccountId = rule.transferToAccountId,
-                categoryId = rule.categoryId,
-                isSplit = false,
-                payeeOrDescription = rule.payeeOrDescription.ifEmpty { rule.title },
-                note = rule.note,
-                recurringRuleId = rule.id
-            )
-            transactionDao.insertTransactionRaw(txEntity)
-            generatedCount++
+                val txEntity = TransactionEntity(
+                    id = 0L,
+                    type = rule.type,
+                    timestampEpochMillis = System.currentTimeMillis(),
+                    ledgerDateEpochDay = rule.nextOccurrenceEpochDay,
+                    amountMinor = rule.amountMinor,
+                    currencyCode = rule.currencyCode,
+                    accountId = rule.accountId,
+                    transferToAccountId = rule.transferToAccountId,
+                    categoryId = rule.categoryId,
+                    isSplit = false,
+                    payeeOrDescription = rule.payeeOrDescription.ifEmpty { rule.title },
+                    note = rule.note,
+                    recurringRuleId = rule.id
+                )
+                transactionDao.insertTransactionRaw(txEntity)
+                generatedCount++
 
-            val nextDate = RecurringScheduleCalculator.computeNextOccurrence(
-                currentDate = LocalDate.ofEpochDay(rule.nextOccurrenceEpochDay),
-                frequency = rule.frequency
-            )
-            val shouldDeactivate = rule.endDateEpochDay != null && nextDate.toEpochDay() > rule.endDateEpochDay
-            val updatedRule = rule.copy(
-                nextOccurrenceEpochDay = nextDate.toEpochDay(),
-                isActive = !shouldDeactivate
-            )
-            budgetAndRecurringDao.updateRecurringRule(updatedRule)
+                val nextDate = RecurringScheduleCalculator.computeNextOccurrence(
+                    currentDate = LocalDate.ofEpochDay(rule.nextOccurrenceEpochDay),
+                    frequency = rule.frequency
+                )
+                val shouldDeactivate = rule.endDateEpochDay != null && nextDate.toEpochDay() > rule.endDateEpochDay
+                val updatedRule = rule.copy(
+                    nextOccurrenceEpochDay = nextDate.toEpochDay(),
+                    isActive = !shouldDeactivate
+                )
+                budgetAndRecurringDao.updateRecurringRule(updatedRule)
+            }
+            generatedCount
         }
-        generatedCount
+
+        if (database != null) {
+            database.withTransaction { executeBatch() }
+        } else {
+            executeBatch()
+        }
     }
 
     override suspend fun upsertBudget(

@@ -1,6 +1,8 @@
-﻿// File: app/src/main/java/com/folioledger/app/data/repository/TransactionRepositoryImpl.kt
+// File: app/src/main/java/com/folioledger/app/data/repository/TransactionRepositoryImpl.kt
 package com.folioledger.app.data.repository
 
+import androidx.room.withTransaction
+import com.folioledger.app.data.local.FolioDatabase
 import com.folioledger.app.data.local.dao.AccountDao
 import com.folioledger.app.data.local.dao.BudgetAndRecurringDao
 import com.folioledger.app.data.local.dao.CategoryAndTagDao
@@ -35,7 +37,8 @@ class TransactionRepositoryImpl(
     private val transactionDao: TransactionDao,
     private val accountDao: AccountDao,
     private val categoryAndTagDao: CategoryAndTagDao,
-    private val budgetAndRecurringDao: BudgetAndRecurringDao
+    private val budgetAndRecurringDao: BudgetAndRecurringDao,
+    private val database: FolioDatabase
 ) : TransactionRepository {
 
     override fun observeTransactionsInRange(
@@ -396,51 +399,53 @@ class TransactionRepositoryImpl(
         transaction: TransactionItem,
         frequency: RepeatFrequency
     ): Result<Long> = runCatching {
-        val nextOccurrenceDate = RecurringScheduleCalculator.computeNextOccurrence(
-            currentDate = LocalDate.ofEpochDay(transaction.ledgerDateEpochDay),
-            frequency = frequency
-        )
-        val sourceAccount = accountDao.getAccountByIdOnce(transaction.accountId)
-        val targetAccount = if (transaction.transferToAccountId != null) {
-            accountDao.getAccountByIdOnce(transaction.transferToAccountId)
-        } else null
-        val resolvedCurrency = transaction.currencyCode.ifBlank {
-            sourceAccount?.currencyCode ?: "INR"
-        }
-
-        val resolvedTitle = transaction.payeeOrDescription.trim().ifEmpty {
-            when {
-                transaction.type == TransactionType.TRANSFER && targetAccount != null ->
-                    "${sourceAccount?.name ?: "Account"} → ${targetAccount.name}"
-                transaction.categoryName != null -> transaction.categoryName
-                else -> "Recurring ${frequency.displayName}"
+        database.withTransaction {
+            val nextOccurrenceDate = RecurringScheduleCalculator.computeNextOccurrence(
+                currentDate = LocalDate.ofEpochDay(transaction.ledgerDateEpochDay),
+                frequency = frequency
+            )
+            val sourceAccount = accountDao.getAccountByIdOnce(transaction.accountId)
+            val targetAccount = if (transaction.transferToAccountId != null) {
+                accountDao.getAccountByIdOnce(transaction.transferToAccountId)
+            } else null
+            val resolvedCurrency = transaction.currencyCode.ifBlank {
+                sourceAccount?.currencyCode ?: "INR"
             }
-        }
 
-        val ruleEntity = RecurringRuleEntity(
-            id = 0L,
-            title = resolvedTitle,
-            type = transaction.type,
-            amountMinor = transaction.amount.amountMinor,
-            currencyCode = resolvedCurrency,
-            accountId = transaction.accountId,
-            transferToAccountId = transaction.transferToAccountId,
-            categoryId = transaction.categoryId,
-            frequency = frequency,
-            startDateEpochDay = transaction.ledgerDateEpochDay,
-            nextOccurrenceEpochDay = nextOccurrenceDate.toEpochDay(),
-            endDateEpochDay = null,
-            payeeOrDescription = transaction.payeeOrDescription.trim().ifEmpty { resolvedTitle },
-            note = transaction.note.trim(),
-            isActive = true
-        )
-        val ruleId = budgetAndRecurringDao.upsertRecurringRule(ruleEntity)
+            val resolvedTitle = transaction.payeeOrDescription.trim().ifEmpty {
+                when {
+                    transaction.type == TransactionType.TRANSFER && targetAccount != null ->
+                        "${sourceAccount?.name ?: "Account"} → ${targetAccount.name}"
+                    transaction.categoryName != null -> transaction.categoryName
+                    else -> "Recurring ${frequency.displayName}"
+                }
+            }
 
-        val txWithRule = transaction.copy(recurringRuleId = ruleId)
-        if (transaction.isSplit) {
-            upsertSplitTransaction(txWithRule).getOrThrow()
-        } else {
-            upsertSingleTransaction(txWithRule).getOrThrow()
+            val ruleEntity = RecurringRuleEntity(
+                id = 0L,
+                title = resolvedTitle,
+                type = transaction.type,
+                amountMinor = transaction.amount.amountMinor,
+                currencyCode = resolvedCurrency,
+                accountId = transaction.accountId,
+                transferToAccountId = transaction.transferToAccountId,
+                categoryId = transaction.categoryId,
+                frequency = frequency,
+                startDateEpochDay = transaction.ledgerDateEpochDay,
+                nextOccurrenceEpochDay = nextOccurrenceDate.toEpochDay(),
+                endDateEpochDay = null,
+                payeeOrDescription = transaction.payeeOrDescription.trim().ifEmpty { resolvedTitle },
+                note = transaction.note.trim(),
+                isActive = true
+            )
+            val ruleId = budgetAndRecurringDao.upsertRecurringRule(ruleEntity)
+
+            val txWithRule = transaction.copy(recurringRuleId = ruleId)
+            if (transaction.isSplit) {
+                upsertSplitTransaction(txWithRule).getOrThrow()
+            } else {
+                upsertSingleTransaction(txWithRule).getOrThrow()
+            }
         }
     }
 

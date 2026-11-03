@@ -1,6 +1,8 @@
-﻿// File: app/src/main/java/com/folioledger/app/data/repository/CategoryAndTagRepositoryImpl.kt
+// File: app/src/main/java/com/folioledger/app/data/repository/CategoryAndTagRepositoryImpl.kt
 package com.folioledger.app.data.repository
 
+import androidx.room.withTransaction
+import com.folioledger.app.data.local.FolioDatabase
 import com.folioledger.app.data.local.DefaultCategorySeeder
 import com.folioledger.app.data.local.dao.CategoryAndTagDao
 import com.folioledger.app.data.local.entity.BookmarkEntity
@@ -16,7 +18,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 
 class CategoryAndTagRepositoryImpl(
-    private val categoryAndTagDao: CategoryAndTagDao
+    private val categoryAndTagDao: CategoryAndTagDao,
+    private val database: FolioDatabase
 ) : CategoryAndTagRepository {
 
     override fun observeCategoryTree(type: CategoryType): Flow<List<CategoryNode>> {
@@ -89,11 +92,13 @@ class CategoryAndTagRepositoryImpl(
         categoryId: Long,
         reassignToCategoryId: Long?
     ): Result<Unit> = runCatching {
-        if (reassignToCategoryId != null && reassignToCategoryId != categoryId) {
-            categoryAndTagDao.reassignTransactionsCategory(categoryId, reassignToCategoryId)
-            categoryAndTagDao.reassignSplitsCategory(categoryId, reassignToCategoryId)
+        database.withTransaction {
+            if (reassignToCategoryId != null && reassignToCategoryId != categoryId) {
+                categoryAndTagDao.reassignTransactionsCategory(categoryId, reassignToCategoryId)
+                categoryAndTagDao.reassignSplitsCategory(categoryId, reassignToCategoryId)
+            }
+            categoryAndTagDao.deleteCategoryById(categoryId)
         }
-        categoryAndTagDao.deleteCategoryById(categoryId)
     }
 
     override suspend fun createTag(tagName: String): Result<Unit> = runCatching {

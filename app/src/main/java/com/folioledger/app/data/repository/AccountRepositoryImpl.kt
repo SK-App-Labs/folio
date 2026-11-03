@@ -25,11 +25,14 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.YearMonth
+import androidx.room.withTransaction
+import com.folioledger.app.data.local.FolioDatabase
 
 class AccountRepositoryImpl(
     private val accountDao: AccountDao,
     private val transactionDao: TransactionDao,
-    private val settingsRepository: SettingsAndBackupRepository
+    private val settingsRepository: SettingsAndBackupRepository,
+    private val database: FolioDatabase
 ) : AccountRepository {
 
     override fun observeNetWorthOverview(referenceDateEpochDay: Long): Flow<NetWorthOverview> {
@@ -266,10 +269,12 @@ class AccountRepositoryImpl(
         accountId: Long,
         deleteTransactions: Boolean
     ): Result<Unit> = runCatching {
-        if (deleteTransactions) {
-            transactionDao.deleteTransactionsForAccount(accountId)
+        database.withTransaction {
+            if (deleteTransactions) {
+                transactionDao.deleteTransactionsForAccount(accountId)
+            }
+            accountDao.deleteAccountById(accountId)
         }
-        accountDao.deleteAccountById(accountId)
     }
 
     override suspend fun getTransactionCountForAccount(accountId: Long): Int = runCatching {
