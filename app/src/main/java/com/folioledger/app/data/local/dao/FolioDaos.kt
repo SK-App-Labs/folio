@@ -318,8 +318,14 @@ interface TransactionDao {
     @Query("SELECT * FROM transaction_tags")
     suspend fun getAllTagCrossRefsOnce(): List<TransactionTagCrossRef>
 
+    @Query("SELECT * FROM installment_plans ORDER BY id DESC")
+    fun observeAllInstallmentPlans(): Flow<List<InstallmentPlanEntity>>
+
     @Query("SELECT * FROM installment_plans ORDER BY id ASC")
     suspend fun getAllInstallmentPlansOnce(): List<InstallmentPlanEntity>
+
+    @Query("DELETE FROM installment_plans WHERE id = :planId")
+    suspend fun deleteInstallmentPlanById(planId: Long)
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertNewTransactionRaw(transaction: TransactionEntity): Long
@@ -555,6 +561,9 @@ interface BudgetAndRecurringDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRecurringRules(rules: List<RecurringRuleEntity>): List<Long>
+
+    @Query("UPDATE recurring_rules SET isActive = :isActive WHERE id = :ruleId")
+    suspend fun updateRecurringRuleActive(ruleId: Long, isActive: Boolean)
 
     @Query("DELETE FROM recurring_rules WHERE id = :ruleId")
     suspend fun deleteRecurringRuleById(ruleId: Long)

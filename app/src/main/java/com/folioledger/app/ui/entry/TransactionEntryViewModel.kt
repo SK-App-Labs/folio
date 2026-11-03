@@ -11,6 +11,7 @@ import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.SplitLineItem
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionBookmark
@@ -190,6 +191,8 @@ data class TransactionEntryUiState(
     val isInstallmentEnabled: Boolean = false,
     val installmentMonthsCount: Int = 3,
     val installmentSchedulePreview: List<InstallmentPreviewItem> = emptyList(),
+    val isRecurring: Boolean = false,
+    val recurringFrequency: RepeatFrequency = RepeatFrequency.EVERY_MONTH,
     val payeeOrDescription: String = "",
     val note: String = "",
     val selectedTags: List<String> = emptyList(),
@@ -234,6 +237,8 @@ private data class EntryFormControlState(
     val splitDrafts: List<SplitLineDraft> = emptyList(),
     val isInstallmentEnabled: Boolean = false,
     val installmentMonthsCount: Int = 3,
+    val isRecurring: Boolean = false,
+    val recurringFrequency: RepeatFrequency = RepeatFrequency.EVERY_MONTH,
     val payeeOrDescription: String = "",
     val note: String = "",
     val selectedTags: List<String> = emptyList(),
@@ -369,6 +374,8 @@ class TransactionEntryViewModel(
             isInstallmentEnabled = effectiveInstallmentEnabled,
             installmentMonthsCount = form.installmentMonthsCount,
             installmentSchedulePreview = schedulePreview,
+            isRecurring = form.isRecurring,
+            recurringFrequency = form.recurringFrequency,
             payeeOrDescription = form.payeeOrDescription,
             note = form.note,
             selectedTags = form.selectedTags,
@@ -801,10 +808,37 @@ class TransactionEntryViewModel(
             val next = !current.isInstallmentEnabled
             current.copy(
                 isInstallmentEnabled = next,
+                isRecurring = if (next) false else current.isRecurring,
                 isSplit = !next && current.isSplit,
                 errorMessage = null
             )
         }
+    }
+
+    fun toggleRecurringMode() {
+        formState.update { current ->
+            val next = !current.isRecurring
+            current.copy(
+                isRecurring = next,
+                isInstallmentEnabled = if (next) false else current.isInstallmentEnabled,
+                errorMessage = null
+            )
+        }
+    }
+
+    fun setRecurringFrequency(frequency: RepeatFrequency) {
+        formState.update { current ->
+            current.copy(
+                isRecurring = true,
+                recurringFrequency = frequency,
+                isInstallmentEnabled = false,
+                errorMessage = null
+            )
+        }
+    }
+
+    fun disableRecurringMode() {
+        formState.update { it.copy(isRecurring = false, errorMessage = null) }
     }
 
     fun setInstallmentMonthsCount(months: Int) {
@@ -1006,6 +1040,13 @@ class TransactionEntryViewModel(
                         totalInstallmentAmount = amount,
                         monthsCount = state.installmentMonthsCount,
                         startDateEpochDay = state.ledgerDateEpochDay
+                    )
+                }
+
+                state.isRecurring -> {
+                    transactionRepository.upsertRecurringTransaction(
+                        transaction = baseTx,
+                        frequency = state.recurringFrequency
                     )
                 }
 

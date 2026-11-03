@@ -1,15 +1,19 @@
 // File: app/src/main/java/com/folioledger/app/data/repository/AnalyticsAndBudgetRepositoryImpl.kt
 package com.folioledger.app.data.repository
 
+import com.folioledger.app.data.local.dao.AccountDao
 import com.folioledger.app.data.local.dao.BudgetAndRecurringDao
 import com.folioledger.app.data.local.dao.CategoryAndTagDao
 import com.folioledger.app.data.local.dao.TransactionDao
 import com.folioledger.app.data.local.entity.BudgetEntity
 import com.folioledger.app.data.local.entity.CategoryEntity
+import com.folioledger.app.data.local.entity.RecurringRuleEntity
+import com.folioledger.app.data.local.entity.TransactionEntity
 import com.folioledger.app.data.local.entity.TransactionWithDetails
 import com.folioledger.app.domain.model.BudgetProgress
 import com.folioledger.app.domain.model.CategorySpendStat
 import com.folioledger.app.domain.model.CategoryType
+import com.folioledger.app.domain.model.InstallmentPlanWithProgress
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.MonthlyTrendBar
 import com.folioledger.app.domain.model.PeriodLedgerSummary
@@ -23,6 +27,7 @@ import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
+import com.folioledger.app.domain.util.RecurringScheduleCalculator
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
@@ -37,7 +42,8 @@ class AnalyticsAndBudgetRepositoryImpl(
     private val transactionDao: TransactionDao,
     private val categoryAndTagDao: CategoryAndTagDao,
     private val budgetAndRecurringDao: BudgetAndRecurringDao,
-    private val settingsRepository: SettingsAndBackupRepository? = null
+    private val settingsRepository: SettingsAndBackupRepository? = null,
+    private val accountDao: AccountDao? = null
 ) : AnalyticsAndBudgetRepository {
 
     private val userPreferencesFlow: Flow<UserPreferences> =
@@ -614,8 +620,22 @@ class AnalyticsAndBudgetRepositoryImpl(
     }
 
     override fun observeActiveRecurringCommitments(): Flow<List<RecurringCommitmentItem>> {
-        return budgetAndRecurringDao.observeAllRecurringRules().map { rules ->
-            rules.filter { it.isActive }.map { rule ->
+        return observeAllRecurringRules().map { rules -> rules.filter { it.isActive } }
+    }
+
+    override fun observeAllRecurringRules(): Flow<List<RecurringCommitmentItem>> {
+        val accountsFlow = accountDao?.observeAllAccounts() ?: flowOf(emptyList())
+        return combine(
+            budgetAndRecurringDao.observeAllRecurringRules(),
+            categoryAndTagDao.observeAllCategories(),
+            accountsFlow
+        ) { rules, categories, accounts ->
+            val categoriesById = categories.associateBy { it.id }
+            val accountsById = accounts.associateBy { it.id }
+
+            rules.map { rule ->
+                val cat = categoriesById[rule.categoryId]
+                val acc = accountsById[rule.accountId]
                 RecurringCommitmentItem(
                     id = rule.id,
                     title = rule.title,
@@ -623,13 +643,138 @@ class AnalyticsAndBudgetRepositoryImpl(
                     amount = MinorMoney(rule.amountMinor),
                     currencyCode = rule.currencyCode,
                     accountId = rule.accountId,
+                    accountName = acc?.name ?: "Account #${rule.accountId}",
                     frequency = rule.frequency,
                     nextOccurrenceEpochDay = rule.nextOccurrenceEpochDay,
                     payeeOrDescription = rule.payeeOrDescription,
-                    isActive = rule.isActive
+                    isActive = rule.isActive,
+                    categoryId = rule.categoryId,
+                    categoryName = cat?.name,
+                    categoryColorHex = cat?.colorHex,
+                    categoryIconName = cat?.iconName,
+                    startDateEpochDay = rule.startDateEpochDay,
+                    note = rule.note
                 )
             }
         }
+    }
+
+    override suspend fun upsertRecurringRule(rule: RecurringCommitmentItem): Result<Long> = runCatching {
+        val entity = RecurringRuleEntity(
+            id = rule.id,
+            title = rule.title.trim(),
+            type = rule.type,
+            amountMinor = rule.amount.amountMinor,
+            currencyCode = rule.currencyCode,
+            accountId = rule.accountId,
+            categoryId = rule.categoryId,
+            frequency = rule.frequency,
+            startDateEpochDay = rule.startDateEpochDay,
+            nextOccurrenceEpochDay = rule.nextOccurrenceEpochDay,
+            payeeOrDescription = rule.payeeOrDescription.trim(),
+            note = rule.note.trim(),
+            isActive = rule.isActive
+        )
+        budgetAndRecurringDao.upsertRecurringRule(entity)
+    }
+
+    override suspend fun updateRecurringRuleActive(ruleId: Long, isActive: Boolean): Result<Unit> = runCatching {
+        budgetAndRecurringDao.updateRecurringRuleActive(ruleId, isActive)
+    }
+
+    override suspend fun deleteRecurringRule(ruleId: Long): Result<Unit> = runCatching {
+        budgetAndRecurringDao.deleteRecurringRuleById(ruleId)
+    }
+
+    override fun observeInstallmentPlansWithProgress(): Flow<List<InstallmentPlanWithProgress>> {
+        val accountsFlow = accountDao?.observeAllAccounts() ?: flowOf(emptyList())
+        return combine(
+            transactionDao.observeAllInstallmentPlans(),
+            transactionDao.observeAllTransactions(),
+            accountsFlow,
+            categoryAndTagDao.observeAllCategories()
+        ) { plans, allTxns, accounts, categories ->
+            val accountsById = accounts.associateBy { it.id }
+            val categoriesById = categories.associateBy { it.id }
+            val today = LocalDate.now().toEpochDay()
+
+            plans.map { plan ->
+                val planTxns = allTxns.filter { it.transaction.installmentPlanId == plan.id }
+                val totalCount = plan.monthsCount
+                val paidTxns = planTxns.filter { it.transaction.ledgerDateEpochDay <= today }
+                val paidCount = paidTxns.size.coerceAtMost(totalCount)
+                val remainingCount = (totalCount - paidCount).coerceAtLeast(0)
+                val paidMinor = paidTxns.sumOf { it.transaction.amountMinor }
+                val remainingMinor = (plan.totalAmountMinor - paidMinor).coerceAtLeast(0L)
+                val monthlyMinor = if (plan.monthsCount > 0) plan.totalAmountMinor / plan.monthsCount else 0L
+                val nextDueTx = planTxns.filter { it.transaction.ledgerDateEpochDay > today }
+                    .minByOrNull { it.transaction.ledgerDateEpochDay }
+                val acc = accountsById[plan.accountId]
+                val cat = categoriesById[plan.categoryId]
+
+                InstallmentPlanWithProgress(
+                    id = plan.id,
+                    title = plan.title,
+                    accountId = plan.accountId,
+                    accountName = acc?.name ?: "Credit Card",
+                    categoryId = plan.categoryId,
+                    categoryName = cat?.name,
+                    categoryColorHex = cat?.colorHex,
+                    categoryIconName = cat?.iconName,
+                    totalAmount = MinorMoney(plan.totalAmountMinor),
+                    monthsCount = totalCount,
+                    paidInstallmentsCount = paidCount,
+                    remainingInstallmentsCount = remainingCount,
+                    paidAmount = MinorMoney(paidMinor),
+                    remainingAmount = MinorMoney(remainingMinor),
+                    monthlyAmount = MinorMoney(monthlyMinor),
+                    startDateEpochDay = plan.startDateEpochDay,
+                    nextDueDateEpochDay = nextDueTx?.transaction?.ledgerDateEpochDay
+                )
+            }
+        }
+    }
+
+    override suspend fun deleteInstallmentPlan(planId: Long): Result<Unit> = runCatching {
+        transactionDao.deleteInstallmentPlanById(planId)
+    }
+
+    override suspend fun processDueRecurringRulesOnce(todayEpochDay: Long): Result<Int> = runCatching {
+        val dueRules = budgetAndRecurringDao.getDueRecurringRulesOnce(todayEpochDay)
+        var generatedCount = 0
+        for (rule in dueRules) {
+            if (!rule.isActive) continue
+
+            val txEntity = TransactionEntity(
+                id = 0L,
+                type = rule.type,
+                timestampEpochMillis = System.currentTimeMillis(),
+                ledgerDateEpochDay = rule.nextOccurrenceEpochDay,
+                amountMinor = rule.amountMinor,
+                currencyCode = rule.currencyCode,
+                accountId = rule.accountId,
+                transferToAccountId = rule.transferToAccountId,
+                categoryId = rule.categoryId,
+                isSplit = false,
+                payeeOrDescription = rule.payeeOrDescription.ifEmpty { rule.title },
+                note = rule.note,
+                recurringRuleId = rule.id
+            )
+            transactionDao.insertTransactionRaw(txEntity)
+            generatedCount++
+
+            val nextDate = RecurringScheduleCalculator.computeNextOccurrence(
+                currentDate = LocalDate.ofEpochDay(rule.nextOccurrenceEpochDay),
+                frequency = rule.frequency
+            )
+            val shouldDeactivate = rule.endDateEpochDay != null && nextDate.toEpochDay() > rule.endDateEpochDay
+            val updatedRule = rule.copy(
+                nextOccurrenceEpochDay = nextDate.toEpochDay(),
+                isActive = !shouldDeactivate
+            )
+            budgetAndRecurringDao.updateRecurringRule(updatedRule)
+        }
+        generatedCount
     }
 
     override suspend fun upsertBudget(

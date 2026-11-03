@@ -7,10 +7,12 @@ import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategorySpendStat
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.MinorMoney
+import com.folioledger.app.domain.model.InstallmentPlanWithProgress
 import com.folioledger.app.domain.model.MonthlyTrendBar
 import com.folioledger.app.domain.model.NetWorthOverview
 import com.folioledger.app.domain.model.PeriodLedgerSummary
 import com.folioledger.app.domain.model.RecurringCommitmentItem
+import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.SpendRankingItem
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.TransactionItem
@@ -103,6 +105,11 @@ interface TransactionRepository {
         startDateEpochDay: Long
     ): Result<List<Long>>
 
+    suspend fun upsertRecurringTransaction(
+        transaction: TransactionItem,
+        frequency: RepeatFrequency
+    ): Result<Long>
+
     suspend fun deleteTransaction(transactionId: Long): Result<Unit>
 }
 
@@ -157,6 +164,20 @@ interface AnalyticsAndBudgetRepository {
     ): Flow<List<BudgetProgress>>
 
     fun observeActiveRecurringCommitments(): Flow<List<RecurringCommitmentItem>>
+
+    fun observeAllRecurringRules(): Flow<List<RecurringCommitmentItem>>
+
+    suspend fun upsertRecurringRule(rule: RecurringCommitmentItem): Result<Long>
+
+    suspend fun updateRecurringRuleActive(ruleId: Long, isActive: Boolean): Result<Unit>
+
+    suspend fun deleteRecurringRule(ruleId: Long): Result<Unit>
+
+    fun observeInstallmentPlansWithProgress(): Flow<List<InstallmentPlanWithProgress>>
+
+    suspend fun deleteInstallmentPlan(planId: Long): Result<Unit>
+
+    suspend fun processDueRecurringRulesOnce(todayEpochDay: Long): Result<Int>
 
     suspend fun upsertBudget(
         budgetId: Long = 0L,

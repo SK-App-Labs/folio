@@ -28,6 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Category
@@ -104,6 +105,7 @@ import com.folioledger.app.ui.settings.sheets.CategoryEditorDialog
 import com.folioledger.app.ui.settings.sheets.CategoryManagerBottomSheet
 import com.folioledger.app.ui.settings.sheets.FeedbackBottomSheet
 import com.folioledger.app.ui.settings.sheets.PdfReportsBottomSheet
+import com.folioledger.app.ui.settings.sheets.RecurringManagerBottomSheet
 import com.folioledger.app.ui.settings.sheets.RegionalFormatBottomSheet
 import com.folioledger.app.ui.settings.sheets.SecondaryCurrenciesBottomSheet
 import com.folioledger.app.ui.settings.sheets.SpreadsheetsBottomSheet
@@ -265,6 +267,17 @@ fun SettingsScreen(
                             valueText = "${uiState.tags.size} tags • ${uiState.bookmarks.size} saved",
                             enabled = isNotBusy,
                             onClick = { isTagsAndBookmarksSheetOpen = true }
+                        )
+                        HorizontalDivider(
+                            color = semanticColors.cardStrokeSubtle,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                        SettingsNavigationRow(
+                            icon = Icons.Default.Autorenew,
+                            title = "Recurring & Subscriptions",
+                            valueText = "${uiState.activeRecurringCount} active • ${uiState.formattedMonthlyBurden}/mo",
+                            enabled = isNotBusy,
+                            onClick = { viewModel.setRecurringManagerOpen(true) }
                         )
                         HorizontalDivider(
                             color = semanticColors.cardStrokeSubtle,
@@ -707,6 +720,17 @@ fun SettingsScreen(
                 viewModel.setTagManagerOpen(false)
                 viewModel.setBookmarkManagerOpen(false)
             }
+        )
+    }
+
+    if (uiState.isRecurringManagerOpen) {
+        RecurringManagerBottomSheet(
+            uiState = uiState,
+            onToggleRecurringActive = viewModel::toggleRecurringRuleActive,
+            onDeleteRecurringRule = viewModel::deleteRecurringRule,
+            onUpdateRecurringRule = viewModel::upsertRecurringRule,
+            onDeleteInstallmentPlan = viewModel::deleteInstallmentPlan,
+            onDismiss = { viewModel.setRecurringManagerOpen(false) }
         )
     }
 

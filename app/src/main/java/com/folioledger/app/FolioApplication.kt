@@ -8,6 +8,7 @@ import com.folioledger.app.di.AppContainer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class FolioApplication : Application() {
     lateinit var container: AppContainer
@@ -37,5 +38,16 @@ class FolioApplication : Application() {
                 }
             }
         )
+
+        // Automatically process due recurring commitments on launch
+        applicationScope.launch {
+            try {
+                container.analyticsAndBudgetRepository.processDueRecurringRulesOnce(
+                    todayEpochDay = java.time.LocalDate.now().toEpochDay()
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("FolioApplication", "Failed to process due recurring rules on startup", e)
+            }
+        }
     }
 }

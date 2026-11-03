@@ -1205,8 +1205,15 @@ class SettingsAndBackupRepositoryImpl(
                 transferToAccountId = obj.optNullableLong("transferToAccountId"),
                 categoryId = obj.optNullableLong("categoryId"),
                 frequency = runCatching {
-                    RepeatFrequency.valueOf(obj.getString("frequency"))
-                }.getOrDefault(RepeatFrequency.MONTHLY),
+                    when (val raw = obj.getString("frequency")) {
+                        "DAILY" -> RepeatFrequency.EVERY_DAY
+                        "WEEKLY" -> RepeatFrequency.EVERY_WEEK
+                        "BIWEEKLY" -> RepeatFrequency.EVERY_2_WEEKS
+                        "MONTHLY" -> RepeatFrequency.EVERY_MONTH
+                        "YEARLY" -> RepeatFrequency.ANNUALLY
+                        else -> RepeatFrequency.valueOf(raw)
+                    }
+                }.getOrDefault(RepeatFrequency.EVERY_MONTH),
                 startDateEpochDay = obj.getLong("startDateEpochDay"),
                 nextOccurrenceEpochDay = obj.getLong("nextOccurrenceEpochDay"),
                 endDateEpochDay = obj.optNullableLong("endDateEpochDay"),

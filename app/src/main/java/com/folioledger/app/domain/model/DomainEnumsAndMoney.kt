@@ -286,10 +286,26 @@ enum class CategoryType {
     EXPENSE
 }
 
-enum class RepeatFrequency {
-    DAILY,
-    WEEKLY,
-    BIWEEKLY,
-    MONTHLY,
-    YEARLY
+enum class RepeatFrequency(val displayName: String, val shortLabel: String) {
+    EVERY_DAY("Every Day", "Daily"),
+    WEEKDAYS("Weekdays (Mon–Fri)", "Weekdays"),
+    WEEKENDS("Weekends (Sat–Sun)", "Weekends"),
+    EVERY_WEEK("Every Week", "Weekly"),
+    EVERY_2_WEEKS("Every 2 Weeks", "Bi-weekly"),
+    EVERY_4_WEEKS("Every 4 Weeks (28 Days)", "Every 4 Wks"),
+    EVERY_MONTH("Every Month", "Monthly"),
+    END_OF_MONTH("End of Month", "End of Mo."),
+    EVERY_2_MONTHS("Every 2 Months", "Bi-monthly"),
+    EVERY_3_MONTHS("Every 3 Months (Quarterly)", "Quarterly"),
+    EVERY_4_MONTHS("Every 4 Months", "Every 4 Mo."),
+    EVERY_6_MONTHS("Every 6 Months (Half-yearly)", "Semi-annual"),
+    ANNUALLY("Annually (Yearly)", "Annual");
+
+    companion object {
+        val DAILY: RepeatFrequency = EVERY_DAY
+        val WEEKLY: RepeatFrequency = EVERY_WEEK
+        val BIWEEKLY: RepeatFrequency = EVERY_2_WEEKS
+        val MONTHLY: RepeatFrequency = EVERY_MONTH
+        val YEARLY: RepeatFrequency = ANNUALLY
+    }
 }

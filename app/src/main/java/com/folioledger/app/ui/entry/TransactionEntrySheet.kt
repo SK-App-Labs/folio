@@ -28,12 +28,15 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -81,8 +84,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
+import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.util.RecurringScheduleCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
@@ -93,6 +98,7 @@ import com.folioledger.app.ui.entry.components.CategoryPickerBottomSheet
 import com.folioledger.app.ui.entry.components.DockedAccountPicker
 import com.folioledger.app.ui.entry.components.DockedCategoryPicker
 import com.folioledger.app.ui.entry.components.InstallmentPlanCard
+import com.folioledger.app.ui.entry.components.RecurrenceFrequencyPickerBottomSheet
 import com.folioledger.app.ui.entry.components.SplitTransactionEditorCard
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
@@ -141,6 +147,9 @@ fun TransactionEntrySheet(
             onUpdateSplitCategory = viewModel::updateSplitLineCategory,
             onAssignRemainingToSplit = viewModel::assignRemainingToSplitLine,
             onRemoveSplitLine = viewModel::removeSplitLine,
+            onToggleRecurring = viewModel::toggleRecurringMode,
+            onSelectRecurringFrequency = viewModel::setRecurringFrequency,
+            onDisableRecurring = viewModel::disableRecurringMode,
             onToggleInstallment = viewModel::toggleInstallmentEnabled,
             onSelectInstallmentMonths = viewModel::setInstallmentMonthsCount,
             onPayeeChange = viewModel::updatePayeeOrDescription,
@@ -186,6 +195,9 @@ fun TransactionEntryFormContent(
     onUpdateSplitCategory: (Long, CategoryNode) -> Unit,
     onAssignRemainingToSplit: (Long) -> Unit,
     onRemoveSplitLine: (Long) -> Unit,
+    onToggleRecurring: () -> Unit = {},
+    onSelectRecurringFrequency: (RepeatFrequency) -> Unit = {},
+    onDisableRecurring: () -> Unit = {},
     onToggleInstallment: () -> Unit,
     onSelectInstallmentMonths: (Int) -> Unit,
     onPayeeChange: (String) -> Unit,
@@ -220,6 +232,7 @@ fun TransactionEntryFormContent(
 
     var showDatePickerDialog by rememberSaveable { mutableStateOf(false) }
     var showTimePickerDialog by rememberSaveable { mutableStateOf(false) }
+    var showRecurrencePicker by rememberSaveable { mutableStateOf(false) }
     var showCategorySheet by rememberSaveable { mutableStateOf(false) }
     var splitLineIdForCategoryPicker by rememberSaveable { mutableStateOf<Long?>(null) }
     var showBookmarksDialog by rememberSaveable { mutableStateOf(false) }
@@ -449,6 +462,32 @@ fun TransactionEntryFormContent(
                     )
                 }
 
+                if (uiState.mode == TransactionType.EXPENSE || uiState.mode == TransactionType.INCOME) {
+                    FilterChip(
+                        selected = uiState.isRecurring,
+                        onClick = {
+                            if (uiState.isRecurring) {
+                                showRecurrencePicker = true
+                            } else {
+                                onToggleRecurring()
+                                showRecurrencePicker = true
+                            }
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Repeat,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        },
+                        label = {
+                            Text(
+                                if (uiState.isRecurring) uiState.recurringFrequency.shortLabel else "Repeat"
+                            )
+                        }
+                    )
+                }
+
                 if (uiState.isCreditCardExpense) {
                     FilterChip(
                         selected = uiState.isInstallmentEnabled,
@@ -462,6 +501,47 @@ fun TransactionEntryFormContent(
                         },
                         label = { Text("Inst.") }
                     )
+                }
+            }
+
+            if (uiState.isRecurring) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 2.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { showRecurrencePicker = true }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Autorenew,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = RecurringScheduleCalculator.formatHumanReadableSummary(
+                                frequency = uiState.recurringFrequency,
+                                baseDate = LocalDate.ofEpochDay(uiState.ledgerDateEpochDay)
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit Frequency",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
                 }
             }
 
@@ -1134,6 +1214,21 @@ fun TransactionEntryFormContent(
                     Text("Cancel")
                 }
             }
+        )
+    }
+
+    if (showRecurrencePicker) {
+        RecurrenceFrequencyPickerBottomSheet(
+            selectedFrequency = uiState.recurringFrequency,
+            isRecurringActive = uiState.isRecurring,
+            baseDate = LocalDate.ofEpochDay(uiState.ledgerDateEpochDay),
+            onSelectFrequency = { freq ->
+                onSelectRecurringFrequency(freq)
+            },
+            onDisableRecurring = {
+                onDisableRecurring()
+            },
+            onDismiss = { showRecurrencePicker = false }
         )
     }
 }

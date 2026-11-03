@@ -42,7 +42,16 @@ class FolioTypeConverters {
 
     @TypeConverter
     fun toRepeatFrequency(value: String?): RepeatFrequency? =
-        value?.let { runCatching { RepeatFrequency.valueOf(it) }.getOrDefault(RepeatFrequency.MONTHLY) }
+        value?.let {
+            when (it) {
+                "DAILY" -> RepeatFrequency.EVERY_DAY
+                "WEEKLY" -> RepeatFrequency.EVERY_WEEK
+                "BIWEEKLY" -> RepeatFrequency.EVERY_2_WEEKS
+                "MONTHLY" -> RepeatFrequency.EVERY_MONTH
+                "YEARLY" -> RepeatFrequency.ANNUALLY
+                else -> runCatching { RepeatFrequency.valueOf(it) }.getOrDefault(RepeatFrequency.EVERY_MONTH)
+            }
+        }
 }
 
 @Entity(

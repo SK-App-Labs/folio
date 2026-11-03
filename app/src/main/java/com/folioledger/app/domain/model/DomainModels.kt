@@ -76,7 +76,8 @@ data class TransactionItem(
     val payeeOrDescription: String = "",
     val note: String = "",
     val installmentIndex: Int? = null,
-    val installmentTotalCount: Int? = null
+    val installmentTotalCount: Int? = null,
+    val recurringRuleId: Long? = null
 )
 
 @Immutable
@@ -245,7 +246,35 @@ data class RecurringCommitmentItem(
     val frequency: RepeatFrequency,
     val nextOccurrenceEpochDay: Long,
     val payeeOrDescription: String = "",
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    val accountName: String = "",
+    val categoryId: Long? = null,
+    val categoryName: String? = null,
+    val categoryColorHex: String? = null,
+    val categoryIconName: String? = null,
+    val startDateEpochDay: Long = 0L,
+    val note: String = ""
+)
+
+@Immutable
+data class InstallmentPlanWithProgress(
+    val id: Long,
+    val title: String,
+    val accountId: Long,
+    val accountName: String,
+    val categoryId: Long?,
+    val categoryName: String?,
+    val categoryColorHex: String?,
+    val categoryIconName: String?,
+    val totalAmount: MinorMoney,
+    val monthsCount: Int,
+    val paidInstallmentsCount: Int,
+    val remainingInstallmentsCount: Int,
+    val paidAmount: MinorMoney,
+    val remainingAmount: MinorMoney,
+    val monthlyAmount: MinorMoney,
+    val startDateEpochDay: Long,
+    val nextDueDateEpochDay: Long?
 )
 
 @Immutable

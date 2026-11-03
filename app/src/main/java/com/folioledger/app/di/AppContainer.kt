@@ -47,7 +47,8 @@ class AppContainer(context: Context) {
         TransactionRepositoryImpl(
             transactionDao = database.transactionDao(),
             accountDao = database.accountDao(),
-            categoryAndTagDao = database.categoryAndTagDao()
+            categoryAndTagDao = database.categoryAndTagDao(),
+            budgetAndRecurringDao = database.budgetAndRecurringDao()
         )
     }
 
@@ -56,7 +57,8 @@ class AppContainer(context: Context) {
             transactionDao = database.transactionDao(),
             categoryAndTagDao = database.categoryAndTagDao(),
             budgetAndRecurringDao = database.budgetAndRecurringDao(),
-            settingsRepository = settingsAndBackupRepository
+            settingsRepository = settingsAndBackupRepository,
+            accountDao = database.accountDao()
         )
     }
 }

@@ -2538,32 +2538,12 @@ object StatsPredictiveCalculations {
         todayEpochDay: Long,
         horizonEpochDay: Long
     ): List<Long> {
-        val occurrences = mutableListOf<Long>()
-        var cursor = LocalDate.ofEpochDay(startDay)
-
-        // Advance cursor until it reaches or exceeds today
-        while (cursor.toEpochDay() < todayEpochDay) {
-            cursor = when (frequency) {
-                RepeatFrequency.DAILY -> cursor.plusDays(1)
-                RepeatFrequency.WEEKLY -> cursor.plusWeeks(1)
-                RepeatFrequency.BIWEEKLY -> cursor.plusWeeks(2)
-                RepeatFrequency.MONTHLY -> cursor.plusMonths(1)
-                RepeatFrequency.YEARLY -> cursor.plusYears(1)
-            }
-        }
-
-        while (cursor.toEpochDay() <= horizonEpochDay) {
-            occurrences.add(cursor.toEpochDay())
-            cursor = when (frequency) {
-                RepeatFrequency.DAILY -> cursor.plusDays(1)
-                RepeatFrequency.WEEKLY -> cursor.plusWeeks(1)
-                RepeatFrequency.BIWEEKLY -> cursor.plusWeeks(2)
-                RepeatFrequency.MONTHLY -> cursor.plusMonths(1)
-                RepeatFrequency.YEARLY -> cursor.plusYears(1)
-            }
-        }
-
-        return occurrences
+        return com.folioledger.app.domain.util.RecurringScheduleCalculator.projectOccurrencesInHorizon(
+            startDay = startDay,
+            frequency = frequency,
+            todayEpochDay = todayEpochDay,
+            horizonEpochDay = horizonEpochDay
+        )
     }
 
     fun computeSafeToSpend(

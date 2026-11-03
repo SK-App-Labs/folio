@@ -9,18 +9,24 @@ import com.folioledger.app.data.pdf.PdfExportResult
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.AutoBackupRetention
 import com.folioledger.app.domain.model.CategoryNode
-import com.folioledger.app.domain.model.ImportCsvPreview
-import com.folioledger.app.domain.model.ImportCsvResult
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.CurrencySpec
+import com.folioledger.app.domain.model.ImportCsvPreview
+import com.folioledger.app.domain.model.ImportCsvResult
+import com.folioledger.app.domain.model.InstallmentPlanWithProgress
+import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.model.RecurringCommitmentItem
+import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.repository.AccountRepository
+import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.suggestIconAndColorForCategoryName
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -56,6 +62,14 @@ data class SettingsUiState(
     val incomeCategories: List<CategoryNode> = emptyList(),
     val tags: List<String> = emptyList(),
     val bookmarks: List<TransactionBookmark> = emptyList(),
+    val recurringRules: List<RecurringCommitmentItem> = emptyList(),
+    val installmentPlans: List<InstallmentPlanWithProgress> = emptyList(),
+    val activeRecurringCount: Int = 0,
+    val activeMonthlyRecurringBurden: MinorMoney = MinorMoney.ZERO,
+    val activeMonthlyInstallmentsBurden: MinorMoney = MinorMoney.ZERO,
+    val totalMonthlyFixedBurden: MinorMoney = MinorMoney.ZERO,
+    val formattedMonthlyBurden: String = "",
+    val isRecurringManagerOpen: Boolean = false,
     val isCategoryManagerOpen: Boolean = false,
     val selectedCategoryManagerType: CategoryType = CategoryType.EXPENSE,
     val categoryEditorState: CategoryEditorDialogState? = null,
@@ -87,6 +101,7 @@ data class SettingsUiState(
 }
 
 private data class SettingsInternalControlState(
+    val isRecurringManagerOpen: Boolean = false,
     val isCategoryManagerOpen: Boolean = false,
     val selectedCategoryManagerType: CategoryType = CategoryType.EXPENSE,
     val categoryEditorState: CategoryEditorDialogState? = null,
@@ -108,7 +123,8 @@ private data class SettingsInternalControlState(
 class SettingsViewModel(
     private val settingsAndBackupRepository: SettingsAndBackupRepository,
     private val categoryAndTagRepository: CategoryAndTagRepository,
-    private val accountRepository: AccountRepository
+    private val accountRepository: AccountRepository,
+    private val analyticsAndBudgetRepository: AnalyticsAndBudgetRepository
 ) : ViewModel() {
 
     private val controlState = MutableStateFlow(SettingsInternalControlState())
@@ -129,13 +145,54 @@ class SettingsViewModel(
 
     private val activeAccountsFlow = accountRepository.observeActiveAccounts(LocalDate.now().toEpochDay())
 
+    private val recurringAndInstallmentsFlow = combine(
+        analyticsAndBudgetRepository.observeAllRecurringRules(),
+        analyticsAndBudgetRepository.observeInstallmentPlansWithProgress()
+    ) { rules, plans ->
+        rules to plans
+    }
+
     val uiState: StateFlow<SettingsUiState> = combine(
         settingsAndBackupRepository.observeUserPreferences(),
         categoriesAndMetadataFlow,
         activeAccountsFlow,
+        recurringAndInstallmentsFlow,
         controlState
-    ) { prefs, metadata, accounts, ctrl ->
+    ) { prefs, metadata, accounts, (recurringRules, installmentPlans), ctrl ->
         val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
+        val activeRules = recurringRules.filter { it.isActive }
+        val activeRecurringCount = activeRules.size
+
+        var monthlyRecurringMinor = 0L
+        for (rule in activeRules) {
+            val amountMinor = rule.amount.amountMinor
+            val monthlyEquivalent = when (rule.frequency) {
+                RepeatFrequency.EVERY_DAY -> amountMinor * 30L
+                RepeatFrequency.WEEKDAYS -> amountMinor * 22L
+                RepeatFrequency.WEEKENDS -> amountMinor * 8L
+                RepeatFrequency.EVERY_WEEK -> amountMinor * 4L
+                RepeatFrequency.EVERY_2_WEEKS -> amountMinor * 2L
+                RepeatFrequency.EVERY_4_WEEKS -> amountMinor
+                RepeatFrequency.EVERY_MONTH, RepeatFrequency.END_OF_MONTH -> amountMinor
+                RepeatFrequency.EVERY_2_MONTHS -> amountMinor / 2L
+                RepeatFrequency.EVERY_3_MONTHS -> amountMinor / 3L
+                RepeatFrequency.EVERY_4_MONTHS -> amountMinor / 4L
+                RepeatFrequency.EVERY_6_MONTHS -> amountMinor / 6L
+                RepeatFrequency.ANNUALLY -> amountMinor / 12L
+            }
+            monthlyRecurringMinor += monthlyEquivalent
+        }
+
+        val activeInstallments = installmentPlans.filter { it.remainingInstallmentsCount > 0 }
+        val monthlyInstallmentsMinor = activeInstallments.sumOf { it.monthlyAmount.amountMinor }
+        val totalMonthlyFixedMinor = monthlyRecurringMinor + monthlyInstallmentsMinor
+        val formattedMonthly = MoneyFormatterAndCalculator.formatMinorMoney(
+            money = MinorMoney(totalMonthlyFixedMinor),
+            currencySpec = currencySpec,
+            grouping = prefs.numberGrouping,
+            includeSymbol = true
+        )
+
         SettingsUiState(
             userPreferences = prefs,
             currencySpec = currencySpec,
@@ -144,6 +201,14 @@ class SettingsViewModel(
             incomeCategories = metadata.incomeCategories,
             tags = metadata.tags,
             bookmarks = metadata.bookmarks,
+            recurringRules = recurringRules,
+            installmentPlans = installmentPlans,
+            activeRecurringCount = activeRecurringCount,
+            activeMonthlyRecurringBurden = MinorMoney(monthlyRecurringMinor),
+            activeMonthlyInstallmentsBurden = MinorMoney(monthlyInstallmentsMinor),
+            totalMonthlyFixedBurden = MinorMoney(totalMonthlyFixedMinor),
+            formattedMonthlyBurden = formattedMonthly,
+            isRecurringManagerOpen = ctrl.isRecurringManagerOpen,
             isCategoryManagerOpen = ctrl.isCategoryManagerOpen,
             selectedCategoryManagerType = ctrl.selectedCategoryManagerType,
             categoryEditorState = ctrl.categoryEditorState,
@@ -169,6 +234,34 @@ class SettingsViewModel(
 
     init {
         refreshAutoBackupFiles()
+    }
+
+    fun setRecurringManagerOpen(isOpen: Boolean) {
+        controlState.update { it.copy(isRecurringManagerOpen = isOpen) }
+    }
+
+    fun toggleRecurringRuleActive(ruleId: Long, isActive: Boolean) {
+        viewModelScope.launch {
+            analyticsAndBudgetRepository.updateRecurringRuleActive(ruleId, isActive)
+        }
+    }
+
+    fun deleteRecurringRule(ruleId: Long) {
+        viewModelScope.launch {
+            analyticsAndBudgetRepository.deleteRecurringRule(ruleId)
+        }
+    }
+
+    fun upsertRecurringRule(rule: RecurringCommitmentItem) {
+        viewModelScope.launch {
+            analyticsAndBudgetRepository.upsertRecurringRule(rule)
+        }
+    }
+
+    fun deleteInstallmentPlan(planId: Long) {
+        viewModelScope.launch {
+            analyticsAndBudgetRepository.deleteInstallmentPlan(planId)
+        }
     }
 
     // UserPreferences Update Actions

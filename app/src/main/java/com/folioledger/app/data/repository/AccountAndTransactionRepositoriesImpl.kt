@@ -2,12 +2,14 @@
 package com.folioledger.app.data.repository
 
 import com.folioledger.app.data.local.dao.AccountDao
+import com.folioledger.app.data.local.dao.BudgetAndRecurringDao
 import com.folioledger.app.data.local.dao.CategoryAndTagDao
 import com.folioledger.app.data.local.dao.TransactionBalanceProjection
 import com.folioledger.app.data.local.dao.TransactionDao
 import com.folioledger.app.data.local.entity.AccountEntity
 import com.folioledger.app.data.local.entity.CategoryEntity
 import com.folioledger.app.data.local.entity.InstallmentPlanEntity
+import com.folioledger.app.data.local.entity.RecurringRuleEntity
 import com.folioledger.app.data.local.entity.TransactionEntity
 import com.folioledger.app.data.local.entity.TransactionSplitEntity
 import com.folioledger.app.data.local.entity.TransactionWithDetails
@@ -15,6 +17,7 @@ import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NetWorthOverview
+import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.SplitLineItem
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
@@ -25,6 +28,7 @@ import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
+import com.folioledger.app.domain.util.RecurringScheduleCalculator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -598,7 +602,8 @@ class AccountRepositoryImpl(
 class TransactionRepositoryImpl(
     private val transactionDao: TransactionDao,
     private val accountDao: AccountDao,
-    private val categoryAndTagDao: CategoryAndTagDao
+    private val categoryAndTagDao: CategoryAndTagDao,
+    private val budgetAndRecurringDao: BudgetAndRecurringDao
 ) : TransactionRepository {
 
     override fun observeTransactionsInRange(
@@ -755,7 +760,8 @@ class TransactionRepositoryImpl(
                 payeeOrDescription = transaction.payeeOrDescription.trim(),
                 note = transaction.note.trim(),
                 installmentIndex = transaction.installmentIndex,
-                installmentTotalCount = transaction.installmentTotalCount
+                installmentTotalCount = transaction.installmentTotalCount,
+                recurringRuleId = transaction.recurringRuleId
             )
 
             transactionDao.upsertTransactionWithDetails(
@@ -792,7 +798,8 @@ class TransactionRepositoryImpl(
                 payeeOrDescription = transaction.payeeOrDescription.trim(),
                 note = transaction.note.trim(),
                 installmentIndex = transaction.installmentIndex,
-                installmentTotalCount = transaction.installmentTotalCount
+                installmentTotalCount = transaction.installmentTotalCount,
+                recurringRuleId = transaction.recurringRuleId
             )
 
             val splitEntities = transaction.splits.map { split ->
@@ -953,6 +960,48 @@ class TransactionRepositoryImpl(
         )
     }
 
+    override suspend fun upsertRecurringTransaction(
+        transaction: TransactionItem,
+        frequency: RepeatFrequency
+    ): Result<Long> = runCatching {
+        val nextOccurrenceDate = RecurringScheduleCalculator.computeNextOccurrence(
+            currentDate = LocalDate.ofEpochDay(transaction.ledgerDateEpochDay),
+            frequency = frequency
+        )
+        val sourceAccount = accountDao.getAccountByIdOnce(transaction.accountId)
+        val resolvedCurrency = transaction.currencyCode.ifBlank {
+            sourceAccount?.currencyCode ?: "INR"
+        }
+
+        val ruleEntity = RecurringRuleEntity(
+            id = 0L,
+            title = transaction.payeeOrDescription.trim().ifEmpty {
+                transaction.categoryName ?: "Recurring ${frequency.displayName}"
+            },
+            type = transaction.type,
+            amountMinor = transaction.amount.amountMinor,
+            currencyCode = resolvedCurrency,
+            accountId = transaction.accountId,
+            transferToAccountId = transaction.transferToAccountId,
+            categoryId = transaction.categoryId,
+            frequency = frequency,
+            startDateEpochDay = transaction.ledgerDateEpochDay,
+            nextOccurrenceEpochDay = nextOccurrenceDate.toEpochDay(),
+            endDateEpochDay = null,
+            payeeOrDescription = transaction.payeeOrDescription.trim(),
+            note = transaction.note.trim(),
+            isActive = true
+        )
+        val ruleId = budgetAndRecurringDao.upsertRecurringRule(ruleEntity)
+
+        val txWithRule = transaction.copy(recurringRuleId = ruleId)
+        if (transaction.isSplit) {
+            upsertSplitTransaction(txWithRule).getOrThrow()
+        } else {
+            upsertSingleTransaction(txWithRule).getOrThrow()
+        }
+    }
+
     override suspend fun deleteTransaction(transactionId: Long): Result<Unit> = runCatching {
         transactionDao.deleteTransactionById(transactionId)
     }
@@ -1030,7 +1079,8 @@ class TransactionRepositoryImpl(
             payeeOrDescription = tx.payeeOrDescription,
             note = tx.note,
             installmentIndex = transactionIdOrNull(tx.installmentIndex),
-            installmentTotalCount = transactionIdOrNull(tx.installmentTotalCount)
+            installmentTotalCount = transactionIdOrNull(tx.installmentTotalCount),
+            recurringRuleId = tx.recurringRuleId
         )
     }
 
