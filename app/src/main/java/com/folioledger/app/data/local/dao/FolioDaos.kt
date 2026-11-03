@@ -278,6 +278,42 @@ interface TransactionDao {
     @Query(
         """
         SELECT * FROM transactions
+        WHERE (accountId IN (:accountIds) OR transferToAccountId IN (:accountIds))
+          AND ledgerDateEpochDay BETWEEN :startDay AND :endDay
+        ORDER BY ledgerDateEpochDay DESC, timestampEpochMillis DESC, id DESC
+        """
+    )
+    fun observeTransactionsInRangeForAccounts(
+        startDay: Long,
+        endDay: Long,
+        accountIds: List<Long>
+    ): Flow<List<TransactionWithDetails>>
+
+    @Transaction
+    @Query(
+        """
+        SELECT * FROM transactions
+        WHERE accountId IN (:accountIds) OR transferToAccountId IN (:accountIds)
+        ORDER BY ledgerDateEpochDay DESC, timestampEpochMillis DESC, id DESC
+        """
+    )
+    fun observeTransactionsForAccounts(
+        accountIds: List<Long>
+    ): Flow<List<TransactionWithDetails>>
+
+    @Query(
+        """
+        SELECT * FROM transactions
+        WHERE installmentPlanId IS NOT NULL
+        ORDER BY ledgerDateEpochDay ASC, timestampEpochMillis ASC, id ASC
+        """
+    )
+    fun observeAllInstallmentTransactions(): Flow<List<TransactionEntity>>
+
+    @Transaction
+    @Query(
+        """
+        SELECT * FROM transactions
         ORDER BY ledgerDateEpochDay DESC, timestampEpochMillis DESC, id DESC
         """
     )

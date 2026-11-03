@@ -697,25 +697,25 @@ class AnalyticsAndBudgetRepositoryImpl(
         val accountsFlow = accountDao?.observeAllAccounts() ?: flowOf(emptyList())
         return combine(
             transactionDao.observeAllInstallmentPlans(),
-            transactionDao.observeAllTransactions(),
+            transactionDao.observeAllInstallmentTransactions(),
             accountsFlow,
             categoryAndTagDao.observeAllCategories()
-        ) { plans, allTxns, accounts, categories ->
+        ) { plans, installmentTxns, accounts, categories ->
             val accountsById = accounts.associateBy { it.id }
             val categoriesById = categories.associateBy { it.id }
             val today = LocalDate.now().toEpochDay()
 
             plans.map { plan ->
-                val planTxns = allTxns.filter { it.transaction.installmentPlanId == plan.id }
+                val planTxns = installmentTxns.filter { it.installmentPlanId == plan.id }
                 val totalCount = plan.monthsCount
-                val paidTxns = planTxns.filter { it.transaction.ledgerDateEpochDay <= today }
+                val paidTxns = planTxns.filter { it.ledgerDateEpochDay <= today }
                 val paidCount = paidTxns.size.coerceAtMost(totalCount)
                 val remainingCount = (totalCount - paidCount).coerceAtLeast(0)
-                val paidMinor = paidTxns.sumOf { it.transaction.amountMinor }
+                val paidMinor = paidTxns.sumOf { it.amountMinor }
                 val remainingMinor = (plan.totalAmountMinor - paidMinor).coerceAtLeast(0L)
                 val monthlyMinor = if (plan.monthsCount > 0) plan.totalAmountMinor / plan.monthsCount else 0L
-                val nextDueTx = planTxns.filter { it.transaction.ledgerDateEpochDay > today }
-                    .minByOrNull { it.transaction.ledgerDateEpochDay }
+                val nextDueTx = planTxns.filter { it.ledgerDateEpochDay > today }
+                    .minByOrNull { it.ledgerDateEpochDay }
                 val acc = accountsById[plan.accountId]
                 val cat = categoriesById[plan.categoryId]
 
@@ -736,7 +736,7 @@ class AnalyticsAndBudgetRepositoryImpl(
                     remainingAmount = MinorMoney(remainingMinor),
                     monthlyAmount = MinorMoney(monthlyMinor),
                     startDateEpochDay = plan.startDateEpochDay,
-                    nextDueDateEpochDay = nextDueTx?.transaction?.ledgerDateEpochDay
+                    nextDueDateEpochDay = nextDueTx?.ledgerDateEpochDay
                 )
             }
         }

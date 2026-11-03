@@ -81,10 +81,37 @@ class TransactionRepositoryImpl(
     override fun searchAndFilterTransactions(
         filter: TransactionSearchFilter
     ): Flow<List<TransactionItem>> {
-        val rawTxFlow = if (filter.startEpochDay != null && filter.endEpochDay != null) {
-            transactionDao.observeTransactionsInRange(filter.startEpochDay, filter.endEpochDay)
-        } else {
-            transactionDao.observeAllTransactions()
+        val rawTxFlow = when {
+            filter.startEpochDay != null && filter.endEpochDay != null -> {
+                when {
+                    filter.accountIds.size == 1 -> {
+                        transactionDao.observeTransactionsInRangeForAccount(
+                            startDay = filter.startEpochDay,
+                            endDay = filter.endEpochDay,
+                            accountId = filter.accountIds.first()
+                        )
+                    }
+                    filter.accountIds.size > 1 -> {
+                        transactionDao.observeTransactionsInRangeForAccounts(
+                            startDay = filter.startEpochDay,
+                            endDay = filter.endEpochDay,
+                            accountIds = filter.accountIds.toList()
+                        )
+                    }
+                    else -> {
+                        transactionDao.observeTransactionsInRange(filter.startEpochDay, filter.endEpochDay)
+                    }
+                }
+            }
+            filter.accountIds.size == 1 -> {
+                transactionDao.observeTransactionsForAccount(filter.accountIds.first())
+            }
+            filter.accountIds.size > 1 -> {
+                transactionDao.observeTransactionsForAccounts(filter.accountIds.toList())
+            }
+            else -> {
+                transactionDao.observeAllTransactions()
+            }
         }
         return combine(
             rawTxFlow,
