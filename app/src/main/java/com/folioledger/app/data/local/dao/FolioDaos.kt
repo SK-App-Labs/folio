@@ -25,16 +25,16 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface AccountDao {
 
-    @Query("SELECT * FROM accounts ORDER BY isArchived ASC, sortOrder ASC, id ASC")
+    @Query("SELECT * FROM accounts ORDER BY isArchived ASC, isPinned DESC, sortOrder ASC, id ASC")
     fun observeAllAccounts(): Flow<List<AccountEntity>>
 
-    @Query("SELECT * FROM accounts WHERE isArchived = 0 ORDER BY sortOrder ASC, id ASC")
+    @Query("SELECT * FROM accounts WHERE isArchived = 0 ORDER BY isPinned DESC, sortOrder ASC, id ASC")
     fun observeActiveAccounts(): Flow<List<AccountEntity>>
 
     @Query("SELECT * FROM accounts WHERE id = :accountId LIMIT 1")
     fun observeAccountById(accountId: Long): Flow<AccountEntity?>
 
-    @Query("SELECT * FROM accounts ORDER BY isArchived ASC, sortOrder ASC, id ASC")
+    @Query("SELECT * FROM accounts ORDER BY isArchived ASC, isPinned DESC, sortOrder ASC, id ASC")
     suspend fun getAllAccountsOnce(): List<AccountEntity>
 
     @Query("SELECT * FROM accounts WHERE id = :accountId LIMIT 1")
@@ -82,6 +82,12 @@ interface AccountDao {
 
     @Query("UPDATE accounts SET isArchived = :isArchived WHERE id = :accountId")
     suspend fun setAccountArchived(accountId: Long, isArchived: Boolean)
+
+    @Query("UPDATE accounts SET isPinned = :isPinned WHERE id = :accountId")
+    suspend fun setAccountPinned(accountId: Long, isPinned: Boolean)
+
+    @Query("UPDATE accounts SET sortOrder = :sortOrder WHERE id = :accountId")
+    suspend fun setAccountSortOrder(accountId: Long, sortOrder: Int)
 
     @Query("DELETE FROM accounts WHERE id = :accountId")
     suspend fun deleteAccountById(accountId: Long)

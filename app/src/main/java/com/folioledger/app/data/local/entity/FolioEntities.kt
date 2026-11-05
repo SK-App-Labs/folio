@@ -67,7 +67,8 @@ class FolioTypeConverters {
     indices = [
         Index(value = ["groupType"]),
         Index(value = ["parentAccountId"]),
-        Index(value = ["isArchived"])
+        Index(value = ["isArchived"]),
+        Index(value = ["isPinned"])
     ]
 )
 data class AccountEntity(
@@ -87,6 +88,7 @@ data class AccountEntity(
     val colorHex: String = "#10B981",
     val iconName: String = "account_balance_wallet",
     val sortOrder: Int = 0,
+    val isPinned: Boolean = false,
     val createdAtEpochMillis: Long = System.currentTimeMillis()
 )
 

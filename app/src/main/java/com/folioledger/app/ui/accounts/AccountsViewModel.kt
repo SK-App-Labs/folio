@@ -276,7 +276,10 @@ data class AccountPassbookUiModel(
     val periodClosingBalance: MinorMoney = MinorMoney.ZERO,
     val totalPeriodTransactionCount: Int = 0,
     val dayGroups: List<AccountPassbookDayGroup> = emptyList(),
-    val entries: List<AccountPassbookEntryUiModel> = emptyList()
+    val entries: List<AccountPassbookEntryUiModel> = emptyList(),
+    val investedPrincipal: MinorMoney? = null,
+    val unrealizedPnl: MinorMoney? = null,
+    val returnPercentage: Float? = null
 )
 
 @Immutable
@@ -295,6 +298,7 @@ data class AccountEditorDialogState(
     val paymentDueDayOfMonth: Int = 5,
     val parentAccountId: Long? = null,
     val includeInNetWorth: Boolean = true,
+    val isPinned: Boolean = false,
     val isArchived: Boolean = false,
     val colorHex: String = "#059669",
     val iconName: String = "account_balance",
@@ -328,7 +332,8 @@ data class ReconcileBalanceDialogState(
     val reconcileDateEpochDay: Long = LocalDate.now().toEpochDay(),
     val note: String = "",
     val validationError: String? = null,
-    val isLiability: Boolean = false
+    val isLiability: Boolean = false,
+    val isInvestment: Boolean = false
 )
 
 @Immutable
@@ -719,7 +724,10 @@ class AccountsViewModel(
             periodClosingBalance = MinorMoney(periodClosingBalanceMinor),
             totalPeriodTransactionCount = periodEntriesNewestFirst.size,
             dayGroups = dayGroups,
-            entries = periodEntriesNewestFirst
+            entries = periodEntriesNewestFirst,
+            investedPrincipal = inspectedAccount.investedPrincipal,
+            unrealizedPnl = inspectedAccount.unrealizedPnl,
+            returnPercentage = inspectedAccount.returnPercentage
         )
     }
 
@@ -745,6 +753,17 @@ class AccountsViewModel(
         }
     }
 
+    fun toggleAccountPin(accountId: Long) {
+        viewModelScope.launch {
+            val result = accountRepository.toggleAccountPinned(accountId)
+            if (result.isFailure) {
+                controlState.update {
+                    it.copy(snackbarMessage = "Failed to update pin: ${result.exceptionOrNull()?.message}")
+                }
+            }
+        }
+    }
+
     fun selectAccountForInspection(accountId: Long?) {
         controlState.update {
             it.copy(
@@ -757,6 +776,7 @@ class AccountsViewModel(
     fun openReconcileDialog(account: AccountSummary) {
         val spec = SupportedCurrencies.fromCode(account.currencyCode)
         val isLiability = account.groupType.isLiabilityByDefault
+        val isInvestment = account.groupType == AccountGroup.INVESTMENT
         val initialAmount = if (isLiability) account.currentBalance.abs() else account.currentBalance
         val initialInput = formatMinorPlainForInput(initialAmount, spec.fractionDigits)
         controlState.update {
@@ -769,7 +789,8 @@ class AccountsViewModel(
                     targetBalanceInput = initialInput,
                     reconcileDateEpochDay = LocalDate.now().toEpochDay(),
                     note = "",
-                    isLiability = isLiability
+                    isLiability = isLiability,
+                    isInvestment = isInvestment
                 )
             )
         }
@@ -883,6 +904,7 @@ class AccountsViewModel(
                     paymentDueDayOfMonth = defaultDueDay,
                     parentAccountId = defaultParentId,
                     includeInNetWorth = true,
+                    isPinned = false,
                     isArchived = false,
                     colorHex = defaultColor,
                     iconName = defaultIcon,
@@ -922,6 +944,7 @@ class AccountsViewModel(
                     paymentDueDayOfMonth = (account.paymentDueDayOfMonth ?: 5).coerceIn(1, 31),
                     parentAccountId = account.parentAccountId,
                     includeInNetWorth = account.includeInNetWorth,
+                    isPinned = account.isPinned,
                     isArchived = account.isArchived,
                     colorHex = account.colorHex,
                     iconName = account.iconName,
@@ -1104,6 +1127,7 @@ class AccountsViewModel(
                 null
             },
             includeInNetWorth = editor.includeInNetWorth,
+            isPinned = editor.isPinned,
             isArchived = editor.isArchived,
             colorHex = editor.colorHex,
             iconName = editor.iconName

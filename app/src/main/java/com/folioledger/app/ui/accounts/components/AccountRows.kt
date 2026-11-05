@@ -9,10 +9,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -47,6 +51,7 @@ internal fun StandardAccountRow(
         SupportedCurrencies.getByCode(account.currencyCode) ?: defaultCurrencySpec
     }
 
+    val semanticColors = LocalFolioSemanticColors.current
     val isForeignCurrency = account.currencyCode != defaultCurrencySpec.code
     val isExcluded = !account.includeInNetWorth
     val subtext = when {
@@ -54,6 +59,24 @@ internal fun StandardAccountRow(
         isForeignCurrency -> account.currencyCode
         isExcluded -> "Excluded from Net Worth"
         else -> null
+    }
+
+    val investmentInfo = remember(account.investedPrincipal, account.returnPercentage, account.unrealizedPnl, accountCurrency, grouping) {
+        if (account.groupType == com.folioledger.app.domain.model.AccountGroup.INVESTMENT && account.investedPrincipal != null) {
+            val pnl = account.unrealizedPnl ?: MinorMoney.ZERO
+            val isGain = pnl.amountMinor >= 0L
+            val pct = account.returnPercentage ?: 0f
+            val sign = if (isGain) "+" else ""
+            val formattedInvested = MoneyFormatterAndCalculator.formatMinorMoney(
+                money = account.investedPrincipal,
+                currencySpec = accountCurrency,
+                grouping = grouping,
+                includeSymbol = true
+            )
+            "Invested: $formattedInvested · ${if (isGain) "▲ " else "▼ "}$sign${String.format(Locale.US, "%.1f", pct)}%"
+        } else {
+            null
+        }
     }
 
     Row(
@@ -77,6 +100,16 @@ internal fun StandardAccountRow(
 
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                if (account.isPinned) {
+                    Icon(
+                        imageVector = Icons.Filled.PushPin,
+                        contentDescription = "Pinned Account",
+                        tint = semanticColors.warningAmber,
+                        modifier = Modifier
+                            .size(14.dp)
+                            .padding(end = 3.dp)
+                    )
+                }
                 Text(
                     text = account.name,
                     style = MaterialTheme.typography.titleSmall,
@@ -100,7 +133,18 @@ internal fun StandardAccountRow(
                     }
                 }
             }
-            if (subtext != null) {
+            if (investmentInfo != null) {
+                Text(
+                    text = investmentInfo,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if ((account.unrealizedPnl?.amountMinor ?: 0L) >= 0L) {
+                        semanticColors.incomeEmerald
+                    } else {
+                        semanticColors.expenseCoral
+                    },
+                    fontWeight = FontWeight.SemiBold
+                )
+            } else if (subtext != null) {
                 Text(
                     text = subtext,
                     style = MaterialTheme.typography.labelSmall,
@@ -153,15 +197,28 @@ internal fun DebitCardAccountRow(
 
         Spacer(modifier = Modifier.width(12.dp))
 
+        val semanticColors = LocalFolioSemanticColors.current
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = account.name,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (account.isPinned) {
+                    Icon(
+                        imageVector = Icons.Filled.PushPin,
+                        contentDescription = "Pinned Account",
+                        tint = semanticColors.warningAmber,
+                        modifier = Modifier
+                            .size(14.dp)
+                            .padding(end = 3.dp)
+                    )
+                }
+                Text(
+                    text = account.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
             if (parentAccount != null) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -261,15 +318,28 @@ internal fun CreditCardAccountRow(
 
         Spacer(modifier = Modifier.width(12.dp))
 
+        val semanticColors = LocalFolioSemanticColors.current
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = account.name,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (account.isPinned) {
+                    Icon(
+                        imageVector = Icons.Filled.PushPin,
+                        contentDescription = "Pinned Account",
+                        tint = semanticColors.warningAmber,
+                        modifier = Modifier
+                            .size(14.dp)
+                            .padding(end = 3.dp)
+                    )
+                }
+                Text(
+                    text = account.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
             Text(
                 text = "Due ${cycleWindow.lastStatementDueShortText}",
                 style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),

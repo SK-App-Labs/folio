@@ -21,7 +21,12 @@ data class AccountSummary(
     val includeInNetWorth: Boolean = true,
     val isArchived: Boolean = false,
     val colorHex: String = "#10B981",
-    val iconName: String = "account_balance_wallet"
+    val iconName: String = "account_balance_wallet",
+    val isPinned: Boolean = false,
+    val sortOrder: Int = 0,
+    val investedPrincipal: MinorMoney? = null,
+    val unrealizedPnl: MinorMoney? = null,
+    val returnPercentage: Float? = null
 )
 
 @Immutable

@@ -20,7 +20,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Payments
@@ -101,6 +104,7 @@ internal fun AccountPassbookBottomSheet(
     onAddTransactionClick: () -> Unit,
     onSettleBillClick: () -> Unit,
     onReconcileClick: () -> Unit = {},
+    onTogglePin: () -> Unit = {},
     onViewInLedgerClick: () -> Unit,
     onTransactionRowClick: (TransactionItem) -> Unit,
     onDismiss: () -> Unit
@@ -209,6 +213,18 @@ internal fun AccountPassbookBottomSheet(
                     }
 
                     Spacer(modifier = Modifier.width(6.dp))
+
+                    IconButton(
+                        onClick = onTogglePin,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.PushPin,
+                            contentDescription = if (account.isPinned) "Unpin Account" else "Pin Account to Top",
+                            tint = if (account.isPinned) semanticColors.warningAmber else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
 
                     if (account.groupType == AccountGroup.CREDIT_CARD) {
                         IconButton(
@@ -371,6 +387,91 @@ internal fun AccountPassbookBottomSheet(
                                 )
                             }
                         }
+                    }
+                } else if (account.groupType == AccountGroup.INVESTMENT) {
+                    // Investment Portfolio Valuation Hero Card
+                    item(contentType = "investment_hero") {
+                        InvestmentPassbookHeroCard(
+                            account = account,
+                            passbook = passbook,
+                            currencySpec = accountCurrency,
+                            grouping = grouping
+                        )
+                    }
+
+                    // Quick Actions Row for Investment Accounts (Update Value)
+                    item {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Button(
+                                onClick = onAddTransactionClick,
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                                modifier = Modifier.weight(1.2f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Add,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Add Transaction",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            FilledTonalButton(
+                                onClick = onReconcileClick,
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Update Value",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            OutlinedButton(
+                                onClick = onEditAccountClick,
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Edit,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Edit Account",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    // 2-Tier Passbook Statement Summary Card
+                    item(contentType = "passbook_summary") {
+                        PassbookTwoTierSummaryCard(
+                            passbook = passbook,
+                            currencySpec = accountCurrency,
+                            grouping = grouping
+                        )
                     }
                 } else {
                     // Quick Actions Row for Standard Accounts
@@ -1206,6 +1307,127 @@ private fun CreditCardPassbookHeroCard(
 
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun InvestmentPassbookHeroCard(
+    account: AccountSummary,
+    passbook: AccountPassbookUiModel,
+    currencySpec: CurrencySpec,
+    grouping: NumberGroupingSystem
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+    val currentValuation = passbook.currentLiveBalance
+    val investedPrincipal = passbook.investedPrincipal ?: currentValuation
+    val unrealizedPnl = passbook.unrealizedPnl ?: MinorMoney.ZERO
+    val returnPct = passbook.returnPercentage ?: 0f
+
+    val isPositive = unrealizedPnl.amountMinor >= 0L
+    val pnlContainerColor = if (isPositive) semanticColors.incomeEmeraldContainer else semanticColors.expenseCoralContainer
+    val onPnlContainerColor = if (isPositive) semanticColors.onIncomeEmeraldContainer else semanticColors.onExpenseCoralContainer
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "CURRENT PORTFOLIO VALUE",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (investedPrincipal.isPositive) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = pnlContainerColor
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isPositive) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
+                                contentDescription = null,
+                                tint = onPnlContainerColor,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = String.format(Locale.US, "%s%.1f%%", if (isPositive) "+" else "", returnPct),
+                                style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                                fontWeight = FontWeight.Bold,
+                                color = onPnlContainerColor
+                            )
+                        }
+                    }
+                }
+            }
+
+            MoneyText(
+                money = currentValuation,
+                currencySpec = currencySpec,
+                grouping = grouping,
+                colorMode = MoneyColorMode.NEUTRAL,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            HorizontalDivider(color = semanticColors.cardStrokeSubtle)
+
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    Text(
+                        text = "TOTAL INVESTED",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    MoneyText(
+                        money = investedPrincipal,
+                        currencySpec = currencySpec,
+                        grouping = grouping,
+                        colorMode = MoneyColorMode.NEUTRAL,
+                        style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = if (isPositive) "UNREALIZED GAIN" else "UNREALIZED LOSS",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    MoneyText(
+                        money = unrealizedPnl,
+                        currencySpec = currencySpec,
+                        grouping = grouping,
+                        colorMode = if (isPositive) MoneyColorMode.INCOME else MoneyColorMode.EXPENSE,
+                        style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun ReconcileBalanceDialog(
     state: ReconcileBalanceDialogState,

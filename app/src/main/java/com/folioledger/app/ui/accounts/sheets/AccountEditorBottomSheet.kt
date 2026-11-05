@@ -1142,6 +1142,32 @@ internal fun AccountEditorBottomSheet(
                 )
             }
 
+            // Pin to Top (Primary Account)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Pin Account to Top",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "Prioritize at the top of your accounts list and the quick transaction bar",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = state.isPinned,
+                    onCheckedChange = { checked ->
+                        onUpdateState { it.copy(isPinned = checked) }
+                    }
+                )
+            }
+
             // 8. Action Buttons
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),

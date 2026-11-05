@@ -47,6 +47,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - **Emoji Expressive**: Full-color emoji iconography on soft squircle badges with calibrated optical centering.
   - *Interactive Icon Pack Bottom Sheet*: Added `IconPackBottomSheet` accessible from `Settings > Appearance`, featuring live interactive preview badges, theme descriptions, and DataStore persistence (`iconPackTheme`).
   - *Emoji Icon Resolver*: Implemented semantic mapping for all 91 expense and income categories to standard Unicode emojis, plus `isDirectEmoji()` detection for user-entered custom emojis.
+- **Investment Portfolio Valuation & Cost Basis Separation (Tab 3 Accounts)**:
+  - *Dedicated Mark-to-Market Valuation*: Renamed "Reconcile" action to **"Update Market Value"** specifically for `INVESTMENT` accounts (stocks, mutual funds, crypto, retirement), clearly distinguishing market price adjustments from account reconciliation discrepancies.
+  - *Cost Basis vs. Market Value Accounting*: Tracks Invested Principal (`Opening Balance + Net Transfers In - Net Transfers Out`) separately from Current Portfolio Valuation, calculating Unrealized Capital Gain/Loss and Return Percentage (+₹45,000 / +14.2%) without polluting monthly cashflow income.
+  - *Investment Hero Card & Passbook Analytics*: Rendered a dedicated `InvestmentPassbookHeroCard` at the top of the passbook sheet displaying current portfolio valuation, total invested capital, unrealized returns with color-coded trending arrows (`▲` / `▼`), and return percentage badges.
+  - *Passbook Quick Actions & Dialog Specialization*: Updated passbook quick actions with "Update Value" (`TrendingUp` icon) and customized the valuation dialog with portfolio-specific terminology ("Current Portfolio Valuation", "Latest Portfolio Market Value", and "Update Valuation").
+- **Account Pinning & Primary Account Prioritization (Tab 3 & Transaction Entry)**:
+  - *Schema Migration v3 -> v4*: Added `isPinned: Boolean` with database indexing (`index_accounts_isPinned`) to `AccountEntity` via `MIGRATION_3_4`.
+  - *Global Priority Ordering*: Updated account observation queries in `FolioDaos` to sort by `isPinned DESC, sortOrder ASC, id ASC`, ensuring pinned primary daily checking accounts and primary credit cards float to the top of Tab 3 (Accounts) and the docked account grid in `TransactionEntrySheet`.
+  - *One-Tap Passbook Pinning*: Added an interactive 1-tap pushpin toggle button in the top header of `AccountPassbookBottomSheet` to instantly pin/unpin accounts without entering the editor.
+  - *Account Editor Pinning Switch*: Added a "Pin Account to Top" toggle in `AccountEditorBottomSheet` with descriptive copy.
+  - *Visual Pinned Badging*: Rendered amber pushpin indicators on account rows in `StandardAccountRow`, `DebitCardAccountRow`, `CreditCardAccountRow`, and compact transaction entry pickers (`DockedAccountPicker`).
 ### Fixed
 - **Predictive Safe-to-Spend Status Classification & Credit Card Debt Handling**:
   - *Context-Aware Status Classification*: Added `SafeToSpendStatus` enum to accurately categorize specific financial states (`SAFE`, `CARD_DEBT_EXCEEDS_CASH`, `BILLS_EXCEED_CASH`, `BILLS_EXCEED_REMAINING_CASH`, `COMBINED_OBLIGATIONS_EXCEED_CASH`, `ZERO_RESERVES`) instead of a single binary fallback.

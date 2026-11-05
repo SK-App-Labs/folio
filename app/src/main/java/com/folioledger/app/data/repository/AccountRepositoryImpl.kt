@@ -215,11 +215,31 @@ class AccountRepositoryImpl(
             isArchived = account.isArchived,
             colorHex = account.colorHex.ifBlank { "#10B981" },
             iconName = account.iconName.ifBlank { "account_balance_wallet" },
-            sortOrder = existing?.sortOrder ?: 0,
+            sortOrder = existing?.sortOrder ?: account.sortOrder,
+            isPinned = account.isPinned,
             createdAtEpochMillis = existing?.createdAtEpochMillis ?: System.currentTimeMillis()
         )
 
             accountDao.insertAccountWithInitialBalance(entity, initialTx)
+        }
+    }
+
+    override suspend fun setAccountPinned(
+        accountId: Long,
+        isPinned: Boolean
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            accountDao.setAccountPinned(accountId, isPinned)
+        }
+    }
+
+    override suspend fun toggleAccountPinned(
+        accountId: Long
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            val account = accountDao.getAccountByIdOnce(accountId)
+                ?: throw IllegalArgumentException("Account #$accountId not found.")
+            accountDao.setAccountPinned(accountId, !account.isPinned)
         }
     }
 
@@ -255,8 +275,8 @@ class AccountRepositoryImpl(
             currencyCode = account.currencyCode,
             accountId = accountId,
             transferToAccountId = if (isOutflow) accountId else null,
-            payeeOrDescription = "Balance Reconciliation",
-            note = note.trim().ifEmpty { "Manual balance adjustment" }
+            payeeOrDescription = if (account.groupType == AccountGroup.INVESTMENT) "Market Valuation Update" else "Balance Reconciliation",
+            note = note.trim().ifEmpty { if (account.groupType == AccountGroup.INVESTMENT) "Mark-to-market valuation adjustment" else "Manual balance adjustment" }
         )
 
             transactionDao.insertTransactionRaw(reconciliationTx)
@@ -459,7 +479,48 @@ class AccountRepositoryImpl(
             }
         }
 
+        val investmentPrincipalMap = HashMap<Long, Long>()
+        for (entity in accountEntities) {
+            if (entity.groupType == AccountGroup.INVESTMENT) {
+                val initialOpening = if (hasOpeningBalanceTx.contains(entity.id)) 0L else entity.openingBalanceMinor
+                investmentPrincipalMap[entity.id] = initialOpening
+            }
+        }
+
+        for (tx in allTransactions) {
+            val sourceEntity = accountsById[tx.accountId]
+            val targetEntity = tx.transferToAccountId?.let { accountsById[it] }
+
+            if (tx.type == TransactionType.OPENING_BALANCE && sourceEntity?.groupType == AccountGroup.INVESTMENT) {
+                investmentPrincipalMap[tx.accountId]?.let { current ->
+                    investmentPrincipalMap[tx.accountId] = Math.addExact(current, tx.amountMinor)
+                }
+            } else if (tx.type == TransactionType.TRANSFER && targetEntity?.groupType == AccountGroup.INVESTMENT) {
+                investmentPrincipalMap[tx.transferToAccountId]?.let { current ->
+                    investmentPrincipalMap[tx.transferToAccountId] = Math.addExact(current, tx.amountMinor)
+                }
+            }
+            if (tx.type == TransactionType.TRANSFER && sourceEntity?.groupType == AccountGroup.INVESTMENT && tx.transferToAccountId != null && tx.transferToAccountId != tx.accountId) {
+                investmentPrincipalMap[tx.accountId]?.let { current ->
+                    investmentPrincipalMap[tx.accountId] = Math.subtractExact(current, tx.amountMinor)
+                }
+            }
+        }
+
         return accountEntities.map { entity ->
+            val liveBalanceMinor = runningBalancesMinor[entity.id] ?: if (hasOpeningBalanceTx.contains(entity.id)) 0L else entity.openingBalanceMinor
+            val (invPrincipal, unrealizedPnl, returnPct) = if (entity.groupType == AccountGroup.INVESTMENT) {
+                val principalMinor = investmentPrincipalMap[entity.id] ?: 0L
+                val pnlMinor = liveBalanceMinor - principalMinor
+                val pct = if (principalMinor > 0L) {
+                    (pnlMinor.toFloat() / principalMinor.toFloat()) * 100f
+                } else {
+                    0f
+                }
+                Triple(MinorMoney(principalMinor), MinorMoney(pnlMinor), pct)
+            } else {
+                Triple(null, null, null)
+            }
             when (entity.groupType) {
                 AccountGroup.CREDIT_CARD -> {
                     val ccTransactions = allTransactions.mapNotNull { tx ->
@@ -549,7 +610,12 @@ class AccountRepositoryImpl(
                         includeInNetWorth = entity.includeInNetWorth,
                         isArchived = entity.isArchived,
                         colorHex = entity.colorHex,
-                        iconName = entity.iconName
+                        iconName = entity.iconName,
+                        isPinned = entity.isPinned,
+                        sortOrder = entity.sortOrder,
+                        investedPrincipal = invPrincipal,
+                        unrealizedPnl = unrealizedPnl,
+                        returnPercentage = returnPct
                     )
                 }
 
@@ -575,12 +641,16 @@ class AccountRepositoryImpl(
                         includeInNetWorth = false,
                         isArchived = entity.isArchived,
                         colorHex = entity.colorHex,
-                        iconName = entity.iconName
+                        iconName = entity.iconName,
+                        isPinned = entity.isPinned,
+                        sortOrder = entity.sortOrder,
+                        investedPrincipal = invPrincipal,
+                        unrealizedPnl = unrealizedPnl,
+                        returnPercentage = returnPct
                     )
                 }
 
                 else -> {
-                    val liveBalanceMinor = runningBalancesMinor[entity.id] ?: if (hasOpeningBalanceTx.contains(entity.id)) 0L else entity.openingBalanceMinor
                     AccountSummary(
                         id = entity.id,
                         name = entity.name,
@@ -597,7 +667,12 @@ class AccountRepositoryImpl(
                         includeInNetWorth = entity.includeInNetWorth,
                         isArchived = entity.isArchived,
                         colorHex = entity.colorHex,
-                        iconName = entity.iconName
+                        iconName = entity.iconName,
+                        isPinned = entity.isPinned,
+                        sortOrder = entity.sortOrder,
+                        investedPrincipal = invPrincipal,
+                        unrealizedPnl = unrealizedPnl,
+                        returnPercentage = returnPct
                     )
                 }
             }

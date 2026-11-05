@@ -1,4 +1,4 @@
-﻿// File: app/src/main/java/androidx/compose/material/icons/filled/PrunedMaterialIcons.kt
+// File: app/src/main/java/androidx/compose/material/icons/filled/PrunedMaterialIcons.kt
 package androidx.compose.material.icons.filled
 
 import androidx.compose.material.icons.Icons
@@ -5746,3 +5746,39 @@ public val Icons.Filled.Yard: ImageVector
     }
 
 private var _yard: ImageVector? = null
+
+
+public val Icons.Filled.PushPin: ImageVector
+    get() {
+        if (_pushPin != null) {
+            return _pushPin!!
+        }
+        _pushPin = materialIcon(name = "Filled.PushPin") {
+            materialPath {
+                moveTo(16.0f, 9.0f)
+                verticalLineTo(4.0f)
+                lineToRelative(1.0f, 0.0f)
+                curveToRelative(0.55f, 0.0f, 1.0f, -0.45f, 1.0f, -1.0f)
+                reflectiveCurveToRelative(-0.45f, -1.0f, -1.0f, -1.0f)
+                horizontalLineTo(7.0f)
+                curveToRelative(-0.55f, 0.0f, -1.0f, 0.45f, -1.0f, 1.0f)
+                reflectiveCurveToRelative(0.45f, 1.0f, 1.0f, 1.0f)
+                lineToRelative(1.0f, 0.0f)
+                verticalLineToRelative(5.0f)
+                curveToRelative(0.0f, 1.66f, -1.34f, 3.0f, -3.0f, 3.0f)
+                verticalLineToRelative(2.0f)
+                horizontalLineToRelative(5.97f)
+                verticalLineToRelative(7.0f)
+                lineToRelative(1.0f, 1.0f)
+                lineToRelative(1.0f, -1.0f)
+                verticalLineToRelative(-7.0f)
+                horizontalLineTo(19.0f)
+                verticalLineToRelative(-2.0f)
+                curveToRelative(-1.66f, 0.0f, -3.0f, -1.34f, -3.0f, -3.0f)
+                close()
+            }
+        }
+        return _pushPin!!
+    }
+
+private var _pushPin: ImageVector? = null

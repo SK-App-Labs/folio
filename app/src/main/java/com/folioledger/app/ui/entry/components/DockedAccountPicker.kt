@@ -3,6 +3,8 @@ package com.folioledger.app.ui.entry.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -186,12 +188,24 @@ fun DockedAccountPicker(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp)
                         ) {
-                            CategoryIconBadge(
-                                iconName = account.iconName,
-                                colorHex = account.colorHex,
-                                size = 28.dp,
-                                iconSize = 15.dp
-                            )
+                            Box {
+                                CategoryIconBadge(
+                                    iconName = account.iconName,
+                                    colorHex = account.colorHex,
+                                    size = 28.dp,
+                                    iconSize = 15.dp
+                                )
+                                if (account.isPinned) {
+                                    Icon(
+                                        imageVector = Icons.Filled.PushPin,
+                                        contentDescription = "Pinned",
+                                        tint = semanticColors.warningAmber,
+                                        modifier = Modifier
+                                            .size(10.dp)
+                                            .align(Alignment.TopEnd)
+                                    )
+                                }
+                            }
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = account.name,
@@ -318,12 +332,24 @@ fun DockedAccountPicker(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
                                 ) {
-                                    CategoryIconBadge(
-                                        iconName = account.iconName,
-                                        colorHex = account.colorHex,
-                                        size = 24.dp,
-                                        iconSize = 13.dp
-                                    )
+                                    Box {
+                                        CategoryIconBadge(
+                                            iconName = account.iconName,
+                                            colorHex = account.colorHex,
+                                            size = 24.dp,
+                                            iconSize = 13.dp
+                                        )
+                                        if (account.isPinned) {
+                                            Icon(
+                                                imageVector = Icons.Filled.PushPin,
+                                                contentDescription = "Pinned",
+                                                tint = semanticColors.warningAmber,
+                                                modifier = Modifier
+                                                    .size(9.dp)
+                                                    .align(Alignment.TopEnd)
+                                            )
+                                        }
+                                    }
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = account.name,

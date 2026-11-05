@@ -110,6 +110,9 @@ fun AccountsScreen(
             onReconcileClick = {
                 viewModel.openReconcileDialog(passbook.account)
             },
+            onTogglePin = {
+                viewModel.toggleAccountPin(passbook.account.id)
+            },
             onViewInLedgerClick = {
                 viewModel.dismissInspectedAccountSheet()
                 onViewAccountInLedger?.invoke(passbook.account)

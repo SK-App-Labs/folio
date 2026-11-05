@@ -36,6 +36,10 @@ interface AccountRepository {
 
     suspend fun setAccountArchived(accountId: Long, isArchived: Boolean): Result<Unit>
 
+    suspend fun setAccountPinned(accountId: Long, isPinned: Boolean): Result<Unit>
+
+    suspend fun toggleAccountPinned(accountId: Long): Result<Unit>
+
     suspend fun deleteAccount(accountId: Long, deleteTransactions: Boolean): Result<Unit>
 
     suspend fun getTransactionCountForAccount(accountId: Long): Int
