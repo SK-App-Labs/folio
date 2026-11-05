@@ -113,6 +113,8 @@ import com.folioledger.app.ui.settings.sheets.TagsAndBookmarksBottomSheet
 import com.folioledger.app.ui.settings.sheets.TransferAndManualBackupBottomSheet
 import com.folioledger.app.ui.theme.FolioAccentPalette
 import com.folioledger.app.ui.theme.FolioThemeMode
+import com.folioledger.app.ui.iconpack.FolioIconPackTheme
+import com.folioledger.app.ui.settings.sheets.IconPackBottomSheet
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import android.content.Context
@@ -138,6 +140,7 @@ fun SettingsScreen(
     val coroutineScope = rememberCoroutineScope()
 
     var isAppearanceSheetOpen by rememberSaveable { mutableStateOf(false) }
+    var isIconPackSheetOpen by rememberSaveable { mutableStateOf(false) }
     var isLanguageSheetOpen by rememberSaveable { mutableStateOf(false) }
     var isRegionalFormatSheetOpen by rememberSaveable { mutableStateOf(false) }
     var isSecondaryCurrenciesSheetOpen by rememberSaveable { mutableStateOf(false) }
@@ -350,6 +353,18 @@ fun SettingsScreen(
                             color = semanticColors.cardStrokeSubtle,
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
+                        val iconPackThemeObj = FolioIconPackTheme.fromKey(prefs.iconPackTheme)
+                        SettingsNavigationRow(
+                            icon = Icons.Default.Category,
+                            title = "Icon Style",
+                            valueText = iconPackThemeObj.displayName,
+                            enabled = isNotBusy,
+                            onClick = { isIconPackSheetOpen = true }
+                        )
+                        HorizontalDivider(
+                            color = semanticColors.cardStrokeSubtle,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
                         val currentTag = FolioLocaleManager.getCurrentLanguageTag(context)
                         SettingsNavigationRow(
                             icon = Icons.Default.Language,
@@ -533,6 +548,16 @@ fun SettingsScreen(
     }
 
     // 3 New Bottom Sheets
+    if (isIconPackSheetOpen) {
+        IconPackBottomSheet(
+            currentThemeKey = prefs.iconPackTheme,
+            onSelectTheme = { selected ->
+                viewModel.setIconPackTheme(selected.key)
+            },
+            onDismiss = { isIconPackSheetOpen = false }
+        )
+    }
+
     if (isAppearanceSheetOpen) {
         AppearanceBottomSheet(
             prefs = prefs,

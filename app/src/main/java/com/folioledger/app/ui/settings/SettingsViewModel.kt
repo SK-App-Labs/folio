@@ -385,6 +385,14 @@ class SettingsViewModel(
         }
     }
 
+    fun setIconPackTheme(iconPackTheme: String) {
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                current.copy(iconPackTheme = iconPackTheme)
+            }
+        }
+    }
+
     fun setAccentPalette(accentPalette: String) {
         viewModelScope.launch {
             settingsAndBackupRepository.updateUserPreferences { current ->

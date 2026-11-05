@@ -119,6 +119,7 @@ class SettingsAndBackupRepositoryImpl(
         val AUTO_BACKUP_ENABLED = booleanPreferencesKey("auto_backup_enabled")
         val AUTO_BACKUP_RETENTION = stringPreferencesKey("auto_backup_retention")
         val CARD_MILESTONES_JSON = stringPreferencesKey("card_milestones_json")
+        val ICON_PACK_THEME = stringPreferencesKey("icon_pack_theme")
     }
 
     override fun observeUserPreferences(): Flow<UserPreferences> {
@@ -168,6 +169,7 @@ class SettingsAndBackupRepositoryImpl(
             mutablePrefs[PreferenceKeys.AUTO_BACKUP_ENABLED] = updated.autoBackupEnabled
             mutablePrefs[PreferenceKeys.AUTO_BACKUP_RETENTION] = updated.autoBackupRetention.name
             mutablePrefs[PreferenceKeys.CARD_MILESTONES_JSON] = updated.cardMilestonesJson
+            mutablePrefs[PreferenceKeys.ICON_PACK_THEME] = updated.iconPackTheme
         }
         Unit
     }
@@ -854,7 +856,8 @@ class SettingsAndBackupRepositoryImpl(
             autoBackupRetention = runCatching {
                 AutoBackupRetention.valueOf(prefs[PreferenceKeys.AUTO_BACKUP_RETENTION] ?: AutoBackupRetention.THIRTY_DAYS.name)
             }.getOrDefault(AutoBackupRetention.THIRTY_DAYS),
-            cardMilestonesJson = prefs[PreferenceKeys.CARD_MILESTONES_JSON] ?: "{}"
+            cardMilestonesJson = prefs[PreferenceKeys.CARD_MILESTONES_JSON] ?: "{}",
+            iconPackTheme = prefs[PreferenceKeys.ICON_PACK_THEME] ?: "MATERIAL_FILLED"
         )
     }
 

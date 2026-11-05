@@ -156,11 +156,13 @@ class MainActivity : FragmentActivity() {
             val themeMode = activePrefs?.themeMode ?: "SYSTEM"
             val accentPalette = activePrefs?.accentPalette ?: "EMERALD"
             val dynamicColorEnabled = activePrefs?.dynamicColorEnabled ?: false
+            val iconPackTheme = activePrefs?.iconPackTheme ?: "MATERIAL_FILLED"
 
             FolioTheme(
                 themeMode = themeMode,
                 accentPalette = accentPalette,
-                dynamicColorEnabled = dynamicColorEnabled
+                dynamicColorEnabled = dynamicColorEnabled,
+                iconPackTheme = iconPackTheme
             ) {
                 if (activePrefs == null || !isInitialDataLoaded) {
                     Surface(

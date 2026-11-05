@@ -28,6 +28,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import com.folioledger.app.ui.iconpack.FolioIconPackTheme
+import com.folioledger.app.ui.iconpack.LocalFolioIconPackTheme
 
 enum class FolioThemeMode(val key: String, val displayName: String) {
     SYSTEM("SYSTEM", "System Default"),
@@ -861,10 +863,12 @@ fun FolioTheme(
     themeMode: String = "SYSTEM",
     accentPalette: String = "EMERALD",
     dynamicColorEnabled: Boolean = false,
+    iconPackTheme: String = "MATERIAL_FILLED",
     content: @Composable () -> Unit,
 ) {
     val resolvedMode = FolioThemeMode.fromKey(themeMode)
     val resolvedAccent = FolioAccentPalette.fromKey(accentPalette)
+    val resolvedIconPackTheme = FolioIconPackTheme.fromKey(iconPackTheme)
     val systemDark = isSystemInDarkTheme()
 
     val useDarkTheme = when (resolvedMode) {
@@ -954,7 +958,10 @@ fun FolioTheme(
         }
     }
 
-    CompositionLocalProvider(LocalFolioSemanticColors provides semanticColors) {
+    CompositionLocalProvider(
+        LocalFolioSemanticColors provides semanticColors,
+        LocalFolioIconPackTheme provides resolvedIconPackTheme
+    ) {
         MaterialTheme(
             colorScheme = baseColorScheme,
             typography = FolioTypography,

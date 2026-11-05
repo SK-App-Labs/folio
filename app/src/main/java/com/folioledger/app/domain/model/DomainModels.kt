@@ -138,7 +138,8 @@ data class UserPreferences(
     val lastBackupEpochMillis: Long? = null,
     val autoBackupEnabled: Boolean = true,
     val autoBackupRetention: AutoBackupRetention = AutoBackupRetention.THIRTY_DAYS,
-    val cardMilestonesJson: String = "{}"
+    val cardMilestonesJson: String = "{}",
+    val iconPackTheme: String = "MATERIAL_FILLED"
 )
 
 @Immutable
