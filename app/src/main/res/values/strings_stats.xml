@@ -5,7 +5,7 @@
     <string name="stats_subtab_overview">Overview</string>
     <string name="stats_subtab_cards">Cards</string>
     <string name="stats_subtab_budgets">Budgets</string>
-    <string name="stats_subtab_tags">Tags</string>
+    <string name="stats_subtab_tags">Merchants &amp; Tags</string>
 
     <!-- Safe-to-Spend & Cashflow Radar -->
     <string name="safe_to_spend_title">Safe-to-Spend Today</string>

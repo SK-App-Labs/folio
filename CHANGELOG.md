@@ -58,6 +58,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - *One-Tap Passbook Pinning*: Added an interactive 1-tap pushpin toggle button in the top header of `AccountPassbookBottomSheet` to instantly pin/unpin accounts without entering the editor.
   - *Account Editor Pinning Switch*: Added a "Pin Account to Top" toggle in `AccountEditorBottomSheet` with descriptive copy.
   - *Visual Pinned Badging*: Rendered amber pushpin indicators on account rows in `StandardAccountRow`, `DebitCardAccountRow`, `CreditCardAccountRow`, and compact transaction entry pickers (`DockedAccountPicker`).
+- **Stats & Budgets Tab 2 Reorganization (Phase 1: 3-Mode Hero Cockpit & Liquidity Guard Migration)**:
+  - *3-Mode Hero Segmented Switcher*: Reorganized Subtab 1 (Overview) around a structured "Hero -> Insight -> Detail" hierarchy with switchable modes (`Categories`, `Cashflow`, `Net Worth`):
+    - **Categories**: Interactive Category Donut Chart + Expenses/Income segmented toggle + Ranked Category Breakdown drilldown list.
+    - **Cashflow**: 6-Month Income vs. Expense Trend Bar Chart + Cashflow Performance Insight Card (Income, Expenses, Net Cashflow, and dynamic Savings Rate %) + Top 3 Expense Drivers & Top 3 Income Sources.
+    - **Net Worth**: Elevated Cubic Bezier Net Worth Growth Trend Curve above the fold + Net Worth Velocity Cockpit (₹/mo trajectory) + Liquid Emergency Runway Card.
+  - *Elimination of Vertical Scroll Fatigue*: Removed the 3,000px vertical stack in Subtab 1, bringing Net Worth and Cashflow metrics into primary above-the-fold views instead of burying them beneath long category lists.
+  - *Safe-to-Spend & Shortfall Guard Migration to Budgets*: Relocated `SafeToSpendCard` and `ShortfallAlertCard` from Subtab 1 into Subtab 3 (Budgets Manager), uniting forward-looking daily spend limits, 14-day bill float buffers, and monthly category budgets in one dedicated financial control room while eliminating temporal clashes with historical date pickers.
+  - *Credit Cards Date Header Collapse*: Automatically collapsed the global date range switcher on Subtab 2 (Cards) so the Credit Utilization Arc Gauge and Smart Swipe Advisor sit immediately at the top of the screen.
+  - *Merchants & Tags Discoverability*: Renamed Subtab 4 to **"Merchants & Tags"** and updated ranking modes to `Merchants & Payees` and `#Tags & Projects`, elevating merchant intelligence discoverability.
 ### Fixed
 - **Predictive Safe-to-Spend Status Classification & Credit Card Debt Handling**:
   - *Context-Aware Status Classification*: Added `SafeToSpendStatus` enum to accurately categorize specific financial states (`SAFE`, `CARD_DEBT_EXCEEDS_CASH`, `BILLS_EXCEED_CASH`, `BILLS_EXCEED_REMAINING_CASH`, `COMBINED_OBLIGATIONS_EXCEED_CASH`, `ZERO_RESERVES`) instead of a single binary fallback.

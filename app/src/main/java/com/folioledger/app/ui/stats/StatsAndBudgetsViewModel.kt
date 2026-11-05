@@ -68,6 +68,12 @@ enum class StatsPeriodGranularity(val title: String) {
     CUSTOM("Custom")
 }
 
+enum class OverviewMode(val title: String) {
+    CATEGORIES("Categories"),
+    CASHFLOW("Cashflow"),
+    NET_WORTH("Net Worth")
+}
+
 enum class StatsSubTab(
     val title: String,
     @param:StringRes val titleRes: Int,
@@ -75,7 +81,7 @@ enum class StatsSubTab(
     STATS("Overview", R.string.stats_subtab_overview),
     CREDIT_CARDS("Cards", R.string.stats_subtab_cards),
     BUDGETS("Budgets", R.string.stats_subtab_budgets),
-    TAGS_AND_NOTES("Tags", R.string.stats_subtab_tags)
+    TAGS_AND_NOTES("Merchants & Tags", R.string.stats_subtab_tags)
 }
 
 enum class TrendChartMode(val title: String) {
@@ -297,8 +303,8 @@ data class CreditCardCockpitUiState(
 )
 
 enum class RankingMode(val title: String) {
-    TAGS("#Tag Rankings"),
-    PAYEES_AND_NOTES("Payee / Note Rankings")
+    TAGS("#Tags & Projects"),
+    PAYEES_AND_NOTES("Merchants & Payees")
 }
 
 @Immutable
@@ -491,6 +497,7 @@ data class CategoryDrillDownState(
 @Immutable
 data class StatsAndBudgetsUiState(
     val selectedSubTab: StatsSubTab = StatsSubTab.STATS,
+    val selectedOverviewMode: OverviewMode = OverviewMode.CATEGORIES,
     val periodGranularity: StatsPeriodGranularity = StatsPeriodGranularity.MONTHLY,
     val selectedCategoryType: CategoryType = CategoryType.EXPENSE,
     val selectedRankingMode: RankingMode = RankingMode.TAGS,
@@ -564,6 +571,7 @@ data class StatsAndBudgetsUiState(
 
 private data class StatsInternalControlState(
     val selectedSubTab: StatsSubTab = StatsSubTab.STATS,
+    val selectedOverviewMode: OverviewMode = OverviewMode.CATEGORIES,
     val periodGranularity: StatsPeriodGranularity = StatsPeriodGranularity.MONTHLY,
     val selectedCategoryType: CategoryType = CategoryType.EXPENSE,
     val selectedRankingMode: RankingMode = RankingMode.TAGS,
@@ -988,6 +996,7 @@ class StatsAndBudgetsViewModel(
 
         StatsAndBudgetsUiState(
             selectedSubTab = ctrl.selectedSubTab,
+            selectedOverviewMode = ctrl.selectedOverviewMode,
             periodGranularity = ctrl.periodGranularity,
             selectedCategoryType = ctrl.selectedCategoryType,
             selectedRankingMode = ctrl.selectedRankingMode,
@@ -1284,6 +1293,10 @@ class StatsAndBudgetsViewModel(
 
     fun dismissCategoryDrillDown() {
         controlState.update { it.copy(drillDownCategoryId = null) }
+    }
+
+    fun selectOverviewMode(mode: OverviewMode) {
+        controlState.update { it.copy(selectedOverviewMode = mode) }
     }
 
     fun selectTrendChartMode(mode: TrendChartMode) {

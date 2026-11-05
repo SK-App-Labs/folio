@@ -179,4 +179,15 @@ class PayeeIntelligenceCalculationsTest {
         assertEquals(649_00L, drillDown.monthlyTrendBars[0].totalExpense.amountMinor)
         assertEquals(649_00L, drillDown.monthlyTrendBars[1].totalExpense.amountMinor)
     }
+
+    @Test
+    fun testOverviewModeAndSubTabsArchitecture() {
+        assertEquals("Categories", OverviewMode.CATEGORIES.title)
+        assertEquals("Cashflow", OverviewMode.CASHFLOW.title)
+        assertEquals("Net Worth", OverviewMode.NET_WORTH.title)
+
+        assertEquals("Merchants & Tags", StatsSubTab.TAGS_AND_NOTES.title)
+        assertEquals("#Tags & Projects", RankingMode.TAGS.title)
+        assertEquals("Merchants & Payees", RankingMode.PAYEES_AND_NOTES.title)
+    }
 }

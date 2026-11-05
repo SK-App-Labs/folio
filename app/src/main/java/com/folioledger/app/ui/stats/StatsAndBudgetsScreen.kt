@@ -36,6 +36,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
@@ -113,6 +114,7 @@ import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.model.PeriodLedgerSummary
 import com.folioledger.app.domain.model.SpendRankingItem
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
@@ -190,28 +192,30 @@ fun StatsAndBudgetsScreen(
                     bottom = contentPadding.calculateBottomPadding()
                 )
         ) {
-            PeriodSelectorHeader(
-                periodTitle = uiState.activePeriodRange.title,
-                periodSubtitle = null,
-                onPreviousPeriod = viewModel::navigateToPreviousPeriod,
-                onNextPeriod = viewModel::navigateToNextPeriod,
-                onPeriodTitleClick = {
-                    if (uiState.periodGranularity == StatsPeriodGranularity.CUSTOM) {
-                        viewModel.setCustomDatePickerOpen(open = true)
-                    } else {
-                        viewModel.jumpToToday()
+            if (uiState.selectedSubTab != StatsSubTab.CREDIT_CARDS) {
+                PeriodSelectorHeader(
+                    periodTitle = uiState.activePeriodRange.title,
+                    periodSubtitle = null,
+                    onPreviousPeriod = viewModel::navigateToPreviousPeriod,
+                    onNextPeriod = viewModel::navigateToNextPeriod,
+                    onPeriodTitleClick = {
+                        if (uiState.periodGranularity == StatsPeriodGranularity.CUSTOM) {
+                            viewModel.setCustomDatePickerOpen(open = true)
+                        } else {
+                            viewModel.jumpToToday()
+                        }
+                    },
+                    trailingContent = {
+                        if (uiState.selectedSubTab != StatsSubTab.BUDGETS) {
+                            StatsPeriodGranularityDropdownChip(
+                                selectedGranularity = uiState.periodGranularity,
+                                onSelectGranularity = viewModel::selectPeriodGranularity,
+                                onOpenCustomDatePicker = { viewModel.setCustomDatePickerOpen(true) }
+                            )
+                        }
                     }
-                },
-                trailingContent = {
-                    if (uiState.selectedSubTab != StatsSubTab.BUDGETS && uiState.selectedSubTab != StatsSubTab.CREDIT_CARDS) {
-                        StatsPeriodGranularityDropdownChip(
-                            selectedGranularity = uiState.periodGranularity,
-                            onSelectGranularity = viewModel::selectPeriodGranularity,
-                            onOpenCustomDatePicker = { viewModel.setCustomDatePickerOpen(true) }
-                        )
-                    }
-                }
-            )
+                )
+            }
 
             PrimaryTabRow(
                 selectedTabIndex = pagerState.currentPage,
@@ -249,6 +253,7 @@ fun StatsAndBudgetsScreen(
                     StatsSubTab.STATS -> {
                         StatsBreakdownSubTabContent(
                             uiState = uiState,
+                            onSelectOverviewMode = viewModel::selectOverviewMode,
                             onSelectCategoryType = viewModel::selectCategoryType,
                             onDonutSliceSelected = viewModel::onDonutSliceSelected,
                             onOpenCategoryDrillDown = viewModel::openCategoryDrillDown,
@@ -550,6 +555,7 @@ private fun CustomDateRangePickerDialog(
 @Composable
 private fun StatsBreakdownSubTabContent(
     uiState: StatsAndBudgetsUiState,
+    onSelectOverviewMode: (OverviewMode) -> Unit,
     onSelectCategoryType: (CategoryType) -> Unit,
     onDonutSliceSelected: (CategorySpendStat?) -> Unit,
     onOpenCategoryDrillDown: (CategorySpendStat) -> Unit,
@@ -570,16 +576,7 @@ private fun StatsBreakdownSubTabContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        if (uiState.safeToSpend.isCurrentPeriod && uiState.shortfallAlerts.isNotEmpty()) {
-            item(contentType = "shortfall_alert") {
-                ShortfallAlertCard(
-                    alerts = uiState.shortfallAlerts,
-                    currencySpec = uiState.currencySpec,
-                    grouping = uiState.numberGrouping
-                )
-            }
-        }
-
+        // 1. Period Headline Summary Banner
         item(contentType = "stats_summary_banner") {
             ThreeColumnSummaryBanner(
                 firstLabel = "Income",
@@ -601,243 +598,427 @@ private fun StatsBreakdownSubTabContent(
             )
         }
 
-        if (uiState.safeToSpend.isCurrentPeriod) {
-            item(contentType = "safe_to_spend") {
-                SafeToSpendCard(
-                    safeToSpend = uiState.safeToSpend,
-                    currencySpec = uiState.currencySpec,
-                    grouping = uiState.numberGrouping
-                )
-            }
-        }
-
-        // Segmented Expenses vs Income Toggle
+        // 2. 3-Mode Segmented Hero Switcher: [ Categories ] | [ Cashflow ] | [ Net Worth ]
         item {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                val isExpense = uiState.selectedCategoryType == CategoryType.EXPENSE
-                val isIncome = uiState.selectedCategoryType == CategoryType.INCOME
-
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (isExpense) {
-                        semanticColors.expenseCoralContainer
+                OverviewMode.entries.forEach { mode ->
+                    val isSelected = uiState.selectedOverviewMode == mode
+                    val icon = when (mode) {
+                        OverviewMode.CATEGORIES -> Icons.Filled.PieChart
+                        OverviewMode.CASHFLOW -> Icons.AutoMirrored.Filled.ShowChart
+                        OverviewMode.NET_WORTH -> Icons.AutoMirrored.Filled.TrendingUp
+                    }
+                    val containerColor = if (isSelected) {
+                        MaterialTheme.colorScheme.primaryContainer
                     } else {
                         MaterialTheme.colorScheme.surfaceContainerLow
-                    },
-                    border = BorderStroke(
-                        width = 1.dp,
-                        color = if (isExpense) {
-                            semanticColors.expenseCoral
-                        } else {
-                            semanticColors.cardStrokeSubtle
-                        }
-                    ),
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { onSelectCategoryType(CategoryType.EXPENSE) }
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 12.dp)
+                    }
+                    val contentColor = if (isSelected) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                    val borderColor = if (isSelected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        semanticColors.cardStrokeSubtle
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = containerColor,
+                        border = BorderStroke(1.dp, borderColor),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onSelectOverviewMode(mode) }
                     ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.TrendingDown,
-                            contentDescription = null,
-                            tint = if (isExpense) {
-                                semanticColors.onExpenseCoralContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Expenses",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = if (isExpense) FontWeight.Bold else FontWeight.Medium,
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = contentColor,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = mode.title,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = contentColor,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Dynamic Mode-Matched Content
+        when (uiState.selectedOverviewMode) {
+            OverviewMode.CATEGORIES -> {
+                // Segmented Expenses vs Income Toggle
+                item {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        val isExpense = uiState.selectedCategoryType == CategoryType.EXPENSE
+                        val isIncome = uiState.selectedCategoryType == CategoryType.INCOME
+
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
                             color = if (isExpense) {
-                                semanticColors.onExpenseCoralContainer
+                                semanticColors.expenseCoralContainer
                             } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                        )
-                    }
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (isIncome) {
-                        semanticColors.incomeEmeraldContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerLow
-                    },
-                    border = BorderStroke(
-                        width = 1.dp,
-                        color = if (isIncome) {
-                            semanticColors.incomeEmerald
-                        } else {
-                            semanticColors.cardStrokeSubtle
-                        }
-                    ),
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { onSelectCategoryType(CategoryType.INCOME) }
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 12.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.TrendingUp,
-                            contentDescription = null,
-                            tint = if (isIncome) {
-                                semanticColors.onIncomeEmeraldContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
+                                MaterialTheme.colorScheme.surfaceContainerLow
                             },
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Income",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = if (isIncome) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isIncome) {
-                                semanticColors.onIncomeEmeraldContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
+                            border = BorderStroke(
+                                width = 1.dp,
+                                color = if (isExpense) {
+                                    semanticColors.expenseCoral
+                                } else {
+                                    semanticColors.cardStrokeSubtle
+                                }
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { onSelectCategoryType(CategoryType.EXPENSE) }
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center,
+                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.TrendingDown,
+                                    contentDescription = null,
+                                    tint = if (isExpense) {
+                                        semanticColors.onExpenseCoralContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Expenses",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = if (isExpense) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isExpense) {
+                                        semanticColors.onExpenseCoralContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                )
                             }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isIncome) {
+                                semanticColors.incomeEmeraldContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerLow
+                            },
+                            border = BorderStroke(
+                                width = 1.dp,
+                                color = if (isIncome) {
+                                    semanticColors.incomeEmerald
+                                } else {
+                                    semanticColors.cardStrokeSubtle
+                                }
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { onSelectCategoryType(CategoryType.INCOME) }
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center,
+                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                                    contentDescription = null,
+                                    tint = if (isIncome) {
+                                        semanticColors.onIncomeEmeraldContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Income",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = if (isIncome) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isIncome) {
+                                        semanticColors.onIncomeEmeraldContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Interactive Category Donut Chart
+                item(contentType = "donut_chart") {
+                    InteractiveCategoryDonutChart(
+                        stats = activeStats,
+                        currencySpec = uiState.currencySpec,
+                        grouping = uiState.numberGrouping,
+                        selectedCategoryId = uiState.highlightedDonutCategoryId,
+                        onCategorySelected = { tappedStat ->
+                            onDonutSliceSelected(tappedStat)
+                        },
+                        centerLabelWhenUnselected = if (uiState.selectedCategoryType == CategoryType.EXPENSE) {
+                            "Total Expenses"
+                        } else {
+                            "Total Income"
+                        }
+                    )
+                }
+
+                // Ranked Category Breakdown List Header
+                item(contentType = "category_list_header") {
+                    Text(
+                        text = if (uiState.selectedCategoryType == CategoryType.EXPENSE) {
+                            "Expense Categories (${activeStats.size})"
+                        } else {
+                            "Income Categories (${activeStats.size})"
+                        },
+                        style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                if (activeStats.isEmpty()) {
+                    item {
+                        EmptyStateCard(
+                            title = "No ${uiState.selectedCategoryType.name.lowercase().replaceFirstChar { it.uppercase() }} Data",
+                            subtitle = "No transactions recorded for ${uiState.activePeriodRange.title} in this category type.",
+                            icon = Icons.Filled.PieChart
+                        )
+                    }
+                } else {
+                    item(key = "ranked_categories_grouped_card_${uiState.selectedCategoryType}", contentType = "ranked_categories_card") {
+                        RankedCategoryBreakdownGroupedCard(
+                            stats = activeStats,
+                            categoryType = uiState.selectedCategoryType,
+                            highlightedCategoryId = uiState.highlightedDonutCategoryId,
+                            currencySpec = uiState.currencySpec,
+                            grouping = uiState.numberGrouping,
+                            onCategoryClick = onOpenCategoryDrillDown
                         )
                     }
                 }
             }
-        }
 
-        // Interactive Category Donut Chart
-        item(contentType = "donut_chart") {
-            InteractiveCategoryDonutChart(
-                stats = activeStats,
-                currencySpec = uiState.currencySpec,
-                grouping = uiState.numberGrouping,
-                selectedCategoryId = uiState.highlightedDonutCategoryId,
-                onCategorySelected = { tappedStat ->
-                    onDonutSliceSelected(tappedStat)
-                },
-                centerLabelWhenUnselected = if (uiState.selectedCategoryType == CategoryType.EXPENSE) {
-                    "Total Expenses"
-                } else {
-                    "Total Income"
+            OverviewMode.CASHFLOW -> {
+                // Hero: 6-Month Income vs. Expense Trend Bar Chart
+                item(contentType = "cashflow_trend_chart") {
+                    SixMonthTrendBarChart(
+                        bars = uiState.sixMonthTrendBars,
+                        currencySpec = uiState.currencySpec,
+                        grouping = uiState.numberGrouping
+                    )
                 }
-            )
-        }
 
-        // Ranked Category Breakdown List Header
-        item(contentType = "category_list_header") {
-            Text(
-                text = if (uiState.selectedCategoryType == CategoryType.EXPENSE) {
-                    "Expense Categories (${activeStats.size})"
-                } else {
-                    "Income Categories (${activeStats.size})"
-                },
-                style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
-                fontWeight = FontWeight.Bold,
+                // Period Cashflow Performance Summary
+                item(contentType = "cashflow_performance_card") {
+                    CashflowPerformanceInsightCard(
+                        periodSummary = uiState.periodSummary,
+                        currencySpec = uiState.currencySpec,
+                        grouping = uiState.numberGrouping
+                    )
+                }
+
+                // Top Spending Drivers
+                if (uiState.expenseCategoryStats.isNotEmpty()) {
+                    item(contentType = "top_expense_drivers") {
+                        TopDriversSummaryCard(
+                            title = "Top Expense Drivers",
+                            stats = uiState.expenseCategoryStats.take(3),
+                            totalMinor = uiState.periodSummary.totalExpense,
+                            currencySpec = uiState.currencySpec,
+                            grouping = uiState.numberGrouping,
+                            onCategoryClick = onOpenCategoryDrillDown
+                        )
+                    }
+                }
+
+                // Top Income Sources
+                if (uiState.incomeCategoryStats.isNotEmpty()) {
+                    item(contentType = "top_income_sources") {
+                        TopDriversSummaryCard(
+                            title = "Top Income Sources",
+                            stats = uiState.incomeCategoryStats.take(3),
+                            totalMinor = uiState.periodSummary.totalIncome,
+                            currencySpec = uiState.currencySpec,
+                            grouping = uiState.numberGrouping,
+                            onCategoryClick = onOpenCategoryDrillDown
+                        )
+                    }
+                }
+            }
+
+            OverviewMode.NET_WORTH -> {
+                // Hero: Cubic Bezier Net Worth Growth Trend Canvas Chart
+                item(contentType = "net_worth_trend_chart") {
+                    NetWorthGrowthCanvasChart(
+                        trendItems = uiState.sixMonthNetWorthTrend,
+                        selectedFilter = uiState.selectedNetWorthMetricFilter,
+                        currencySpec = uiState.currencySpec,
+                        grouping = uiState.numberGrouping,
+                        onSelectFilter = onSelectNetWorthChartMetricFilter
+                    )
+                }
+
+                // Net Worth Velocity Card
+                item(contentType = "net_worth_velocity") {
+                    NetWorthVelocityCard(
+                        velocity = uiState.netWorthVelocity,
+                        currencySpec = uiState.currencySpec,
+                        grouping = uiState.numberGrouping
+                    )
+                }
+
+                // Emergency Runway Card
+                item(contentType = "emergency_runway") {
+                    EmergencyRunwayCard(
+                        runway = uiState.emergencyRunway,
+                        currencySpec = uiState.currencySpec,
+                        grouping = uiState.numberGrouping,
+                        onToggleIncludeInvestments = onToggleRunwayIncludesInvestments
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CashflowPerformanceInsightCard(
+    periodSummary: PeriodLedgerSummary,
+    currencySpec: CurrencySpec,
+    grouping: NumberGroupingSystem,
+    modifier: Modifier = Modifier
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+    val totalIncomeMinor = periodSummary.totalIncome.amountMinor
+    val totalExpenseMinor = periodSummary.totalExpense.amountMinor
+    val netCashflowMinor = periodSummary.netCashflow.amountMinor
+    val isPositive = netCashflowMinor >= 0L
+
+    val savingsRatePct = if (totalIncomeMinor > 0L) {
+        val rate = (netCashflowMinor.toDouble() / totalIncomeMinor.toDouble()) * 100.0
+        rate.coerceIn(-100.0, 100.0)
+    } else {
+        null
+    }
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
-            )
-        }
-
-        if (activeStats.isEmpty()) {
-            item {
-                EmptyStateCard(
-                    title = "No ${uiState.selectedCategoryType.name.lowercase().replaceFirstChar { it.uppercase() }} Data",
-                    subtitle = "No transactions recorded for ${uiState.activePeriodRange.title} in this category type.",
-                    icon = Icons.Filled.PieChart
-                )
-            }
-        } else {
-            item(key = "ranked_categories_grouped_card_${uiState.selectedCategoryType}", contentType = "ranked_categories_card") {
-                RankedCategoryBreakdownGroupedCard(
-                    stats = activeStats,
-                    categoryType = uiState.selectedCategoryType,
-                    highlightedCategoryId = uiState.highlightedDonutCategoryId,
-                    currencySpec = uiState.currencySpec,
-                    grouping = uiState.numberGrouping,
-                    onCategoryClick = onOpenCategoryDrillDown
-                )
-            }
-        }
-
-        // Trend Analytics Section with Option A Toggle Chip
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            ) {
                 Text(
-                    text = "Trend Analytics",
-                    style = MaterialTheme.typography.titleMedium,
+                    text = "CASHFLOW EFFICIENCY",
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (savingsRatePct != null) {
+                    val rateContainer = if (savingsRatePct >= 0) semanticColors.incomeEmeraldContainer else semanticColors.expenseCoralContainer
+                    val rateContent = if (savingsRatePct >= 0) semanticColors.onIncomeEmeraldContainer else semanticColors.onExpenseCoralContainer
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = rateContainer
+                    ) {
+                        Text(
+                            text = String.format(Locale.US, "Savings Rate: %+.1f%%", savingsRatePct),
+                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                            fontWeight = FontWeight.Bold,
+                            color = rateContent,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+            }
 
-                // Segmented Toggle Chips: [ 📊 Cashflow ] | [ 📈 Net Worth ]
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    FilterChip(
-                        selected = uiState.selectedTrendChartMode == TrendChartMode.INCOME_VS_EXPENSE,
-                        onClick = { onSelectTrendChartMode(TrendChartMode.INCOME_VS_EXPENSE) },
-                        label = { Text("📊 Cashflow", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold) },
-                        modifier = Modifier.weight(1f)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    Text(
+                        text = "Net Cashflow",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    FilterChip(
-                        selected = uiState.selectedTrendChartMode == TrendChartMode.NET_WORTH,
-                        onClick = { onSelectTrendChartMode(TrendChartMode.NET_WORTH) },
-                        label = { Text("📈 Net Worth", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold) },
-                        modifier = Modifier.weight(1f)
+                    MoneyText(
+                        money = periodSummary.netCashflow,
+                        currencySpec = currencySpec,
+                        grouping = grouping,
+                        colorMode = if (isPositive) MoneyColorMode.INCOME else MoneyColorMode.EXPENSE,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
                     )
                 }
 
-                when (uiState.selectedTrendChartMode) {
-                    TrendChartMode.INCOME_VS_EXPENSE -> {
-                        SixMonthTrendBarChart(
-                            bars = uiState.sixMonthTrendBars,
-                            currencySpec = uiState.currencySpec,
-                            grouping = uiState.numberGrouping
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "Income vs. Expenses",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        MoneyText(
+                            money = periodSummary.totalIncome,
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            colorMode = MoneyColorMode.INCOME,
+                            style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
+                            fontWeight = FontWeight.SemiBold
                         )
-                    }
-                    TrendChartMode.NET_WORTH -> {
-                        NetWorthGrowthCanvasChart(
-                            trendItems = uiState.sixMonthNetWorthTrend,
-                            selectedFilter = uiState.selectedNetWorthMetricFilter,
-                            currencySpec = uiState.currencySpec,
-                            grouping = uiState.numberGrouping,
-                            onSelectFilter = onSelectNetWorthChartMetricFilter
+                        Text(
+                            text = " / ",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-
-                        NetWorthVelocityCard(
-                            velocity = uiState.netWorthVelocity,
-                            currencySpec = uiState.currencySpec,
-                            grouping = uiState.numberGrouping
-                        )
-
-                        EmergencyRunwayCard(
-                            runway = uiState.emergencyRunway,
-                            currencySpec = uiState.currencySpec,
-                            grouping = uiState.numberGrouping,
-                            onToggleIncludeInvestments = onToggleRunwayIncludesInvestments
-                        )
-                    }
-                    TrendChartMode.CREDIT_ANALYSIS -> {
-                        // Fallback for backwards compatibility if mode is set externally
-                        SixMonthTrendBarChart(
-                            bars = uiState.sixMonthTrendBars,
-                            currencySpec = uiState.currencySpec,
-                            grouping = uiState.numberGrouping
+                        MoneyText(
+                            money = periodSummary.totalExpense,
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            colorMode = MoneyColorMode.EXPENSE,
+                            style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
@@ -846,6 +1027,87 @@ private fun StatsBreakdownSubTabContent(
     }
 }
 
+@Composable
+private fun TopDriversSummaryCard(
+    title: String,
+    stats: List<CategorySpendStat>,
+    totalMinor: MinorMoney,
+    currencySpec: CurrencySpec,
+    grouping: NumberGroupingSystem,
+    onCategoryClick: (CategorySpendStat) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            stats.forEach { stat ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onCategoryClick(stat) }
+                        .padding(vertical = 4.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        CategoryIconBadge(
+                            iconName = stat.iconName,
+                            colorHex = stat.colorHex,
+                            size = 32.dp,
+                            iconSize = 16.dp
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = stat.categoryName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = String.format(Locale.US, "%.1f%% of total", stat.percentageOfTotal),
+                                style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    MoneyText(
+                        money = stat.netAmount,
+                        currencySpec = currencySpec,
+                        grouping = grouping,
+                        colorMode = MoneyColorMode.AUTO_SIGN,
+                        style = tabularMoneyStyle(MaterialTheme.typography.bodyLarge),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
 @Composable
 private fun NetWorthVelocityCard(
     velocity: NetWorthVelocityState,
@@ -1691,6 +1953,26 @@ private fun BudgetsManagerSubTabContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
     ) {
+        if (uiState.safeToSpend.isCurrentPeriod && uiState.shortfallAlerts.isNotEmpty()) {
+            item(contentType = "shortfall_alert") {
+                ShortfallAlertCard(
+                    alerts = uiState.shortfallAlerts,
+                    currencySpec = uiState.currencySpec,
+                    grouping = uiState.numberGrouping
+                )
+            }
+        }
+
+        if (uiState.safeToSpend.isCurrentPeriod) {
+            item(contentType = "safe_to_spend") {
+                SafeToSpendCard(
+                    safeToSpend = uiState.safeToSpend,
+                    currencySpec = uiState.currencySpec,
+                    grouping = uiState.numberGrouping
+                )
+            }
+        }
+
         item(contentType = "stats_summary_banner") {
             ThreeColumnSummaryBanner(
                 firstLabel = "Income",
@@ -2152,6 +2434,26 @@ private fun TagsAndNotesRankingsSubTabContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
     ) {
+        if (uiState.safeToSpend.isCurrentPeriod && uiState.shortfallAlerts.isNotEmpty()) {
+            item(contentType = "shortfall_alert") {
+                ShortfallAlertCard(
+                    alerts = uiState.shortfallAlerts,
+                    currencySpec = uiState.currencySpec,
+                    grouping = uiState.numberGrouping
+                )
+            }
+        }
+
+        if (uiState.safeToSpend.isCurrentPeriod) {
+            item(contentType = "safe_to_spend") {
+                SafeToSpendCard(
+                    safeToSpend = uiState.safeToSpend,
+                    currencySpec = uiState.currencySpec,
+                    grouping = uiState.numberGrouping
+                )
+            }
+        }
+
         item(contentType = "stats_summary_banner") {
             ThreeColumnSummaryBanner(
                 firstLabel = "Income",
