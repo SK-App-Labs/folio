@@ -172,6 +172,8 @@ class AnalyticsAndBudgetRepositoryImpl(
             val categoriesById = categories.associateBy { it.id }
             val netMinorByCategoryId = HashMap<Long, Long>()
             val txCountByCategoryId = HashMap<Long, Int>()
+            val subcategoryMinorMap = HashMap<Long, HashMap<Long, Long>>()
+            val subcategoryCountMap = HashMap<Long, HashMap<Long, Int>>()
 
             fun getTargetMainCategoryId(rawCatId: Long?): Long {
                 val catId = rawCatId ?: UNATEGORIZED_BUCKET_ID
@@ -180,11 +182,23 @@ class AnalyticsAndBudgetRepositoryImpl(
             }
 
             fun addCategoryDelta(categoryId: Long?, deltaMinor: Long, countIncrement: Int) {
-                val targetMainId = getTargetMainCategoryId(categoryId)
+                val catId = categoryId ?: UNATEGORIZED_BUCKET_ID
+                val catEntity = categoriesById[catId]
+                val targetMainId = catEntity?.parentId ?: catId
+
                 val currentAmount = netMinorByCategoryId[targetMainId] ?: 0L
                 netMinorByCategoryId[targetMainId] = Math.addExact(currentAmount, deltaMinor)
                 if (countIncrement > 0) {
                     txCountByCategoryId[targetMainId] = (txCountByCategoryId[targetMainId] ?: 0) + countIncrement
+                }
+
+                if (catEntity?.parentId != null) {
+                    val subMinors = subcategoryMinorMap.getOrPut(targetMainId) { HashMap() }
+                    val currentSub = subMinors[catId] ?: 0L
+                    subMinors[catId] = Math.addExact(currentSub, deltaMinor)
+
+                    val subCounts = subcategoryCountMap.getOrPut(targetMainId) { HashMap() }
+                    subCounts[catId] = (subCounts[catId] ?: 0) + countIncrement
                 }
             }
 
@@ -283,6 +297,24 @@ class AnalyticsAndBudgetRepositoryImpl(
                 .map { (catId, netMinor) ->
                     val catEntity: CategoryEntity? = categoriesById[catId]
                     val pct = computePercentage(netMinor, grandTotalMinor)
+                    val subList = subcategoryMinorMap[catId]?.entries
+                        ?.filter { it.value > 0L }
+                        ?.map { (subId, subMinor) ->
+                            val subEntity = categoriesById[subId]
+                            val subPct = computePercentage(subMinor, netMinor)
+                            CategorySpendStat(
+                                categoryId = subId,
+                                categoryName = subEntity?.name ?: "Subcategory",
+                                colorHex = subEntity?.colorHex ?: catEntity?.colorHex ?: "#64748B",
+                                iconName = subEntity?.iconName ?: catEntity?.iconName ?: "category",
+                                netAmount = MinorMoney(subMinor),
+                                percentageOfTotal = subPct,
+                                transactionCount = (subcategoryCountMap[catId]?.get(subId) ?: 1).coerceAtLeast(1)
+                            )
+                        }
+                        ?.sortedByDescending { it.netAmount }
+                        ?: emptyList()
+
                     CategorySpendStat(
                         categoryId = catId,
                         categoryName = catEntity?.name ?: "Uncategorized",
@@ -290,7 +322,8 @@ class AnalyticsAndBudgetRepositoryImpl(
                         iconName = catEntity?.iconName ?: "category",
                         netAmount = MinorMoney(netMinor),
                         percentageOfTotal = pct,
-                        transactionCount = (txCountByCategoryId[catId] ?: 1).coerceAtLeast(1)
+                        transactionCount = (txCountByCategoryId[catId] ?: 1).coerceAtLeast(1),
+                        subcategories = subList
                     )
                 }
                 .sortedByDescending { it.netAmount }

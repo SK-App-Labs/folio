@@ -520,6 +520,7 @@ data class StatsAndBudgetsUiState(
         netCashflow = MinorMoney.ZERO,
         carryOverFromPreviousPeriod = MinorMoney.ZERO
     ),
+    val priorPeriodSummary: PeriodLedgerSummary? = null,
     val userPreferences: UserPreferences = UserPreferences(),
     val currencySpec: CurrencySpec = SupportedCurrencies.INR,
     val numberGrouping: NumberGroupingSystem = NumberGroupingSystem.INDIAN,
@@ -611,10 +612,18 @@ private data class TrendsAndBudgetsBundle(
     val recurringCommitments: List<RecurringCommitmentItem>
 )
 
+private data class EnrichedPeriodStats(
+    val summary: PeriodLedgerSummary,
+    val priorSummary: PeriodLedgerSummary,
+    val expenseStats: List<CategorySpendStat>,
+    val incomeStats: List<CategorySpendStat>
+)
+
 private data class PeriodAnalyticsBundle(
     val prefs: UserPreferences,
     val periodRange: StatsPeriodRange,
     val periodSummary: PeriodLedgerSummary,
+    val priorPeriodSummary: PeriodLedgerSummary? = null,
     val expenseStats: List<CategorySpendStat>,
     val incomeStats: List<CategorySpendStat>,
     val trendBars: List<MonthlyTrendBar>,
@@ -709,7 +718,29 @@ class StatsAndBudgetsViewModel(
             customEndEpochDay = params.customEndEpochDay
         )
 
-        val summaryAndCategoryStatsFlow = combine(
+        val priorPeriodRange = when (params.granularity) {
+            StatsPeriodGranularity.WEEKLY -> StatsPeriodCalculator.computeWeeklyRange(
+                referenceDateEpochDay = LocalDate.ofEpochDay(periodRange.startEpochDay).minusDays(1).toEpochDay(),
+                weekStartDayIso = prefs.weekStartDayIso
+            )
+            StatsPeriodGranularity.MONTHLY -> StatsPeriodCalculator.computeFinancialMonthRange(
+                referenceDateEpochDay = LocalDate.ofEpochDay(periodRange.startEpochDay).minusDays(1).toEpochDay(),
+                monthStartDay = prefs.monthStartDay
+            )
+            StatsPeriodGranularity.ANNUALLY -> StatsPeriodCalculator.computeAnnualRange(
+                referenceDateEpochDay = LocalDate.ofEpochDay(periodRange.startEpochDay).minusDays(1).toEpochDay(),
+                monthStartDay = prefs.monthStartDay
+            )
+            StatsPeriodGranularity.CUSTOM -> {
+                val span = periodRange.endEpochDay - periodRange.startEpochDay + 1
+                StatsPeriodCalculator.computeCustomRange(
+                    customStartEpochDay = periodRange.startEpochDay - span,
+                    customEndEpochDay = periodRange.startEpochDay - 1
+                )
+            }
+        }
+
+        val currentStatsFlow = combine(
             analyticsAndBudgetRepository.observePeriodLedgerSummary(
                 startEpochDay = periodRange.startEpochDay,
                 endEpochDay = periodRange.endEpochDay,
@@ -728,6 +759,62 @@ class StatsAndBudgetsViewModel(
             )
         ) { summary, expenseStats, incomeStats ->
             Triple(summary, expenseStats, incomeStats)
+        }
+
+        val priorStatsFlow = combine(
+            analyticsAndBudgetRepository.observePeriodLedgerSummary(
+                startEpochDay = priorPeriodRange.startEpochDay,
+                endEpochDay = priorPeriodRange.endEpochDay,
+                includeCarryOver = false
+            ),
+            analyticsAndBudgetRepository.observeCategorySpendStats(
+                startEpochDay = priorPeriodRange.startEpochDay,
+                endEpochDay = priorPeriodRange.endEpochDay,
+                type = CategoryType.EXPENSE
+            ),
+            analyticsAndBudgetRepository.observeCategorySpendStats(
+                startEpochDay = priorPeriodRange.startEpochDay,
+                endEpochDay = priorPeriodRange.endEpochDay,
+                type = CategoryType.INCOME
+            )
+        ) { priorSummary, priorExpense, priorIncome ->
+            Triple(priorSummary, priorExpense, priorIncome)
+        }
+
+        val summaryAndCategoryStatsFlow = combine(
+            currentStatsFlow,
+            priorStatsFlow
+        ) { (summary, expenseStats, incomeStats), (priorSummary, priorExpense, priorIncome) ->
+            fun attachComparativeDeltas(
+                currentList: List<CategorySpendStat>,
+                priorList: List<CategorySpendStat>
+            ): List<CategorySpendStat> {
+                val priorMap = priorList.associateBy { it.categoryId }
+                return currentList.map { current ->
+                    val prior = priorMap[current.categoryId]
+                    val priorAmount = prior?.netAmount
+                    val changePct = if (priorAmount != null && priorAmount.amountMinor > 0L) {
+                        ((current.netAmount.amountMinor - priorAmount.amountMinor).toFloat() / priorAmount.amountMinor.toFloat()) * 100f
+                    } else if (priorAmount != null && priorAmount.amountMinor == 0L && current.netAmount.amountMinor > 0L) {
+                        100f
+                    } else {
+                        null
+                    }
+                    current.copy(
+                        priorPeriodAmount = priorAmount,
+                        changePercentage = changePct
+                    )
+                }
+            }
+
+            val enrichedExpenses = attachComparativeDeltas(expenseStats, priorExpense)
+            val enrichedIncomes = attachComparativeDeltas(incomeStats, priorIncome)
+            EnrichedPeriodStats(
+                summary = summary,
+                priorSummary = priorSummary,
+                expenseStats = enrichedExpenses,
+                incomeStats = enrichedIncomes
+            )
         }
 
         val trendsAndBudgetsFlow = combine(
@@ -767,13 +854,14 @@ class StatsAndBudgetsViewModel(
             summaryAndCategoryStatsFlow,
             trendsAndBudgetsFlow,
             rankingsFlow
-        ) { (summary, expenseStats, incomeStats), trendsBundle, (tags, payees) ->
+        ) { enrichedStats, trendsBundle, (tags, payees) ->
             PeriodAnalyticsBundle(
                 prefs = prefs,
                 periodRange = periodRange,
-                periodSummary = summary,
-                expenseStats = expenseStats,
-                incomeStats = incomeStats,
+                periodSummary = enrichedStats.summary,
+                priorPeriodSummary = enrichedStats.priorSummary,
+                expenseStats = enrichedStats.expenseStats,
+                incomeStats = enrichedStats.incomeStats,
                 trendBars = trendsBundle.trendBars,
                 budgets = trendsBundle.budgets,
                 tagRankings = tags,
@@ -1009,6 +1097,7 @@ class StatsAndBudgetsViewModel(
             isCustomDatePickerOpen = ctrl.isCustomDatePickerOpen,
             activePeriodRange = bundle.periodRange,
             periodSummary = bundle.periodSummary,
+            priorPeriodSummary = bundle.priorPeriodSummary,
             userPreferences = prefs,
             currencySpec = currencySpec,
             numberGrouping = prefs.numberGrouping,

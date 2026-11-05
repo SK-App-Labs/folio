@@ -103,7 +103,10 @@ data class CategorySpendStat(
     val iconName: String,
     val netAmount: MinorMoney,
     val percentageOfTotal: Float, // 0f..100f for UI display only
-    val transactionCount: Int
+    val transactionCount: Int,
+    val priorPeriodAmount: MinorMoney? = null,
+    val changePercentage: Float? = null,
+    val subcategories: List<CategorySpendStat> = emptyList()
 )
 
 @Immutable

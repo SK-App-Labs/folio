@@ -297,6 +297,33 @@ fun InteractiveCategoryDonutChart(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                             )
                         }
+                        if (selectedStat.changePercentage != null) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            val deltaPct = selectedStat.changePercentage
+                            val isIncrease = deltaPct > 0f
+                            val isZero = kotlin.math.abs(deltaPct) < 0.1f
+                            val deltaColor = if (isZero) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else if (isIncrease) {
+                                semanticColors.expenseCoral
+                            } else {
+                                semanticColors.incomeEmerald
+                            }
+                            val arrow = if (isZero) "•" else if (isIncrease) "▲" else "▼"
+                            val sign = if (isIncrease) "+" else ""
+                            Surface(
+                                color = deltaColor.copy(alpha = 0.14f),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text(
+                                    text = "$arrow $sign${String.format(java.util.Locale.US, "%.1f%%", deltaPct)} vs last period",
+                                    style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                                    color = deltaColor,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
                     } else {
                         Text(
                             text = centerLabelWhenUnselected,

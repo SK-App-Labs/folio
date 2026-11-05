@@ -1,6 +1,7 @@
 // File: app/src/test/java/com/folioledger/app/ui/stats/PayeeIntelligenceCalculationsTest.kt
 package com.folioledger.app.ui.stats
 
+import com.folioledger.app.domain.model.CategorySpendStat
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.MonthlyTrendBar
 import com.folioledger.app.domain.model.SpendRankingItem
@@ -8,6 +9,8 @@ import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PayeeIntelligenceCalculationsTest {
@@ -189,5 +192,122 @@ class PayeeIntelligenceCalculationsTest {
         assertEquals("Merchants & Tags", StatsSubTab.TAGS_AND_NOTES.title)
         assertEquals("#Tags & Projects", RankingMode.TAGS.title)
         assertEquals("Merchants & Payees", RankingMode.PAYEES_AND_NOTES.title)
+    }
+
+    @Test
+    fun testBudgetMonthPacingTickCalculation() {
+        val startEpochDay = 20700L
+        val endEpochDay = 20729L // 30 days total
+        val totalDays = (endEpochDay - startEpochDay + 1).coerceAtLeast(1L)
+        assertEquals(30L, totalDays)
+
+        // Day 10 of 30 (33.33% elapsed)
+        val todayEpochDay = 20709L
+        val elapsedDays = (todayEpochDay - startEpochDay + 1).coerceIn(1L, totalDays)
+        assertEquals(10L, elapsedDays)
+
+        val elapsedMonthFraction = (elapsedDays.toFloat() / totalDays.toFloat()).coerceIn(0f, 1f)
+        val elapsedPercent = (elapsedMonthFraction * 100f).toInt()
+        assertEquals(33, elapsedPercent)
+
+        // Scenario A: Pacing Fast (Spent 65% on Day 10)
+        val spentUsageFast = 65f
+        val paceDiffFast = spentUsageFast - elapsedPercent.toFloat()
+        assertTrue(paceDiffFast > 10f)
+
+        // Scenario B: Pacing Well (Spent 15% on Day 10)
+        val spentUsageWell = 15f
+        val paceDiffWell = spentUsageWell - elapsedPercent.toFloat()
+        assertTrue(paceDiffWell < -10f)
+
+        // Scenario C: On Track (Spent 35% on Day 10)
+        val spentUsageOnTrack = 35f
+        val paceDiffOnTrack = spentUsageOnTrack - elapsedPercent.toFloat()
+        assertTrue(paceDiffOnTrack in -10f..10f)
+    }
+
+    @Test
+    fun testPriorPeriodComparativeDeltaCalculation() {
+        // Current spend = 120, Prior spend = 100 -> +20.0%
+        val currentAmountMinor = 120_00L
+        val priorAmountMinor = 100_00L
+        val changePct = ((currentAmountMinor - priorAmountMinor).toFloat() / priorAmountMinor.toFloat()) * 100f
+        assertEquals(20.0f, changePct, 0.01f)
+
+        // Decrease: Current = 75, Prior = 100 -> -25.0%
+        val currentDecrease = 75_00L
+        val decreasePct = ((currentDecrease - priorAmountMinor).toFloat() / priorAmountMinor.toFloat()) * 100f
+        assertEquals(-25.0f, decreasePct, 0.01f)
+
+        // New category: prior is null
+        val statWithPrior = CategorySpendStat(
+            categoryId = 10L,
+            categoryName = "Food & Dining",
+            colorHex = "#F59E0B",
+            iconName = "restaurant",
+            netAmount = MinorMoney(120_00L),
+            percentageOfTotal = 40f,
+            transactionCount = 5,
+            priorPeriodAmount = MinorMoney(100_00L),
+            changePercentage = changePct
+        )
+        assertNotNull(statWithPrior.priorPeriodAmount)
+        assertEquals(20.0f, statWithPrior.changePercentage ?: 0f, 0.01f)
+
+        val newCategoryStat = CategorySpendStat(
+            categoryId = 11L,
+            categoryName = "Electronics",
+            colorHex = "#3B82F6",
+            iconName = "devices",
+            netAmount = MinorMoney(500_00L),
+            percentageOfTotal = 20f,
+            transactionCount = 1
+        )
+        assertNull(newCategoryStat.priorPeriodAmount)
+        assertNull(newCategoryStat.changePercentage)
+        assertTrue(newCategoryStat.subcategories.isEmpty())
+    }
+
+    @Test
+    fun testCategorySpendStatWithSubcategories() {
+        val parentNet = 200_00L
+        val groceriesNet = 120_00L
+        val restaurantsNet = 80_00L
+
+        val groceriesSub = CategorySpendStat(
+            categoryId = 101L,
+            categoryName = "Groceries",
+            colorHex = "#10B981",
+            iconName = "local_grocery_store",
+            netAmount = MinorMoney(groceriesNet),
+            percentageOfTotal = (groceriesNet.toFloat() / parentNet.toFloat()) * 100f,
+            transactionCount = 4
+        )
+        val restaurantsSub = CategorySpendStat(
+            categoryId = 102L,
+            categoryName = "Restaurants",
+            colorHex = "#EF4444",
+            iconName = "restaurant",
+            netAmount = MinorMoney(restaurantsNet),
+            percentageOfTotal = (restaurantsNet.toFloat() / parentNet.toFloat()) * 100f,
+            transactionCount = 2
+        )
+
+        val parentStat = CategorySpendStat(
+            categoryId = 10L,
+            categoryName = "Food & Dining",
+            colorHex = "#F59E0B",
+            iconName = "food_bank",
+            netAmount = MinorMoney(parentNet),
+            percentageOfTotal = 50f,
+            transactionCount = 6,
+            subcategories = listOf(groceriesSub, restaurantsSub)
+        )
+
+        assertEquals(2, parentStat.subcategories.size)
+        assertEquals(60.0f, parentStat.subcategories[0].percentageOfTotal, 0.01f)
+        assertEquals(40.0f, parentStat.subcategories[1].percentageOfTotal, 0.01f)
+        assertEquals("Groceries", parentStat.subcategories[0].categoryName)
+        assertEquals("Restaurants", parentStat.subcategories[1].categoryName)
     }
 }

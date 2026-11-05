@@ -1,11 +1,17 @@
 // File: app/src/main/java/com/folioledger/app/ui/stats/StatsAndBudgetsScreen.kt
 package com.folioledger.app.ui.stats
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -96,6 +102,9 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -841,6 +850,7 @@ private fun StatsBreakdownSubTabContent(
                 item(contentType = "cashflow_performance_card") {
                     CashflowPerformanceInsightCard(
                         periodSummary = uiState.periodSummary,
+                        priorPeriodSummary = uiState.priorPeriodSummary,
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.numberGrouping
                     )
@@ -913,6 +923,7 @@ private fun StatsBreakdownSubTabContent(
 @Composable
 private fun CashflowPerformanceInsightCard(
     periodSummary: PeriodLedgerSummary,
+    priorPeriodSummary: PeriodLedgerSummary? = null,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     modifier: Modifier = Modifier
@@ -1019,6 +1030,52 @@ private fun CashflowPerformanceInsightCard(
                             colorMode = MoneyColorMode.EXPENSE,
                             style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
                             fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            if (priorPeriodSummary != null && priorPeriodSummary.totalExpense.amountMinor > 0L) {
+                val priorExpenseMinor = priorPeriodSummary.totalExpense.amountMinor
+                val expenseDelta = totalExpenseMinor - priorExpenseMinor
+                val expenseDeltaPct = (expenseDelta.toDouble() / priorExpenseMinor.toDouble()) * 100.0
+                val isExpenseIncrease = expenseDeltaPct > 0
+                val isZero = kotlin.math.abs(expenseDeltaPct) < 0.1
+                val arrow = if (isZero) "•" else if (isExpenseIncrease) "▲" else "▼"
+                val sign = if (isExpenseIncrease) "+" else ""
+                val deltaColor = if (isZero) MaterialTheme.colorScheme.onSurfaceVariant else if (isExpenseIncrease) semanticColors.expenseCoral else semanticColors.incomeEmerald
+
+                HorizontalDivider(color = semanticColors.cardStrokeSubtle)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "vs. Prior Period Expense",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "$arrow $sign${String.format(Locale.US, "%.1f%%", expenseDeltaPct)} (",
+                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                            fontWeight = FontWeight.Bold,
+                            color = deltaColor
+                        )
+                        MoneyText(
+                            money = MinorMoney(kotlin.math.abs(expenseDelta)),
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            colorMode = MoneyColorMode.NEUTRAL,
+                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = ")",
+                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                            fontWeight = FontWeight.Bold,
+                            color = deltaColor
                         )
                     }
                 }
@@ -1825,7 +1882,9 @@ private fun RankedCategoryStatRowItem(
     onClick: () -> Unit
 ) {
     val semanticColors = LocalFolioSemanticColors.current
+    val haptic = LocalHapticFeedback.current
     val catColor = remember(stat.colorHex) { parseHexColorSafely(stat.colorHex) }
+    var isSubcategoriesExpanded by rememberSaveable(stat.categoryId) { mutableStateOf(false) }
 
     val targetFraction = (stat.percentageOfTotal / 100f).coerceIn(0f, 1f)
     val animatedProgress by animateFloatAsState(
@@ -1858,15 +1917,67 @@ private fun RankedCategoryStatRowItem(
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            Text(
-                text = "${stat.categoryName} (${stat.transactionCount})",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "${stat.categoryName} (${stat.transactionCount})",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (stat.changePercentage != null) {
+                    val deltaPct = stat.changePercentage
+                    val isIncrease = deltaPct > 0f
+                    val isZero = kotlin.math.abs(deltaPct) < 0.1f
+                    val deltaColor = if (isZero) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else if (categoryType == CategoryType.EXPENSE) {
+                        if (isIncrease) semanticColors.expenseCoral else semanticColors.incomeEmerald
+                    } else {
+                        if (isIncrease) semanticColors.incomeEmerald else semanticColors.expenseCoral
+                    }
+                    val arrow = if (isZero) "•" else if (isIncrease) "▲" else "▼"
+                    val sign = if (isIncrease) "+" else ""
+                    Text(
+                        text = "$arrow $sign${String.format(Locale.US, "%.1f%%", deltaPct)} vs last period",
+                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                        color = deltaColor,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            if (stat.subcategories.isNotEmpty()) {
+                Spacer(modifier = Modifier.width(6.dp))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            isSubcategoriesExpanded = !isSubcategoriesExpanded
+                        }
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "${stat.subcategories.size} sub",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Icon(
+                            imageVector = if (isSubcategoriesExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                            contentDescription = "Toggle subcategories",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.width(8.dp))
 
@@ -1920,6 +2031,81 @@ private fun RankedCategoryStatRowItem(
                 .height(3.dp)
                 .clip(RoundedCornerShape(1.5.dp))
         )
+
+        if (stat.subcategories.isNotEmpty()) {
+            AnimatedVisibility(
+                visible = isSubcategoriesExpanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp, start = 8.dp, end = 4.dp)
+                ) {
+                    stat.subcategories.forEach { sub ->
+                        val subColor = remember(sub.colorHex) { parseHexColorSafely(sub.colorHex) }
+                        val subProgress = (sub.percentageOfTotal / 100f).coerceIn(0f, 1f)
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(8.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    CategoryIconBadge(
+                                        iconName = sub.iconName,
+                                        colorHex = sub.colorHex,
+                                        size = 22.dp,
+                                        iconSize = 12.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "${sub.categoryName} (${sub.transactionCount})",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "${String.format(Locale.US, "%.1f%%", sub.percentageOfTotal)} of parent",
+                                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    MoneyText(
+                                        money = sub.netAmount,
+                                        currencySpec = currencySpec,
+                                        grouping = grouping,
+                                        colorMode = if (categoryType == CategoryType.EXPENSE) MoneyColorMode.EXPENSE else MoneyColorMode.INCOME,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                LinearProgressIndicator(
+                                    progress = { subProgress },
+                                    color = subColor,
+                                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    strokeCap = StrokeCap.Round,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(2.5.dp)
+                                        .clip(RoundedCornerShape(1.25.dp))
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -2057,6 +2243,7 @@ private fun BudgetsManagerSubTabContent(
                     isHeroOverall = true,
                     currencySpec = uiState.currencySpec,
                     grouping = uiState.numberGrouping,
+                    activePeriodRange = uiState.activePeriodRange,
                     onClick = { onOpenEditBudget(overallBudget) }
                 )
             } else {
@@ -2139,9 +2326,91 @@ private fun BudgetsManagerSubTabContent(
                     isHeroOverall = false,
                     currencySpec = uiState.currencySpec,
                     grouping = uiState.numberGrouping,
+                    activePeriodRange = uiState.activePeriodRange,
                     onClick = { onOpenEditBudget(budget) }
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun BudgetTrackWithPacingTick(
+    progressFraction: Float,
+    elapsedFraction: Float?,
+    alertThresholdPercent: Int,
+    statusColor: Color,
+    trackColor: Color,
+    isHeroOverall: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val barHeight = if (isHeroOverall) 12.dp else 10.dp
+    val tickOverflow = 4.dp
+    val totalCanvasHeight = barHeight + tickOverflow * 2
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val primaryColor = MaterialTheme.colorScheme.primary
+
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(totalCanvasHeight)
+    ) {
+        val width = size.width
+        val height = barHeight.toPx()
+        val topOffset = tickOverflow.toPx()
+        val cornerRadius = CornerRadius(height / 2f, height / 2f)
+
+        // 1. Draw track background
+        drawRoundRect(
+            color = trackColor,
+            topLeft = Offset(0f, topOffset),
+            size = Size(width, height),
+            cornerRadius = cornerRadius
+        )
+
+        // 2. Draw progress fill
+        val fillWidth = (width * progressFraction).coerceIn(0f, width)
+        if (fillWidth > 0f) {
+            drawRoundRect(
+                color = statusColor,
+                topLeft = Offset(0f, topOffset),
+                size = Size(fillWidth, height),
+                cornerRadius = cornerRadius
+            )
+        }
+
+        // 3. Draw alert threshold marker (e.g. 80%)
+        val thresholdFraction = (alertThresholdPercent / 100f).coerceIn(0f, 1f)
+        val thresholdX = width * thresholdFraction
+        drawLine(
+            color = onSurface.copy(alpha = 0.28f),
+            start = Offset(thresholdX, topOffset),
+            end = Offset(thresholdX, topOffset + height),
+            strokeWidth = 2.dp.toPx()
+        )
+
+        // 4. Draw month progress pacing tick (if current period)
+        if (elapsedFraction != null) {
+            val tickX = width * elapsedFraction
+            val tickWidth = 3.dp.toPx()
+            val tickHeight = height + (tickOverflow.toPx() * 1.5f)
+            val tickTop = topOffset - (tickOverflow.toPx() * 0.75f)
+
+            // High contrast needle shadow/border
+            drawRoundRect(
+                color = onSurface.copy(alpha = 0.35f),
+                topLeft = Offset(tickX - (tickWidth / 2f) - 1.dp.toPx(), tickTop - 1.dp.toPx()),
+                size = Size(tickWidth + 2.dp.toPx(), tickHeight + 2.dp.toPx()),
+                cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
+            )
+
+            // Primary needle
+            drawRoundRect(
+                color = primaryColor,
+                topLeft = Offset(tickX - (tickWidth / 2f), tickTop),
+                size = Size(tickWidth, tickHeight),
+                cornerRadius = CornerRadius(1.5.dp.toPx(), 1.5.dp.toPx())
+            )
         }
     }
 }
@@ -2152,6 +2421,7 @@ private fun BudgetProgressCard(
     isHeroOverall: Boolean,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
+    activePeriodRange: StatsPeriodRange,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -2186,6 +2456,21 @@ private fun BudgetProgressCard(
     val pctBadgeText = remember(budget.usagePercentage) {
         String.format(Locale.US, "%.1f%%", budget.usagePercentage)
     }
+
+    val todayEpochDay = remember { LocalDate.now().toEpochDay() }
+    val isCurrentPeriod = todayEpochDay in activePeriodRange.startEpochDay..activePeriodRange.endEpochDay
+    val totalDays = remember(activePeriodRange.startEpochDay, activePeriodRange.endEpochDay) {
+        (activePeriodRange.endEpochDay - activePeriodRange.startEpochDay + 1).coerceAtLeast(1L)
+    }
+    val elapsedDays = remember(todayEpochDay, activePeriodRange.startEpochDay, totalDays) {
+        (todayEpochDay - activePeriodRange.startEpochDay + 1).coerceIn(1L, totalDays)
+    }
+    val elapsedMonthFraction = if (isCurrentPeriod) {
+        (elapsedDays.toFloat() / totalDays.toFloat()).coerceIn(0f, 1f)
+    } else {
+        null
+    }
+    val elapsedPercent: Int? = elapsedMonthFraction?.let { (it * 100f).toInt() }
 
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -2290,16 +2575,68 @@ private fun BudgetProgressCard(
                 }
             }
 
-            LinearProgressIndicator(
-                progress = { animatedFraction },
-                color = statusColor,
+            BudgetTrackWithPacingTick(
+                progressFraction = animatedFraction,
+                elapsedFraction = elapsedMonthFraction,
+                alertThresholdPercent = budget.alertThresholdPercent,
+                statusColor = statusColor,
                 trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                strokeCap = StrokeCap.Round,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(if (isHeroOverall) 10.dp else 8.dp)
-                    .clip(RoundedCornerShape(5.dp))
+                isHeroOverall = isHeroOverall
             )
+
+            if (isCurrentPeriod && elapsedPercent != null) {
+                val usagePct = budget.usagePercentage
+                val paceDiff = usagePct - elapsedPercent.toFloat()
+                val isPacingFast = paceDiff > 10f && !isExceeded
+                val isPacingWell = paceDiff < -10f && !isExceeded
+                val usageInt = usagePct.toInt()
+
+                val paceTextColor = when {
+                    isExceeded -> semanticColors.expenseCoral
+                    isPacingFast -> semanticColors.warningAmber
+                    isPacingWell -> semanticColors.incomeEmerald
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = paceTextColor,
+                            modifier = Modifier.size(6.dp)
+                        ) {}
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = when {
+                                isExceeded -> "Exceeded limit on Day $elapsedDays of $totalDays"
+                                isPacingFast -> "Pacing Fast: $usageInt% spent vs $elapsedPercent% month elapsed"
+                                isPacingWell -> "Pacing Well: $usageInt% spent vs $elapsedPercent% month elapsed"
+                                else -> "On Track: $usageInt% spent vs $elapsedPercent% month elapsed"
+                            },
+                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                            fontWeight = FontWeight.SemiBold,
+                            color = paceTextColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Text(
+                        text = "Day $elapsedDays of $totalDays",
+                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
