@@ -1,8 +1,13 @@
 // File: app/src/test/java/com/folioledger/app/ui/stats/PayeeIntelligenceCalculationsTest.kt
 package com.folioledger.app.ui.stats
 
+import com.folioledger.app.domain.model.AccountGroup
+import com.folioledger.app.domain.model.AccountSavingsGoalConfig
+import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.CategorySpendStat
 import com.folioledger.app.domain.model.MinorMoney
+import com.folioledger.app.domain.model.PeriodLedgerSummary
+import com.folioledger.app.domain.util.SavingsGoalCalculator
 import com.folioledger.app.domain.model.MonthlyTrendBar
 import com.folioledger.app.domain.model.SpendRankingItem
 import com.folioledger.app.domain.model.TransactionItem
@@ -309,5 +314,173 @@ class PayeeIntelligenceCalculationsTest {
         assertEquals(40.0f, parentStat.subcategories[1].percentageOfTotal, 0.01f)
         assertEquals("Groceries", parentStat.subcategories[0].categoryName)
         assertEquals("Restaurants", parentStat.subcategories[1].categoryName)
+    }
+
+    @Test
+    fun testAccountSavingsGoalsCalculation() {
+        val savingsAccount = AccountSummary(
+            id = 101L,
+            name = "Emergency Savings",
+            groupType = AccountGroup.SAVINGS,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(300_000_00L),
+            colorHex = "#10B981",
+            iconName = "savings"
+        )
+        val investmentAccount = AccountSummary(
+            id = 102L,
+            name = "Mutual Funds Vault",
+            groupType = AccountGroup.INVESTMENT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(2_500_000_00L),
+            colorHex = "#3B82F6",
+            iconName = "trending_up"
+        )
+        val accounts = listOf(savingsAccount, investmentAccount)
+
+        val config1 = AccountSavingsGoalConfig(
+            accountId = 101L,
+            goalTitle = "Emergency Fund",
+            targetAmountMinor = 500_000_00L
+        )
+        val config2 = AccountSavingsGoalConfig(
+            accountId = 102L,
+            goalTitle = "Retirement Corpus Milestone",
+            targetAmountMinor = 2_000_000_00L
+        )
+        val configs = mapOf(101L to config1, 102L to config2)
+
+        val computedGoals = SavingsGoalCalculator.computeAccountSavingsGoals(accounts, configs)
+        assertEquals(2, computedGoals.size)
+
+        // Goal 1: 300,000 of 500,000 -> 60%, not achieved, 200,000 remaining
+        val g1 = computedGoals.first { it.accountId == 101L }
+        assertEquals("Emergency Fund", g1.goalTitle)
+        assertEquals(60.0f, g1.progressPercentage, 0.01f)
+        assertEquals(false, g1.isAchieved)
+        assertEquals(200_000_00L, g1.remainingAmount.amountMinor)
+
+        // Goal 2: 2,500,000 of 2,000,000 -> 125%, isAchieved = true, 0 remaining
+        val g2 = computedGoals.first { it.accountId == 102L }
+        assertEquals("Retirement Corpus Milestone", g2.goalTitle)
+        assertEquals(125.0f, g2.progressPercentage, 0.01f)
+        assertEquals(true, g2.isAchieved)
+        assertEquals(0L, g2.remainingAmount.amountMinor)
+    }
+
+    @Test
+    fun testMonthlySavingsProgressDoubleEntryCalculation() {
+        val checkingAccount = AccountSummary(
+            id = 1L,
+            name = "Salary Checking",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(50_000_00L)
+        )
+        val savingsAccount = AccountSummary(
+            id = 2L,
+            name = "HDFC High Yield",
+            groupType = AccountGroup.SAVINGS,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(200_000_00L)
+        )
+        val investmentAccount = AccountSummary(
+            id = 3L,
+            name = "Zerodha Demat",
+            groupType = AccountGroup.INVESTMENT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(500_000_00L)
+        )
+        val allAccounts = listOf(checkingAccount, savingsAccount, investmentAccount)
+
+        val periodSummary = PeriodLedgerSummary(
+            startEpochDay = 20750L,
+            endEpochDay = 20780L,
+            totalIncome = MinorMoney(100_000_00L),
+            totalExpense = MinorMoney(40_000_00L),
+            netCashflow = MinorMoney(60_000_00L),
+            carryOverFromPreviousPeriod = MinorMoney.ZERO
+        )
+
+        // 1. Wealth transfer: Checking (1L) -> Savings (2L) 30,000
+        val txTransferToSavings = TransactionItem(
+            id = 1001L,
+            type = TransactionType.TRANSFER,
+            timestampEpochMillis = 20755L * 86_400_000L,
+            ledgerDateEpochDay = 20755L,
+            amount = MinorMoney(30_000_00L),
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Salary Checking",
+            transferToAccountId = 2L,
+            transferToAccountName = "HDFC High Yield",
+            payeeOrDescription = "Monthly Emergency Savings"
+        )
+
+        // 2. Wealth transfer: Checking (1L) -> Investment (3L) 20,000
+        val txTransferToInvestment = TransactionItem(
+            id = 1002L,
+            type = TransactionType.TRANSFER,
+            timestampEpochMillis = 20760L * 86_400_000L,
+            ledgerDateEpochDay = 20760L,
+            amount = MinorMoney(20_000_00L),
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Salary Checking",
+            transferToAccountId = 3L,
+            transferToAccountName = "Zerodha Demat",
+            payeeOrDescription = "Mutual Fund SIP"
+        )
+
+        // 3. Withdrawal from Savings: Savings (2L) -> Checking (1L) 5,000 (drawdown)
+        val txWithdrawalFromSavings = TransactionItem(
+            id = 1003L,
+            type = TransactionType.TRANSFER,
+            timestampEpochMillis = 20765L * 86_400_000L,
+            ledgerDateEpochDay = 20765L,
+            amount = MinorMoney(5_000_00L),
+            currencyCode = "INR",
+            accountId = 2L,
+            accountName = "HDFC High Yield",
+            transferToAccountId = 1L,
+            transferToAccountName = "Salary Checking",
+            payeeOrDescription = "Emergency Drawdown"
+        )
+
+        // 4. Internal transfer: Savings (2L) -> Investment (3L) 10,000 (wealth to wealth, net effect = 0)
+        val txInternalWealthTransfer = TransactionItem(
+            id = 1004L,
+            type = TransactionType.TRANSFER,
+            timestampEpochMillis = 20770L * 86_400_000L,
+            ledgerDateEpochDay = 20770L,
+            amount = MinorMoney(10_000_00L),
+            currencyCode = "INR",
+            accountId = 2L,
+            accountName = "HDFC High Yield",
+            transferToAccountId = 3L,
+            transferToAccountName = "Zerodha Demat",
+            payeeOrDescription = "Rebalance to Equity"
+        )
+
+        val transactions = listOf(
+            txTransferToSavings,
+            txTransferToInvestment,
+            txWithdrawalFromSavings,
+            txInternalWealthTransfer
+        )
+
+        val progress = SavingsGoalCalculator.computeMonthlySavingsProgress(
+            allAccounts = allAccounts,
+            periodTransactions = transactions,
+            periodSummary = periodSummary,
+            monthlySavingsTargetMinor = 40_000_00L
+        )
+
+        assertTrue(progress.isConfigured)
+        assertEquals(40_000_00L, progress.targetAmount.amountMinor)
+        assertEquals(45_000_00L, progress.savedAmount.amountMinor)
+        assertEquals(15_000_00L, progress.unallocatedSurplus.amountMinor)
+        assertEquals(112.5f, progress.progressPercentage, 0.01f)
+        assertTrue(progress.isAchieved)
     }
 }

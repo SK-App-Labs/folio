@@ -7,6 +7,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.folioledger.app.R
 import com.folioledger.app.domain.model.AccountGroup
+import com.folioledger.app.domain.model.AccountSavingsGoal
+import com.folioledger.app.domain.model.AccountSavingsGoalConfig
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.BudgetProgress
 import com.folioledger.app.domain.model.CardMilestoneConfig
@@ -16,6 +18,7 @@ import com.folioledger.app.domain.model.CategorySpendStat
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
+import com.folioledger.app.domain.model.MonthlySavingsProgress
 import com.folioledger.app.domain.model.MonthlyTrendBar
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.PeriodLedgerSummary
@@ -35,6 +38,7 @@ import com.folioledger.app.domain.repository.TransactionRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.CardMilestoneCalculator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
+import com.folioledger.app.domain.util.SavingsGoalCalculator
 import com.folioledger.app.ui.accounts.CreditCardCycleCalculator
 import com.folioledger.app.ui.accounts.CreditCardCycleWindow
 import com.folioledger.app.ui.accounts.CreditCardSettlementSheetState
@@ -555,6 +559,22 @@ data class StatsAndBudgetsUiState(
     val shortfallAlerts: List<AccountShortfallAlert> = emptyList(),
     val budgetEditorDialogState: BudgetEditorDialogState? = null,
     val isSavingBudget: Boolean = false,
+    val monthlySavingsProgress: MonthlySavingsProgress = MonthlySavingsProgress(
+        targetAmount = MinorMoney.ZERO,
+        savedAmount = MinorMoney.ZERO,
+        remainingAmount = MinorMoney.ZERO,
+        progressPercentage = 0f,
+        unallocatedSurplus = MinorMoney.ZERO,
+        isConfigured = false
+    ),
+    val accountSavingsGoals: List<AccountSavingsGoal> = emptyList(),
+    val isMonthlySavingsTargetDialogOpen: Boolean = false,
+    val monthlySavingsTargetInput: String = "",
+    val isSavingsGoalSheetOpen: Boolean = false,
+    val editingSavingsGoalAccountId: Long? = null,
+    val editingSavingsGoalTitle: String = "Savings Goal",
+    val editingSavingsGoalTargetAmountInput: String = "",
+    val editingSavingsGoalTargetDateEpochDay: Long? = null,
     val snackbarMessage: String? = null
 ) {
     val activeCategoryStats: List<CategorySpendStat>
@@ -593,6 +613,13 @@ private data class StatsInternalControlState(
     val isRunwayIncludingInvestments: Boolean = false,
     val settlementSheetState: CreditCardSettlementSheetState? = null,
     val isSettlementSaving: Boolean = false,
+    val isMonthlySavingsTargetDialogOpen: Boolean = false,
+    val monthlySavingsTargetInput: String = "",
+    val isSavingsGoalSheetOpen: Boolean = false,
+    val editingSavingsGoalAccountId: Long? = null,
+    val editingSavingsGoalTitle: String = "Savings Goal",
+    val editingSavingsGoalTargetAmountInput: String = "",
+    val editingSavingsGoalTargetDateEpochDay: Long? = null,
     val snackbarMessage: String? = null
 )
 
@@ -1082,6 +1109,18 @@ class StatsAndBudgetsViewModel(
             secondaryCurrencies = prefs.secondaryCurrencies
         )
 
+        val monthlySavingsProgress = SavingsGoalCalculator.computeMonthlySavingsProgress(
+            allAccounts = allAccounts,
+            periodTransactions = bundle.periodTransactions,
+            periodSummary = bundle.periodSummary,
+            monthlySavingsTargetMinor = prefs.monthlySavingsTargetMinor
+        )
+
+        val accountSavingsGoals = SavingsGoalCalculator.computeAccountSavingsGoals(
+            allAccounts = allAccounts,
+            goalsJson = prefs.savingsGoalsJson
+        )
+
         StatsAndBudgetsUiState(
             selectedSubTab = ctrl.selectedSubTab,
             selectedOverviewMode = ctrl.selectedOverviewMode,
@@ -1138,6 +1177,15 @@ class StatsAndBudgetsViewModel(
             shortfallAlerts = shortfallAlerts,
             budgetEditorDialogState = ctrl.budgetEditorDialogState,
             isSavingBudget = ctrl.isSavingBudget,
+            monthlySavingsProgress = monthlySavingsProgress,
+            accountSavingsGoals = accountSavingsGoals,
+            isMonthlySavingsTargetDialogOpen = ctrl.isMonthlySavingsTargetDialogOpen,
+            monthlySavingsTargetInput = ctrl.monthlySavingsTargetInput,
+            isSavingsGoalSheetOpen = ctrl.isSavingsGoalSheetOpen,
+            editingSavingsGoalAccountId = ctrl.editingSavingsGoalAccountId,
+            editingSavingsGoalTitle = ctrl.editingSavingsGoalTitle,
+            editingSavingsGoalTargetAmountInput = ctrl.editingSavingsGoalTargetAmountInput,
+            editingSavingsGoalTargetDateEpochDay = ctrl.editingSavingsGoalTargetDateEpochDay,
             snackbarMessage = ctrl.snackbarMessage
         )
     }.flowOn(Dispatchers.Default)
@@ -2217,6 +2265,140 @@ class StatsAndBudgetsViewModel(
                 )
                 current.copy(cardMilestonesJson = updatedJson)
             }
+        }
+    }
+
+    fun openMonthlySavingsTargetDialog() {
+        val currentTarget = uiState.value.monthlySavingsProgress.targetAmount
+        val currentInput = if (currentTarget.isPositive) {
+            formatMinorPlainForInput(
+                currentTarget,
+                uiState.value.currencySpec.fractionDigits
+            )
+        } else ""
+        controlState.update {
+            it.copy(
+                isMonthlySavingsTargetDialogOpen = true,
+                monthlySavingsTargetInput = currentInput
+            )
+        }
+    }
+
+    fun closeMonthlySavingsTargetDialog() {
+        controlState.update { it.copy(isMonthlySavingsTargetDialogOpen = false) }
+    }
+
+    fun updateMonthlySavingsTargetInput(input: String) {
+        controlState.update { it.copy(monthlySavingsTargetInput = input) }
+    }
+
+    fun saveMonthlySavingsTarget() {
+        val input = controlState.value.monthlySavingsTargetInput.trim()
+        val parsedMinor = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
+            expression = input,
+            fractionDigits = uiState.value.currencySpec.fractionDigits
+        ).getOrNull()?.amountMinor ?: 0L
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                current.copy(monthlySavingsTargetMinor = parsedMinor)
+            }
+            controlState.update { it.copy(isMonthlySavingsTargetDialogOpen = false) }
+        }
+    }
+
+    fun removeMonthlySavingsTarget() {
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                current.copy(monthlySavingsTargetMinor = 0L)
+            }
+            controlState.update { it.copy(isMonthlySavingsTargetDialogOpen = false) }
+        }
+    }
+
+    fun openAddSavingsGoalSheet(defaultAccountId: Long? = null) {
+        val availableAccount = uiState.value.assetAccountsForSettlement.firstOrNull {
+            it.groupType in setOf(AccountGroup.SAVINGS, AccountGroup.INVESTMENT)
+        } ?: uiState.value.assetAccountsForSettlement.firstOrNull()
+
+        controlState.update {
+            it.copy(
+                isSavingsGoalSheetOpen = true,
+                editingSavingsGoalAccountId = defaultAccountId ?: availableAccount?.id,
+                editingSavingsGoalTitle = "Savings Goal",
+                editingSavingsGoalTargetAmountInput = "",
+                editingSavingsGoalTargetDateEpochDay = null
+            )
+        }
+    }
+
+    fun openEditSavingsGoalSheet(goal: AccountSavingsGoal) {
+        val targetInput = formatMinorPlainForInput(
+            goal.targetAmount,
+            uiState.value.currencySpec.fractionDigits
+        )
+        controlState.update {
+            it.copy(
+                isSavingsGoalSheetOpen = true,
+                editingSavingsGoalAccountId = goal.accountId,
+                editingSavingsGoalTitle = goal.goalTitle,
+                editingSavingsGoalTargetAmountInput = targetInput,
+                editingSavingsGoalTargetDateEpochDay = goal.targetDateEpochDay
+            )
+        }
+    }
+
+    fun closeSavingsGoalSheet() {
+        controlState.update { it.copy(isSavingsGoalSheetOpen = false) }
+    }
+
+    fun updateEditingSavingsGoal(
+        accountId: Long?,
+        title: String,
+        targetAmountInput: String,
+        targetDateEpochDay: Long?
+    ) {
+        controlState.update {
+            it.copy(
+                editingSavingsGoalAccountId = accountId,
+                editingSavingsGoalTitle = title,
+                editingSavingsGoalTargetAmountInput = targetAmountInput,
+                editingSavingsGoalTargetDateEpochDay = targetDateEpochDay
+            )
+        }
+    }
+
+    fun saveSavingsGoal() {
+        val ctrl = controlState.value
+        val accountId = ctrl.editingSavingsGoalAccountId ?: return
+        val targetMinor = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
+            expression = ctrl.editingSavingsGoalTargetAmountInput,
+            fractionDigits = uiState.value.currencySpec.fractionDigits
+        ).getOrNull()?.amountMinor ?: 0L
+        if (targetMinor <= 0L) return
+
+        val config = AccountSavingsGoalConfig(
+            accountId = accountId,
+            goalTitle = ctrl.editingSavingsGoalTitle.ifBlank { "Savings Goal" },
+            targetAmountMinor = targetMinor,
+            targetDateEpochDay = ctrl.editingSavingsGoalTargetDateEpochDay
+        )
+
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                val updatedJson = SavingsGoalCalculator.upsertGoal(current.savingsGoalsJson, config)
+                current.copy(savingsGoalsJson = updatedJson)
+            }
+            controlState.update { it.copy(isSavingsGoalSheetOpen = false) }
+        }
+    }
+
+    fun removeSavingsGoal(accountId: Long) {
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                val updatedJson = SavingsGoalCalculator.removeGoal(current.savingsGoalsJson, accountId)
+                current.copy(savingsGoalsJson = updatedJson)
+            }
+            controlState.update { it.copy(isSavingsGoalSheetOpen = false) }
         }
     }
 }

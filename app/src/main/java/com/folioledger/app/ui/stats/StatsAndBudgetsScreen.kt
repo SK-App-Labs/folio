@@ -29,6 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
@@ -57,6 +58,7 @@ import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -115,6 +117,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.folioledger.app.domain.model.AccountGroup
+import com.folioledger.app.domain.model.AccountSavingsGoal
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.BudgetProgress
 import com.folioledger.app.domain.model.CategoryNode
@@ -122,6 +126,7 @@ import com.folioledger.app.domain.model.CategorySpendStat
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
+import com.folioledger.app.domain.model.MonthlySavingsProgress
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.PeriodLedgerSummary
 import com.folioledger.app.domain.model.SpendRankingItem
@@ -295,7 +300,10 @@ fun StatsAndBudgetsScreen(
                                 }
                             },
                             onOpenAddCategoryBudget = viewModel::openCreateCategoryBudgetDialog,
-                            onOpenEditBudget = viewModel::openEditBudgetDialog
+                            onOpenEditBudget = viewModel::openEditBudgetDialog,
+                            onOpenMonthlySavingsTargetDialog = viewModel::openMonthlySavingsTargetDialog,
+                            onOpenAddSavingsGoal = { viewModel.openAddSavingsGoalSheet(null) },
+                            onOpenEditSavingsGoal = viewModel::openEditSavingsGoalSheet
                         )
                     }
 
@@ -396,6 +404,35 @@ fun StatsAndBudgetsScreen(
             onUpdateState = viewModel::updateSettlementSheetState,
             onConfirmSettlement = viewModel::submitCreditCardSettlement,
             onDismiss = viewModel::dismissSettlementSheet
+        )
+    }
+
+    if (uiState.isMonthlySavingsTargetDialogOpen) {
+        MonthlySavingsTargetDialog(
+            currentInput = uiState.monthlySavingsTargetInput,
+            currencySpec = uiState.currencySpec,
+            isConfigured = uiState.monthlySavingsProgress.isConfigured,
+            onInputChange = viewModel::updateMonthlySavingsTargetInput,
+            onSave = viewModel::saveMonthlySavingsTarget,
+            onRemove = viewModel::removeMonthlySavingsTarget,
+            onDismiss = viewModel::closeMonthlySavingsTargetDialog
+        )
+    }
+
+    if (uiState.isSavingsGoalSheetOpen) {
+        SavingsGoalEditorBottomSheet(
+            selectedAccountId = uiState.editingSavingsGoalAccountId,
+            title = uiState.editingSavingsGoalTitle,
+            targetAmountInput = uiState.editingSavingsGoalTargetAmountInput,
+            targetDateEpochDay = uiState.editingSavingsGoalTargetDateEpochDay,
+            availableAccounts = uiState.assetAccountsForSettlement,
+            currencySpec = uiState.currencySpec,
+            onUpdate = viewModel::updateEditingSavingsGoal,
+            onSave = viewModel::saveSavingsGoal,
+            onDelete = {
+                uiState.editingSavingsGoalAccountId?.let { viewModel.removeSavingsGoal(it) }
+            },
+            onDismiss = viewModel::closeSavingsGoalSheet
         )
     }
 }
@@ -2114,7 +2151,10 @@ private fun BudgetsManagerSubTabContent(
     uiState: StatsAndBudgetsUiState,
     onOpenOverallBudgetEditor: () -> Unit,
     onOpenAddCategoryBudget: () -> Unit,
-    onOpenEditBudget: (BudgetProgress) -> Unit
+    onOpenEditBudget: (BudgetProgress) -> Unit,
+    onOpenMonthlySavingsTargetDialog: () -> Unit,
+    onOpenAddSavingsGoal: () -> Unit,
+    onOpenEditSavingsGoal: (AccountSavingsGoal) -> Unit
 ) {
     val overallBudget = uiState.overallBudgetProgress
     val categoryBudgets = uiState.categoryBudgetProgressList
@@ -2257,6 +2297,17 @@ private fun BudgetsManagerSubTabContent(
             }
         }
 
+        // Double-Entry Monthly Savings Target Hero Card
+        item(contentType = "monthly_savings_hero") {
+            MonthlySavingsTargetHeroCard(
+                savingsProgress = uiState.monthlySavingsProgress,
+                currencySpec = uiState.currencySpec,
+                grouping = uiState.numberGrouping,
+                activePeriodTitle = uiState.activePeriodRange.title,
+                onConfigureTarget = onOpenMonthlySavingsTargetDialog
+            )
+        }
+
         // Category Budgets Section Header + Add Button
         item {
             Row(
@@ -2328,6 +2379,82 @@ private fun BudgetsManagerSubTabContent(
                     grouping = uiState.numberGrouping,
                     activePeriodRange = uiState.activePeriodRange,
                     onClick = { onOpenEditBudget(budget) }
+                )
+            }
+        }
+
+        // Account-Backed Savings Goals ("Wealth Vaults") Section
+        val savingsGoals = uiState.accountSavingsGoals
+        item(contentType = "savings_goals_header") {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp)
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Savings Goals & Wealth Vaults (${savingsGoals.size})",
+                        style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Account-backed targets verified directly against live balances",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                FilledTonalButton(
+                    onClick = onOpenAddSavingsGoal,
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = "Add Savings Goal",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Add Goal",
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            }
+        }
+
+        if (savingsGoals.isEmpty()) {
+            item(contentType = "savings_goals_empty") {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    ),
+                    border = BorderStroke(1.dp, LocalFolioSemanticColors.current.cardStrokeSubtle),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "No account savings goals yet. Link a goal (e.g., Emergency Fund, House Down Payment) directly to any Savings or Investment account to track live ledger progress with zero envelope drift.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(20.dp)
+                    )
+                }
+            }
+        } else {
+            items(
+                items = savingsGoals,
+                key = { it.accountId },
+                contentType = { "account_savings_goal" }
+            ) { goal ->
+                AccountSavingsGoalCard(
+                    goal = goal,
+                    currencySpec = uiState.currencySpec,
+                    grouping = uiState.numberGrouping,
+                    onClick = { onOpenEditSavingsGoal(goal) }
                 )
             }
         }
@@ -4523,6 +4650,509 @@ private fun BudgetEditorBottomSheet(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(if (state.isEditing) "Save Budget" else "Create Budget")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonthlySavingsTargetHeroCard(
+    savingsProgress: MonthlySavingsProgress,
+    currencySpec: CurrencySpec,
+    grouping: NumberGroupingSystem,
+    activePeriodTitle: String,
+    onConfigureTarget: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+    val isConfigured = savingsProgress.isConfigured
+    val isAchieved = savingsProgress.isAchieved
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        ),
+        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onConfigureTarget)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    CategoryIconBadge(
+                        iconName = "savings",
+                        colorHex = if (isAchieved) "#10B981" else "#3B82F6",
+                        size = 38.dp,
+                        iconSize = 20.dp
+                    )
+                    Column {
+                        Text(
+                            text = "Monthly Wealth Savings",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Double-Entry Savings · $activePeriodTitle",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                if (isConfigured) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (isAchieved) semanticColors.incomeEmeraldContainer else MaterialTheme.colorScheme.primaryContainer,
+                        border = BorderStroke(
+                            0.5.dp,
+                            if (isAchieved) semanticColors.incomeEmerald else MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text(
+                            text = String.format(Locale.US, "%.1f%%", savingsProgress.progressPercentage),
+                            style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
+                            fontWeight = FontWeight.Bold,
+                            color = if (isAchieved) semanticColors.onIncomeEmeraldContainer else MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = onConfigureTarget,
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text(
+                            text = "Set Target",
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+            }
+
+            if (!isConfigured) {
+                Text(
+                    text = "Track net deposits to Savings & Investments (\"Pay Yourself First\") independently from expense budgeting.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = "Net Transferred",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        MoneyText(
+                            money = savingsProgress.savedAmount,
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            colorMode = MoneyColorMode.INCOME,
+                            style = tabularMoneyStyle(MaterialTheme.typography.titleSmall),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Target Goal",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        MoneyText(
+                            money = savingsProgress.targetAmount,
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            style = tabularMoneyStyle(MaterialTheme.typography.titleSmall),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "Unallocated Surplus",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        MoneyText(
+                            money = savingsProgress.unallocatedSurplus,
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            colorMode = if (savingsProgress.unallocatedSurplus.amountMinor >= 0L) MoneyColorMode.INCOME else MoneyColorMode.EXPENSE,
+                            style = tabularMoneyStyle(MaterialTheme.typography.titleSmall),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                LinearProgressIndicator(
+                    progress = { (savingsProgress.progressPercentage / 100f).coerceIn(0f, 1f) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp)),
+                    color = if (isAchieved) semanticColors.incomeEmerald else MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                )
+
+                Text(
+                    text = if (isAchieved) {
+                        "🎉 Monthly savings target achieved! Unallocated surplus is safe for extra investments or rollover."
+                    } else {
+                        val remainingFormatted = MoneyFormatterAndCalculator.formatMinorMoney(savingsProgress.remainingAmount, currencySpec)
+                        "$remainingFormatted remaining to reach monthly target."
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (isAchieved) semanticColors.incomeEmerald else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountSavingsGoalCard(
+    goal: AccountSavingsGoal,
+    currencySpec: CurrencySpec,
+    grouping: NumberGroupingSystem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+    val isAchieved = goal.isAchieved
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    CategoryIconBadge(
+                        iconName = goal.iconName,
+                        colorHex = goal.colorHex,
+                        size = 36.dp,
+                        iconSize = 18.dp
+                    )
+                    Column {
+                        Text(
+                            text = goal.goalTitle,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = goal.accountName,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (isAchieved) semanticColors.incomeEmeraldContainer else MaterialTheme.colorScheme.primaryContainer,
+                    border = BorderStroke(
+                        0.5.dp,
+                        if (isAchieved) semanticColors.incomeEmerald else MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text(
+                        text = if (isAchieved) "ACHIEVED" else String.format(Locale.US, "%.0f%%", goal.progressPercentage),
+                        style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
+                        fontWeight = FontWeight.Bold,
+                        color = if (isAchieved) semanticColors.onIncomeEmeraldContainer else MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    MoneyText(
+                        money = goal.currentBalance,
+                        currencySpec = currencySpec,
+                        grouping = grouping,
+                        style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "of",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    MoneyText(
+                        money = goal.targetAmount,
+                        currencySpec = currencySpec,
+                        grouping = grouping,
+                        style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
+                        colorMode = MoneyColorMode.NEUTRAL
+                    )
+                }
+
+                if (!isAchieved) {
+                    val remainingFormatted = MoneyFormatterAndCalculator.formatMinorMoney(goal.remainingAmount, currencySpec)
+                    Text(
+                        text = "$remainingFormatted left",
+                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            LinearProgressIndicator(
+                progress = { (goal.progressPercentage / 100f).coerceIn(0f, 1f) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = if (isAchieved) semanticColors.incomeEmerald else MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+            )
+
+            Text(
+                text = if (isAchieved) {
+                    "🎉 Live account balance meets or exceeds goal target!"
+                } else {
+                    "Live ledger verified · Zero virtual envelope drift"
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = if (isAchieved) semanticColors.incomeEmerald else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun MonthlySavingsTargetDialog(
+    currentInput: String,
+    currencySpec: CurrencySpec,
+    isConfigured: Boolean,
+    onInputChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onRemove: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Monthly Wealth Target", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "Folio uses double-entry accounting to automatically calculate your actual monthly wealth savings as net transfers into Savings & Investment accounts, independent of expense tracking.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedTextField(
+                    value = currentInput,
+                    onValueChange = onInputChange,
+                    label = { Text("Target Amount (${currencySpec.symbol})") },
+                    placeholder = { Text("e.g. 50000") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onSave,
+                enabled = currentInput.isNotBlank()
+            ) {
+                Text("Save Target")
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (isConfigured) {
+                    TextButton(
+                        onClick = onRemove,
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("Remove")
+                    }
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SavingsGoalEditorBottomSheet(
+    selectedAccountId: Long?,
+    title: String,
+    targetAmountInput: String,
+    targetDateEpochDay: Long?,
+    availableAccounts: List<AccountSummary>,
+    currencySpec: CurrencySpec,
+    onUpdate: (accountId: Long?, title: String, targetAmountInput: String, targetDateEpochDay: Long?) -> Unit,
+    onSave: () -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val eligibleAccounts = remember(availableAccounts) {
+        val preferred = availableAccounts.filter {
+            it.groupType == AccountGroup.SAVINGS || it.groupType == AccountGroup.INVESTMENT
+        }
+        if (preferred.isNotEmpty()) preferred else availableAccounts
+    }
+    val currentAccountId = selectedAccountId ?: eligibleAccounts.firstOrNull()?.id ?: 0L
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(start = 20.dp, end = 20.dp, bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text(
+                text = if (targetAmountInput.isNotBlank() && selectedAccountId != null) "Edit Savings Goal" else "New Savings Goal",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = "Link this goal directly to an account. Progress is verified in real-time from the live ledger balance.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Target Account Selector Chips
+            Text(
+                text = "Target Account",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold
+            )
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(
+                    items = eligibleAccounts,
+                    key = { it.id }
+                ) { acc: AccountSummary ->
+                    FilterChip(
+                        selected = acc.id == currentAccountId,
+                        onClick = {
+                            onUpdate(acc.id, title, targetAmountInput, targetDateEpochDay)
+                        },
+                        label = { Text(acc.name) },
+                        leadingIcon = {
+                            CategoryIconBadge(
+                                iconName = acc.iconName,
+                                colorHex = acc.colorHex,
+                                size = 20.dp,
+                                iconSize = 12.dp
+                            )
+                        }
+                    )
+                }
+            }
+
+            // Goal Title
+            OutlinedTextField(
+                value = title,
+                onValueChange = { onUpdate(currentAccountId, it, targetAmountInput, targetDateEpochDay) },
+                label = { Text("Goal Title") },
+                placeholder = { Text("e.g. Emergency Fund, House Down Payment") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Target Amount
+            OutlinedTextField(
+                value = targetAmountInput,
+                onValueChange = { onUpdate(currentAccountId, title, it, targetDateEpochDay) },
+                label = { Text("Target Amount (${currencySpec.symbol})") },
+                placeholder = { Text("e.g. 500000") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Actions
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+            ) {
+                if (targetAmountInput.isNotBlank()) {
+                    OutlinedButton(
+                        onClick = onDelete,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Remove")
+                    }
+                }
+                Button(
+                    onClick = onSave,
+                    enabled = targetAmountInput.isNotBlank() && currentAccountId > 0L,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Save Goal")
                 }
             }
         }

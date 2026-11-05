@@ -1,4 +1,4 @@
-// File: app/src/main/java/com/folioledger/app/data/repository/SettingsAndBackupRepositoryImpl.kt
+﻿// File: app/src/main/java/com/folioledger/app/data/repository/SettingsAndBackupRepositoryImpl.kt
 package com.folioledger.app.data.repository
 
 import android.content.Context
@@ -120,6 +120,8 @@ class SettingsAndBackupRepositoryImpl(
         val AUTO_BACKUP_RETENTION = stringPreferencesKey("auto_backup_retention")
         val CARD_MILESTONES_JSON = stringPreferencesKey("card_milestones_json")
         val ICON_PACK_THEME = stringPreferencesKey("icon_pack_theme")
+        val MONTHLY_SAVINGS_TARGET_MINOR = longPreferencesKey("monthly_savings_target_minor")
+        val SAVINGS_GOALS_JSON = stringPreferencesKey("savings_goals_json")
     }
 
     override fun observeUserPreferences(): Flow<UserPreferences> {
@@ -170,6 +172,8 @@ class SettingsAndBackupRepositoryImpl(
             mutablePrefs[PreferenceKeys.AUTO_BACKUP_RETENTION] = updated.autoBackupRetention.name
             mutablePrefs[PreferenceKeys.CARD_MILESTONES_JSON] = updated.cardMilestonesJson
             mutablePrefs[PreferenceKeys.ICON_PACK_THEME] = updated.iconPackTheme
+            mutablePrefs[PreferenceKeys.MONTHLY_SAVINGS_TARGET_MINOR] = updated.monthlySavingsTargetMinor
+            mutablePrefs[PreferenceKeys.SAVINGS_GOALS_JSON] = updated.savingsGoalsJson
         }
         Unit
     }
@@ -424,6 +428,8 @@ class SettingsAndBackupRepositoryImpl(
                     put("isSupporter", currentPrefs.isSupporter)
                     putNullableString("supporterTier", currentPrefs.supporterTier)
                     put("cardMilestonesJson", currentPrefs.cardMilestonesJson)
+                    put("monthlySavingsTargetMinor", currentPrefs.monthlySavingsTargetMinor)
+                    put("savingsGoalsJson", currentPrefs.savingsGoalsJson)
                 }
             )
 
@@ -821,7 +827,9 @@ class SettingsAndBackupRepositoryImpl(
                     ),
                     supporterTier = if (prefsObj.isNull("supporterTier")) current.supporterTier else prefsObj.optString("supporterTier").ifBlank { null },
                     lastBackupEpochMillis = current.lastBackupEpochMillis,
-                    cardMilestonesJson = prefsObj.optString("cardMilestonesJson", current.cardMilestonesJson)
+                    cardMilestonesJson = prefsObj.optString("cardMilestonesJson", current.cardMilestonesJson),
+                    monthlySavingsTargetMinor = prefsObj.optLong("monthlySavingsTargetMinor", current.monthlySavingsTargetMinor),
+                    savingsGoalsJson = prefsObj.optString("savingsGoalsJson", current.savingsGoalsJson)
                 )
             }
         }
@@ -857,7 +865,9 @@ class SettingsAndBackupRepositoryImpl(
                 AutoBackupRetention.valueOf(prefs[PreferenceKeys.AUTO_BACKUP_RETENTION] ?: AutoBackupRetention.THIRTY_DAYS.name)
             }.getOrDefault(AutoBackupRetention.THIRTY_DAYS),
             cardMilestonesJson = prefs[PreferenceKeys.CARD_MILESTONES_JSON] ?: "{}",
-            iconPackTheme = prefs[PreferenceKeys.ICON_PACK_THEME] ?: "MATERIAL_FILLED"
+            iconPackTheme = prefs[PreferenceKeys.ICON_PACK_THEME] ?: "MATERIAL_FILLED",
+            monthlySavingsTargetMinor = prefs[PreferenceKeys.MONTHLY_SAVINGS_TARGET_MINOR] ?: 0L,
+            savingsGoalsJson = prefs[PreferenceKeys.SAVINGS_GOALS_JSON] ?: "{}"
         )
     }
 

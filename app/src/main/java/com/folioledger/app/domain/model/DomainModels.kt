@@ -147,8 +147,46 @@ data class UserPreferences(
     val autoBackupEnabled: Boolean = true,
     val autoBackupRetention: AutoBackupRetention = AutoBackupRetention.THIRTY_DAYS,
     val cardMilestonesJson: String = "{}",
-    val iconPackTheme: String = "MATERIAL_FILLED"
+    val iconPackTheme: String = "MATERIAL_FILLED",
+    val monthlySavingsTargetMinor: Long = 0L,
+    val savingsGoalsJson: String = "{}"
 )
+
+@Immutable
+data class AccountSavingsGoalConfig(
+    val accountId: Long,
+    val goalTitle: String = "Savings Goal",
+    val targetAmountMinor: Long = 500_000_00L,
+    val targetDateEpochDay: Long? = null
+)
+
+@Immutable
+data class AccountSavingsGoal(
+    val accountId: Long,
+    val accountName: String,
+    val accountGroup: AccountGroup,
+    val colorHex: String,
+    val iconName: String,
+    val goalTitle: String,
+    val targetAmount: MinorMoney,
+    val currentBalance: MinorMoney,
+    val progressPercentage: Float, // 0..100%
+    val remainingAmount: MinorMoney,
+    val targetDateEpochDay: Long? = null,
+    val isAchieved: Boolean
+)
+
+@Immutable
+data class MonthlySavingsProgress(
+    val targetAmount: MinorMoney,
+    val savedAmount: MinorMoney,
+    val remainingAmount: MinorMoney,
+    val progressPercentage: Float, // 0..100%
+    val unallocatedSurplus: MinorMoney,
+    val isConfigured: Boolean
+) {
+    val isAchieved: Boolean get() = isConfigured && savedAmount.amountMinor >= targetAmount.amountMinor && targetAmount.amountMinor > 0L
+}
 
 @Immutable
 data class CardMilestoneConfig(
