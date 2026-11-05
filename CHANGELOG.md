@@ -38,7 +38,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - 🇹🇼 **Traditional Chinese (`res/values-zh-rTW`)**: Traditional Taiwan/HK personal finance (*淨資產, 總資產/總負債, 前期結轉, 今日安全可支配額度, 自由資金*).
     - 🇮🇩 **Indonesian (`res/values-in`)**: Southeast Asian personal ledger terms (*Kekayaan Bersih, Aset/Liabilitas, Saldo Lalu, Dana Bebas, Landasan Dana Darurat*).
     - 🇮🇳 **Tamil (`res/values-ta`)**: Indian regional finance (*நிகர மதிப்பு, மொத்த சொத்துக்கள்/கடன்கள், முந்தைய இருப்பு, உபரி நிதி, பில் செலுத்து*).
+- **Icon Pack Customization & APK Footprint Optimization**:
+  - *In-Tree Material Icons Pruning*: Pruned the 32MB+ `material-icons-extended` dependency down to an in-tree curated vector catalog of ~133 icons, reducing APK download size by over 70% and memory footprint significantly.
+  - *Multi-Theme Icon Pack Architecture*: Introduced `FolioIconPackTheme` supporting four switchable aesthetic styles:
+    - **Material Classic**: Solid, bold silhouettes natively styled for Android.
+    - **Phosphor Modern**: Contemporary rounded silhouettes with a friendly fintech feel.
+    - **Lucide Minimalist**: Crisp, refined 2px stroke vectors for a modern neobank look.
+    - **Emoji Expressive**: Full-color emoji iconography on soft squircle badges with calibrated optical centering.
+  - *Interactive Icon Pack Bottom Sheet*: Added `IconPackBottomSheet` accessible from `Settings > Appearance`, featuring live interactive preview badges, theme descriptions, and DataStore persistence (`iconPackTheme`).
+  - *Emoji Icon Resolver*: Implemented semantic mapping for all 91 expense and income categories to standard Unicode emojis, plus `isDirectEmoji()` detection for user-entered custom emojis.
 ### Fixed
+- **Predictive Safe-to-Spend Status Classification & Credit Card Debt Handling**:
+  - *Context-Aware Status Classification*: Added `SafeToSpendStatus` enum to accurately categorize specific financial states (`SAFE`, `CARD_DEBT_EXCEEDS_CASH`, `BILLS_EXCEED_CASH`, `BILLS_EXCEED_REMAINING_CASH`, `COMBINED_OBLIGATIONS_EXCEED_CASH`, `ZERO_RESERVES`) instead of a single binary fallback.
+  - *Zero-Commitments Warning Rectification*: Fixed misleading `"⚠️ Commitments Exceed Cash"` badge and 14-day due date warning when 14-day upcoming bills were ₹0; the UI now accurately displays `"⚠️ Card Debt Exceeds Cash"` with transparent copy explaining unbacked credit float.
+  - *Credit Card Overpayment Edge Case*: Fixed a calculation bug where positive credit card balances (overpayments or store refund credits) were inverted into debt via `.abs()`; only negative balances (`currentBalance.amountMinor < 0L`) are now treated as debt.
+  - *Status-Aware UI Messaging & Dynamic Badging*: Updated `SafeToSpendCard` with context-specific tags, explanatory subtitles, and dynamic icon states (`Shield` vs. `Warning`) tailored to each financial scenario.
+- **Category Icon Resolution & Cache Collision Prevention**:
+  - *Cache Key Interpolation Fix*: Fixed cache key string interpolation in `resolveFolioIcon` (`"${packTheme.key}_$normalizedKey"`), preventing all category icons from collapsing into a single cached transfer icon when switching themes.
 - **In-App Language Switching Engine & Startup Crash Elimination**:
   - Replaced fragile `AppCompatActivity` dependencies with pure native Android platform architecture via `FolioLocaleManager`:
     - On Android 13+ (API 33+), calls native platform `android.app.LocaleManager` directly to update per-app language settings and system-level preferences with zero AppCompat theme friction.
