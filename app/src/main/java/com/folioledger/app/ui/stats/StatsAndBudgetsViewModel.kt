@@ -167,6 +167,15 @@ data class TagProjectDrillDownState(
     val transactions: List<TransactionItem>
 )
 
+enum class SafeToSpendStatus {
+    SAFE,
+    CARD_DEBT_EXCEEDS_CASH,
+    BILLS_EXCEED_CASH,
+    BILLS_EXCEED_REMAINING_CASH,
+    COMBINED_OBLIGATIONS_EXCEED_CASH,
+    ZERO_RESERVES
+}
+
 @Immutable
 data class SafeToSpendState(
     val totalLiquidBankAndCash: MinorMoney = MinorMoney.ZERO,
@@ -174,7 +183,8 @@ data class SafeToSpendState(
     val upcoming14DayCommitments: MinorMoney = MinorMoney.ZERO,
     val trueSafeToSpend: MinorMoney = MinorMoney.ZERO,
     val isPositive: Boolean = true,
-    val isCurrentPeriod: Boolean = true
+    val isCurrentPeriod: Boolean = true,
+    val status: SafeToSpendStatus = SafeToSpendStatus.SAFE
 )
 
 @Immutable
@@ -2593,8 +2603,12 @@ object StatsPredictiveCalculations {
         var totalCcDebtMinor = 0L
         for (acc in allAccounts) {
             if (acc.isArchived || acc.groupType != AccountGroup.CREDIT_CARD) continue
-            val debtMinor = acc.currentBalance.abs().amountMinor
-            totalCcDebtMinor += convertToPrimary(debtMinor, acc.currencyCode)
+            // Only negative balance indicates outstanding debt owed (negative in Folio double-entry ledger).
+            // A positive balance indicates an overpayment or store credit, which is not debt.
+            if (acc.currentBalance.amountMinor < 0L) {
+                val debtMinor = Math.abs(acc.currentBalance.amountMinor)
+                totalCcDebtMinor += convertToPrimary(debtMinor, acc.currencyCode)
+            }
         }
 
         // 3. Upcoming 14-Day Commitments
@@ -2631,13 +2645,25 @@ object StatsPredictiveCalculations {
         val isPositive = trueSafeToSpendMinor >= 0L
         val isCurrentPeriod = todayEpochDay in periodStartEpochDay..periodEndEpochDay
 
+        val status = when {
+            trueSafeToSpendMinor > 0L -> SafeToSpendStatus.SAFE
+            totalLiquidMinor == 0L && totalCcDebtMinor == 0L && upcomingCommitmentsMinor == 0L -> SafeToSpendStatus.ZERO_RESERVES
+            upcomingCommitmentsMinor == 0L && totalCcDebtMinor > totalLiquidMinor -> SafeToSpendStatus.CARD_DEBT_EXCEEDS_CASH
+            totalCcDebtMinor == 0L && upcomingCommitmentsMinor > totalLiquidMinor -> SafeToSpendStatus.BILLS_EXCEED_CASH
+            totalLiquidMinor >= totalCcDebtMinor && upcomingCommitmentsMinor > (totalLiquidMinor - totalCcDebtMinor) -> SafeToSpendStatus.BILLS_EXCEED_REMAINING_CASH
+            totalCcDebtMinor > totalLiquidMinor && upcomingCommitmentsMinor > 0L -> SafeToSpendStatus.COMBINED_OBLIGATIONS_EXCEED_CASH
+            trueSafeToSpendMinor == 0L -> SafeToSpendStatus.SAFE
+            else -> if (totalCcDebtMinor > 0L) SafeToSpendStatus.CARD_DEBT_EXCEEDS_CASH else SafeToSpendStatus.BILLS_EXCEED_CASH
+        }
+
         return SafeToSpendState(
             totalLiquidBankAndCash = MinorMoney(totalLiquidMinor),
             totalCreditCardDebt = MinorMoney(totalCcDebtMinor),
             upcoming14DayCommitments = MinorMoney(upcomingCommitmentsMinor),
             trueSafeToSpend = MinorMoney(trueSafeToSpendMinor),
             isPositive = isPositive,
-            isCurrentPeriod = isCurrentPeriod
+            isCurrentPeriod = isCurrentPeriod,
+            status = status
         )
     }
 

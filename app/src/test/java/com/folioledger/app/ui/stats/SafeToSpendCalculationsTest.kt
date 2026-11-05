@@ -82,6 +82,7 @@ class SafeToSpendCalculationsTest {
         assertEquals(MinorMoney(42_500_00L), safeToSpend.trueSafeToSpend)
         assertTrue(safeToSpend.isPositive)
         assertTrue(safeToSpend.isCurrentPeriod)
+        assertEquals(SafeToSpendStatus.SAFE, safeToSpend.status)
     }
 
     @Test
@@ -108,6 +109,80 @@ class SafeToSpendCalculationsTest {
         // 15,000 - 20,000 - 10,000 = -15,000
         assertEquals(MinorMoney(-15_000_00L), safeToSpend.trueSafeToSpend)
         assertFalse("Should be marked non-positive when commitments exceed cash", safeToSpend.isPositive)
+        assertEquals(SafeToSpendStatus.COMBINED_OBLIGATIONS_EXCEED_CASH, safeToSpend.status)
+    }
+
+    @Test
+    fun testSafeToSpend_cardDebtExceedsCash_zeroBills() {
+        val accounts = listOf(
+            createTestAccount(1, "Bank Account", AccountGroup.BANK_ACCOUNT, 10_000_00L),
+            createTestAccount(2, "Credit Card", AccountGroup.CREDIT_CARD, -25_000_00L)
+        )
+
+        val safeToSpend = StatsPredictiveCalculations.computeSafeToSpend(
+            allAccounts = accounts,
+            recurringRules = emptyList(),
+            futureTransactions = emptyList(),
+            todayEpochDay = refEpochDay,
+            periodStartEpochDay = refEpochDay - 10,
+            periodEndEpochDay = refEpochDay + 20,
+            primaryCurrencyCode = "INR"
+        )
+
+        // 10,000 - 25,000 - 0 = -15,000
+        assertEquals(MinorMoney(-15_000_00L), safeToSpend.trueSafeToSpend)
+        assertEquals(MinorMoney.ZERO, safeToSpend.upcoming14DayCommitments)
+        assertFalse(safeToSpend.isPositive)
+        assertEquals(SafeToSpendStatus.CARD_DEBT_EXCEEDS_CASH, safeToSpend.status)
+    }
+
+    @Test
+    fun testSafeToSpend_billsExceedCash_zeroCardDebt() {
+        val accounts = listOf(
+            createTestAccount(1, "Bank Account", AccountGroup.BANK_ACCOUNT, 10_000_00L)
+        )
+
+        val recurringRules = listOf(
+            createTestRecurringRule(101, "Rent", 15_000_00L, accountId = 1, nextDueEpochDay = refEpochDay + 5)
+        )
+
+        val safeToSpend = StatsPredictiveCalculations.computeSafeToSpend(
+            allAccounts = accounts,
+            recurringRules = recurringRules,
+            futureTransactions = emptyList(),
+            todayEpochDay = refEpochDay,
+            periodStartEpochDay = refEpochDay - 10,
+            periodEndEpochDay = refEpochDay + 20,
+            primaryCurrencyCode = "INR"
+        )
+
+        // 10,000 - 0 - 15,000 = -5,000
+        assertEquals(MinorMoney(-5_000_00L), safeToSpend.trueSafeToSpend)
+        assertFalse(safeToSpend.isPositive)
+        assertEquals(SafeToSpendStatus.BILLS_EXCEED_CASH, safeToSpend.status)
+    }
+
+    @Test
+    fun testSafeToSpend_creditCardOverpayment_notCountedAsDebt() {
+        val accounts = listOf(
+            createTestAccount(1, "Bank Account", AccountGroup.BANK_ACCOUNT, 20_000_00L),
+            createTestAccount(2, "Overpaid Card", AccountGroup.CREDIT_CARD, 5_000_00L) // Positive balance = store credit
+        )
+
+        val safeToSpend = StatsPredictiveCalculations.computeSafeToSpend(
+            allAccounts = accounts,
+            recurringRules = emptyList(),
+            futureTransactions = emptyList(),
+            todayEpochDay = refEpochDay,
+            periodStartEpochDay = refEpochDay - 10,
+            periodEndEpochDay = refEpochDay + 20,
+            primaryCurrencyCode = "INR"
+        )
+
+        assertEquals("Card debt should be zero for overpaid card", MinorMoney.ZERO, safeToSpend.totalCreditCardDebt)
+        assertEquals(MinorMoney(20_000_00L), safeToSpend.trueSafeToSpend)
+        assertTrue(safeToSpend.isPositive)
+        assertEquals(SafeToSpendStatus.SAFE, safeToSpend.status)
     }
 
     @Test

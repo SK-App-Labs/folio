@@ -1258,6 +1258,41 @@ private fun SafeToSpendCard(
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
+    val (statusText, statusDescription) = when (safeToSpend.status) {
+        SafeToSpendStatus.SAFE -> Pair(
+            "🛡️ Safe Discretionary Cash",
+            if (safeToSpend.totalCreditCardDebt.isPositive && safeToSpend.upcoming14DayCommitments.isPositive) {
+                "Unencumbered cash you can safely spend after accounting for card debt and bills due in the next 14 days."
+            } else if (safeToSpend.totalCreditCardDebt.isPositive) {
+                "Unencumbered cash you can safely spend after covering all outstanding credit card balances."
+            } else if (safeToSpend.upcoming14DayCommitments.isPositive) {
+                "Unencumbered cash you can safely spend after covering upcoming bills due in the next 14 days."
+            } else {
+                "Unencumbered cash you can safely spend with zero outstanding card debt or upcoming commitments."
+            }
+        )
+        SafeToSpendStatus.CARD_DEBT_EXCEEDS_CASH -> Pair(
+            "⚠️ Card Debt Exceeds Cash",
+            "Your liquid bank balances are insufficient to cover your total credit card debt. You are carrying an unbacked credit float."
+        )
+        SafeToSpendStatus.BILLS_EXCEED_CASH -> Pair(
+            "⚠️ Bills Exceed Cash",
+            "Your liquid bank balances are insufficient to cover upcoming bills due in the next 14 days."
+        )
+        SafeToSpendStatus.BILLS_EXCEED_REMAINING_CASH -> Pair(
+            "⚠️ Bills Exceed Remaining Cash",
+            "Your liquid cash covers credit card debt, but is insufficient once bills due in the next 14 days are included."
+        )
+        SafeToSpendStatus.COMBINED_OBLIGATIONS_EXCEED_CASH -> Pair(
+            "⚠️ Debt & Bills Exceed Cash",
+            "Your liquid bank balances are insufficient to cover combined card debt and bills due in the next 14 days."
+        )
+        SafeToSpendStatus.ZERO_RESERVES -> Pair(
+            "● Zero Liquid Cash",
+            "No liquid cash reserves available to spend."
+        )
+    }
+
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
@@ -1289,7 +1324,7 @@ private fun SafeToSpendCard(
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = Icons.Default.Shield,
+                                imageVector = if (safeToSpend.isPositive) Icons.Default.Shield else Icons.Default.Warning,
                                 contentDescription = null,
                                 tint = if (safeToSpend.isPositive) {
                                     semanticColors.onIncomeEmeraldContainer
@@ -1318,7 +1353,7 @@ private fun SafeToSpendCard(
                     }
                 ) {
                     Text(
-                        text = if (safeToSpend.isPositive) "🛡️ Safe Discretionary Cash" else "⚠️ Commitments Exceed Cash",
+                        text = statusText,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = if (safeToSpend.isPositive) {
@@ -1342,11 +1377,7 @@ private fun SafeToSpendCard(
             )
 
             Text(
-                text = if (safeToSpend.isPositive) {
-                    "Unencumbered cash you can safely spend without impacting unpaid credit cards or bills due in the next 14 days."
-                } else {
-                    "Your liquid bank balances are insufficient to cover your unpaid card debt and commitments due in the next 14 days."
-                },
+                text = statusDescription,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
