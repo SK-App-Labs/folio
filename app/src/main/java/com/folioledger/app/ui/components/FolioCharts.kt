@@ -88,6 +88,7 @@ fun InteractiveCategoryDonutChart(
     modifier: Modifier = Modifier,
     currencySpec: CurrencySpec = SupportedCurrencies.INR,
     grouping: NumberGroupingSystem = currencySpec.defaultGrouping,
+    categoryType: CategoryType = CategoryType.EXPENSE,
     selectedCategoryId: Long? = null,
     onCategorySelected: ((CategorySpendStat?) -> Unit)? = null,
     centerLabelWhenUnselected: String = "Total Spend",
@@ -304,10 +305,10 @@ fun InteractiveCategoryDonutChart(
                             val isZero = kotlin.math.abs(deltaPct) < 0.1f
                             val deltaColor = if (isZero) {
                                 MaterialTheme.colorScheme.onSurfaceVariant
-                            } else if (isIncrease) {
-                                semanticColors.expenseCoral
+                            } else if (categoryType == CategoryType.EXPENSE) {
+                                if (isIncrease) semanticColors.expenseCoral else semanticColors.incomeEmerald
                             } else {
-                                semanticColors.incomeEmerald
+                                if (isIncrease) semanticColors.incomeEmerald else semanticColors.expenseCoral
                             }
                             val arrow = if (isZero) "•" else if (isIncrease) "▲" else "▼"
                             val sign = if (isIncrease) "+" else ""
@@ -316,7 +317,7 @@ fun InteractiveCategoryDonutChart(
                                 shape = RoundedCornerShape(6.dp)
                             ) {
                                 Text(
-                                    text = "$arrow $sign${String.format(java.util.Locale.US, "%.1f%%", deltaPct)} vs last period",
+                                    text = "$arrow $sign${String.format(java.util.Locale.US, "%.1f%%", deltaPct)}",
                                     style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                                     color = deltaColor,
                                     fontWeight = FontWeight.Bold,

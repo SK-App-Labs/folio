@@ -825,6 +825,7 @@ private fun StatsBreakdownSubTabContent(
                         stats = activeStats,
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.numberGrouping,
+                        categoryType = uiState.selectedCategoryType,
                         selectedCategoryId = uiState.highlightedDonutCategoryId,
                         onCategorySelected = { tappedStat ->
                             onDonutSliceSelected(tappedStat)
@@ -902,6 +903,7 @@ private fun StatsBreakdownSubTabContent(
                             totalMinor = uiState.periodSummary.totalExpense,
                             currencySpec = uiState.currencySpec,
                             grouping = uiState.numberGrouping,
+                            colorMode = MoneyColorMode.EXPENSE,
                             onCategoryClick = onOpenCategoryDrillDown
                         )
                     }
@@ -916,6 +918,7 @@ private fun StatsBreakdownSubTabContent(
                             totalMinor = uiState.periodSummary.totalIncome,
                             currencySpec = uiState.currencySpec,
                             grouping = uiState.numberGrouping,
+                            colorMode = MoneyColorMode.INCOME,
                             onCategoryClick = onOpenCategoryDrillDown
                         )
                     }
@@ -1128,6 +1131,7 @@ private fun TopDriversSummaryCard(
     totalMinor: MinorMoney,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
+    colorMode: MoneyColorMode = MoneyColorMode.EXPENSE,
     onCategoryClick: (CategorySpendStat) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1193,7 +1197,7 @@ private fun TopDriversSummaryCard(
                         money = stat.netAmount,
                         currencySpec = currencySpec,
                         grouping = grouping,
-                        colorMode = MoneyColorMode.AUTO_SIGN,
+                        colorMode = colorMode,
                         style = tabularMoneyStyle(MaterialTheme.typography.bodyLarge),
                         fontWeight = FontWeight.Bold
                     )
@@ -1937,7 +1941,14 @@ private fun RankedCategoryStatRowItem(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable {
+                if (stat.subcategories.isNotEmpty()) {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    isSubcategoriesExpanded = !isSubcategoriesExpanded
+                } else {
+                    onClick()
+                }
+            }
             .background(if (isHighlighted) MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f) else Color.Transparent)
             .padding(horizontal = 14.dp, vertical = 10.dp)
     ) {
@@ -1963,54 +1974,41 @@ private fun RankedCategoryStatRowItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (stat.changePercentage != null) {
-                    val deltaPct = stat.changePercentage
-                    val isIncrease = deltaPct > 0f
-                    val isZero = kotlin.math.abs(deltaPct) < 0.1f
-                    val deltaColor = if (isZero) {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    } else if (categoryType == CategoryType.EXPENSE) {
-                        if (isIncrease) semanticColors.expenseCoral else semanticColors.incomeEmerald
-                    } else {
-                        if (isIncrease) semanticColors.incomeEmerald else semanticColors.expenseCoral
-                    }
-                    val arrow = if (isZero) "•" else if (isIncrease) "▲" else "▼"
-                    val sign = if (isIncrease) "+" else ""
-                    Text(
-                        text = "$arrow $sign${String.format(Locale.US, "%.1f%%", deltaPct)} vs last period",
-                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                        color = deltaColor,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-
-            if (stat.subcategories.isNotEmpty()) {
-                Spacer(modifier = Modifier.width(6.dp))
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            isSubcategoriesExpanded = !isSubcategoriesExpanded
-                        }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
+                    if (stat.changePercentage != null) {
+                        val deltaPct = stat.changePercentage
+                        val isIncrease = deltaPct > 0f
+                        val isZero = kotlin.math.abs(deltaPct) < 0.1f
+                        val deltaColor = if (isZero) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else if (categoryType == CategoryType.EXPENSE) {
+                            if (isIncrease) semanticColors.expenseCoral else semanticColors.incomeEmerald
+                        } else {
+                            if (isIncrease) semanticColors.incomeEmerald else semanticColors.expenseCoral
+                        }
+                        val arrow = if (isZero) "•" else if (isIncrease) "▲" else "▼"
+                        val sign = if (isIncrease) "+" else ""
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = deltaColor.copy(alpha = 0.12f)
+                        ) {
+                            Text(
+                                text = "$arrow $sign${String.format(Locale.US, "%.1f%%", deltaPct)}",
+                                style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                                color = deltaColor,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                            )
+                        }
+                    }
+                    if (stat.subcategories.isNotEmpty()) {
                         Text(
-                            text = "${stat.subcategories.size} sub",
+                            text = if (stat.changePercentage != null) "• ${stat.subcategories.size} sub" else "${stat.subcategories.size} subcategories",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Icon(
-                            imageVector = if (isSubcategoriesExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                            contentDescription = "Toggle subcategories",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(14.dp)
                         )
                     }
                 }
@@ -2048,11 +2046,16 @@ private fun RankedCategoryStatRowItem(
 
             Spacer(modifier = Modifier.width(4.dp))
 
+            val trailingIcon = if (stat.subcategories.isNotEmpty()) {
+                if (isSubcategoriesExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown
+            } else {
+                Icons.AutoMirrored.Filled.KeyboardArrowRight
+            }
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "Inspect Category",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(16.dp)
+                imageVector = trailingIcon,
+                contentDescription = if (stat.subcategories.isNotEmpty()) "Toggle subcategories" else "Inspect Category",
+                tint = if (stat.subcategories.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(18.dp)
             )
         }
 
@@ -2140,10 +2143,47 @@ private fun RankedCategoryStatRowItem(
                             }
                         }
                     }
+
+                    // 1-Tap Drilldown Link for the entire category
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(onClick = onClick)
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp, horizontal = 12.dp)
+                        ) {
+                            Text(
+                                text = "View All ${stat.categoryName} Transactions (${stat.transactionCount})",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
     }
+}
+
+private enum class BudgetsSubTabSection(val title: String) {
+    EXPENSE_BUDGETS("Expense Budgets"),
+    WEALTH_AND_SAVINGS("Wealth & Savings")
 }
 
 @Composable
@@ -2156,6 +2196,10 @@ private fun BudgetsManagerSubTabContent(
     onOpenAddSavingsGoal: () -> Unit,
     onOpenEditSavingsGoal: (AccountSavingsGoal) -> Unit
 ) {
+    val semanticColors = LocalFolioSemanticColors.current
+    val haptic = LocalHapticFeedback.current
+    var selectedSection by rememberSaveable { mutableStateOf(BudgetsSubTabSection.EXPENSE_BUDGETS) }
+
     val overallBudget = uiState.overallBudgetProgress
     val categoryBudgets = uiState.categoryBudgetProgressList
 
@@ -2179,95 +2223,65 @@ private fun BudgetsManagerSubTabContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        if (uiState.safeToSpend.isCurrentPeriod && uiState.shortfallAlerts.isNotEmpty()) {
-            item(contentType = "shortfall_alert") {
-                ShortfallAlertCard(
-                    alerts = uiState.shortfallAlerts,
-                    currencySpec = uiState.currencySpec,
-                    grouping = uiState.numberGrouping
-                )
-            }
-        }
+        // Mode Switcher: Expense Budgets vs Wealth & Savings
+        item(contentType = "budgets_mode_switcher") {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                BudgetsSubTabSection.entries.forEach { section ->
+                    val isSelected = selectedSection == section
+                    val containerColor = if (isSelected) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerLow
+                    }
+                    val contentColor = if (isSelected) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                    val borderColor = if (isSelected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        semanticColors.cardStrokeSubtle
+                    }
+                    val icon = if (section == BudgetsSubTabSection.EXPENSE_BUDGETS) {
+                        Icons.Filled.PieChart
+                    } else {
+                        Icons.Filled.Savings
+                    }
 
-        if (uiState.safeToSpend.isCurrentPeriod) {
-            item(contentType = "safe_to_spend") {
-                SafeToSpendCard(
-                    safeToSpend = uiState.safeToSpend,
-                    currencySpec = uiState.currencySpec,
-                    grouping = uiState.numberGrouping
-                )
-            }
-        }
-
-        item(contentType = "stats_summary_banner") {
-            ThreeColumnSummaryBanner(
-                firstLabel = "Income",
-                firstAmount = uiState.periodSummary.totalIncome,
-                secondLabel = "Expenses",
-                secondAmount = uiState.periodSummary.totalExpense,
-                thirdLabel = "Net Cashflow",
-                thirdAmount = uiState.periodSummary.netCashflow,
-                currencySpec = uiState.currencySpec,
-                grouping = uiState.numberGrouping
-            )
-        }
-
-        // Proactive Budget Threshold Alert Banner
-        if (exceededBudgets.isNotEmpty() || nearWarningBudgets.isNotEmpty()) {
-            item {
-                val isCritical = exceededBudgets.isNotEmpty()
-                val semanticColors = LocalFolioSemanticColors.current
-                val bannerBg = if (isCritical) semanticColors.expenseCoralContainer else semanticColors.warningAmberContainer
-                val bannerFg = if (isCritical) semanticColors.onExpenseCoralContainer else semanticColors.onWarningAmberContainer
-                val bannerBorder = if (isCritical) semanticColors.expenseCoral else semanticColors.warningAmber
-
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = bannerBg),
-                    border = BorderStroke(1.dp, bannerBorder.copy(alpha = 0.5f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(14.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Warning,
-                            contentDescription = null,
-                            tint = bannerFg,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(
-                                text = if (isCritical) {
-                                    "${exceededBudgets.size} Budget${if (exceededBudgets.size > 1) "s" else ""} Exceeded!"
-                                } else {
-                                    "${nearWarningBudgets.size} Budget${if (nearWarningBudgets.size > 1) "s" else ""} Near 80% Alert Threshold"
-                                },
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = bannerFg
-                            )
-                            val summaryDetail = buildString {
-                                if (exceededBudgets.isNotEmpty()) {
-                                    append(exceededBudgets.joinToString(", ") { b ->
-                                        val name = if (b.budgetId == -1L || b.categoryId == null) "Overall" else b.categoryName
-                                        "$name (${String.format(Locale.US, "%.0f%%", b.usagePercentage)})"
-                                    })
-                                }
-                                if (nearWarningBudgets.isNotEmpty()) {
-                                    if (exceededBudgets.isNotEmpty()) append(" • ")
-                                    append(nearWarningBudgets.joinToString(", ") { b ->
-                                        val name = if (b.budgetId == -1L || b.categoryId == null) "Overall" else b.categoryName
-                                        "$name (${String.format(Locale.US, "%.0f%%", b.usagePercentage)})"
-                                    })
-                                }
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = containerColor,
+                        border = BorderStroke(1.dp, borderColor),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                selectedSection = section
                             }
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = contentColor,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = summaryDetail,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = bannerFg.copy(alpha = 0.9f)
+                                text = section.title,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = contentColor,
+                                maxLines = 1
                             )
                         }
                     }
@@ -2275,187 +2289,275 @@ private fun BudgetsManagerSubTabContent(
             }
         }
 
-        // Hero Overall Monthly Budget Card or Set Monthly Budget CTA
-        item {
-            if (overallBudget != null) {
-                BudgetProgressCard(
-                    budget = overallBudget,
-                    isHeroOverall = true,
-                    currencySpec = uiState.currencySpec,
-                    grouping = uiState.numberGrouping,
-                    activePeriodRange = uiState.activePeriodRange,
-                    onClick = { onOpenEditBudget(overallBudget) }
-                )
-            } else {
-                EmptyStateCard(
-                    title = "Set Overall Monthly Budget",
-                    subtitle = "Configure a master spending target with customizable 80% warning alerts for ${uiState.activePeriodRange.title}.",
-                    icon = Icons.Filled.Savings,
-                    actionLabel = "Set Monthly Budget",
-                    onActionClick = onOpenOverallBudgetEditor
-                )
+        when (selectedSection) {
+            BudgetsSubTabSection.EXPENSE_BUDGETS -> {
+                if (uiState.safeToSpend.isCurrentPeriod && uiState.shortfallAlerts.isNotEmpty()) {
+                    item(contentType = "shortfall_alert") {
+                        ShortfallAlertCard(
+                            alerts = uiState.shortfallAlerts,
+                            currencySpec = uiState.currencySpec,
+                            grouping = uiState.numberGrouping
+                        )
+                    }
+                }
+
+                if (uiState.safeToSpend.isCurrentPeriod) {
+                    item(contentType = "safe_to_spend") {
+                        SafeToSpendCard(
+                            safeToSpend = uiState.safeToSpend,
+                            currencySpec = uiState.currencySpec,
+                            grouping = uiState.numberGrouping
+                        )
+                    }
+                }
+
+                // Proactive Budget Threshold Alert Banner
+                if (exceededBudgets.isNotEmpty() || nearWarningBudgets.isNotEmpty()) {
+                    item(contentType = "budget_threshold_alert") {
+                        val isCritical = exceededBudgets.isNotEmpty()
+                        val bannerBg = if (isCritical) semanticColors.expenseCoralContainer else semanticColors.warningAmberContainer
+                        val bannerFg = if (isCritical) semanticColors.onExpenseCoralContainer else semanticColors.onWarningAmberContainer
+                        val bannerBorder = if (isCritical) semanticColors.expenseCoral else semanticColors.warningAmber
+
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = bannerBg),
+                            border = BorderStroke(1.dp, bannerBorder.copy(alpha = 0.5f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(14.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Warning,
+                                    contentDescription = null,
+                                    tint = bannerFg,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        text = if (isCritical) {
+                                            "${exceededBudgets.size} Budget${if (exceededBudgets.size > 1) "s" else ""} Exceeded!"
+                                        } else {
+                                            "${nearWarningBudgets.size} Budget${if (nearWarningBudgets.size > 1) "s" else ""} Near 80% Alert Threshold"
+                                        },
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = bannerFg
+                                    )
+                                    val summaryDetail = buildString {
+                                        if (exceededBudgets.isNotEmpty()) {
+                                            append(exceededBudgets.joinToString(", ") { b ->
+                                                val name = if (b.budgetId == -1L || b.categoryId == null) "Overall" else b.categoryName
+                                                "$name (${String.format(Locale.US, "%.0f%%", b.usagePercentage)})"
+                                            })
+                                        }
+                                        if (nearWarningBudgets.isNotEmpty()) {
+                                            if (exceededBudgets.isNotEmpty()) append(" • ")
+                                            append(nearWarningBudgets.joinToString(", ") { b ->
+                                                val name = if (b.budgetId == -1L || b.categoryId == null) "Overall" else b.categoryName
+                                                "$name (${String.format(Locale.US, "%.0f%%", b.usagePercentage)})"
+                                            })
+                                        }
+                                    }
+                                    Text(
+                                        text = summaryDetail,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = bannerFg.copy(alpha = 0.9f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Hero Overall Monthly Budget Card or Set Monthly Budget CTA
+                item(contentType = "overall_budget_card") {
+                    if (overallBudget != null) {
+                        BudgetProgressCard(
+                            budget = overallBudget,
+                            isHeroOverall = true,
+                            currencySpec = uiState.currencySpec,
+                            grouping = uiState.numberGrouping,
+                            activePeriodRange = uiState.activePeriodRange,
+                            onClick = { onOpenEditBudget(overallBudget) }
+                        )
+                    } else {
+                        EmptyStateCard(
+                            title = "Set Overall Monthly Budget",
+                            subtitle = "Configure a master spending target with customizable 80% warning alerts for ${uiState.activePeriodRange.title}.",
+                            icon = Icons.Filled.Savings,
+                            actionLabel = "Set Monthly Budget",
+                            onActionClick = onOpenOverallBudgetEditor
+                        )
+                    }
+                }
+
+                // Category Budgets Section Header + Add Button
+                item(contentType = "category_budgets_header") {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Category Budgets (${categoryBudgets.size})",
+                                style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Track limits per expense category (${uiState.activePeriodRange.title})",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        FilledTonalButton(
+                            onClick = onOpenAddCategoryBudget,
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Add,
+                                contentDescription = "Add Category Budget",
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Add Budget",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    }
+                }
+
+                if (categoryBudgets.isEmpty()) {
+                    item(contentType = "category_budgets_empty") {
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                            ),
+                            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "No category-specific budgets configured yet. Tap \"+ Add Budget\" above to set limits for Food, Groceries, Fuel, or Shopping.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(20.dp)
+                            )
+                        }
+                    }
+                } else {
+                    items(
+                        items = categoryBudgets,
+                        key = { it.budgetId },
+                        contentType = { "budget_progress_card" }
+                    ) { budget ->
+                        BudgetProgressCard(
+                            budget = budget,
+                            isHeroOverall = false,
+                            currencySpec = uiState.currencySpec,
+                            grouping = uiState.numberGrouping,
+                            activePeriodRange = uiState.activePeriodRange,
+                            onClick = { onOpenEditBudget(budget) }
+                        )
+                    }
+                }
             }
-        }
 
-        // Double-Entry Monthly Savings Target Hero Card
-        item(contentType = "monthly_savings_hero") {
-            MonthlySavingsTargetHeroCard(
-                savingsProgress = uiState.monthlySavingsProgress,
-                currencySpec = uiState.currencySpec,
-                grouping = uiState.numberGrouping,
-                activePeriodTitle = uiState.activePeriodRange.title,
-                onConfigureTarget = onOpenMonthlySavingsTargetDialog
-            )
-        }
-
-        // Category Budgets Section Header + Add Button
-        item {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Category Budgets (${categoryBudgets.size})",
-                        style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Track limits per expense category (${uiState.activePeriodRange.title})",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            BudgetsSubTabSection.WEALTH_AND_SAVINGS -> {
+                // Double-Entry Monthly Savings Target Hero Card
+                item(contentType = "monthly_savings_hero") {
+                    MonthlySavingsTargetHeroCard(
+                        savingsProgress = uiState.monthlySavingsProgress,
+                        currencySpec = uiState.currencySpec,
+                        grouping = uiState.numberGrouping,
+                        activePeriodTitle = uiState.activePeriodRange.title,
+                        onConfigureTarget = onOpenMonthlySavingsTargetDialog
                     )
                 }
 
-                FilledTonalButton(
-                    onClick = onOpenAddCategoryBudget,
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Add,
-                        contentDescription = "Add Category Budget",
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Add Budget",
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
-            }
-        }
+                // Account-Backed Savings Goals ("Wealth Vaults") Section
+                val savingsGoals = uiState.accountSavingsGoals
+                item(contentType = "savings_goals_header") {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Savings Goals & Wealth Vaults (${savingsGoals.size})",
+                                style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Account-backed targets verified directly against live balances",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
 
-        if (categoryBudgets.isEmpty()) {
-            item {
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                    ),
-                    border = BorderStroke(1.dp, LocalFolioSemanticColors.current.cardStrokeSubtle),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "No category-specific budgets configured yet. Tap \"+ Add Budget\" above to set limits for Food, Groceries, Fuel, or Shopping.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(20.dp)
-                    )
-                }
-            }
-        } else {
-            items(
-                items = categoryBudgets,
-                key = { it.budgetId },
-                contentType = { "budget_progress_card" }
-            ) { budget ->
-                BudgetProgressCard(
-                    budget = budget,
-                    isHeroOverall = false,
-                    currencySpec = uiState.currencySpec,
-                    grouping = uiState.numberGrouping,
-                    activePeriodRange = uiState.activePeriodRange,
-                    onClick = { onOpenEditBudget(budget) }
-                )
-            }
-        }
-
-        // Account-Backed Savings Goals ("Wealth Vaults") Section
-        val savingsGoals = uiState.accountSavingsGoals
-        item(contentType = "savings_goals_header") {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp)
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Savings Goals & Wealth Vaults (${savingsGoals.size})",
-                        style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Account-backed targets verified directly against live balances",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                        FilledTonalButton(
+                            onClick = onOpenAddSavingsGoal,
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Add,
+                                contentDescription = "Add Savings Goal",
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Add Goal",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    }
                 }
 
-                FilledTonalButton(
-                    onClick = onOpenAddSavingsGoal,
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Add,
-                        contentDescription = "Add Savings Goal",
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Add Goal",
-                        style = MaterialTheme.typography.labelLarge
-                    )
+                if (savingsGoals.isEmpty()) {
+                    item(contentType = "savings_goals_empty") {
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                            ),
+                            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "No account savings goals yet. Link a goal (e.g., Emergency Fund, House Down Payment) directly to any Savings or Investment account to track live ledger progress with zero envelope drift.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(20.dp)
+                            )
+                        }
+                    }
+                } else {
+                    items(
+                        items = savingsGoals,
+                        key = { it.accountId },
+                        contentType = { "account_savings_goal" }
+                    ) { goal ->
+                        AccountSavingsGoalCard(
+                            goal = goal,
+                            currencySpec = uiState.currencySpec,
+                            grouping = uiState.numberGrouping,
+                            onClick = { onOpenEditSavingsGoal(goal) }
+                        )
+                    }
                 }
-            }
-        }
-
-        if (savingsGoals.isEmpty()) {
-            item(contentType = "savings_goals_empty") {
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                    ),
-                    border = BorderStroke(1.dp, LocalFolioSemanticColors.current.cardStrokeSubtle),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "No account savings goals yet. Link a goal (e.g., Emergency Fund, House Down Payment) directly to any Savings or Investment account to track live ledger progress with zero envelope drift.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(20.dp)
-                    )
-                }
-            }
-        } else {
-            items(
-                items = savingsGoals,
-                key = { it.accountId },
-                contentType = { "account_savings_goal" }
-            ) { goal ->
-                AccountSavingsGoalCard(
-                    goal = goal,
-                    currencySpec = uiState.currencySpec,
-                    grouping = uiState.numberGrouping,
-                    onClick = { onOpenEditSavingsGoal(goal) }
-                )
             }
         }
     }
@@ -2898,41 +3000,8 @@ private fun TagsAndNotesRankingsSubTabContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        if (uiState.safeToSpend.isCurrentPeriod && uiState.shortfallAlerts.isNotEmpty()) {
-            item(contentType = "shortfall_alert") {
-                ShortfallAlertCard(
-                    alerts = uiState.shortfallAlerts,
-                    currencySpec = uiState.currencySpec,
-                    grouping = uiState.numberGrouping
-                )
-            }
-        }
-
-        if (uiState.safeToSpend.isCurrentPeriod) {
-            item(contentType = "safe_to_spend") {
-                SafeToSpendCard(
-                    safeToSpend = uiState.safeToSpend,
-                    currencySpec = uiState.currencySpec,
-                    grouping = uiState.numberGrouping
-                )
-            }
-        }
-
-        item(contentType = "stats_summary_banner") {
-            ThreeColumnSummaryBanner(
-                firstLabel = "Income",
-                firstAmount = uiState.periodSummary.totalIncome,
-                secondLabel = "Expenses",
-                secondAmount = uiState.periodSummary.totalExpense,
-                thirdLabel = "Net Cashflow",
-                thirdAmount = uiState.periodSummary.netCashflow,
-                currencySpec = uiState.currencySpec,
-                grouping = uiState.numberGrouping
-            )
-        }
-
         // Toggle between #Tag Rankings and Payee / Note Rankings
-        item {
+        item(contentType = "ranking_mode_switcher") {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxWidth()
