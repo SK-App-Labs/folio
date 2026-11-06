@@ -899,7 +899,7 @@ fun TipJarBottomSheet(
                                 type = "text/plain"
                                 putExtra(
                                     Intent.EXTRA_TEXT,
-                                    "I recommend Folio for managing expenses and budgets! It is 100% offline, privacy-first, with zero cloud and zero ads. Check it out on Google Play: https://play.google.com/store/apps/details?id=com.folioledger.app"
+                                    "I recommend Folio for managing expenses and budgets! It is 100% offline, privacy-first, with zero cloud and zero ads. Check it out on Google Play: https://play.google.com/store/apps/details?id=${context.packageName}"
                                 )
                             }
                             context.startActivity(Intent.createChooser(shareIntent, "Share Folio"))

@@ -1,4 +1,4 @@
-﻿// File: app/src/main/java/com/folioledger/app/data/repository/SettingsAndBackupRepositoryImpl.kt
+// File: app/src/main/java/com/folioledger/app/data/repository/SettingsAndBackupRepositoryImpl.kt
 package com.folioledger.app.data.repository
 
 import android.content.Context
@@ -428,6 +428,7 @@ class SettingsAndBackupRepositoryImpl(
                     put("isSupporter", currentPrefs.isSupporter)
                     putNullableString("supporterTier", currentPrefs.supporterTier)
                     put("cardMilestonesJson", currentPrefs.cardMilestonesJson)
+                    put("iconPackTheme", currentPrefs.iconPackTheme)
                     put("monthlySavingsTargetMinor", currentPrefs.monthlySavingsTargetMinor)
                     put("savingsGoalsJson", currentPrefs.savingsGoalsJson)
                 }
@@ -454,6 +455,7 @@ class SettingsAndBackupRepositoryImpl(
                                 put("colorHex", acc.colorHex)
                                 put("iconName", acc.iconName)
                                 put("sortOrder", acc.sortOrder)
+                                put("isPinned", acc.isPinned)
                                 put("createdAtEpochMillis", acc.createdAtEpochMillis)
                             }
                         )
@@ -828,6 +830,7 @@ class SettingsAndBackupRepositoryImpl(
                     supporterTier = if (prefsObj.isNull("supporterTier")) current.supporterTier else prefsObj.optString("supporterTier").ifBlank { null },
                     lastBackupEpochMillis = current.lastBackupEpochMillis,
                     cardMilestonesJson = prefsObj.optString("cardMilestonesJson", current.cardMilestonesJson),
+                    iconPackTheme = prefsObj.optString("iconPackTheme", current.iconPackTheme),
                     monthlySavingsTargetMinor = prefsObj.optLong("monthlySavingsTargetMinor", current.monthlySavingsTargetMinor),
                     savingsGoalsJson = prefsObj.optString("savingsGoalsJson", current.savingsGoalsJson)
                 )
@@ -1129,6 +1132,7 @@ class SettingsAndBackupRepositoryImpl(
                 colorHex = obj.optString("colorHex", "#10B981"),
                 iconName = obj.optString("iconName", "account_balance_wallet"),
                 sortOrder = obj.optInt("sortOrder", 0),
+                isPinned = obj.optBoolean("isPinned", false),
                 createdAtEpochMillis = obj.optLong("createdAtEpochMillis", System.currentTimeMillis())
             )
         }

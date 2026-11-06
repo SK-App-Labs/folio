@@ -92,4 +92,31 @@ class BackupAndDataManagementTest {
         assertEquals(SupporterTier.COFFEE.skuId, restored.supporterTier)
         assertEquals(1729000000000L, restored.lastBackupEpochMillis)
     }
+
+    @Test
+    fun userPreferences_iconPackTheme_preservedInModel() {
+        val originalPrefs = UserPreferences(
+            primaryCurrencyCode = "USD",
+            iconPackTheme = "PHOSPHOR"
+        )
+        assertEquals("PHOSPHOR", originalPrefs.iconPackTheme)
+
+        val restored = UserPreferences(
+            primaryCurrencyCode = "USD",
+            iconPackTheme = "EMOJI"
+        )
+        assertEquals("EMOJI", restored.iconPackTheme)
+    }
+
+    @Test
+    fun accountEntity_isPinned_preservedInModel() {
+        val account = com.folioledger.app.data.local.entity.AccountEntity(
+            id = 1L,
+            name = "Salary Account",
+            groupType = com.folioledger.app.domain.model.AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
+            isPinned = true
+        )
+        assertTrue(account.isPinned)
+    }
 }
