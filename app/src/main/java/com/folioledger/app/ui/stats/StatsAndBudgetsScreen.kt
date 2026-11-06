@@ -206,30 +206,28 @@ fun StatsAndBudgetsScreen(
                     bottom = contentPadding.calculateBottomPadding()
                 )
         ) {
-            if (uiState.selectedSubTab != StatsSubTab.CREDIT_CARDS) {
-                PeriodSelectorHeader(
-                    periodTitle = uiState.activePeriodRange.title,
-                    periodSubtitle = null,
-                    onPreviousPeriod = viewModel::navigateToPreviousPeriod,
-                    onNextPeriod = viewModel::navigateToNextPeriod,
-                    onPeriodTitleClick = {
-                        if (uiState.periodGranularity == StatsPeriodGranularity.CUSTOM) {
-                            viewModel.setCustomDatePickerOpen(open = true)
-                        } else {
-                            viewModel.jumpToToday()
-                        }
-                    },
-                    trailingContent = {
-                        if (uiState.selectedSubTab != StatsSubTab.BUDGETS) {
-                            StatsPeriodGranularityDropdownChip(
-                                selectedGranularity = uiState.periodGranularity,
-                                onSelectGranularity = viewModel::selectPeriodGranularity,
-                                onOpenCustomDatePicker = { viewModel.setCustomDatePickerOpen(true) }
-                            )
-                        }
+            PeriodSelectorHeader(
+                periodTitle = uiState.activePeriodRange.title,
+                periodSubtitle = null,
+                onPreviousPeriod = viewModel::navigateToPreviousPeriod,
+                onNextPeriod = viewModel::navigateToNextPeriod,
+                onPeriodTitleClick = {
+                    if (uiState.periodGranularity == StatsPeriodGranularity.CUSTOM) {
+                        viewModel.setCustomDatePickerOpen(open = true)
+                    } else {
+                        viewModel.jumpToToday()
                     }
-                )
-            }
+                },
+                trailingContent = {
+                    if (uiState.selectedSubTab != StatsSubTab.BUDGETS) {
+                        StatsPeriodGranularityDropdownChip(
+                            selectedGranularity = uiState.periodGranularity,
+                            onSelectGranularity = viewModel::selectPeriodGranularity,
+                            onOpenCustomDatePicker = { viewModel.setCustomDatePickerOpen(true) }
+                        )
+                    }
+                }
+            )
 
             PrimaryTabRow(
                 selectedTabIndex = pagerState.currentPage,
