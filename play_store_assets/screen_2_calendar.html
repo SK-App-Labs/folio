@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Google Sans", sans-serif; }
+body { width: 1080px; height: 2400px; background: #F8FAFC; color: #0F172A; position: relative; overflow: hidden; }
+.card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 32px; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04); }
+</style>
+</head>
+<body>
+
+<div style="height: 70px; display: flex; justify-content: space-between; align-items: center; padding: 0 40px; font-size: 32px; font-weight: 600; color: #0F172A;">
+    <span>9:41</span>
+    <div style="display: flex; align-items: center; gap: 16px;">
+        <svg width="34" height="26" viewBox="0 0 24 24" fill="#0F172A"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L12 22l7.03-4.39C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9zm0 14c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+        <svg width="32" height="26" viewBox="0 0 24 24" fill="#0F172A"><path d="M12 4C7.31 4 3.07 5.9 0 8.98L12 21 24 8.98C20.93 5.9 16.69 4 12 4zm0 3c3.48 0 6.64 1.35 9 3.55L12 18.5 3 10.55C5.36 8.35 8.52 7 12 7z"/></svg>
+        <svg width="40" height="26" viewBox="0 0 24 24" fill="#0F172A"><path d="M17 5v14h2V5h-2zm-4 4v10h2V9h-2zm-4 4v6h2v-6H9zm-4 3v3h2v-3H5z"/></svg>
+        <div style="display: flex; align-items: center; gap: 4px; border: 3px solid #0F172A; border-radius: 8px; padding: 2px 4px; height: 26px; width: 44px; box-sizing: border-box;">
+            <div style="background: #10B981; height: 14px; width: 28px; border-radius: 3px;"></div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Top Header & Search -->
+<div style="padding: 10px 40px 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; height: 80px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <div style="width: 56px; height: 56px; border-radius: 18px; background: #10B981; display: flex; align-items: center; justify-content: center; color: white;">
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+            </div>
+            <div>
+                <h1 style="font-size: 40px; font-weight: 800; letter-spacing: -0.5px;">Folio</h1>
+                <p style="font-size: 22px; color: #64748B; font-weight: 500;">Interactive Calendar</p>
+            </div>
+        </div>
+        <div style="display: flex; gap: 16px;">
+            <div style="width: 60px; height: 60px; border-radius: 50%; background: #FFFFFF; border: 1px solid #E2E8F0; display: flex; align-items: center; justify-content: center; color: #0F172A;">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Subtabs Bar -->
+<div style="padding: 0 40px 24px; display: flex; gap: 14px;">
+    <div style="background: #FFFFFF; color: #64748B; border: 1px solid #E2E8F0; padding: 14px 30px; border-radius: 24px; font-size: 24px; font-weight: 600;">Daily</div>
+    <div style="background: #10B981; color: white; padding: 14px 34px; border-radius: 24px; font-size: 24px; font-weight: 700; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);">Calendar</div>
+    <div style="background: #FFFFFF; color: #64748B; border: 1px solid #E2E8F0; padding: 14px 30px; border-radius: 24px; font-size: 24px; font-weight: 600;">Weekly</div>
+    <div style="background: #FFFFFF; color: #64748B; border: 1px solid #E2E8F0; padding: 14px 30px; border-radius: 24px; font-size: 24px; font-weight: 600;">Monthly</div>
+    <div style="background: #FFFFFF; color: #64748B; border: 1px solid #E2E8F0; padding: 14px 30px; border-radius: 24px; font-size: 24px; font-weight: 600;">Summary</div>
+</div>
+
+<!-- Month Header Navigator -->
+<div style="padding: 0 40px 20px;">
+    <div class="card" style="padding: 24px 32px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="width: 50px; height: 50px; border-radius: 50%; background: #F1F5F9; display: flex; align-items: center; justify-content: center; color: #64748B;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+        </div>
+        <div style="text-align: center;">
+            <h2 style="font-size: 32px; font-weight: 800;">November 2026</h2>
+            <p style="font-size: 20px; color: #10B981; font-weight: 700; margin-top: 4px;">Net Cashflow: +$3,207.50</p>
+        </div>
+        <div style="width: 50px; height: 50px; border-radius: 50%; background: #F1F5F9; display: flex; align-items: center; justify-content: center; color: #64748B;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+    </div>
+</div>
+
+<!-- Calendar Grid Card -->
+<div style="padding: 0 40px 24px;">
+    <div class="card" style="padding: 24px 28px;">
+        <!-- Weekday Headers -->
+        <div style="display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 20px; font-weight: 700; color: #94A3B8; margin-bottom: 16px;">
+            <span>SUN</span><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span>
+        </div>
+        <!-- Days Grid -->
+        <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px;">
+            
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">1</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"><div style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></div><div style="width: 8px; height: 8px; border-radius: 50%; background: #EF4444;"></div></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">2</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"><div style="width: 8px; height: 8px; border-radius: 50%; background: #EF4444;"></div></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">3</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">4</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"><div style="width: 8px; height: 8px; border-radius: 50%; background: #EF4444;"></div></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">5</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"><div style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></div><div style="width: 8px; height: 8px; border-radius: 50%; background: #EF4444;"></div></div>
+        </div>
+        
+        <div style="background: #10B981; border: none; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(16, 185, 129, 0.35);">
+            <span style="font-size: 26px; font-weight: 800; color: #FFFFFF;">6</span>
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: #FFFFFF; margin-top: 6px;"></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">7</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">8</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"><div style="width: 8px; height: 8px; border-radius: 50%; background: #EF4444;"></div></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">9</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"><div style="width: 8px; height: 8px; border-radius: 50%; background: #EF4444;"></div></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">10</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">11</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">12</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"><div style="width: 8px; height: 8px; border-radius: 50%; background: #EF4444;"></div></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">13</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">14</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"><div style="width: 8px; height: 8px; border-radius: 50%; background: #EF4444;"></div></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">15</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"><div style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></div></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">16</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">17</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">18</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"><div style="width: 8px; height: 8px; border-radius: 50%; background: #EF4444;"></div></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">19</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">20</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"><div style="width: 8px; height: 8px; border-radius: 50%; background: #EF4444;"></div></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">21</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">22</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"><div style="width: 8px; height: 8px; border-radius: 50%; background: #EF4444;"></div></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">23</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">24</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">25</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"><div style="width: 8px; height: 8px; border-radius: 50%; background: #EF4444;"></div></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">26</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">27</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"><div style="width: 8px; height: 8px; border-radius: 50%; background: #EF4444;"></div></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">28</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">29</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"></div>
+        </div>
+        
+        <div style="background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 20px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: none;">
+            <span style="font-size: 26px; font-weight: 600; color: #0F172A;">30</span>
+            <div style="display: flex; gap: 4px; margin-top: 6px;"></div>
+        </div>
+        
+        </div>
+    </div>
+</div>
+
+<!-- Selected Day Transactions Sheet -->
+<div style="padding: 0 40px;">
+    <div class="card" style="padding: 24px 30px; background: #FFFFFF; border: 2px solid #10B981;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+            <div>
+                <span style="background: #ECFDF5; color: #059669; font-size: 18px; font-weight: 700; padding: 4px 14px; border-radius: 10px;">SELECTED DATE</span>
+                <h3 style="font-size: 28px; font-weight: 800; margin-top: 6px;">Friday, November 6</h3>
+            </div>
+            <div style="text-align: right;">
+                <span style="font-size: 20px; color: #64748B; font-weight: 600;">3 Transactions</span>
+                <p style="font-size: 28px; font-weight: 800; color: #EF4444; font-variant-numeric: tabular-nums;">-$142.30</p>
+            </div>
+        </div>
+        <!-- Day Items -->
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 14px 20px; border-radius: 18px;">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <span style="font-size: 26px;">📱</span>
+                    <div>
+                        <p style="font-size: 24px; font-weight: 700;">Apple Store</p>
+                        <p style="font-size: 18px; color: #64748B;">Electronics • Chase Sapphire</p>
+                    </div>
+                </div>
+                <span style="font-size: 24px; font-weight: 800; color: #EF4444;">-$89.00</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 14px 20px; border-radius: 18px;">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <span style="font-size: 26px;">🥦</span>
+                    <div>
+                        <p style="font-size: 24px; font-weight: 700;">Whole Foods Market</p>
+                        <p style="font-size: 18px; color: #64748B;">Groceries • Chase Checking</p>
+                    </div>
+                </div>
+                <span style="font-size: 24px; font-weight: 800; color: #EF4444;">-$46.80</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+    <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 190px; background: #FFFFFF; border-top: 1px solid #E2E8F0; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding-top: 18px; box-sizing: border-box; z-index: 100;">
+        <div style="display: flex; width: 100%; justify-content: space-around;">
+    
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; width: 180px;">
+            <div style="background: #ECFDF5; color: #10B981; width: 110px; height: 60px; border-radius: 30px; display: flex; align-items: center; justify-content: center;">
+                <svg width="38" height="38" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+            </div>
+            <span style="font-size: 26px; font-weight: 700; color: #10B981;">Trans.</span>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; width: 180px;">
+            <div style="background: transparent; color: #64748B; width: 110px; height: 60px; border-radius: 30px; display: flex; align-items: center; justify-content: center;">
+                <svg width="38" height="38" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+            </div>
+            <span style="font-size: 26px; font-weight: 500; color: #64748B;">Stats</span>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; width: 180px;">
+            <div style="background: transparent; color: #64748B; width: 110px; height: 60px; border-radius: 30px; display: flex; align-items: center; justify-content: center;">
+                <svg width="38" height="38" viewBox="0 0 24 24" fill="currentColor"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+            </div>
+            <span style="font-size: 26px; font-weight: 500; color: #64748B;">Accounts</span>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; width: 180px;">
+            <div style="background: transparent; color: #64748B; width: 110px; height: 60px; border-radius: 30px; display: flex; align-items: center; justify-content: center;">
+                <svg width="38" height="38" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+            </div>
+            <span style="font-size: 26px; font-weight: 500; color: #64748B;">Settings</span>
+        </div>
+        
+        </div>
+        <div style="width: 320px; height: 8px; background: #0F172A; border-radius: 4px; margin-bottom: 16px;"></div>
+    </div>
+    
+</body>
+</html>

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Google Sans", sans-serif; }
+body { width: 1080px; height: 2400px; background: #F8FAFC; color: #0F172A; position: relative; overflow: hidden; }
+.card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 32px; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04); }
+</style>
+</head>
+<body>
+
+<div style="height: 70px; display: flex; justify-content: space-between; align-items: center; padding: 0 40px; font-size: 32px; font-weight: 600; color: #0F172A;">
+    <span>9:41</span>
+    <div style="display: flex; align-items: center; gap: 16px;">
+        <svg width="34" height="26" viewBox="0 0 24 24" fill="#0F172A"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L12 22l7.03-4.39C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9zm0 14c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+        <svg width="32" height="26" viewBox="0 0 24 24" fill="#0F172A"><path d="M12 4C7.31 4 3.07 5.9 0 8.98L12 21 24 8.98C20.93 5.9 16.69 4 12 4zm0 3c3.48 0 6.64 1.35 9 3.55L12 18.5 3 10.55C5.36 8.35 8.52 7 12 7z"/></svg>
+        <svg width="40" height="26" viewBox="0 0 24 24" fill="#0F172A"><path d="M17 5v14h2V5h-2zm-4 4v10h2V9h-2zm-4 4v6h2v-6H9zm-4 3v3h2v-3H5z"/></svg>
+        <div style="display: flex; align-items: center; gap: 4px; border: 3px solid #0F172A; border-radius: 8px; padding: 2px 4px; height: 26px; width: 44px; box-sizing: border-box;">
+            <div style="background: #10B981; height: 14px; width: 28px; border-radius: 3px;"></div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Top Header -->
+<div style="padding: 10px 40px 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; height: 80px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <div style="width: 56px; height: 56px; border-radius: 18px; background: #059669; display: flex; align-items: center; justify-content: center; color: white;">
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z"/></svg>
+            </div>
+            <div>
+                <h1 style="font-size: 40px; font-weight: 800; letter-spacing: -0.5px;">Budgets & Wealth</h1>
+                <p style="font-size: 22px; color: #64748B; font-weight: 500;">Predictive Financial Radar</p>
+            </div>
+        </div>
+        <div style="background: #F1F5F9; padding: 10px 24px; border-radius: 20px; font-size: 22px; font-weight: 700; color: #334155;">
+            Nov 2026 ▾
+        </div>
+    </div>
+</div>
+
+<!-- Subtabs Bar -->
+<div style="padding: 0 40px 24px; display: flex; gap: 14px;">
+    <div style="background: #FFFFFF; color: #64748B; border: 1px solid #E2E8F0; padding: 14px 30px; border-radius: 24px; font-size: 24px; font-weight: 600;">Overview</div>
+    <div style="background: #FFFFFF; color: #64748B; border: 1px solid #E2E8F0; padding: 14px 30px; border-radius: 24px; font-size: 24px; font-weight: 600;">Cards</div>
+    <div style="background: #059669; color: white; padding: 14px 34px; border-radius: 24px; font-size: 24px; font-weight: 700; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);">Budgets</div>
+    <div style="background: #FFFFFF; color: #64748B; border: 1px solid #E2E8F0; padding: 14px 30px; border-radius: 24px; font-size: 24px; font-weight: 600;">Merchants & Tags</div>
+</div>
+
+<!-- Safe-To-Spend Today Hero Card -->
+<div style="padding: 0 40px 24px;">
+    <div class="card" style="padding: 34px; background: linear-gradient(135deg, #064E3B 0%, #065F46 100%); color: white; border: none; box-shadow: 0 12px 30px rgba(6, 78, 59, 0.25);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; gap: 12px; background: rgba(16, 185, 129, 0.35); border: 1px solid rgba(255,255,255,0.2); padding: 6px 18px; border-radius: 12px;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="#A7F3D0"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+                <span style="font-size: 20px; font-weight: 700; color: #A7F3D0;">SAFE-TO-SPEND TODAY</span>
+            </div>
+            <span style="color: #A7F3D0; font-size: 22px; font-weight: 700;">24 Days Left</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px;">
+            <div>
+                <p style="font-size: 68px; font-weight: 900; letter-spacing: -1.5px; font-variant-numeric: tabular-nums;">$68.40</p>
+                <p style="font-size: 22px; color: #A7F3D0; font-weight: 600;">Free Unallocated Daily Limit</p>
+            </div>
+            <div style="text-align: right; background: rgba(0,0,0,0.25); padding: 12px 20px; border-radius: 18px;">
+                <p style="font-size: 18px; color: #A7F3D0;">Safe Surplus</p>
+                <p style="font-size: 30px; font-weight: 800;">+$1,648.00</p>
+            </div>
+        </div>
+
+        <!-- Formula Ring-Fence Bar -->
+        <div style="background: rgba(0,0,0,0.3); border-radius: 20px; padding: 18px 24px; display: flex; justify-content: space-between; font-size: 20px; font-weight: 600;">
+            <div><span style="color: #6EE7B7;">Liquid Cash:</span> $4,250.00</div>
+            <div><span style="color: #FDA4AF;">− Card Debt:</span> $1,842.00</div>
+            <div><span style="color: #FDE68A;">− 14D Bills:</span> $760.00</div>
+        </div>
+    </div>
+</div>
+
+<!-- Segmented Switcher -->
+<div style="padding: 0 40px 20px; display: flex;">
+    <div style="background: #E2E8F0; border-radius: 20px; padding: 6px; display: flex; width: 100%;">
+        <div style="background: #FFFFFF; color: #0F172A; flex: 1; text-align: center; padding: 14px; border-radius: 16px; font-size: 22px; font-weight: 800; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+            🎯 Expense Budgets
+        </div>
+        <div style="background: transparent; color: #64748B; flex: 1; text-align: center; padding: 14px; border-radius: 16px; font-size: 22px; font-weight: 700;">
+            🏦 Wealth & Savings (Vaults)
+        </div>
+    </div>
+</div>
+
+<!-- Budgets Progress Cards -->
+<div style="padding: 0 40px; display: flex; flex-direction: column; gap: 18px;">
+
+    <!-- Overall Budget -->
+    <div class="card" style="padding: 26px 30px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <span style="font-size: 32px;">📊</span>
+                <div>
+                    <h3 style="font-size: 28px; font-weight: 800;">Overall Monthly Budget</h3>
+                    <p style="font-size: 20px; color: #10B981; font-weight: 700;">● Pacing Well: 54.7% spent vs 60.0% month elapsed</p>
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <p style="font-size: 28px; font-weight: 800;">$1,642.50 <span style="font-size: 20px; color: #64748B; font-weight: 500;">/ $3,000.00</span></p>
+                <span style="font-size: 18px; color: #10B981; font-weight: 700;">$1,357.50 Remaining</span>
+            </div>
+        </div>
+        <!-- Progress Bar with Pacing Tick -->
+        <div style="position: relative; height: 18px; background: #F1F5F9; border-radius: 9px; overflow: hidden; margin-top: 16px;">
+            <div style="width: 54.7%; height: 100%; background: #10B981; border-radius: 9px;"></div>
+        </div>
+    </div>
+
+    <!-- Category 1: Groceries -->
+    <div class="card" style="padding: 24px 30px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <span style="font-size: 30px;">🥦</span>
+                <div>
+                    <h4 style="font-size: 26px; font-weight: 800;">Groceries & Supermarket</h4>
+                    <p style="font-size: 18px; color: #64748B;">48.2% of $600.00 limit</p>
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <p style="font-size: 26px; font-weight: 800;">$289.40</p>
+                <span style="font-size: 18px; color: #10B981; font-weight: 700;">$310.60 Left</span>
+            </div>
+        </div>
+        <div style="height: 14px; background: #F1F5F9; border-radius: 7px; overflow: hidden;">
+            <div style="width: 48.2%; height: 100%; background: #10B981; border-radius: 7px;"></div>
+        </div>
+    </div>
+
+    <!-- Category 2: Dining Out -->
+    <div class="card" style="padding: 24px 30px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <span style="font-size: 30px;">🍽️</span>
+                <div>
+                    <h4 style="font-size: 26px; font-weight: 800;">Restaurants & Dining</h4>
+                    <p style="font-size: 18px; color: #D97706; font-weight: 600;">● 78.5% of $400.00 limit (Near 80% mark)</p>
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <p style="font-size: 26px; font-weight: 800;">$314.00</p>
+                <span style="font-size: 18px; color: #D97706; font-weight: 700;">$86.00 Left</span>
+            </div>
+        </div>
+        <div style="height: 14px; background: #F1F5F9; border-radius: 7px; overflow: hidden;">
+            <div style="width: 78.5%; height: 100%; background: #F59E0B; border-radius: 7px;"></div>
+        </div>
+    </div>
+
+</div>
+
+
+    <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 190px; background: #FFFFFF; border-top: 1px solid #E2E8F0; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding-top: 18px; box-sizing: border-box; z-index: 100;">
+        <div style="display: flex; width: 100%; justify-content: space-around;">
+    
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; width: 180px;">
+            <div style="background: transparent; color: #64748B; width: 110px; height: 60px; border-radius: 30px; display: flex; align-items: center; justify-content: center;">
+                <svg width="38" height="38" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+            </div>
+            <span style="font-size: 26px; font-weight: 500; color: #64748B;">Trans.</span>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; width: 180px;">
+            <div style="background: #ECFDF5; color: #10B981; width: 110px; height: 60px; border-radius: 30px; display: flex; align-items: center; justify-content: center;">
+                <svg width="38" height="38" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+            </div>
+            <span style="font-size: 26px; font-weight: 700; color: #10B981;">Stats</span>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; width: 180px;">
+            <div style="background: transparent; color: #64748B; width: 110px; height: 60px; border-radius: 30px; display: flex; align-items: center; justify-content: center;">
+                <svg width="38" height="38" viewBox="0 0 24 24" fill="currentColor"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+            </div>
+            <span style="font-size: 26px; font-weight: 500; color: #64748B;">Accounts</span>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; width: 180px;">
+            <div style="background: transparent; color: #64748B; width: 110px; height: 60px; border-radius: 30px; display: flex; align-items: center; justify-content: center;">
+                <svg width="38" height="38" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+            </div>
+            <span style="font-size: 26px; font-weight: 500; color: #64748B;">Settings</span>
+        </div>
+        
+        </div>
+        <div style="width: 320px; height: 8px; background: #0F172A; border-radius: 4px; margin-bottom: 16px;"></div>
+    </div>
+    
+</body>
+</html>

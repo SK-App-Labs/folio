@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Folio v1.5.0 - Play Store Screenshot Showcase (USD $)</title>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --surface-color: #161f30;
+            --card-border: #23314d;
+            --primary: #10B981;
+            --primary-glow: rgba(16, 185, 129, 0.25);
+            --text-main: #F8FAFC;
+            --text-sub: #94A3B8;
+            --accent: #38BDF8;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 40px 24px;
+            min-height: 100vh;
+        }
+        .header {
+            max-width: 1400px;
+            margin: 0 auto 40px;
+            text-align: center;
+        }
+        .badge {
+            display: inline-block;
+            background: rgba(16, 185, 129, 0.15);
+            color: #10B981;
+            padding: 6px 16px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            margin-bottom: 12px;
+        }
+        h1 {
+            font-size: 36px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #ffffff 40%, #94A3B8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        p.subtitle {
+            font-size: 16px;
+            color: var(--text-sub);
+            max-width: 720px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 28px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        .card {
+            background: var(--surface-color);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+        }
+        .card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            border-color: var(--primary);
+        }
+        .card-header {
+            padding: 20px 20px 14px;
+            border-bottom: 1px solid var(--card-border);
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .slot-tag {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 6px;
+        }
+        .headline {
+            font-size: 18px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 4px;
+        }
+        .subheadline {
+            font-size: 13px;
+            color: var(--text-sub);
+            line-height: 1.4;
+        }
+        .preview-frame {
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(circle at center, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.8) 100%);
+            position: relative;
+        }
+        .phone-mockup {
+            width: 100%;
+            max-width: 250px;
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: 0 16px 36px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08);
+            position: relative;
+            background: #000;
+        }
+        .phone-mockup img {
+            display: block;
+            width: 100%;
+            height: auto;
+            object-fit: cover;
+        }
+        .card-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--card-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(0, 0, 0, 0.15);
+            margin-top: auto;
+        }
+        .specs {
+            font-size: 12px;
+            color: var(--text-sub);
+            font-weight: 500;
+        }
+        .download-btn {
+            background: var(--primary);
+            color: #064E3B;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 8px 16px;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: filter 0.2s;
+        }
+        .download-btn:hover {
+            filter: brightness(1.15);
+        }
+        .instructions-box {
+            max-width: 1400px;
+            margin: 48px auto 0;
+            background: rgba(16, 185, 129, 0.05);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            border-radius: 16px;
+            padding: 24px 32px;
+        }
+        .instructions-box h3 {
+            color: var(--primary);
+            font-size: 18px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .instructions-box ol {
+            padding-left: 20px;
+            color: #CBD5E1;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+        .instructions-box li strong {
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="badge">Google Play Store Assets • v1.5.0 Production</div>
+    <h1>Folio App Screenshots (USD Currency)</h1>
+    <p class="subtitle">
+        Pixel-perfect 1080 &times; 2400 uncompressed PNGs generated specifically for your chosen AppMockUp Samsung Galaxy S21 Ultra template.
+    </p>
+</div>
+
+<div class="grid">
+    <!-- Card 1 -->
+    <div class="card">
+        <div class="card-header">
+            <div class="slot-tag">Slot 1 • Daily Ledger</div>
+            <div class="headline">Total Privacy, 100% Offline</div>
+            <div class="subheadline">Zero ads. Zero tracking. Double-entry clarity stored strictly on your phone.</div>
+        </div>
+        <div class="preview-frame">
+            <div class="phone-mockup">
+                <img src="screenshot_1_daily.png" alt="Folio Daily Ledger Screen" loading="lazy">
+            </div>
+        </div>
+        <div class="card-footer">
+            <span class="specs">1080 &times; 2400 • 229 KB</span>
+            <a href="screenshot_1_daily.png" download="screenshot_1_daily.png" class="download-btn">Download PNG</a>
+        </div>
+    </div>
+
+    <!-- Card 2 -->
+    <div class="card">
+        <div class="card-header">
+            <div class="slot-tag">Slot 2 • Calendar</div>
+            <div class="headline">Cashflow at a Glance</div>
+            <div class="subheadline">Interactive monthly calendar with daily income & expense breakdowns.</div>
+        </div>
+        <div class="preview-frame">
+            <div class="phone-mockup">
+                <img src="screenshot_2_calendar.png" alt="Folio Calendar View" loading="lazy">
+            </div>
+        </div>
+        <div class="card-footer">
+            <span class="specs">1080 &times; 2400 • 119 KB</span>
+            <a href="screenshot_2_calendar.png" download="screenshot_2_calendar.png" class="download-btn">Download PNG</a>
+        </div>
+    </div>
+
+    <!-- Card 3 -->
+    <div class="card">
+        <div class="card-header">
+            <div class="slot-tag">Slot 3 • Credit Cards</div>
+            <div class="headline">True Credit Card Cockpit</div>
+            <div class="subheadline">Statement balance vs unbilled spend, bill settlements & cycle dates.</div>
+        </div>
+        <div class="preview-frame">
+            <div class="phone-mockup">
+                <img src="screenshot_3_cards.png" alt="Folio Credit Cards Screen" loading="lazy">
+            </div>
+        </div>
+        <div class="card-footer">
+            <span class="specs">1080 &times; 2400 • 270 KB</span>
+            <a href="screenshot_3_cards.png" download="screenshot_3_cards.png" class="download-btn">Download PNG</a>
+        </div>
+    </div>
+
+    <!-- Card 4 -->
+    <div class="card">
+        <div class="card-header">
+            <div class="slot-tag">Slot 4 • Budgets & Stats</div>
+            <div class="headline">Visual Budgets & Trends</div>
+            <div class="subheadline">Real-time warning alerts, category breakdown & 6-month trajectory.</div>
+        </div>
+        <div class="preview-frame">
+            <div class="phone-mockup">
+                <img src="screenshot_4_budgets.png" alt="Folio Budgets Screen" loading="lazy">
+            </div>
+        </div>
+        <div class="card-footer">
+            <span class="specs">1080 &times; 2400 • 218 KB</span>
+            <a href="screenshot_4_budgets.png" download="screenshot_4_budgets.png" class="download-btn">Download PNG</a>
+        </div>
+    </div>
+
+    <!-- Card 5 -->
+    <div class="card">
+        <div class="card-header">
+            <div class="slot-tag">Slot 5 • Net Worth & Accounts</div>
+            <div class="headline">Unified Net Worth Ledger</div>
+            <div class="subheadline">Cash, banks, investments, linked cards & loans in one place.</div>
+        </div>
+        <div class="preview-frame">
+            <div class="phone-mockup">
+                <img src="screenshot_5_accounts.png" alt="Folio Accounts Screen" loading="lazy">
+            </div>
+        </div>
+        <div class="card-footer">
+            <span class="specs">1080 &times; 2400 • 249 KB</span>
+            <a href="screenshot_5_accounts.png" download="screenshot_5_accounts.png" class="download-btn">Download PNG</a>
+        </div>
+    </div>
+</div>
+
+<div class="instructions-box">
+    <h3>🚀 How to Use in Your AppMockUp Template</h3>
+    <ol>
+        <li>Open your <strong>AppMockUp</strong> project where you selected the Samsung Galaxy S21 Ultra template.</li>
+        <li>For each of the 5 device frames, click <strong>Upload / Change Screen</strong> and select the corresponding screenshot (e.g. <code>screenshot_1_daily.png</code> for Frame 1, <code>screenshot_2_calendar.png</code> for Frame 2, etc.).</li>
+        <li>Copy and paste the exact <strong>Headline</strong> and <strong>Subheadline</strong> shown above into the banner text fields of your AppMockUp template.</li>
+        <li>Click <strong>Export All</strong> in AppMockUp (choose PNG or WebP).</li>
+        <li>Go to <strong>Google Play Console &rarr; Store presence &rarr; Main store listing &rarr; Phone screenshots</strong>, upload the 5 framed mockups, and click <strong>Save</strong>.</li>
+    </ol>
+</div>
+
+</body>
+</html>
