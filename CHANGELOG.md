@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 
 
 ### Changed
+- **Architectural Refactoring (Phase 2: Repository Modularization & IO Isolation)**:
+  - Decomposed the 2,635-line monolithic `SettingsAndBackupRepositoryImpl.kt` down to a lightweight 188-line facade by isolating specialized engines into dedicated data layer components:
+    - `UserPreferencesDataSource.kt`: Centralizes DataStore preferences, currency serialization, and app-wide preference flows.
+    - `DatabaseBackupEngine.kt`: Handles full encrypted/unencrypted SQLite ZIP backup, restore, schema verification, and database reset logic.
+    - `AutoBackupManager.kt`: Manages automated daily/weekly rolling database snapshots and retention lifecycle pruning.
+    - `CsvExportImportEngine.kt`: Handles streaming CSV generation, column mapping, header detection, format parsing, and batch deduplication.
+    - `PdfStatementRepositoryHelper.kt`: Manages native Android PDF document generation, multi-currency statement layout, and canvas pagination.
+    - `StorageAccessUtils.kt`: Isolates Android SAF (Storage Access Framework) and MediaStore stream operations with robust stream lifecycle management.
+  - Preserved 100% of the public `SettingsAndBackupRepository` API contract with zero regressions.
 - **Architectural Refactoring (Phase 1: UI Sheet & Subtab Decomposition)**:
   - Decomposed the 5,200+ line `StatsAndBudgetsScreen.kt` monolith down to a clean 504-line coordinator scaffold by extracting 5 bottom sheets (`CategoryDrillDownBottomSheet`, `PayeeDrillDownBottomSheet`, `TagProjectDrillDownBottomSheet`, `BudgetEditorBottomSheet`, `SavingsGoalEditorBottomSheet`), 2 dialogs (`CustomDateRangePickerDialog`, `MonthlySavingsTargetDialog`), and 3 modular subtab views into dedicated packages (`ui/stats/sheets/`, `ui/stats/dialogs/`, `ui/stats/subtabs/`).
   - Modularized `CreditCardsCockpitSubTabContent.kt` from 1,924 lines down to 267 lines by isolating `CreditHeroArcGaugeCard`, `SmartSwipeAdvisorBanner`, `CreditCardsPortfolioSection`, `CreditSpendRatioAndTrendCards`, `CardMilestoneEditorBottomSheet`, `CreditPaydownSimulatorBottomSheet`, and `AllCardsFloatRankingDialog` into `ui/stats/components/`, `sheets/`, and `dialogs/`.
