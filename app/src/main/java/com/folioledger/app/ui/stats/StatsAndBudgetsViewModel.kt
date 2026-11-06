@@ -37,8 +37,14 @@ import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.CardMilestoneCalculator
+import com.folioledger.app.domain.util.CreditCardCockpitCalculator
+import com.folioledger.app.domain.util.MerchantAndTagAnalyticsCalculator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
+import com.folioledger.app.domain.util.NetWorthPredictiveCalculator
+import com.folioledger.app.domain.util.RecurringScheduleCalculator
+import com.folioledger.app.domain.util.SafeToSpendCalculator
 import com.folioledger.app.domain.util.SavingsGoalCalculator
+import com.folioledger.app.domain.util.StatsPeriodCalculator
 import com.folioledger.app.ui.accounts.CreditCardCycleCalculator
 import com.folioledger.app.ui.accounts.CreditCardCycleWindow
 import com.folioledger.app.ui.accounts.CreditCardSettlementSheetState
@@ -65,18 +71,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-enum class StatsPeriodGranularity(val title: String) {
-    WEEKLY("Weekly"),
-    MONTHLY("Monthly"),
-    ANNUALLY("Annually"),
-    CUSTOM("Custom")
-}
-
-enum class OverviewMode(val title: String) {
-    CATEGORIES("Categories"),
-    CASHFLOW("Cashflow"),
-    NET_WORTH("Net Worth")
-}
+typealias StatsPeriodGranularity = com.folioledger.app.domain.model.StatsPeriodGranularity
+typealias OverviewMode = com.folioledger.app.domain.model.OverviewMode
 
 enum class StatsSubTab(
     val title: String,
@@ -88,393 +84,30 @@ enum class StatsSubTab(
     TAGS_AND_NOTES("Merchants & Tags", R.string.stats_subtab_tags)
 }
 
-enum class TrendChartMode(val title: String) {
-    INCOME_VS_EXPENSE("Income vs. Expense"),
-    NET_WORTH("Net Worth"),
-    CREDIT_ANALYSIS("Credit Analysis")
-}
+typealias TrendChartMode = com.folioledger.app.domain.model.TrendChartMode
+typealias NetWorthChartMetricFilter = com.folioledger.app.domain.model.NetWorthChartMetricFilter
+typealias CreditUtilizationStatus = com.folioledger.app.domain.model.CreditUtilizationStatus
+typealias RunwayHealthTier = com.folioledger.app.domain.model.RunwayHealthTier
+typealias SafeToSpendStatus = com.folioledger.app.domain.model.SafeToSpendStatus
+typealias PayeeSortMode = com.folioledger.app.domain.model.PayeeSortMode
+typealias RankingMode = com.folioledger.app.domain.model.RankingMode
+typealias NetWorthGrowthTrendItem = com.folioledger.app.domain.model.NetWorthGrowthTrendItem
+typealias NetWorthVelocityState = com.folioledger.app.domain.model.NetWorthVelocityState
+typealias EmergencyRunwayState = com.folioledger.app.domain.model.EmergencyRunwayState
+typealias PayeeDrillDownState = com.folioledger.app.domain.model.PayeeDrillDownState
+typealias TagProjectDrillDownState = com.folioledger.app.domain.model.TagProjectDrillDownState
+typealias SafeToSpendState = com.folioledger.app.domain.model.SafeToSpendState
+typealias AccountShortfallAlert = com.folioledger.app.domain.model.AccountShortfallAlert
+typealias CreditCardHealthUiModel = com.folioledger.app.domain.model.CreditCardHealthUiModel
+typealias SmartSwipeRecommendation = com.folioledger.app.domain.model.SmartSwipeRecommendation
+typealias LiquidCashCoverageState = com.folioledger.app.domain.model.LiquidCashCoverageState
+typealias CreditCardTimelineItem = com.folioledger.app.domain.model.CreditCardTimelineItem
+typealias CreditCardAnalyticsItem = com.folioledger.app.domain.model.CreditCardAnalyticsItem
+typealias CreditSpendRatio = com.folioledger.app.domain.model.CreditSpendRatio
+typealias CreditCardCockpitUiState = com.folioledger.app.domain.model.CreditCardCockpitUiState
 
-enum class NetWorthChartMetricFilter(val title: String) {
-    ALL_IN_ONE("All-in-One"),
-    NET_WORTH("Net Worth"),
-    ASSETS("Assets"),
-    LIABILITIES("Liabilities")
-}
-
-enum class CreditUtilizationStatus {
-    SAFE,
-    MODERATE,
-    WARNING
-}
-
-@Immutable
-data class NetWorthGrowthTrendItem(
-    val epochDay: Long,
-    val monthYearText: String,
-    val assets: MinorMoney,
-    val liabilities: MinorMoney,
-    val netWorth: MinorMoney
-)
-
-enum class RunwayHealthTier {
-    RESILIENT,
-    ADEQUATE,
-    VULNERABLE
-}
-
-@Immutable
-data class NetWorthVelocityState(
-    val currentNetWorth: MinorMoney = MinorMoney.ZERO,
-    val previousMonthNetWorth: MinorMoney = MinorMoney.ZERO,
-    val absoluteChange: MinorMoney = MinorMoney.ZERO,
-    val percentageChange: Float = 0f,
-    val isPositive: Boolean = true
-)
-
-@Immutable
-data class EmergencyRunwayState(
-    val totalLiquidFunds: MinorMoney = MinorMoney.ZERO,
-    val totalInvestmentFunds: MinorMoney = MinorMoney.ZERO,
-    val averageMonthlyBurnMinor: Long = 0L,
-    val runwayMonths: Float = 0f,
-    val healthTier: RunwayHealthTier = RunwayHealthTier.ADEQUATE,
-    val targetMonths: Float = 6.0f,
-    val includesInvestments: Boolean = false
-)
-
-enum class PayeeSortMode(val title: String) {
-    BY_SPEND("By Spend"),
-    BY_FREQUENCY("By Visits")
-}
-
-@Immutable
-data class PayeeDrillDownState(
-    val payeeName: String,
-    val totalPeriodSpend: MinorMoney,
-    val totalAllTimeSpend: MinorMoney,
-    val periodVisitCount: Int,
-    val allTimeVisitCount: Int,
-    val averageTicketSize: MinorMoney,
-    val categoryDistribution: List<CategorySpendStat>,
-    val monthlyTrendBars: List<MonthlyTrendBar>,
-    val transactions: List<TransactionItem>
-)
-
-@Immutable
-data class TagProjectDrillDownState(
-    val tagName: String,
-    val isReimbursableProject: Boolean,
-    val totalSpent: MinorMoney,
-    val totalReimbursed: MinorMoney,
-    val netPendingOwed: MinorMoney,
-    val isFullySettled: Boolean,
-    val dateSpanDays: Int,
-    val minEpochDay: Long? = null,
-    val maxEpochDay: Long? = null,
-    val dailyAverageSpend: MinorMoney,
-    val categoryDistribution: List<CategorySpendStat>,
-    val monthlyTrendBars: List<MonthlyTrendBar>,
-    val transactions: List<TransactionItem>
-)
-
-enum class SafeToSpendStatus {
-    SAFE,
-    CARD_DEBT_EXCEEDS_CASH,
-    BILLS_EXCEED_CASH,
-    BILLS_EXCEED_REMAINING_CASH,
-    COMBINED_OBLIGATIONS_EXCEED_CASH,
-    ZERO_RESERVES
-}
-
-@Immutable
-data class SafeToSpendState(
-    val totalLiquidBankAndCash: MinorMoney = MinorMoney.ZERO,
-    val totalCreditCardDebt: MinorMoney = MinorMoney.ZERO,
-    val upcoming14DayCommitments: MinorMoney = MinorMoney.ZERO,
-    val trueSafeToSpend: MinorMoney = MinorMoney.ZERO,
-    val isPositive: Boolean = true,
-    val isCurrentPeriod: Boolean = true,
-    val status: SafeToSpendStatus = SafeToSpendStatus.SAFE
-)
-
-@Immutable
-data class AccountShortfallAlert(
-    val accountId: Long,
-    val accountName: String,
-    val currentBalance: MinorMoney,
-    val upcomingDebits: MinorMoney,
-    val shortfallAmount: MinorMoney,
-    val daysUntilShortfall: Long
-)
-
-@Immutable
-data class CreditCardHealthUiModel(
-    val account: AccountSummary,
-    val statementPayable: MinorMoney,
-    val unbilledSpend: MinorMoney,
-    val totalDebt: MinorMoney,
-    val creditLimit: MinorMoney,
-    val availableCredit: MinorMoney,
-    val utilizationPercent: Float,
-    val status: CreditUtilizationStatus
-)
-
-@Immutable
-data class SmartSwipeRecommendation(
-    val account: AccountSummary,
-    val floatDaysRemaining: Long,
-    val statementCloseDate: LocalDate,
-    val nextDueDate: LocalDate
-)
-
-@Immutable
-data class LiquidCashCoverageState(
-    val totalLiquidCash: MinorMoney,
-    val totalCcDebt: MinorMoney,
-    val netLiquidCash: MinorMoney,
-    val coverageRatio: Float,
-    val isCashBacked: Boolean
-)
-
-@Immutable
-data class CreditCardTimelineItem(
-    val account: AccountSummary,
-    val isBilled: Boolean,
-    val amountDue: MinorMoney,
-    val daysRemaining: Long,
-    val targetDate: LocalDate,
-    val isUrgent: Boolean,
-    val isOverdue: Boolean,
-    val floatDays: Long
-)
-
-@Immutable
-data class CreditCardAnalyticsItem(
-    val account: AccountSummary,
-    val currentDebt: MinorMoney,
-    val creditLimit: MinorMoney,
-    val availableCredit: MinorMoney,
-    val utilizationPercent: Float,
-    val status: CreditUtilizationStatus,
-    val billedAmount: MinorMoney,
-    val unbilledAmount: MinorMoney,
-    val ytdSpend: MinorMoney,
-    val topCategoryName: String?,
-    val topCategoryPercent: Float,
-    val floatDaysRemaining: Long,
-    val isBilled: Boolean = false,
-    val daysRemaining: Long = 0L,
-    val targetDate: LocalDate = LocalDate.now(),
-    val isUrgent: Boolean = false,
-    val isOverdue: Boolean = false,
-    val milestoneInfo: CardMilestoneInfo? = null
-)
-
-@Immutable
-data class CreditSpendRatio(
-    val creditSpend: MinorMoney,
-    val liquidSpend: MinorMoney,
-    val creditPercentage: Float,
-    val liquidPercentage: Float
-)
-
-@Immutable
-data class CreditCardCockpitUiState(
-    val totalCreditLimit: MinorMoney = MinorMoney.ZERO,
-    val totalCcDebt: MinorMoney = MinorMoney.ZERO,
-    val totalAvailableCredit: MinorMoney = MinorMoney.ZERO,
-    val aggregateUtilizationPercent: Float = 0f,
-    val aggregateStatus: CreditUtilizationStatus = CreditUtilizationStatus.SAFE,
-    val singleCardExceeding30: CreditCardAnalyticsItem? = null,
-    val liquidCoverage: LiquidCashCoverageState = LiquidCashCoverageState(
-        totalLiquidCash = MinorMoney.ZERO,
-        totalCcDebt = MinorMoney.ZERO,
-        netLiquidCash = MinorMoney.ZERO,
-        coverageRatio = 1f,
-        isCashBacked = true
-    ),
-    val smartSwipeRecommendation: SmartSwipeRecommendation? = null,
-    val timelineItems: List<CreditCardTimelineItem> = emptyList(),
-    val cardAnalyticsItems: List<CreditCardAnalyticsItem> = emptyList(),
-    val spendRatio: CreditSpendRatio = CreditSpendRatio(
-        creditSpend = MinorMoney.ZERO,
-        liquidSpend = MinorMoney.ZERO,
-        creditPercentage = 0f,
-        liquidPercentage = 0f
-    ),
-    val sixMonthCreditTrendBars: List<MonthlyTrendBar> = emptyList(),
-    val activeCards: List<AccountSummary> = emptyList()
-)
-
-enum class RankingMode(val title: String) {
-    TAGS("#Tags & Projects"),
-    PAYEES_AND_NOTES("Merchants & Payees")
-}
-
-@Immutable
-data class StatsPeriodRange(
-    val startEpochDay: Long,
-    val endEpochDay: Long,
-    val title: String,
-    val subtitle: String,
-    val anchorYear: Int
-)
-
-object StatsPeriodCalculator {
-
-    private val shortMonthYearFormatter = DateTimeFormatter.ofPattern("MMM yyyy", Locale.US)
-    private val shortDayMonthFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
-    private val fullDayMonthYearFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
-
-    private fun resolveClampedDate(yearMonth: YearMonth, desiredDay: Int): LocalDate {
-        val safeDay = desiredDay.coerceIn(1, 31)
-        val clampedDay = minOf(safeDay, yearMonth.lengthOfMonth())
-        return yearMonth.atDay(clampedDay)
-    }
-
-    fun computePeriodRange(
-        granularity: StatsPeriodGranularity,
-        referenceDateEpochDay: Long,
-        monthStartDay: Int,
-        weekStartDayIso: Int,
-        customStartEpochDay: Long,
-        customEndEpochDay: Long
-    ): StatsPeriodRange = when (granularity) {
-        StatsPeriodGranularity.WEEKLY -> computeWeeklyRange(
-            referenceDateEpochDay = referenceDateEpochDay,
-            weekStartDayIso = weekStartDayIso
-        )
-        StatsPeriodGranularity.MONTHLY -> computeFinancialMonthRange(
-            referenceDateEpochDay = referenceDateEpochDay,
-            monthStartDay = monthStartDay
-        )
-        StatsPeriodGranularity.ANNUALLY -> computeAnnualRange(
-            referenceDateEpochDay = referenceDateEpochDay,
-            monthStartDay = monthStartDay
-        )
-        StatsPeriodGranularity.CUSTOM -> computeCustomRange(
-            customStartEpochDay = customStartEpochDay,
-            customEndEpochDay = customEndEpochDay
-        )
-    }
-
-    fun computeWeeklyRange(
-        referenceDateEpochDay: Long,
-        weekStartDayIso: Int
-    ): StatsPeriodRange {
-        val refDate = LocalDate.ofEpochDay(referenceDateEpochDay)
-        val startDow = DayOfWeek.of(weekStartDayIso.coerceIn(1, 7))
-        val startDate = refDate.with(TemporalAdjusters.previousOrSame(startDow))
-        val endDate = startDate.plusDays(6)
-
-        val title = "${startDate.format(shortDayMonthFormatter)} – ${endDate.format(shortDayMonthFormatter)}"
-        val subtitle = "Weekly View • ${endDate.year}"
-
-        return StatsPeriodRange(
-            startEpochDay = startDate.toEpochDay(),
-            endEpochDay = endDate.toEpochDay(),
-            title = title,
-            subtitle = subtitle,
-            anchorYear = endDate.year
-        )
-    }
-
-    fun computeFinancialMonthRange(
-        referenceDateEpochDay: Long,
-        monthStartDay: Int
-    ): StatsPeriodRange {
-        val safeStartDay = monthStartDay.coerceIn(1, 31)
-        val (startEpoch, endEpoch) = AccountingRulesEngine.computeFinancialMonthRange(
-            referenceDateEpochDay = referenceDateEpochDay,
-            monthStartDay = safeStartDay
-        )
-        val startDate = LocalDate.ofEpochDay(startEpoch)
-        val endDate = LocalDate.ofEpochDay(endEpoch)
-
-        val title = startDate.format(shortMonthYearFormatter)
-        val subtitle = "${startDate.format(shortDayMonthFormatter)} – ${endDate.format(fullDayMonthYearFormatter)}"
-
-        return StatsPeriodRange(
-            startEpochDay = startEpoch,
-            endEpochDay = endEpoch,
-            title = title,
-            subtitle = subtitle,
-            anchorYear = startDate.year
-        )
-    }
-
-    fun computeAnnualRange(
-        referenceDateEpochDay: Long,
-        monthStartDay: Int
-    ): StatsPeriodRange {
-        val currentMonthRange = computeFinancialMonthRange(referenceDateEpochDay, monthStartDay)
-        val anchorYear = currentMonthRange.anchorYear
-        val safeStartDay = monthStartDay.coerceIn(1, 31)
-
-        val startDate = resolveClampedDate(YearMonth.of(anchorYear, 1), safeStartDay)
-        val nextYearStart = resolveClampedDate(YearMonth.of(anchorYear + 1, 1), safeStartDay)
-        val endDate = nextYearStart.minusDays(1)
-
-        val title = "Year $anchorYear"
-        val subtitle = "${startDate.format(fullDayMonthYearFormatter)} – ${endDate.format(fullDayMonthYearFormatter)}"
-
-        return StatsPeriodRange(
-            startEpochDay = startDate.toEpochDay(),
-            endEpochDay = endDate.toEpochDay(),
-            title = title,
-            subtitle = subtitle,
-            anchorYear = anchorYear
-        )
-    }
-
-    fun computeCustomRange(
-        customStartEpochDay: Long,
-        customEndEpochDay: Long
-    ): StatsPeriodRange {
-        val safeStart = minOf(customStartEpochDay, customEndEpochDay)
-        val safeEnd = maxOf(customStartEpochDay, customEndEpochDay)
-        val startDate = LocalDate.ofEpochDay(safeStart)
-        val endDate = LocalDate.ofEpochDay(safeEnd)
-        val daysCount = (safeEnd - safeStart) + 1L
-
-        val title = if (startDate.year == endDate.year) {
-            "${startDate.format(shortDayMonthFormatter)} – ${endDate.format(fullDayMonthYearFormatter)}"
-        } else {
-            "${startDate.format(fullDayMonthYearFormatter)} – ${endDate.format(fullDayMonthYearFormatter)}"
-        }
-        val subtitle = "Custom Period ($daysCount ${if (daysCount == 1L) "day" else "days"})"
-
-        return StatsPeriodRange(
-            startEpochDay = safeStart,
-            endEpochDay = safeEnd,
-            title = title,
-            subtitle = subtitle,
-            anchorYear = endDate.year
-        )
-    }
-
-    fun stepFinancialMonth(
-        currentReferenceEpochDay: Long,
-        monthStartDay: Int,
-        deltaMonths: Long
-    ): Long {
-        val currentRange = computeFinancialMonthRange(currentReferenceEpochDay, monthStartDay)
-        val startLocalDate = LocalDate.ofEpochDay(currentRange.startEpochDay)
-        val targetYearMonth = YearMonth.from(startLocalDate).plusMonths(deltaMonths)
-        return resolveClampedDate(targetYearMonth, monthStartDay).toEpochDay()
-    }
-
-    fun stepFinancialYear(
-        currentReferenceEpochDay: Long,
-        monthStartDay: Int,
-        deltaYears: Long
-    ): Long {
-        val currentRange = computeFinancialMonthRange(currentReferenceEpochDay, monthStartDay)
-        val startLocalDate = LocalDate.ofEpochDay(currentRange.startEpochDay)
-        val targetYearMonth = YearMonth.from(startLocalDate).plusYears(deltaYears)
-        return resolveClampedDate(targetYearMonth, monthStartDay).toEpochDay()
-    }
-}
+typealias StatsPeriodRange = com.folioledger.app.domain.model.StatsPeriodRange
+typealias StatsPeriodCalculator = com.folioledger.app.domain.util.StatsPeriodCalculator
 
 @Immutable
 data class BudgetEditorDialogState(
@@ -1642,117 +1275,16 @@ class StatsAndBudgetsViewModel(
         allTransactions: List<TransactionItem>,
         referenceDateEpochDay: Long,
         periodGranularity: StatsPeriodGranularity
-    ): List<NetWorthGrowthTrendItem> {
-        val refLocalDate = LocalDate.ofEpochDay(referenceDateEpochDay)
-        val shortMonthFormatter = DateTimeFormatter.ofPattern("MMM yyyy", Locale.US)
-        
-        val targetYearMonths: List<YearMonth> = if (periodGranularity == StatsPeriodGranularity.ANNUALLY) {
-            (1..12).map { month -> YearMonth.of(refLocalDate.year, month) }
-        } else {
-            (5 downTo 0).map { offset -> YearMonth.from(refLocalDate.minusMonths(offset.toLong())) }
-        }
-        val trendItems = ArrayList<NetWorthGrowthTrendItem>(targetYearMonths.size)
-
-        val activeAccounts = allAccounts.filter { !it.isArchived && it.includeInNetWorth && it.groupType != AccountGroup.DEBIT_CARD }
-
-        for (targetYearMonth in targetYearMonths) {
-            val endOfMonthEpochDay = targetYearMonth.atEndOfMonth().toEpochDay()
-
-            var monthAssetsMinor = 0L
-            var monthLiabilitiesMinor = 0L
-
-            for (acc in activeAccounts) {
-                var currentMinor = acc.currentBalance.amountMinor
-
-                val futureTxs = allTransactions.filter { tx ->
-                    tx.ledgerDateEpochDay > endOfMonthEpochDay &&
-                            (tx.accountId == acc.id || tx.transferToAccountId == acc.id)
-                }
-
-                for (tx in futureTxs) {
-                    val amount = Math.abs(tx.amount.amountMinor)
-                    val fee = Math.abs(tx.transferFee.amountMinor)
-
-                    if (tx.accountId == acc.id) {
-                        when (tx.type) {
-                            TransactionType.INCOME, TransactionType.REFUND -> currentMinor -= amount
-                            TransactionType.EXPENSE -> currentMinor += (amount + fee)
-                            TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> currentMinor += (amount + fee)
-                            TransactionType.OPENING_BALANCE,
-                            TransactionType.RECONCILIATION -> {
-                                val isOutflow = tx.transferToAccountId != null
-                                if (isOutflow) {
-                                    currentMinor += amount
-                                } else {
-                                    currentMinor -= amount
-                                }
-                            }
-                        }
-                    } else if (tx.transferToAccountId == acc.id) {
-                        currentMinor -= amount
-                    }
-                }
-
-                if (currentMinor >= 0L) {
-                    monthAssetsMinor += currentMinor
-                } else {
-                    monthLiabilitiesMinor += Math.abs(currentMinor)
-                }
-            }
-
-            val assets = MinorMoney(monthAssetsMinor)
-            val liabilities = MinorMoney(monthLiabilitiesMinor)
-            val netWorth = MinorMoney(monthAssetsMinor - monthLiabilitiesMinor)
-
-            trendItems.add(
-                NetWorthGrowthTrendItem(
-                    epochDay = endOfMonthEpochDay,
-                    monthYearText = targetYearMonth.format(shortMonthFormatter),
-                    assets = assets,
-                    liabilities = liabilities,
-                    netWorth = netWorth
-                )
-            )
-        }
-
-        return trendItems
-    }
+    ): List<NetWorthGrowthTrendItem> = NetWorthPredictiveCalculator.computeNetWorthTrend(
+        allAccounts = allAccounts,
+        allTransactions = allTransactions,
+        referenceDateEpochDay = referenceDateEpochDay,
+        periodGranularity = periodGranularity
+    )
 
     private fun computeCreditCardHealthList(
         allAccounts: List<AccountSummary>
-    ): List<CreditCardHealthUiModel> {
-        val creditCards = allAccounts.filter { !it.isArchived && it.groupType == AccountGroup.CREDIT_CARD }
-        return creditCards.map { card ->
-            val limit = card.creditLimit ?: MinorMoney.ZERO
-            val debt = card.currentBalance.abs()
-            val payable = card.creditCardStatementPayable ?: MinorMoney.ZERO
-            val unbilled = card.creditCardUnbilledAmount ?: MinorMoney.ZERO
-
-            val available = if (limit > debt) limit - debt else MinorMoney.ZERO
-            val utilization = if (limit.isPositive) {
-                (debt.amountMinor.toFloat() / limit.amountMinor.toFloat() * 100f).coerceIn(0f, 100f)
-            } else {
-                0f
-            }
-
-            val status = when {
-                utilization > 80f -> CreditUtilizationStatus.WARNING
-                utilization > 30f -> CreditUtilizationStatus.MODERATE
-                else -> CreditUtilizationStatus.SAFE
-            }
-
-            CreditCardHealthUiModel(
-                account = card,
-                statementPayable = payable,
-                unbilledSpend = unbilled,
-                totalDebt = debt,
-                creditLimit = limit,
-                availableCredit = available,
-                utilizationPercent = utilization,
-                status = status
-            )
-        }
-    }
+    ): List<CreditCardHealthUiModel> = CreditCardCockpitCalculator.computeCreditCardHealthList(allAccounts)
 
     private fun collectCategoryAndSubcategoryIds(
         tree: List<CategoryNode>,
@@ -1809,305 +1341,14 @@ class StatsAndBudgetsViewModel(
         trendBars: List<MonthlyTrendBar>,
         referenceDateEpochDay: Long,
         milestonesJson: String? = null
-    ): CreditCardCockpitUiState {
-        val today = LocalDate.ofEpochDay(referenceDateEpochDay)
-        val creditCards = allAccounts.filter { !it.isArchived && it.groupType == AccountGroup.CREDIT_CARD }
-        val creditCardIds = creditCards.map { it.id }.toSet()
-
-        if (creditCards.isEmpty()) {
-            return CreditCardCockpitUiState(activeCards = emptyList())
-        }
-
-        // 1. Total Limits & Balances
-        var totalLimitMinor = 0L
-        var totalDebtMinor = 0L
-        for (card in creditCards) {
-            totalLimitMinor += card.creditLimit?.amountMinor ?: 0L
-            totalDebtMinor += card.currentBalance.abs().amountMinor
-        }
-        val totalLimit = MinorMoney(totalLimitMinor)
-        val totalCcDebt = MinorMoney(totalDebtMinor)
-        val totalAvailable = if (totalLimit > totalCcDebt) totalLimit - totalCcDebt else MinorMoney.ZERO
-        val aggregateUtilization = if (totalLimit.isPositive) {
-            (totalCcDebt.amountMinor.toFloat() / totalLimit.amountMinor.toFloat() * 100f).coerceIn(0f, 100f)
-        } else {
-            0f
-        }
-        val aggregateStatus = when {
-            aggregateUtilization > 50f -> CreditUtilizationStatus.WARNING
-            aggregateUtilization > 30f -> CreditUtilizationStatus.MODERATE
-            else -> CreditUtilizationStatus.SAFE
-        }
-
-        // 2. Liquid Cash Coverage
-        val liquidAccounts = allAccounts.filter {
-            !it.isArchived && (
-                it.groupType == AccountGroup.BANK_ACCOUNT ||
-                it.groupType == AccountGroup.CASH ||
-                it.groupType == AccountGroup.SAVINGS ||
-                it.groupType == AccountGroup.PREPAID_WALLET
-            )
-        }
-        var totalLiquidMinor = 0L
-        for (acc in liquidAccounts) {
-            if (acc.currentBalance.isPositive) {
-                totalLiquidMinor += acc.currentBalance.amountMinor
-            }
-        }
-        val totalLiquidCash = MinorMoney(totalLiquidMinor)
-        val netLiquidMinor = totalLiquidMinor - totalDebtMinor
-        val netLiquidCash = MinorMoney(netLiquidMinor)
-        val coverageRatio = if (totalDebtMinor > 0L) {
-            totalLiquidMinor.toFloat() / totalDebtMinor.toFloat()
-        } else {
-            999f
-        }
-        val liquidCoverage = LiquidCashCoverageState(
-            totalLiquidCash = totalLiquidCash,
-            totalCcDebt = totalCcDebt,
-            netLiquidCash = netLiquidCash,
-            coverageRatio = coverageRatio,
-            isCashBacked = totalLiquidMinor >= totalDebtMinor
-        )
-
-        // 3. Cycle Window, Timeline & Smart Swipe
-        val currentYearStartEpoch = LocalDate.of(today.year, 1, 1).toEpochDay()
-        val timelineItems = mutableListOf<CreditCardTimelineItem>()
-        val cardAnalyticsItems = mutableListOf<CreditCardAnalyticsItem>()
-        var bestSmartSwipe: SmartSwipeRecommendation? = null
-        var maxFloatDays = -1L
-        var singleCardExceeding30: CreditCardAnalyticsItem? = null
-        val milestoneMap = CardMilestoneCalculator.parseMilestones(milestonesJson)
-
-        for (card in creditCards) {
-            val stmtDay = (card.settlementDayOfMonth ?: 1).coerceIn(1, 31)
-            val dueDay = (card.paymentDueDayOfMonth ?: 20).coerceIn(1, 31)
-            val cycle = CreditCardCycleCalculator.computeCycleWindow(
-                referenceDateEpochDay = referenceDateEpochDay,
-                settlementDayOfMonth = stmtDay,
-                paymentDueDayOfMonth = dueDay
-            )
-
-            val cardDebt = card.currentBalance.abs()
-            val cardLimit = card.creditLimit ?: MinorMoney.ZERO
-            val cardAvailable = if (cardLimit > cardDebt) cardLimit - cardDebt else MinorMoney.ZERO
-            val cardPayable = card.creditCardStatementPayable ?: MinorMoney.ZERO
-            val cardUnbilled = card.creditCardUnbilledAmount ?: MinorMoney.ZERO
-
-            val cardUtil = if (cardLimit.isPositive) {
-                (cardDebt.amountMinor.toFloat() / cardLimit.amountMinor.toFloat() * 100f).coerceIn(0f, 100f)
-            } else {
-                0f
-            }
-            val cardStatus = when {
-                cardUtil > 50f -> CreditUtilizationStatus.WARNING
-                cardUtil > 30f -> CreditUtilizationStatus.MODERATE
-                else -> CreditUtilizationStatus.SAFE
-            }
-
-            // Float days if swiped today (prioritize cards with available credit)
-            val floatDays = ChronoUnit.DAYS.between(today, cycle.activeCycleNextDueDate).coerceAtLeast(0L)
-            val hasAvailableHeadroom = cardAvailable.isPositive
-            if (floatDays > maxFloatDays && hasAvailableHeadroom) {
-                maxFloatDays = floatDays
-                bestSmartSwipe = SmartSwipeRecommendation(
-                    account = card,
-                    floatDaysRemaining = floatDays,
-                    statementCloseDate = cycle.activeCycleEnd,
-                    nextDueDate = cycle.activeCycleNextDueDate
-                )
-            }
-
-            // Timeline item
-            if (cardPayable.isPositive) {
-                val daysRem = ChronoUnit.DAYS.between(today, cycle.lastStatementDueDate)
-                timelineItems.add(
-                    CreditCardTimelineItem(
-                        account = card,
-                        isBilled = true,
-                        amountDue = cardPayable,
-                        daysRemaining = daysRem,
-                        targetDate = cycle.lastStatementDueDate,
-                        isUrgent = daysRem in 0..3,
-                        isOverdue = daysRem < 0,
-                        floatDays = floatDays
-                    )
-                )
-            } else {
-                val daysRem = ChronoUnit.DAYS.between(today, cycle.activeCycleEnd)
-                timelineItems.add(
-                    CreditCardTimelineItem(
-                        account = card,
-                        isBilled = false,
-                        amountDue = cardUnbilled,
-                        daysRemaining = daysRem,
-                        targetDate = cycle.activeCycleEnd,
-                        isUrgent = false,
-                        isOverdue = false,
-                        floatDays = floatDays
-                    )
-                )
-            }
-
-            // Milestone calculation (supports recurring 1-year auto-renewal)
-            val milestoneConfig = milestoneMap[card.id]
-            val milestoneInfo = if (milestoneConfig != null) {
-                val (cycleStart, _) = CardMilestoneCalculator.computeCurrentAnniversaryWindow(
-                    startDateEpochDay = milestoneConfig.cycleStartDateEpochDay,
-                    referenceDateEpochDay = today.toEpochDay(),
-                    isAutoRenewing = milestoneConfig.isAutoRenewing
-                )
-                val cycleStartEpoch = cycleStart.toEpochDay()
-                val todayEpoch = today.toEpochDay()
-
-                var qualifyingMinor = 0L
-                for (tx in allTxs) {
-                    if (tx.accountId == card.id && tx.type == TransactionType.EXPENSE && tx.ledgerDateEpochDay in cycleStartEpoch..todayEpoch) {
-                        qualifyingMinor += Math.abs(tx.amount.amountMinor)
-                    }
-                }
-                CardMilestoneCalculator.evaluateMilestone(
-                    config = milestoneConfig,
-                    qualifyingSpendMinor = qualifyingMinor,
-                    referenceDate = today
-                )
-            } else null
-
-            // Card YTD Spend & Top Category
-            var ytdMinor = 0L
-            val catSpendMap = mutableMapOf<String, Long>()
-            for (tx in allTxs) {
-                if (tx.accountId == card.id && tx.type == TransactionType.EXPENSE && tx.ledgerDateEpochDay >= currentYearStartEpoch) {
-                    val amt = Math.abs(tx.amount.amountMinor)
-                    ytdMinor += amt
-                    val catName = tx.categoryName ?: "General"
-                    catSpendMap[catName] = (catSpendMap[catName] ?: 0L) + amt
-                }
-            }
-            val ytdSpend = MinorMoney(ytdMinor)
-            val topCatEntry = catSpendMap.maxByOrNull { it.value }
-            val topCategoryName = topCatEntry?.key
-            val topCategoryPercent = if (ytdMinor > 0L && topCatEntry != null) {
-                (topCatEntry.value.toFloat() / ytdMinor.toFloat() * 100f).coerceIn(0f, 100f)
-            } else {
-                0f
-            }
-
-            val isBilled = cardPayable.isPositive
-            val targetDueDateOrCut = if (isBilled) cycle.lastStatementDueDate else cycle.activeCycleEnd
-            val daysRem = ChronoUnit.DAYS.between(today, targetDueDateOrCut)
-            val isOverdue = isBilled && daysRem < 0
-            val isUrgent = isBilled && daysRem in 0..3
-
-            val analyticsItem = CreditCardAnalyticsItem(
-                account = card,
-                currentDebt = cardDebt,
-                creditLimit = cardLimit,
-                availableCredit = cardAvailable,
-                utilizationPercent = cardUtil,
-                status = cardStatus,
-                billedAmount = cardPayable,
-                unbilledAmount = cardUnbilled,
-                ytdSpend = ytdSpend,
-                topCategoryName = topCategoryName,
-                topCategoryPercent = topCategoryPercent,
-                floatDaysRemaining = floatDays,
-                isBilled = isBilled,
-                daysRemaining = daysRem,
-                targetDate = targetDueDateOrCut,
-                isUrgent = isUrgent,
-                isOverdue = isOverdue,
-                milestoneInfo = milestoneInfo
-            )
-            cardAnalyticsItems.add(analyticsItem)
-
-            if (aggregateUtilization <= 30f && cardUtil > 30f && (singleCardExceeding30 == null || cardUtil > singleCardExceeding30.utilizationPercent)) {
-                singleCardExceeding30 = analyticsItem
-            }
-        }
-
-        // Fallback for smart swipe if all cards were maxed out
-        if (bestSmartSwipe == null && cardAnalyticsItems.isNotEmpty()) {
-            val bestItem = cardAnalyticsItems.maxByOrNull { it.floatDaysRemaining }
-            if (bestItem != null) {
-                val stmtDay = (bestItem.account.settlementDayOfMonth ?: 1).coerceIn(1, 31)
-                val dueDay = (bestItem.account.paymentDueDayOfMonth ?: 20).coerceIn(1, 31)
-                val cycle = CreditCardCycleCalculator.computeCycleWindow(referenceDateEpochDay, stmtDay, dueDay)
-                bestSmartSwipe = SmartSwipeRecommendation(
-                    account = bestItem.account,
-                    floatDaysRemaining = bestItem.floatDaysRemaining,
-                    statementCloseDate = cycle.activeCycleEnd,
-                    nextDueDate = cycle.activeCycleNextDueDate
-                )
-            }
-        }
-
-        // Sort timeline: billed first (sorted by daysRemaining ascending), then unbilled (sorted by daysRemaining ascending)
-        val sortedTimeline = timelineItems.sortedWith(
-            compareBy<CreditCardTimelineItem> { !it.isBilled }
-                .thenBy { it.daysRemaining }
-        )
-
-        // 4. Spend Mode Ratio (Pure EXPENSE only, excluding transfers and cc settlements)
-        var creditSpendMinor = 0L
-        var liquidSpendMinor = 0L
-        for (tx in periodTransactions) {
-            if (tx.type == TransactionType.EXPENSE) {
-                val amt = Math.abs(tx.amount.amountMinor)
-                if (tx.accountId in creditCardIds) {
-                    creditSpendMinor += amt
-                } else {
-                    liquidSpendMinor += amt
-                }
-            }
-        }
-        val totalExpenseMinor = creditSpendMinor + liquidSpendMinor
-        val creditPct = if (totalExpenseMinor > 0L) (creditSpendMinor.toFloat() / totalExpenseMinor.toFloat() * 100f) else 0f
-        val liquidPct = if (totalExpenseMinor > 0L) (liquidSpendMinor.toFloat() / totalExpenseMinor.toFloat() * 100f) else 0f
-        val spendRatio = CreditSpendRatio(
-            creditSpend = MinorMoney(creditSpendMinor),
-            liquidSpend = MinorMoney(liquidSpendMinor),
-            creditPercentage = creditPct,
-            liquidPercentage = liquidPct
-        )
-
-        // 5. 6-Month Historical Credit Spend Trend
-        val creditTrendBars = trendBars.map { bar ->
-            var barSpendMinor = 0L
-            for (tx in allTxs) {
-                if (tx.ledgerDateEpochDay in bar.startEpochDay..bar.endEpochDay &&
-                    tx.type == TransactionType.EXPENSE &&
-                    tx.accountId in creditCardIds
-                ) {
-                    barSpendMinor += Math.abs(tx.amount.amountMinor)
-                }
-            }
-            MonthlyTrendBar(
-                periodLabel = bar.periodLabel,
-                startEpochDay = bar.startEpochDay,
-                endEpochDay = bar.endEpochDay,
-                totalIncome = MinorMoney.ZERO,
-                totalExpense = MinorMoney(barSpendMinor),
-                netSavings = MinorMoney(-barSpendMinor)
-            )
-        }
-
-        return CreditCardCockpitUiState(
-            totalCreditLimit = totalLimit,
-            totalCcDebt = totalCcDebt,
-            totalAvailableCredit = totalAvailable,
-            aggregateUtilizationPercent = aggregateUtilization,
-            aggregateStatus = aggregateStatus,
-            singleCardExceeding30 = singleCardExceeding30,
-            liquidCoverage = liquidCoverage,
-            smartSwipeRecommendation = bestSmartSwipe,
-            timelineItems = sortedTimeline,
-            cardAnalyticsItems = cardAnalyticsItems,
-            spendRatio = spendRatio,
-            sixMonthCreditTrendBars = creditTrendBars,
-            activeCards = creditCards
-        )
-    }
+    ): CreditCardCockpitUiState = CreditCardCockpitCalculator.computeCreditCockpitState(
+        allAccounts = allAccounts,
+        allTxs = allTxs,
+        periodTransactions = periodTransactions,
+        trendBars = trendBars,
+        referenceDateEpochDay = referenceDateEpochDay,
+        milestonesJson = milestonesJson
+    )
 
     fun openCreditCardSettlementSheet(creditCard: AccountSummary) {
         val currentState = controlState.value
@@ -2407,29 +1648,7 @@ object StatsPredictiveCalculations {
 
     fun computeNetWorthVelocity(
         netWorthTrend: List<NetWorthGrowthTrendItem>
-    ): NetWorthVelocityState {
-        if (netWorthTrend.isEmpty()) {
-            return NetWorthVelocityState()
-        }
-        val currentItem = netWorthTrend.last()
-        val currentNW = currentItem.netWorth
-        val previousItem = if (netWorthTrend.size >= 2) netWorthTrend[netWorthTrend.size - 2] else currentItem
-        val previousNW = previousItem.netWorth
-        val absChange = currentNW - previousNW
-        val isPositive = absChange.amountMinor >= 0L
-        val pct = if (previousNW.amountMinor != 0L) {
-            (absChange.amountMinor.toFloat() / Math.abs(previousNW.amountMinor).toFloat()) * 100f
-        } else {
-            if (absChange.amountMinor > 0L) 100f else if (absChange.amountMinor < 0L) -100f else 0f
-        }
-        return NetWorthVelocityState(
-            currentNetWorth = currentNW,
-            previousMonthNetWorth = previousNW,
-            absoluteChange = absChange,
-            percentageChange = pct,
-            isPositive = isPositive
-        )
-    }
+    ): NetWorthVelocityState = NetWorthPredictiveCalculator.computeNetWorthVelocity(netWorthTrend)
 
     fun computeEmergencyRunway(
         allAccounts: List<AccountSummary>,
@@ -2437,87 +1656,13 @@ object StatsPredictiveCalculations {
         primaryCurrencyCode: String,
         secondaryCurrencies: List<SecondaryCurrency>,
         includesInvestments: Boolean
-    ): EmergencyRunwayState {
-        val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
-        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
-
-        var totalLiquidMinor = 0L
-        var totalInvestmentsMinor = 0L
-
-        for (acc in allAccounts) {
-            if (acc.isArchived || acc.currentBalance.amountMinor <= 0L) continue
-
-            val isLiquid = acc.groupType == AccountGroup.BANK_ACCOUNT ||
-                    acc.groupType == AccountGroup.CASH ||
-                    acc.groupType == AccountGroup.SAVINGS ||
-                    acc.groupType == AccountGroup.PREPAID_WALLET
-            val isInvestment = acc.groupType == AccountGroup.INVESTMENT
-
-            if (!isLiquid && !isInvestment) continue
-
-            val rawBalanceMinor = acc.currentBalance.amountMinor
-            val accountCurrency = acc.currencyCode.trim().uppercase()
-            val convertedBalanceMinor = if (accountCurrency == primarySpec.code.uppercase()) {
-                rawBalanceMinor
-            } else {
-                val secondary = secondaryMap[accountCurrency]
-                if (secondary != null && secondary.exchangeRateToPrimary > 0.0) {
-                    val accSpec = SupportedCurrencies.fromCode(accountCurrency)
-                    MoneyFormatterAndCalculator.convertMinorMoney(
-                        sourceMinor = rawBalanceMinor,
-                        sourceFractionDigits = accSpec.fractionDigits,
-                        targetFractionDigits = primarySpec.fractionDigits,
-                        rateToTarget = secondary.exchangeRateToPrimary
-                    )
-                } else {
-                    rawBalanceMinor
-                }
-            }
-
-            if (isLiquid) {
-                totalLiquidMinor = Math.addExact(totalLiquidMinor, convertedBalanceMinor)
-            } else if (isInvestment) {
-                totalInvestmentsMinor = Math.addExact(totalInvestmentsMinor, convertedBalanceMinor)
-            }
-        }
-
-        val positiveExpenseMonths = trendBars.map { it.totalExpense.amountMinor }.filter { it > 0L }
-        val averageBurnMinor = if (positiveExpenseMonths.isNotEmpty()) {
-            positiveExpenseMonths.average().toLong()
-        } else if (trendBars.isNotEmpty()) {
-            trendBars.map { it.totalExpense.amountMinor }.average().toLong()
-        } else {
-            0L
-        }
-
-        val applicableFundsMinor = if (includesInvestments) {
-            Math.addExact(totalLiquidMinor, totalInvestmentsMinor)
-        } else {
-            totalLiquidMinor
-        }
-
-        val runwayMonths = if (averageBurnMinor > 0L) {
-            (applicableFundsMinor.toFloat() / averageBurnMinor.toFloat()).coerceIn(0f, 99.9f)
-        } else {
-            if (applicableFundsMinor > 0L) 99.9f else 0f
-        }
-
-        val healthTier = when {
-            runwayMonths >= 6.0f -> RunwayHealthTier.RESILIENT
-            runwayMonths >= 3.0f -> RunwayHealthTier.ADEQUATE
-            else -> RunwayHealthTier.VULNERABLE
-        }
-
-        return EmergencyRunwayState(
-            totalLiquidFunds = MinorMoney(totalLiquidMinor),
-            totalInvestmentFunds = MinorMoney(totalInvestmentsMinor),
-            averageMonthlyBurnMinor = averageBurnMinor,
-            runwayMonths = runwayMonths,
-            healthTier = healthTier,
-            targetMonths = 6.0f,
-            includesInvestments = includesInvestments
-        )
-    }
+    ): EmergencyRunwayState = NetWorthPredictiveCalculator.computeEmergencyRunway(
+        allAccounts = allAccounts,
+        trendBars = trendBars,
+        primaryCurrencyCode = primaryCurrencyCode,
+        secondaryCurrencies = secondaryCurrencies,
+        includesInvestments = includesInvestments
+    )
 
     fun computePayeeDrillDownState(
         payeeName: String,
@@ -2527,121 +1672,15 @@ object StatsPredictiveCalculations {
         endEpochDay: Long,
         isAllTime: Boolean,
         primaryCurrencyCode: String
-    ): PayeeDrillDownState {
-        val trimmedTarget = payeeName.trim().lowercase()
-
-        val allMatchingTxs = allTxs.filter { tx ->
-            val raw = tx.payeeOrDescription.trim().ifEmpty { tx.note.trim() }.lowercase()
-            raw == trimmedTarget && (tx.type == TransactionType.EXPENSE || tx.type == TransactionType.REFUND)
-        }
-
-        val periodMatchingTxs = if (isAllTime) {
-            allMatchingTxs
-        } else {
-            allMatchingTxs.filter { it.ledgerDateEpochDay in startEpochDay..endEpochDay }
-        }
-
-        var totalPeriodMinor = 0L
-        var periodVisitCount = 0
-        for (tx in periodMatchingTxs) {
-            if (tx.type == TransactionType.EXPENSE) {
-                totalPeriodMinor += Math.abs(tx.amount.amountMinor) + Math.abs(tx.transferFee.amountMinor)
-                periodVisitCount++
-            } else if (tx.type == TransactionType.REFUND) {
-                totalPeriodMinor -= Math.abs(tx.amount.amountMinor)
-            }
-        }
-        totalPeriodMinor = Math.max(0L, totalPeriodMinor)
-
-        var totalAllTimeMinor = 0L
-        var allTimeVisitCount = 0
-        for (tx in allMatchingTxs) {
-            if (tx.type == TransactionType.EXPENSE) {
-                totalAllTimeMinor += Math.abs(tx.amount.amountMinor) + Math.abs(tx.transferFee.amountMinor)
-                allTimeVisitCount++
-            } else if (tx.type == TransactionType.REFUND) {
-                totalAllTimeMinor -= Math.abs(tx.amount.amountMinor)
-            }
-        }
-        totalAllTimeMinor = Math.max(0L, totalAllTimeMinor)
-
-        val averageTicketMinor = if (periodVisitCount > 0) {
-            totalPeriodMinor / periodVisitCount
-        } else if (allTimeVisitCount > 0) {
-            totalAllTimeMinor / allTimeVisitCount
-        } else {
-            0L
-        }
-
-        // Category distribution for this merchant
-        val catAmountMap = mutableMapOf<String, Long>()
-        val catCountMap = mutableMapOf<String, Int>()
-        val catColorMap = mutableMapOf<String, String>()
-        val catIconMap = mutableMapOf<String, String>()
-
-        val activeForCategories = if (periodMatchingTxs.isNotEmpty()) periodMatchingTxs else allMatchingTxs
-        for (tx in activeForCategories) {
-            val catName = tx.categoryName ?: "General"
-            val amt = Math.abs(tx.amount.amountMinor)
-            catAmountMap[catName] = (catAmountMap[catName] ?: 0L) + amt
-            catCountMap[catName] = (catCountMap[catName] ?: 0) + 1
-            if (tx.categoryColorHex != null) catColorMap[catName] = tx.categoryColorHex
-            if (tx.categoryIconName != null) catIconMap[catName] = tx.categoryIconName
-        }
-
-        val grandCategoryMinor = catAmountMap.values.sum().coerceAtLeast(1L)
-        val catDistribution = catAmountMap.map { (catName, minorSum) ->
-            CategorySpendStat(
-                categoryId = 0L,
-                categoryName = catName,
-                colorHex = catColorMap[catName] ?: "#8B5CF6",
-                iconName = catIconMap[catName] ?: "category",
-                netAmount = MinorMoney(minorSum),
-                percentageOfTotal = (minorSum.toFloat() / grandCategoryMinor.toFloat() * 100f).coerceIn(0f, 100f),
-                transactionCount = catCountMap[catName] ?: 1
-            )
-        }.sortedByDescending { it.netAmount }
-
-        // 6-month monthly spend bars for this merchant
-        val payeeMonthlyBars = trendBars.map { bar ->
-            var barExpenseMinor = 0L
-            for (tx in allMatchingTxs) {
-                if (tx.ledgerDateEpochDay in bar.startEpochDay..bar.endEpochDay) {
-                    if (tx.type == TransactionType.EXPENSE) {
-                        barExpenseMinor += Math.abs(tx.amount.amountMinor) + Math.abs(tx.transferFee.amountMinor)
-                    } else if (tx.type == TransactionType.REFUND) {
-                        barExpenseMinor -= Math.abs(tx.amount.amountMinor)
-                    }
-                }
-            }
-            val safeMinor = Math.max(0L, barExpenseMinor)
-            MonthlyTrendBar(
-                periodLabel = bar.periodLabel,
-                startEpochDay = bar.startEpochDay,
-                endEpochDay = bar.endEpochDay,
-                totalIncome = MinorMoney.ZERO,
-                totalExpense = MinorMoney(safeMinor),
-                netSavings = MinorMoney(-safeMinor)
-            )
-        }
-
-        val sortedTransactions = activeForCategories.sortedWith(
-            compareByDescending<TransactionItem> { it.ledgerDateEpochDay }
-                .thenByDescending { it.timestampEpochMillis }
-        )
-
-        return PayeeDrillDownState(
-            payeeName = payeeName,
-            totalPeriodSpend = MinorMoney(totalPeriodMinor),
-            totalAllTimeSpend = MinorMoney(totalAllTimeMinor),
-            periodVisitCount = periodVisitCount,
-            allTimeVisitCount = allTimeVisitCount,
-            averageTicketSize = MinorMoney(averageTicketMinor),
-            categoryDistribution = catDistribution,
-            monthlyTrendBars = payeeMonthlyBars,
-            transactions = sortedTransactions
-        )
-    }
+    ): PayeeDrillDownState = MerchantAndTagAnalyticsCalculator.computePayeeDrillDownState(
+        payeeName = payeeName,
+        allTxs = allTxs,
+        trendBars = trendBars,
+        startEpochDay = startEpochDay,
+        endEpochDay = endEpochDay,
+        isAllTime = isAllTime,
+        primaryCurrencyCode = primaryCurrencyCode
+    )
 
     fun computeTagProjectDrillDownState(
         tagName: String,
@@ -2652,193 +1691,28 @@ object StatsPredictiveCalculations {
         isAllTime: Boolean,
         primaryCurrencyCode: String,
         secondaryCurrencies: List<SecondaryCurrency> = emptyList()
-    ): TagProjectDrillDownState {
-        val cleanTargetTag = tagName.removePrefix("#").trim().lowercase()
-
-        val allMatchingTxs = allTxs.filter { tx ->
-            tx.tags.any { it.removePrefix("#").trim().lowercase() == cleanTargetTag }
-        }
-
-        val periodMatchingTxs = if (isAllTime) {
-            allMatchingTxs
-        } else {
-            val inPeriod = allMatchingTxs.filter { it.ledgerDateEpochDay in startEpochDay..endEpochDay }
-            if (inPeriod.isNotEmpty()) inPeriod else allMatchingTxs
-        }
-
-        val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
-        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
-
-        fun convertToPrimary(rawAmountMinor: Long, currencyCode: String): Long {
-            val accCurr = currencyCode.trim().uppercase()
-            if (accCurr == primarySpec.code.uppercase()) return rawAmountMinor
-            val secondary = secondaryMap[accCurr]
-            return if (secondary != null && secondary.exchangeRateToPrimary > 0.0) {
-                val accSpec = SupportedCurrencies.fromCode(accCurr)
-                MoneyFormatterAndCalculator.convertMinorMoney(
-                    sourceMinor = rawAmountMinor,
-                    sourceFractionDigits = accSpec.fractionDigits,
-                    targetFractionDigits = primarySpec.fractionDigits,
-                    rateToTarget = secondary.exchangeRateToPrimary
-                )
-            } else {
-                rawAmountMinor
-            }
-        }
-
-        val isReimbursableKeyword = cleanTargetTag.contains("reimburs") ||
-                cleanTargetTag.contains("claim") ||
-                cleanTargetTag.contains("split") ||
-                cleanTargetTag.contains("office") ||
-                cleanTargetTag.contains("work") ||
-                cleanTargetTag.contains("bill") ||
-                cleanTargetTag.contains("owed") ||
-                cleanTargetTag.contains("due")
-
-        val hasInflowTransactions = allMatchingTxs.any {
-            it.type == TransactionType.REFUND || it.type == TransactionType.INCOME
-        }
-
-        val isReimbursableProject = isReimbursableKeyword || hasInflowTransactions
-
-        var totalSpentMinor = 0L
-        var totalReimbursedMinor = 0L
-        var minEpochDay: Long? = null
-        var maxEpochDay: Long? = null
-
-        val activeTxs = if (periodMatchingTxs.isNotEmpty()) periodMatchingTxs else allMatchingTxs
-
-        for (tx in activeTxs) {
-            val convertedAmount = convertToPrimary(Math.abs(tx.amount.amountMinor), tx.currencyCode)
-            val convertedFee = convertToPrimary(Math.abs(tx.transferFee.amountMinor), tx.currencyCode)
-
-            when (tx.type) {
-                TransactionType.EXPENSE -> {
-                    totalSpentMinor += convertedAmount + convertedFee
-                    val d = tx.ledgerDateEpochDay
-                    minEpochDay = if (minEpochDay == null) d else minOf(minEpochDay, d)
-                    maxEpochDay = if (maxEpochDay == null) d else maxOf(maxEpochDay, d)
-                }
-                TransactionType.REFUND, TransactionType.INCOME -> {
-                    totalReimbursedMinor += convertedAmount
-                    val d = tx.ledgerDateEpochDay
-                    minEpochDay = if (minEpochDay == null) d else minOf(minEpochDay, d)
-                    maxEpochDay = if (maxEpochDay == null) d else maxOf(maxEpochDay, d)
-                }
-                TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> {
-                    if (convertedFee > 0L) {
-                        totalSpentMinor += convertedFee
-                    }
-                }
-                TransactionType.OPENING_BALANCE, TransactionType.RECONCILIATION -> {}
-            }
-        }
-
-        val netPendingOwedMinor = Math.max(0L, totalSpentMinor - totalReimbursedMinor)
-        val isFullySettled = totalSpentMinor > 0L && netPendingOwedMinor == 0L
-
-        val dateSpanDays = if (minEpochDay != null && maxEpochDay != null) {
-            (maxEpochDay - minEpochDay + 1).toInt().coerceAtLeast(1)
-        } else {
-            1
-        }
-
-        val dailyAverageSpendMinor = if (dateSpanDays > 0) {
-            totalSpentMinor / dateSpanDays
-        } else {
-            totalSpentMinor
-        }
-
-        // Category distribution for this project
-        val catAmountMap = mutableMapOf<String, Long>()
-        val catCountMap = mutableMapOf<String, Int>()
-        val catColorMap = mutableMapOf<String, String>()
-        val catIconMap = mutableMapOf<String, String>()
-
-        for (tx in activeTxs) {
-            if (tx.type == TransactionType.EXPENSE) {
-                val catName = tx.categoryName ?: "General"
-                val amt = convertToPrimary(Math.abs(tx.amount.amountMinor), tx.currencyCode)
-                catAmountMap[catName] = (catAmountMap[catName] ?: 0L) + amt
-                catCountMap[catName] = (catCountMap[catName] ?: 0) + 1
-                if (tx.categoryColorHex != null) catColorMap[catName] = tx.categoryColorHex
-                if (tx.categoryIconName != null) catIconMap[catName] = tx.categoryIconName
-            }
-        }
-
-        val grandCategoryMinor = catAmountMap.values.sum().coerceAtLeast(1L)
-        val catDistribution = catAmountMap.map { (catName, minorSum) ->
-            CategorySpendStat(
-                categoryId = 0L,
-                categoryName = catName,
-                colorHex = catColorMap[catName] ?: "#8B5CF6",
-                iconName = catIconMap[catName] ?: "category",
-                netAmount = MinorMoney(minorSum),
-                percentageOfTotal = (minorSum.toFloat() / grandCategoryMinor.toFloat() * 100f).coerceIn(0f, 100f),
-                transactionCount = catCountMap[catName] ?: 1
-            )
-        }.sortedByDescending { it.netAmount }
-
-        // 6-month monthly spend bars for this tag
-        val tagMonthlyBars = trendBars.map { bar ->
-            var barExpenseMinor = 0L
-            for (tx in allMatchingTxs) {
-                if (tx.ledgerDateEpochDay in bar.startEpochDay..bar.endEpochDay) {
-                    val amt = convertToPrimary(Math.abs(tx.amount.amountMinor), tx.currencyCode)
-                    if (tx.type == TransactionType.EXPENSE) {
-                        val fee = convertToPrimary(Math.abs(tx.transferFee.amountMinor), tx.currencyCode)
-                        barExpenseMinor += amt + fee
-                    } else if (tx.type == TransactionType.REFUND) {
-                        barExpenseMinor -= amt
-                    }
-                }
-            }
-            val safeMinor = Math.max(0L, barExpenseMinor)
-            MonthlyTrendBar(
-                periodLabel = bar.periodLabel,
-                startEpochDay = bar.startEpochDay,
-                endEpochDay = bar.endEpochDay,
-                totalIncome = MinorMoney.ZERO,
-                totalExpense = MinorMoney(safeMinor),
-                netSavings = MinorMoney(-safeMinor)
-            )
-        }
-
-        val sortedTransactions = activeTxs.sortedWith(
-            compareByDescending<TransactionItem> { it.ledgerDateEpochDay }
-                .thenByDescending { it.timestampEpochMillis }
-        )
-
-        return TagProjectDrillDownState(
-            tagName = tagName,
-            isReimbursableProject = isReimbursableProject,
-            totalSpent = MinorMoney(totalSpentMinor),
-            totalReimbursed = MinorMoney(totalReimbursedMinor),
-            netPendingOwed = MinorMoney(netPendingOwedMinor),
-            isFullySettled = isFullySettled,
-            dateSpanDays = dateSpanDays,
-            minEpochDay = minEpochDay,
-            maxEpochDay = maxEpochDay,
-            dailyAverageSpend = MinorMoney(dailyAverageSpendMinor),
-            categoryDistribution = catDistribution,
-            monthlyTrendBars = tagMonthlyBars,
-            transactions = sortedTransactions
-        )
-    }
+    ): TagProjectDrillDownState = MerchantAndTagAnalyticsCalculator.computeTagProjectDrillDownState(
+        tagName = tagName,
+        allTxs = allTxs,
+        trendBars = trendBars,
+        startEpochDay = startEpochDay,
+        endEpochDay = endEpochDay,
+        isAllTime = isAllTime,
+        primaryCurrencyCode = primaryCurrencyCode,
+        secondaryCurrencies = secondaryCurrencies
+    )
 
     fun projectRecurringOccurrencesInHorizon(
         startDay: Long,
         frequency: RepeatFrequency,
         todayEpochDay: Long,
         horizonEpochDay: Long
-    ): List<Long> {
-        return com.folioledger.app.domain.util.RecurringScheduleCalculator.projectOccurrencesInHorizon(
-            startDay = startDay,
-            frequency = frequency,
-            todayEpochDay = todayEpochDay,
-            horizonEpochDay = horizonEpochDay
-        )
-    }
+    ): List<Long> = SafeToSpendCalculator.projectRecurringOccurrencesInHorizon(
+        startDay = startDay,
+        frequency = frequency,
+        todayEpochDay = todayEpochDay,
+        horizonEpochDay = horizonEpochDay
+    )
 
     fun computeSafeToSpend(
         allAccounts: List<AccountSummary>,
@@ -2849,107 +1723,16 @@ object StatsPredictiveCalculations {
         periodEndEpochDay: Long,
         primaryCurrencyCode: String,
         secondaryCurrencies: List<SecondaryCurrency> = emptyList()
-    ): SafeToSpendState {
-        val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
-        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
-
-        fun convertToPrimary(rawAmountMinor: Long, currencyCode: String): Long {
-            val accCurr = currencyCode.trim().uppercase()
-            if (accCurr == primarySpec.code.uppercase()) return rawAmountMinor
-            val secondary = secondaryMap[accCurr]
-            return if (secondary != null && secondary.exchangeRateToPrimary > 0.0) {
-                val accSpec = SupportedCurrencies.fromCode(accCurr)
-                MoneyFormatterAndCalculator.convertMinorMoney(
-                    sourceMinor = rawAmountMinor,
-                    sourceFractionDigits = accSpec.fractionDigits,
-                    targetFractionDigits = primarySpec.fractionDigits,
-                    rateToTarget = secondary.exchangeRateToPrimary
-                )
-            } else {
-                rawAmountMinor
-            }
-        }
-
-        // 1. Total Liquid Cash & Bank Balances
-        var totalLiquidMinor = 0L
-        for (acc in allAccounts) {
-            if (acc.isArchived || acc.currentBalance.amountMinor <= 0L) continue
-            val isLiquid = acc.groupType == AccountGroup.BANK_ACCOUNT ||
-                    acc.groupType == AccountGroup.CASH ||
-                    acc.groupType == AccountGroup.SAVINGS ||
-                    acc.groupType == AccountGroup.PREPAID_WALLET
-            if (isLiquid) {
-                totalLiquidMinor += convertToPrimary(acc.currentBalance.amountMinor, acc.currencyCode)
-            }
-        }
-
-        // 2. Total Credit Card Debt (Billed + Unbilled)
-        var totalCcDebtMinor = 0L
-        for (acc in allAccounts) {
-            if (acc.isArchived || acc.groupType != AccountGroup.CREDIT_CARD) continue
-            // Only negative balance indicates outstanding debt owed (negative in Folio double-entry ledger).
-            // A positive balance indicates an overpayment or store credit, which is not debt.
-            if (acc.currentBalance.amountMinor < 0L) {
-                val debtMinor = Math.abs(acc.currentBalance.amountMinor)
-                totalCcDebtMinor += convertToPrimary(debtMinor, acc.currencyCode)
-            }
-        }
-
-        // 3. Upcoming 14-Day Commitments
-        val horizonEpochDay = todayEpochDay + 14L
-        var upcomingCommitmentsMinor = 0L
-
-        // a. Recurring Rules
-        for (rule in recurringRules) {
-            if (!rule.isActive) continue
-            if (rule.type != TransactionType.EXPENSE && rule.type != TransactionType.TRANSFER) continue
-
-            val occurrences = projectRecurringOccurrencesInHorizon(
-                startDay = rule.nextOccurrenceEpochDay,
-                frequency = rule.frequency,
-                todayEpochDay = todayEpochDay,
-                horizonEpochDay = horizonEpochDay
-            )
-
-            val singleAmt = convertToPrimary(rule.amount.amountMinor, rule.currencyCode)
-            upcomingCommitmentsMinor += (singleAmt * occurrences.size)
-        }
-
-        // b. Future Scheduled Transactions
-        for (tx in futureTransactions) {
-            if (tx.ledgerDateEpochDay in (todayEpochDay + 1L)..horizonEpochDay) {
-                if (tx.type == TransactionType.EXPENSE) {
-                    val amt = convertToPrimary(Math.abs(tx.amount.amountMinor) + Math.abs(tx.transferFee.amountMinor), tx.currencyCode)
-                    upcomingCommitmentsMinor += amt
-                }
-            }
-        }
-
-        val trueSafeToSpendMinor = totalLiquidMinor - totalCcDebtMinor - upcomingCommitmentsMinor
-        val isPositive = trueSafeToSpendMinor >= 0L
-        val isCurrentPeriod = todayEpochDay in periodStartEpochDay..periodEndEpochDay
-
-        val status = when {
-            trueSafeToSpendMinor > 0L -> SafeToSpendStatus.SAFE
-            totalLiquidMinor == 0L && totalCcDebtMinor == 0L && upcomingCommitmentsMinor == 0L -> SafeToSpendStatus.ZERO_RESERVES
-            upcomingCommitmentsMinor == 0L && totalCcDebtMinor > totalLiquidMinor -> SafeToSpendStatus.CARD_DEBT_EXCEEDS_CASH
-            totalCcDebtMinor == 0L && upcomingCommitmentsMinor > totalLiquidMinor -> SafeToSpendStatus.BILLS_EXCEED_CASH
-            totalLiquidMinor >= totalCcDebtMinor && upcomingCommitmentsMinor > (totalLiquidMinor - totalCcDebtMinor) -> SafeToSpendStatus.BILLS_EXCEED_REMAINING_CASH
-            totalCcDebtMinor > totalLiquidMinor && upcomingCommitmentsMinor > 0L -> SafeToSpendStatus.COMBINED_OBLIGATIONS_EXCEED_CASH
-            trueSafeToSpendMinor == 0L -> SafeToSpendStatus.SAFE
-            else -> if (totalCcDebtMinor > 0L) SafeToSpendStatus.CARD_DEBT_EXCEEDS_CASH else SafeToSpendStatus.BILLS_EXCEED_CASH
-        }
-
-        return SafeToSpendState(
-            totalLiquidBankAndCash = MinorMoney(totalLiquidMinor),
-            totalCreditCardDebt = MinorMoney(totalCcDebtMinor),
-            upcoming14DayCommitments = MinorMoney(upcomingCommitmentsMinor),
-            trueSafeToSpend = MinorMoney(trueSafeToSpendMinor),
-            isPositive = isPositive,
-            isCurrentPeriod = isCurrentPeriod,
-            status = status
-        )
-    }
+    ): SafeToSpendState = SafeToSpendCalculator.computeSafeToSpend(
+        allAccounts = allAccounts,
+        recurringRules = recurringRules,
+        futureTransactions = futureTransactions,
+        todayEpochDay = todayEpochDay,
+        periodStartEpochDay = periodStartEpochDay,
+        periodEndEpochDay = periodEndEpochDay,
+        primaryCurrencyCode = primaryCurrencyCode,
+        secondaryCurrencies = secondaryCurrencies
+    )
 
     fun computeShortfallAlerts(
         allAccounts: List<AccountSummary>,
@@ -2958,94 +1741,12 @@ object StatsPredictiveCalculations {
         todayEpochDay: Long,
         primaryCurrencyCode: String,
         secondaryCurrencies: List<SecondaryCurrency> = emptyList()
-    ): List<AccountShortfallAlert> {
-        val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
-        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
-
-        fun convertToPrimary(rawAmountMinor: Long, currencyCode: String): Long {
-            val accCurr = currencyCode.trim().uppercase()
-            if (accCurr == primarySpec.code.uppercase()) return rawAmountMinor
-            val secondary = secondaryMap[accCurr]
-            return if (secondary != null && secondary.exchangeRateToPrimary > 0.0) {
-                val accSpec = SupportedCurrencies.fromCode(accCurr)
-                MoneyFormatterAndCalculator.convertMinorMoney(
-                    sourceMinor = rawAmountMinor,
-                    sourceFractionDigits = accSpec.fractionDigits,
-                    targetFractionDigits = primarySpec.fractionDigits,
-                    rateToTarget = secondary.exchangeRateToPrimary
-                )
-            } else {
-                rawAmountMinor
-            }
-        }
-
-        val horizonEpochDay = todayEpochDay + 14L
-        val debitsByAccount = mutableMapOf<Long, Long>()
-        val earliestDebitByAccount = mutableMapOf<Long, Long>()
-
-        // 1. Recurring Rules
-        for (rule in recurringRules) {
-            if (!rule.isActive) continue
-            if (rule.type != TransactionType.EXPENSE && rule.type != TransactionType.TRANSFER) continue
-
-            val occurrences = projectRecurringOccurrencesInHorizon(
-                startDay = rule.nextOccurrenceEpochDay,
-                frequency = rule.frequency,
-                todayEpochDay = todayEpochDay,
-                horizonEpochDay = horizonEpochDay
-            )
-
-            val singleAmt = convertToPrimary(rule.amount.amountMinor, rule.currencyCode)
-            for (occDay in occurrences) {
-                debitsByAccount[rule.accountId] = (debitsByAccount[rule.accountId] ?: 0L) + singleAmt
-                val curr = earliestDebitByAccount[rule.accountId]
-                earliestDebitByAccount[rule.accountId] = if (curr == null) occDay else minOf(curr, occDay)
-            }
-        }
-
-        // 2. Future Scheduled Transactions
-        for (tx in futureTransactions) {
-            if (tx.ledgerDateEpochDay in (todayEpochDay + 1L)..horizonEpochDay) {
-                if (tx.type == TransactionType.EXPENSE) {
-                    val amt = convertToPrimary(Math.abs(tx.amount.amountMinor) + Math.abs(tx.transferFee.amountMinor), tx.currencyCode)
-                    debitsByAccount[tx.accountId] = (debitsByAccount[tx.accountId] ?: 0L) + amt
-                    val curr = earliestDebitByAccount[tx.accountId]
-                    earliestDebitByAccount[tx.accountId] = if (curr == null) tx.ledgerDateEpochDay else minOf(curr, tx.ledgerDateEpochDay)
-                }
-            }
-        }
-
-        // 3. Match against live liquid account balances
-        val alerts = mutableListOf<AccountShortfallAlert>()
-        for (acc in allAccounts) {
-            if (acc.isArchived) continue
-            val isLiquidBank = acc.groupType == AccountGroup.BANK_ACCOUNT ||
-                    acc.groupType == AccountGroup.SAVINGS ||
-                    acc.groupType == AccountGroup.PREPAID_WALLET
-            if (!isLiquidBank) continue
-
-            val scheduledDebitsMinor = debitsByAccount[acc.id] ?: 0L
-            if (scheduledDebitsMinor <= 0L) continue
-
-            val liveBalanceMinor = convertToPrimary(acc.currentBalance.amountMinor, acc.currencyCode)
-            if (liveBalanceMinor < scheduledDebitsMinor) {
-                val shortfallMinor = scheduledDebitsMinor - liveBalanceMinor
-                val earliestDay = earliestDebitByAccount[acc.id] ?: todayEpochDay
-                val daysUntil = maxOf(0L, earliestDay - todayEpochDay)
-
-                alerts.add(
-                    AccountShortfallAlert(
-                        accountId = acc.id,
-                        accountName = acc.name,
-                        currentBalance = acc.currentBalance,
-                        upcomingDebits = MinorMoney(scheduledDebitsMinor),
-                        shortfallAmount = MinorMoney(shortfallMinor),
-                        daysUntilShortfall = daysUntil
-                    )
-                )
-            }
-        }
-
-        return alerts.sortedBy { it.daysUntilShortfall }
-    }
+    ): List<AccountShortfallAlert> = SafeToSpendCalculator.computeShortfallAlerts(
+        allAccounts = allAccounts,
+        recurringRules = recurringRules,
+        futureTransactions = futureTransactions,
+        todayEpochDay = todayEpochDay,
+        primaryCurrencyCode = primaryCurrencyCode,
+        secondaryCurrencies = secondaryCurrencies
+    )
 }

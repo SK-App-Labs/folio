@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 
 
 ### Changed
+- **Architectural Refactoring (Phase 3: Domain Calculator Extraction & Testability)**:
+  - Extracted 1,500+ lines of inline financial calculations, date-range slicing, and predictive analytics out of `StatsAndBudgetsViewModel.kt` (3,051 lines down to 1,746 lines) and `AccountsViewModel.kt` into pure Kotlin domain utilities in `domain/util/` and domain models in `domain/model/`:
+    - `StatsPeriodCalculator.kt`: Pure algorithms for Weekly, Monthly, Annually, and Custom financial calendar slicing and leap-year step clamping.
+    - `SafeToSpendCalculator.kt`: Pure math for true unencumbered discretionary spending, 14-day upcoming commitment projections, and account shortfall alerts.
+    - `NetWorthPredictiveCalculator.kt`: Pure back-propagation algorithms for historical net worth progression, month-over-month wealth velocity, and emergency runway months.
+    - `CreditCardCockpitCalculator.kt`: Pure algorithms for portfolio-wide credit utilization, Smart Swipe float ranking, statement timeline ordering, and spend ratio analysis.
+    - `CreditCardCycleCalculator.kt`: Centralized billing cycle window calculation, statement cutoffs, and due date resolution.
+    - `MerchantAndTagAnalyticsCalculator.kt`: Pure calculators for payee visit frequency/ticket size and reimbursable project settlement status.
+    - `StatsAndAnalyticsModels.kt`: Centralized immutable domain models for all predictive and analytical states.
+  - Added dedicated pure JVM unit tests (`StatsPeriodCalculatorTest`, `CreditCardCycleCalculatorTest`, `NetWorthPredictiveCalculatorTest`) executing in ~5 seconds with 100% pass rate.
 - **Architectural Refactoring (Phase 2: Repository Modularization & IO Isolation)**:
   - Decomposed the 2,635-line monolithic `SettingsAndBackupRepositoryImpl.kt` down to a lightweight 188-line facade by isolating specialized engines into dedicated data layer components:
     - `UserPreferencesDataSource.kt`: Centralizes DataStore preferences, currency serialization, and app-wide preference flows.
