@@ -6,8 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## [1.5.0] - Unreleased
+## [1.5.0] - 2026-11-06
 ### Added
+- **Rate Folio on Google Play & Store Review Shortcut**:
+  - Added a dedicated 1-tap rating shortcut in `SettingsScreen.kt` under Help & Community, inviting satisfied users to leave 5-star ratings with native `market://details?id=${context.packageName}` redirection, web browser fallback, and pre-release toast guard.
+  - Deployed full localized string catalogs for the rating action across all 12 global Tier-1 languages.
 - **Global Localization & Tier-1 Language Architecture (Phase 1: String Extraction & Android 13+ Per-App Locale Setup)**:
   - Engineered native Android 13+ Per-App Language Preferences (`res/xml/locales_config.xml` & `android:localeConfig`), enabling system-level and in-app language switching across 13 major global locales.
   - Extracted centralized XML string catalogs in `res/values/`:
@@ -80,6 +83,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - *Savings Goal Editor Bottom Sheet*: Added `SavingsGoalEditorBottomSheet` allowing users to link goals to asset accounts, configure target milestones, and track progress with real-time feedback and achievement celebrations (`🎉 Goal Achieved!`).
   - *Zero Room Migrations & Full Backup Compatibility*: Persisted configurations in DataStore preferences (`monthlySavingsTargetMinor` and `savingsGoalsJson`), ensuring instant reactivity, zero database schema migration risk, and automatic inclusion in JSON full backup and restore.
 ### Fixed
+- **Backup & Restore Serialization of Pinned Accounts and Icon Packs**:
+  - *Account Pin State Preservation*: Added `isPinned` serialization and parsing to `SettingsAndBackupRepositoryImpl`, ensuring pinned accounts maintain their prioritization at the top of Account and Transaction Entry lists when restoring backups on new devices.
+  - *Icon Pack Preference Persistence*: Added `iconPackTheme` serialization to backup and restore routines, preserving chosen visual styles (Material, Phosphor, Lucide, Emoji) across data restores.
+  - *Dynamic Store URL*: Updated app share link to resolve `context.packageName` dynamically.
 - **Stats Tab Visual Polish, Cashflow Driver Colors & Decluttering**:
   - *Expense Driver Color Correction*: Fixed a bug where Top Expense Drivers in the Cashflow subtab were rendered in green due to `MoneyColorMode.AUTO_SIGN` evaluating positive spend magnitudes as income; explicit `MoneyColorMode.EXPENSE` now ensures correct expense coral red coloring.
   - *Donut Chart Income Delta Color Fix*: Fixed delta badge color calculation in `InteractiveCategoryDonutChart` center hub to respect `categoryType`, correctly displaying income increases in emerald green rather than expense coral red.
