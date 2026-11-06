@@ -44,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -313,6 +314,33 @@ fun NetWorthGrowthCanvasChart(
                 val assetPath = remember { Path() }
                 val liabilityPath = remember { Path() }
 
+                val primaryMetricAmounts = remember(trendItems, selectedFilter) {
+                    trendItems.map { item ->
+                        when (selectedFilter) {
+                            NetWorthChartMetricFilter.ALL_IN_ONE,
+                            NetWorthChartMetricFilter.NET_WORTH -> item.netWorth.amountMinor
+                            NetWorthChartMetricFilter.ASSETS -> item.assets.amountMinor
+                            NetWorthChartMetricFilter.LIABILITIES -> item.liabilities.amountMinor
+                        }
+                    }
+                }
+
+                val primaryColorTone = remember(selectedFilter, assetCurveColor, liabilityCurveColor, netWorthLineColor) {
+                    when (selectedFilter) {
+                        NetWorthChartMetricFilter.ASSETS -> assetCurveColor
+                        NetWorthChartMetricFilter.LIABILITIES -> liabilityCurveColor
+                        NetWorthChartMetricFilter.ALL_IN_ONE,
+                        NetWorthChartMetricFilter.NET_WORTH -> netWorthLineColor
+                    }
+                }
+
+                val gradientColors = remember(primaryColorTone) {
+                    listOf(
+                        primaryColorTone.copy(alpha = 0.35f),
+                        primaryColorTone.copy(alpha = 0.03f)
+                    )
+                }
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -416,22 +444,6 @@ fun NetWorthGrowthCanvasChart(
                         }
 
                         // Primary Trend Curve (Net Worth or isolated metric)
-                        val primaryMetricAmounts = trendItems.map { item ->
-                            when (selectedFilter) {
-                                NetWorthChartMetricFilter.ALL_IN_ONE,
-                                NetWorthChartMetricFilter.NET_WORTH -> item.netWorth.amountMinor
-                                NetWorthChartMetricFilter.ASSETS -> item.assets.amountMinor
-                                NetWorthChartMetricFilter.LIABILITIES -> item.liabilities.amountMinor
-                            }
-                        }
-
-                        val primaryColorTone = when (selectedFilter) {
-                            NetWorthChartMetricFilter.ASSETS -> assetCurveColor
-                            NetWorthChartMetricFilter.LIABILITIES -> liabilityCurveColor
-                            NetWorthChartMetricFilter.ALL_IN_ONE,
-                            NetWorthChartMetricFilter.NET_WORTH -> netWorthLineColor
-                        }
-
                         nwPath.reset()
                         fillPath.reset()
 
@@ -461,10 +473,7 @@ fun NetWorthGrowthCanvasChart(
                         drawPath(
                             path = fillPath,
                             brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    primaryColorTone.copy(alpha = 0.35f),
-                                    primaryColorTone.copy(alpha = 0.03f)
-                                ),
+                                colors = gradientColors,
                                 startY = padTop,
                                 endY = baselineY.coerceAtLeast(padTop + 1f)
                             )
@@ -674,70 +683,80 @@ fun CreditUtilizationGauge(
             .fillMaxWidth()
             .height(130.dp)
     ) {
-        Canvas(
+        Spacer(
             modifier = Modifier
                 .fillMaxWidth(0.72f)
                 .height(120.dp)
-        ) {
-            val strokeWidth = 14.dp.toPx()
-            val arcPadding = strokeWidth / 2f
-            val arcWidth = size.width - strokeWidth
-            val arcHeight = (size.height - arcPadding) * 2f
+                .drawWithCache {
+                    val strokeWidth = 14.dp.toPx()
+                    val arcPadding = strokeWidth / 2f
+                    val arcWidth = size.width - strokeWidth
+                    val arcHeight = (size.height - arcPadding) * 2f
 
-            val arcTopLeft = Offset(arcPadding, arcPadding)
-            val arcSize = Size(arcWidth, arcHeight)
+                    val arcTopLeft = Offset(arcPadding, arcPadding)
+                    val arcSize = Size(arcWidth, arcHeight)
 
-            // Background Track Arc (180 to 360 degrees)
-            drawArc(
-                color = trackColor,
-                startAngle = 180f,
-                sweepAngle = 180f,
-                useCenter = false,
-                topLeft = arcTopLeft,
-                size = arcSize,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-            )
+                    val cx = size.width / 2f
+                    val cy = arcHeight / 2f + arcPadding
+                    val r = arcWidth / 2f
+                    val thresholds = floatArrayOf(0.10f, 0.30f, 0.50f)
+                    val tickColor = trackColor.copy(alpha = 0.9f)
+                    val tickStrokePx = 2.dp.toPx()
+                    val oneDpPx = 1.dp.toPx()
 
-            // Active Progress Arc
-            val sweep = (utilizationPercent / 100f).coerceIn(0f, 1f) * 180f
-            if (sweep > 0f) {
-                drawArc(
-                    color = tierInfo.activeColor,
-                    startAngle = 180f,
-                    sweepAngle = sweep,
-                    useCenter = false,
-                    topLeft = arcTopLeft,
-                    size = arcSize,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                )
-            }
+                    val cachedTicks = thresholds.map { t ->
+                        val rad = Math.toRadians((180f + t * 180f).toDouble())
+                        val innerR = r - strokeWidth / 2f - oneDpPx
+                        val outerR = r + strokeWidth / 2f + oneDpPx
+                        val p1 = Offset(
+                            (cx + innerR * cos(rad)).toFloat(),
+                            (cy + innerR * sin(rad)).toFloat()
+                        )
+                        val p2 = Offset(
+                            (cx + outerR * cos(rad)).toFloat(),
+                            (cy + outerR * sin(rad)).toFloat()
+                        )
+                        p1 to p2
+                    }
 
-            // Threshold tick marks at 10%, 30%, 50%
-            val cx = size.width / 2f
-            val cy = arcHeight / 2f + arcPadding
-            val r = arcWidth / 2f
-            val thresholds = floatArrayOf(0.10f, 0.30f, 0.50f)
-            for (t in thresholds) {
-                val angleDeg = 180f + t * 180f
-                val rad = Math.toRadians(angleDeg.toDouble())
-                val innerR = r - strokeWidth / 2f - 1.dp.toPx()
-                val outerR = r + strokeWidth / 2f + 1.dp.toPx()
-                val p1 = Offset(
-                    (cx + innerR * cos(rad)).toFloat(),
-                    (cy + innerR * sin(rad)).toFloat()
-                )
-                val p2 = Offset(
-                    (cx + outerR * cos(rad)).toFloat(),
-                    (cy + outerR * sin(rad)).toFloat()
-                )
-                drawLine(
-                    color = trackColor.copy(alpha = 0.9f),
-                    start = p1,
-                    end = p2,
-                    strokeWidth = 2.dp.toPx()
-                )
-            }
-        }
+                    onDrawBehind {
+                        // Background Track Arc (180 to 360 degrees)
+                        drawArc(
+                            color = trackColor,
+                            startAngle = 180f,
+                            sweepAngle = 180f,
+                            useCenter = false,
+                            topLeft = arcTopLeft,
+                            size = arcSize,
+                            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                        )
+
+                        // Active Progress Arc
+                        val sweep = (utilizationPercent / 100f).coerceIn(0f, 1f) * 180f
+                        if (sweep > 0f) {
+                            drawArc(
+                                color = tierInfo.activeColor,
+                                startAngle = 180f,
+                                sweepAngle = sweep,
+                                useCenter = false,
+                                topLeft = arcTopLeft,
+                                size = arcSize,
+                                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                            )
+                        }
+
+                        // Cached tick marks
+                        for ((p1, p2) in cachedTicks) {
+                            drawLine(
+                                color = tickColor,
+                                start = p1,
+                                end = p2,
+                                strokeWidth = tickStrokePx
+                            )
+                        }
+                    }
+                }
+        )
 
         // Center Content Overlay (Percentage & Tier Badge)
         Column(

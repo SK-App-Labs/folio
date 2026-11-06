@@ -185,7 +185,7 @@ internal fun StatsBreakdownSubTabContent(
         modifier = Modifier.fillMaxSize()
     ) {
         // 1. Period Headline Summary Banner
-        item(contentType = "stats_summary_banner") {
+        item(key = "stats_summary_banner", contentType = "stats_summary_banner") {
             ThreeColumnSummaryBanner(
                 firstLabel = "Income",
                 firstAmount = uiState.periodSummary.totalIncome,
@@ -207,7 +207,7 @@ internal fun StatsBreakdownSubTabContent(
         }
 
         // 2. 3-Mode Segmented Hero Switcher: [ Categories ] | [ Cashflow ] | [ Net Worth ]
-        item {
+        item(key = "stats_overview_mode_switcher", contentType = "stats_overview_mode_switcher") {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -273,7 +273,7 @@ internal fun StatsBreakdownSubTabContent(
         when (uiState.selectedOverviewMode) {
             OverviewMode.CATEGORIES -> {
                 // Segmented Expenses vs Income Toggle
-                item {
+                item(key = "stats_category_type_toggle", contentType = "stats_category_type_toggle") {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -382,7 +382,7 @@ internal fun StatsBreakdownSubTabContent(
                 }
 
                 // Interactive Category Donut Chart
-                item(contentType = "donut_chart") {
+                item(key = "stats_donut_chart", contentType = "donut_chart") {
                     InteractiveCategoryDonutChart(
                         stats = activeStats,
                         currencySpec = uiState.currencySpec,
@@ -401,7 +401,7 @@ internal fun StatsBreakdownSubTabContent(
                 }
 
                 // Ranked Category Breakdown List Header
-                item(contentType = "category_list_header") {
+                item(key = "stats_category_list_header", contentType = "category_list_header") {
                     Text(
                         text = if (uiState.selectedCategoryType == CategoryType.EXPENSE) {
                             "Expense Categories (${activeStats.size})"
@@ -415,7 +415,7 @@ internal fun StatsBreakdownSubTabContent(
                 }
 
                 if (activeStats.isEmpty()) {
-                    item {
+                    item(key = "stats_empty_active_stats", contentType = "empty_state") {
                         EmptyStateCard(
                             title = "No ${uiState.selectedCategoryType.name.lowercase().replaceFirstChar { it.uppercase() }} Data",
                             subtitle = "No transactions recorded for ${uiState.activePeriodRange.title} in this category type.",
@@ -438,7 +438,7 @@ internal fun StatsBreakdownSubTabContent(
 
             OverviewMode.CASHFLOW -> {
                 // Hero: 6-Month Income vs. Expense Trend Bar Chart
-                item(contentType = "cashflow_trend_chart") {
+                item(key = "cashflow_trend_chart", contentType = "cashflow_trend_chart") {
                     SixMonthTrendBarChart(
                         bars = uiState.sixMonthTrendBars,
                         currencySpec = uiState.currencySpec,
@@ -447,7 +447,7 @@ internal fun StatsBreakdownSubTabContent(
                 }
 
                 // Period Cashflow Performance Summary
-                item(contentType = "cashflow_performance_card") {
+                item(key = "cashflow_performance_card", contentType = "cashflow_performance_card") {
                     CashflowPerformanceInsightCard(
                         periodSummary = uiState.periodSummary,
                         priorPeriodSummary = uiState.priorPeriodSummary,
@@ -458,7 +458,7 @@ internal fun StatsBreakdownSubTabContent(
 
                 // Top Spending Drivers
                 if (uiState.expenseCategoryStats.isNotEmpty()) {
-                    item(contentType = "top_expense_drivers") {
+                    item(key = "top_expense_drivers", contentType = "top_expense_drivers") {
                         TopDriversSummaryCard(
                             title = "Top Expense Drivers",
                             stats = uiState.expenseCategoryStats.take(3),
@@ -473,7 +473,7 @@ internal fun StatsBreakdownSubTabContent(
 
                 // Top Income Sources
                 if (uiState.incomeCategoryStats.isNotEmpty()) {
-                    item(contentType = "top_income_sources") {
+                    item(key = "top_income_sources", contentType = "top_income_sources") {
                         TopDriversSummaryCard(
                             title = "Top Income Sources",
                             stats = uiState.incomeCategoryStats.take(3),
@@ -489,7 +489,7 @@ internal fun StatsBreakdownSubTabContent(
 
             OverviewMode.NET_WORTH -> {
                 // Hero: Cubic Bezier Net Worth Growth Trend Canvas Chart
-                item(contentType = "net_worth_trend_chart") {
+                item(key = "net_worth_trend_chart", contentType = "net_worth_trend_chart") {
                     NetWorthGrowthCanvasChart(
                         trendItems = uiState.sixMonthNetWorthTrend,
                         selectedFilter = uiState.selectedNetWorthMetricFilter,
@@ -500,7 +500,7 @@ internal fun StatsBreakdownSubTabContent(
                 }
 
                 // Net Worth Velocity Card
-                item(contentType = "net_worth_velocity") {
+                item(key = "net_worth_velocity", contentType = "net_worth_velocity") {
                     NetWorthVelocityCard(
                         velocity = uiState.netWorthVelocity,
                         currencySpec = uiState.currencySpec,
@@ -509,7 +509,7 @@ internal fun StatsBreakdownSubTabContent(
                 }
 
                 // Emergency Runway Card
-                item(contentType = "emergency_runway") {
+                item(key = "emergency_runway", contentType = "emergency_runway") {
                     EmergencyRunwayCard(
                         runway = uiState.emergencyRunway,
                         currencySpec = uiState.currencySpec,

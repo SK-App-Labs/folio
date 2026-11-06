@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 
 
 ### Changed
+- **Architectural Refactoring (Phase 4: Compose Draw Optimization & List Stability)**:
+  - Eliminated Canvas heap churn and per-frame memory allocations across financial charts:
+    - `NetWorthAnalyticsComponents.kt`: Replaced `Canvas` in `CreditUtilizationGauge` with `Modifier.drawWithCache` to pre-cache tick geometry and bounds; hoisted `primaryMetricAmounts`, `primaryColorTone`, and `gradientColors` into `remember` blocks outside draw passes in `NetWorthGrowthCanvasChart`.
+    - `FolioCharts.kt`: Optimized `SixMonthSmoothTrendAreaChart` by hoisting `rawAmounts`, `gradientColors`, and `monthLabels` out of Canvas drawing loops.
+    - `AccountGroupSectionCard.kt`: Wrapped credit card group payable/unbilled folding math into a single remembered pass and wrapped account rows in `key(account.id)` blocks to maximize sub-tree recycling.
+  - Enforced explicit, stable item keys across lazy list screens and subtabs (`AccountsScreen.kt`, `StatsOverviewSubTabContent.kt`, `BudgetsSubTabContent.kt`, `MerchantsAndTagsSubTabContent.kt`) preventing unnecessary recompositions and scroll jumps.
 - **Architectural Refactoring (Phase 3: Domain Calculator Extraction & Testability)**:
   - Extracted 1,500+ lines of inline financial calculations, date-range slicing, and predictive analytics out of `StatsAndBudgetsViewModel.kt` (3,051 lines down to 1,746 lines) and `AccountsViewModel.kt` into pure Kotlin domain utilities in `domain/util/` and domain models in `domain/model/`:
     - `StatsPeriodCalculator.kt`: Pure algorithms for Weekly, Monthly, Annually, and Custom financial calendar slicing and leap-year step clamping.

@@ -20,6 +20,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -92,15 +94,18 @@ internal fun AccountGroupSectionCard(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (group == AccountGroup.CREDIT_CARD) {
-                    val groupPayableMinor = accounts.fold(0L) { sum, acc ->
-                        sum + (acc.creditCardStatementPayable?.amountMinor ?: 0L)
-                    }
-                    val groupUnbilledMinor = accounts.fold(0L) { sum, acc ->
-                        val totalDebt = acc.currentBalance.abs().amountMinor
-                        val statement = acc.creditCardStatementPayable?.amountMinor ?: 0L
-                        val unbilled = acc.creditCardUnbilledAmount?.amountMinor
-                            ?: if (totalDebt > statement) totalDebt - statement else 0L
-                        sum + unbilled
+                    val (groupPayableMinor, groupUnbilledMinor) = remember(accounts) {
+                        var payable = 0L
+                        var unbilled = 0L
+                        for (acc in accounts) {
+                            payable += (acc.creditCardStatementPayable?.amountMinor ?: 0L)
+                            val totalDebt = acc.currentBalance.abs().amountMinor
+                            val statement = acc.creditCardStatementPayable?.amountMinor ?: 0L
+                            val unbilledAmt = acc.creditCardUnbilledAmount?.amountMinor
+                                ?: if (totalDebt > statement) totalDebt - statement else 0L
+                            unbilled += unbilledAmt
+                        }
+                        payable to unbilled
                     }
 
                     val isMultiCharCurrency = currencySpec.symbol.length > 2
@@ -214,42 +219,44 @@ internal fun AccountGroupSectionCard(
                     }
 
                     accounts.forEachIndexed { index, account ->
-                        if (index > 0) {
-                            HorizontalDivider(color = semanticColors.cardStrokeSubtle)
-                        }
-                        when (account.groupType) {
-                            AccountGroup.CREDIT_CARD -> {
-                                CreditCardAccountRow(
-                                    account = account,
-                                    referenceDateEpochDay = referenceDateEpochDay,
-                                    defaultCurrencySpec = currencySpec,
-                                    grouping = grouping,
-                                    onSettleClick = { onSettleCreditCard(account) },
-                                    onEditClick = { onEditAccount(account) },
-                                    onRowClick = { onAccountClick(account) }
-                                )
+                        key(account.id) {
+                            if (index > 0) {
+                                HorizontalDivider(color = semanticColors.cardStrokeSubtle)
                             }
+                            when (account.groupType) {
+                                AccountGroup.CREDIT_CARD -> {
+                                    CreditCardAccountRow(
+                                        account = account,
+                                        referenceDateEpochDay = referenceDateEpochDay,
+                                        defaultCurrencySpec = currencySpec,
+                                        grouping = grouping,
+                                        onSettleClick = { onSettleCreditCard(account) },
+                                        onEditClick = { onEditAccount(account) },
+                                        onRowClick = { onAccountClick(account) }
+                                    )
+                                }
 
-                            AccountGroup.DEBIT_CARD -> {
-                                val linkedParent = account.parentAccountId?.let { allAccountsById[it] }
-                                DebitCardAccountRow(
-                                    account = account,
-                                    parentAccount = linkedParent,
-                                    defaultCurrencySpec = currencySpec,
-                                    grouping = grouping,
-                                    onEditClick = { onEditAccount(account) },
-                                    onRowClick = { onAccountClick(account) }
-                                )
-                            }
+                                AccountGroup.DEBIT_CARD -> {
+                                    val linkedParent = account.parentAccountId?.let { allAccountsById[it] }
+                                    DebitCardAccountRow(
+                                        account = account,
+                                        parentAccount = linkedParent,
+                                        defaultCurrencySpec = currencySpec,
+                                        grouping = grouping,
+                                        onEditClick = { onEditAccount(account) },
+                                        onRowClick = { onAccountClick(account) }
+                                    )
+                                }
 
-                            else -> {
-                                StandardAccountRow(
-                                    account = account,
-                                    defaultCurrencySpec = currencySpec,
-                                    grouping = grouping,
-                                    onEditClick = { onEditAccount(account) },
-                                    onRowClick = { onAccountClick(account) }
-                                )
+                                else -> {
+                                    StandardAccountRow(
+                                        account = account,
+                                        defaultCurrencySpec = currencySpec,
+                                        grouping = grouping,
+                                        onEditClick = { onEditAccount(account) },
+                                        onRowClick = { onAccountClick(account) }
+                                    )
+                                }
                             }
                         }
                     }

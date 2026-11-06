@@ -202,7 +202,7 @@ internal fun BudgetsManagerSubTabContent(
         modifier = Modifier.fillMaxSize()
     ) {
         // Mode Switcher: Expense Budgets vs Wealth & Savings
-        item(contentType = "budgets_mode_switcher") {
+        item(key = "budgets_mode_switcher", contentType = "budgets_mode_switcher") {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -270,7 +270,7 @@ internal fun BudgetsManagerSubTabContent(
         when (selectedSection) {
             BudgetsSubTabSection.EXPENSE_BUDGETS -> {
                 if (uiState.safeToSpend.isCurrentPeriod && uiState.shortfallAlerts.isNotEmpty()) {
-                    item(contentType = "shortfall_alert") {
+                    item(key = "budget_shortfall_alert", contentType = "shortfall_alert") {
                         ShortfallAlertCard(
                             alerts = uiState.shortfallAlerts,
                             currencySpec = uiState.currencySpec,
@@ -280,7 +280,7 @@ internal fun BudgetsManagerSubTabContent(
                 }
 
                 if (uiState.safeToSpend.isCurrentPeriod) {
-                    item(contentType = "safe_to_spend") {
+                    item(key = "budget_safe_to_spend", contentType = "safe_to_spend") {
                         SafeToSpendCard(
                             safeToSpend = uiState.safeToSpend,
                             currencySpec = uiState.currencySpec,
@@ -291,7 +291,7 @@ internal fun BudgetsManagerSubTabContent(
 
                 // Proactive Budget Threshold Alert Banner
                 if (exceededBudgets.isNotEmpty() || nearWarningBudgets.isNotEmpty()) {
-                    item(contentType = "budget_threshold_alert") {
+                    item(key = "budget_threshold_alert", contentType = "budget_threshold_alert") {
                         val isCritical = exceededBudgets.isNotEmpty()
                         val bannerBg = if (isCritical) semanticColors.expenseCoralContainer else semanticColors.warningAmberContainer
                         val bannerFg = if (isCritical) semanticColors.onExpenseCoralContainer else semanticColors.onWarningAmberContainer
@@ -352,7 +352,7 @@ internal fun BudgetsManagerSubTabContent(
                 }
 
                 // Hero Overall Monthly Budget Card or Set Monthly Budget CTA
-                item(contentType = "overall_budget_card") {
+                item(key = "overall_budget_card", contentType = "overall_budget_card") {
                     if (overallBudget != null) {
                         BudgetProgressCard(
                             budget = overallBudget,
@@ -374,7 +374,7 @@ internal fun BudgetsManagerSubTabContent(
                 }
 
                 // Category Budgets Section Header + Add Button
-                item(contentType = "category_budgets_header") {
+                item(key = "category_budgets_header", contentType = "category_budgets_header") {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -413,7 +413,7 @@ internal fun BudgetsManagerSubTabContent(
                 }
 
                 if (categoryBudgets.isEmpty()) {
-                    item(contentType = "category_budgets_empty") {
+                    item(key = "category_budgets_empty", contentType = "category_budgets_empty") {
                         Card(
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(
@@ -451,7 +451,7 @@ internal fun BudgetsManagerSubTabContent(
 
             BudgetsSubTabSection.WEALTH_AND_SAVINGS -> {
                 // Double-Entry Monthly Savings Target Hero Card
-                item(contentType = "monthly_savings_hero") {
+                item(key = "monthly_savings_hero", contentType = "monthly_savings_hero") {
                     MonthlySavingsTargetHeroCard(
                         savingsProgress = uiState.monthlySavingsProgress,
                         currencySpec = uiState.currencySpec,
@@ -463,7 +463,7 @@ internal fun BudgetsManagerSubTabContent(
 
                 // Account-Backed Savings Goals ("Wealth Vaults") Section
                 val savingsGoals = uiState.accountSavingsGoals
-                item(contentType = "savings_goals_header") {
+                item(key = "savings_goals_header", contentType = "savings_goals_header") {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -504,7 +504,7 @@ internal fun BudgetsManagerSubTabContent(
                 }
 
                 if (savingsGoals.isEmpty()) {
-                    item(contentType = "savings_goals_empty") {
+                    item(key = "savings_goals_empty", contentType = "savings_goals_empty") {
                         Card(
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(

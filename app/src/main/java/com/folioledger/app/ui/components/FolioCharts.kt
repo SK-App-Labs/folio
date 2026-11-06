@@ -895,6 +895,25 @@ fun SixMonthSmoothTrendAreaChart(
                 with(density) { CornerRadius(8.dp.toPx(), 8.dp.toPx()) }
             }
 
+            val gradientColors = remember(lineColor) {
+                listOf(
+                    lineColor.copy(alpha = 0.35f),
+                    lineColor.copy(alpha = 0.02f)
+                )
+            }
+            val rawAmounts = remember(bars, categoryType) {
+                bars.map { bar ->
+                    if (categoryType == CategoryType.EXPENSE) {
+                        bar.totalExpense.amountMinor
+                    } else {
+                        bar.totalIncome.amountMinor
+                    }
+                }
+            }
+            val monthLabels = remember(bars) {
+                bars.map { it.periodLabel.take(3) }
+            }
+
             val topPaddingPx = remember(density) { with(density) { 12.dp.toPx() } }
             val bottomPaddingPx = remember(density) { with(density) { 24.dp.toPx() } }
             val oneDpPx = remember(density) { with(density) { 1.dp.toPx() } }
@@ -944,13 +963,8 @@ fun SixMonthSmoothTrendAreaChart(
                 if (bars.isEmpty()) return@Canvas
 
                 val slotWidth = size.width / bars.size.toFloat()
-                val points = bars.mapIndexed { idx, bar ->
+                val points = rawAmounts.mapIndexed { idx, rawVal ->
                     val x = idx * slotWidth + slotWidth / 2f
-                    val rawVal = if (categoryType == CategoryType.EXPENSE) {
-                        bar.totalExpense.amountMinor
-                    } else {
-                        bar.totalIncome.amountMinor
-                    }
                     val ratio = (rawVal.toFloat() / maxAmountMinor.toFloat()).coerceIn(0f, 1f) * entryProgress
                     val y = topPaddingPx + usableHeight * (1f - ratio)
                     Offset(x, y)
@@ -991,10 +1005,7 @@ fun SixMonthSmoothTrendAreaChart(
                 drawPath(
                     path = fillPath,
                     brush = Brush.verticalGradient(
-                        colors = listOf(
-                            lineColor.copy(alpha = 0.35f),
-                            lineColor.copy(alpha = 0.02f)
-                        ),
+                        colors = gradientColors,
                         startY = topPaddingPx,
                         endY = topPaddingPx + usableHeight
                     )
@@ -1036,7 +1047,7 @@ fun SixMonthSmoothTrendAreaChart(
                         )
                     }
 
-                    val monthLabel = bars[idx].periodLabel.take(3)
+                    val monthLabel = monthLabels[idx]
                     drawContext.canvas.nativeCanvas.drawText(
                         monthLabel,
                         pt.x,

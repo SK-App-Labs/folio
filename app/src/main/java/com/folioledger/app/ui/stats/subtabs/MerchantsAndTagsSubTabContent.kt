@@ -181,7 +181,7 @@ internal fun TagsAndNotesRankingsSubTabContent(
         modifier = Modifier.fillMaxSize()
     ) {
         // Toggle between #Tag Rankings and Payee / Note Rankings
-        item(contentType = "ranking_mode_switcher") {
+        item(key = "ranking_mode_switcher", contentType = "ranking_mode_switcher") {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -217,7 +217,7 @@ internal fun TagsAndNotesRankingsSubTabContent(
         }
 
         // Sub-header with All-Time Scope Filter Chip and Spend vs Visits Sort Toggle
-        item {
+        item(key = "ranking_scope_filter_header", contentType = "ranking_scope_filter_header") {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -272,7 +272,7 @@ internal fun TagsAndNotesRankingsSubTabContent(
         }
 
         if (items.isEmpty()) {
-            item {
+            item(key = "empty_rankings_card", contentType = "empty_rankings_card") {
                 EmptyStateCard(
                     title = if (uiState.selectedRankingMode == RankingMode.TAGS) {
                         "No Tagged Spend in ${uiState.activePeriodRange.title}"

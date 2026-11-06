@@ -325,7 +325,7 @@ fun AccountsScreenContent(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                item(contentType = "accounts_summary_banner") {
+                item(key = "accounts_summary_banner", contentType = "accounts_summary_banner") {
                     ThreeColumnSummaryBanner(
                         netWorthOverview = uiState.netWorthOverview,
                         currencySpec = uiState.currencySpec,
@@ -334,7 +334,7 @@ fun AccountsScreenContent(
                 }
 
             if (orderedGroups.isEmpty()) {
-                item {
+                item(key = "accounts_empty_state", contentType = "accounts_empty_state") {
                     EmptyStateCard(
                         title = "No Active Accounts Yet",
                         subtitle = "Add your Bank Accounts, Cash Wallet, Credit Cards, and linked Debit Cards to track your live Net Worth.",
