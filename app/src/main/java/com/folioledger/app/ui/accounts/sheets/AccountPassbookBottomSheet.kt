@@ -56,7 +56,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -1437,10 +1441,23 @@ fun ReconcileBalanceDialog(
     onDismiss: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
+    var localTargetBalance by remember(state.accountId) { mutableStateOf(state.targetBalanceInput) }
+    LaunchedEffect(state.targetBalanceInput) {
+        if (state.targetBalanceInput != localTargetBalance) {
+            localTargetBalance = state.targetBalanceInput
+        }
+    }
+    var localNote by remember(state.accountId) { mutableStateOf(state.note) }
+    LaunchedEffect(state.note) {
+        if (state.note != localNote) {
+            localNote = state.note
+        }
+    }
+
     val isLiability = state.isLiability
     val recordedMinor = if (isLiability) state.recordedBalance.abs().amountMinor else state.recordedBalance.amountMinor
     val spec = SupportedCurrencies.fromCode(state.currencyCode)
-    val parsedTarget = parseInputToMinorOrZero(state.targetBalanceInput, spec.fractionDigits)
+    val parsedTarget = parseInputToMinorOrZero(localTargetBalance, spec.fractionDigits)
     val diffMinor = parsedTarget?.let {
         if (isLiability) {
             it.amountMinor - recordedMinor
@@ -1497,8 +1514,11 @@ fun ReconcileBalanceDialog(
                 }
 
                 OutlinedTextField(
-                    value = state.targetBalanceInput,
-                    onValueChange = onUpdateTargetBalance,
+                    value = localTargetBalance,
+                    onValueChange = {
+                        localTargetBalance = it
+                        onUpdateTargetBalance(it)
+                    },
                     label = { Text(if (isLiability) "Actual Statement Outstanding Debt" else "Actual Statement Balance") },
                     placeholder = { Text("0.00") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -1538,8 +1558,11 @@ fun ReconcileBalanceDialog(
                 }
 
                 OutlinedTextField(
-                    value = state.note,
-                    onValueChange = onUpdateNote,
+                    value = localNote,
+                    onValueChange = {
+                        localNote = it
+                        onUpdateNote(it)
+                    },
                     label = { Text("Note (Optional)") },
                     placeholder = { Text("e.g., Monthly bank reconciliation") },
                     singleLine = true,

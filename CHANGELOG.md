@@ -80,6 +80,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - *Savings Goal Editor Bottom Sheet*: Added `SavingsGoalEditorBottomSheet` allowing users to link goals to asset accounts, configure target milestones, and track progress with real-time feedback and achievement celebrations (`🎉 Goal Achieved!`).
   - *Zero Room Migrations & Full Backup Compatibility*: Persisted configurations in DataStore preferences (`monthlySavingsTargetMinor` and `savingsGoalsJson`), ensuring instant reactivity, zero database schema migration risk, and automatic inclusion in JSON full backup and restore.
 ### Fixed
+- **Text Input Latency & Blinking Cursor Freeze Elimination Across All Data Entry Fields**:
+  - *Root Cause Rectification*: Resolved an Android IME input connection desynchronization issue in Jetpack Compose where rapidly typing numbers or text into controlled text fields (e.g. typing `14753`) caused the blinking cursor indicator to freeze on a single character due to asynchronous background thread hops round-tripping through ViewModel `StateFlow` emissions.
+  - *Synchronous Local State Buffering*: Implemented local `rememberSaveable` and `remember` state buffers with non-interfering `LaunchedEffect` synchronization across all data entry surfaces:
+    - `TransactionEntrySheet`: Amount input, transfer fee, payee/description, and note fields now update synchronously on the exact frame of the keystroke while asynchronously dispatching to ViewModel state.
+    - `SplitTransactionEditorCard`: Refactored split allocations into `SplitLineRowItem` with local amount buffering, eliminating input lag during multi-split distribution.
+    - `AccountEditorBottomSheet`: Buffered Account Name, Credit Limit, Current Statement Due, Unbilled Spend, and Starting Balance fields.
+    - `AccountPassbookBottomSheet`: Buffered Reconcile / Valuation target balance and note fields in `ReconcileBalanceDialog`.
+    - `CreditCardSettlementBottomSheet`: Buffered custom settlement payment amount and settlement note.
+    - `StatsAndBudgetsScreen`: Buffered Monthly Budget Limit amount, Monthly Savings Target amount, and Savings Goal title/target amounts.
+    - `LedgerSheetsAndDialogs` & `LedgerHeaderBanners`: Buffered keyword search text fields and Min/Max amount range filter bounds.
+  - Guarantees immediate zero-latency feedback during rapid typing with zero IME buffer resets.
 - **Predictive Safe-to-Spend Status Classification & Credit Card Debt Handling**:
   - *Context-Aware Status Classification*: Added `SafeToSpendStatus` enum to accurately categorize specific financial states (`SAFE`, `CARD_DEBT_EXCEEDS_CASH`, `BILLS_EXCEED_CASH`, `BILLS_EXCEED_REMAINING_CASH`, `COMBINED_OBLIGATIONS_EXCEED_CASH`, `ZERO_RESERVES`) instead of a single binary fallback.
   - *Zero-Commitments Warning Rectification*: Fixed misleading `"⚠️ Commitments Exceed Cash"` badge and 14-day due date warning when 14-day upcoming bills were ₹0; the UI now accurately displays `"⚠️ Card Debt Exceeds Cash"` with transparent copy explaining unbacked credit float.

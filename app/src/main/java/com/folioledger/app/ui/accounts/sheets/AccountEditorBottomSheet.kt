@@ -67,6 +67,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -120,6 +121,41 @@ internal fun AccountEditorBottomSheet(
     var showPaymentDueDayPicker by rememberSaveable { mutableStateOf(false) }
     var isForeignCurrencyExpanded by rememberSaveable { mutableStateOf(state.currencyCode != "INR") }
     var isAppearanceCustomizerExpanded by rememberSaveable { mutableStateOf(false) }
+
+    var localName by rememberSaveable(state.accountId) { mutableStateOf(state.name) }
+    LaunchedEffect(state.name) {
+        if (state.name != localName) {
+            localName = state.name
+        }
+    }
+
+    var localCreditLimit by rememberSaveable(state.accountId) { mutableStateOf(state.creditLimitInput) }
+    LaunchedEffect(state.creditLimitInput) {
+        if (state.creditLimitInput != localCreditLimit) {
+            localCreditLimit = state.creditLimitInput
+        }
+    }
+
+    var localStatementPayable by rememberSaveable(state.accountId) { mutableStateOf(state.statementPayableInput) }
+    LaunchedEffect(state.statementPayableInput) {
+        if (state.statementPayableInput != localStatementPayable) {
+            localStatementPayable = state.statementPayableInput
+        }
+    }
+
+    var localUnbilledAmount by rememberSaveable(state.accountId) { mutableStateOf(state.unbilledAmountInput) }
+    LaunchedEffect(state.unbilledAmountInput) {
+        if (state.unbilledAmountInput != localUnbilledAmount) {
+            localUnbilledAmount = state.unbilledAmountInput
+        }
+    }
+
+    var localOpeningBalance by rememberSaveable(state.accountId) { mutableStateOf(state.openingBalanceInput) }
+    LaunchedEffect(state.openingBalanceInput) {
+        if (state.openingBalanceInput != localOpeningBalance) {
+            localOpeningBalance = state.openingBalanceInput
+        }
+    }
 
     val top4Groups = remember {
         listOf(
@@ -246,8 +282,11 @@ internal fun AccountEditorBottomSheet(
 
             // 1. Account Name
             OutlinedTextField(
-                value = state.name,
-                onValueChange = { newName -> onUpdateState { it.copy(name = newName) } },
+                value = localName,
+                onValueChange = { newName ->
+                    localName = newName
+                    onUpdateState { it.copy(name = newName) }
+                },
                 label = { Text("Account Name") },
                 placeholder = { Text("e.g., HDFC Regalia CC, ICICI Salary A/c") },
                 singleLine = true,
@@ -371,8 +410,11 @@ internal fun AccountEditorBottomSheet(
                 AccountGroup.CREDIT_CARD -> {
                     // Credit Limit Field
                     OutlinedTextField(
-                        value = state.creditLimitInput,
-                        onValueChange = { v -> onUpdateState { it.copy(creditLimitInput = v) } },
+                        value = localCreditLimit,
+                        onValueChange = { v ->
+                            localCreditLimit = v
+                            onUpdateState { it.copy(creditLimitInput = v) }
+                        },
                         label = { Text("Credit Limit") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
@@ -598,8 +640,11 @@ internal fun AccountEditorBottomSheet(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             OutlinedTextField(
-                                value = state.statementPayableInput,
-                                onValueChange = { v -> onUpdateState { it.copy(statementPayableInput = v) } },
+                                value = localStatementPayable,
+                                onValueChange = { v ->
+                                    localStatementPayable = v
+                                    onUpdateState { it.copy(statementPayableInput = v) }
+                                },
                                 label = { Text("Current Due") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 singleLine = true,
@@ -607,8 +652,11 @@ internal fun AccountEditorBottomSheet(
                             )
 
                             OutlinedTextField(
-                                value = state.unbilledAmountInput,
-                                onValueChange = { v -> onUpdateState { it.copy(unbilledAmountInput = v) } },
+                                value = localUnbilledAmount,
+                                onValueChange = { v ->
+                                    localUnbilledAmount = v
+                                    onUpdateState { it.copy(unbilledAmountInput = v) }
+                                },
                                 label = { Text("Unbilled Spend") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 singleLine = true,
@@ -799,8 +847,11 @@ internal fun AccountEditorBottomSheet(
                         }
                     } else {
                         OutlinedTextField(
-                            value = state.openingBalanceInput,
-                            onValueChange = { v -> onUpdateState { it.copy(openingBalanceInput = v) } },
+                            value = localOpeningBalance,
+                            onValueChange = { v ->
+                                localOpeningBalance = v
+                                onUpdateState { it.copy(openingBalanceInput = v) }
+                            },
                             label = {
                                 Text(
                                     if (state.groupType.isLiabilityByDefault) {

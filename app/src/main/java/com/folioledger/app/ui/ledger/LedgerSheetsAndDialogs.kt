@@ -44,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -438,6 +439,27 @@ internal fun ReinforcedSearchFilterBottomSheet(
     val filter = uiState.searchFilter
     var selectedFilterTab by rememberSaveable { mutableStateOf(LedgerFilterSheetTab.EXPENSE) }
 
+    var localQuery by rememberSaveable { mutableStateOf(filter.queryText) }
+    LaunchedEffect(filter.queryText) {
+        if (filter.queryText != localQuery) {
+            localQuery = filter.queryText
+        }
+    }
+
+    var localMinAmount by rememberSaveable { mutableStateOf(uiState.minAmountFilterInput) }
+    LaunchedEffect(uiState.minAmountFilterInput) {
+        if (uiState.minAmountFilterInput != localMinAmount) {
+            localMinAmount = uiState.minAmountFilterInput
+        }
+    }
+
+    var localMaxAmount by rememberSaveable { mutableStateOf(uiState.maxAmountFilterInput) }
+    LaunchedEffect(uiState.maxAmountFilterInput) {
+        if (uiState.maxAmountFilterInput != localMaxAmount) {
+            localMaxAmount = uiState.maxAmountFilterInput
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -474,13 +496,19 @@ internal fun ReinforcedSearchFilterBottomSheet(
                 }
 
                 OutlinedTextField(
-                    value = filter.queryText,
-                    onValueChange = onQueryChange,
+                    value = localQuery,
+                    onValueChange = {
+                        localQuery = it
+                        onQueryChange(it)
+                    },
                     label = { Text("Keyword (Payee, Description, Note)") },
                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                     trailingIcon = {
-                        if (filter.queryText.isNotEmpty()) {
-                            IconButton(onClick = { onQueryChange("") }) {
+                        if (localQuery.isNotEmpty()) {
+                            IconButton(onClick = {
+                                localQuery = ""
+                                onQueryChange("")
+                            }) {
                                 Icon(
                                     imageVector = Icons.Filled.Clear,
                                     contentDescription = "Clear search query"
@@ -735,9 +763,10 @@ internal fun ReinforcedSearchFilterBottomSheet(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 OutlinedTextField(
-                                    value = uiState.minAmountFilterInput,
+                                    value = localMinAmount,
                                     onValueChange = { minVal ->
-                                        onUpdateAmountBounds(minVal, uiState.maxAmountFilterInput)
+                                        localMinAmount = minVal
+                                        onUpdateAmountBounds(minVal, localMaxAmount)
                                     },
                                     label = { Text("Min Amount") },
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -745,9 +774,10 @@ internal fun ReinforcedSearchFilterBottomSheet(
                                     modifier = Modifier.weight(1f)
                                 )
                                 OutlinedTextField(
-                                    value = uiState.maxAmountFilterInput,
+                                    value = localMaxAmount,
                                     onValueChange = { maxVal ->
-                                        onUpdateAmountBounds(uiState.minAmountFilterInput, maxVal)
+                                        localMaxAmount = maxVal
+                                        onUpdateAmountBounds(localMinAmount, maxVal)
                                     },
                                     label = { Text("Max Amount") },
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),

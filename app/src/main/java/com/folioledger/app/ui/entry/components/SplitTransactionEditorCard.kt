@@ -28,6 +28,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
+import com.folioledger.app.ui.entry.SplitLineDraft
 import com.folioledger.app.ui.entry.TransactionEntryUiState
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 
@@ -121,72 +127,102 @@ fun SplitTransactionEditorCard(
             }
 
             uiState.splitDrafts.forEach { draft ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainer,
-                        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                        modifier = Modifier
-                            .weight(1.1f)
-                            .clip(RoundedCornerShape(10.dp))
-                            .clickable { onPickSplitCategory(draft.localId) }
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
-                        ) {
-                            CategoryIconBadge(
-                                iconName = draft.categoryIconName,
-                                colorHex = draft.categoryColorHex,
-                                size = 26.dp,
-                                iconSize = 14.dp
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = draft.categoryName,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    OutlinedTextField(
-                        value = draft.amountInput,
-                        onValueChange = { onUpdateSplitAmount(draft.localId, it) },
-                        label = { Text("Amount") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                        modifier = Modifier.weight(0.9f)
-                    )
-
-                    if (!validation.remainingUnallocated.isZero) {
-                        TextButton(
-                            onClick = { onAssignRemainingToSplit(draft.localId) },
-                            contentPadding = PaddingValues(horizontal = 6.dp)
-                        ) {
-                            Text("Fill", style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-
-                    IconButton(
-                        onClick = { onRemoveSplitLine(draft.localId) },
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Delete,
-                            contentDescription = "Remove Split Line",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
+                SplitLineRowItem(
+                    draft = draft,
+                    isFillVisible = !validation.remainingUnallocated.isZero,
+                    onPickCategory = { onPickSplitCategory(draft.localId) },
+                    onUpdateAmount = { onUpdateSplitAmount(draft.localId, it) },
+                    onFillRemaining = { onAssignRemainingToSplit(draft.localId) },
+                    onRemove = { onRemoveSplitLine(draft.localId) }
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun SplitLineRowItem(
+    draft: SplitLineDraft,
+    isFillVisible: Boolean,
+    onPickCategory: () -> Unit,
+    onUpdateAmount: (String) -> Unit,
+    onFillRemaining: () -> Unit,
+    onRemove: () -> Unit
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+    var localAmount by remember(draft.localId) { mutableStateOf(draft.amountInput) }
+    LaunchedEffect(draft.amountInput) {
+        if (localAmount != draft.amountInput) {
+            localAmount = draft.amountInput
+        }
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+            modifier = Modifier
+                .weight(1.1f)
+                .clip(RoundedCornerShape(10.dp))
+                .clickable(onClick = onPickCategory)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+            ) {
+                CategoryIconBadge(
+                    iconName = draft.categoryIconName,
+                    colorHex = draft.categoryColorHex,
+                    size = 26.dp,
+                    iconSize = 14.dp
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = draft.categoryName,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        OutlinedTextField(
+            value = localAmount,
+            onValueChange = { newInput ->
+                localAmount = newInput
+                onUpdateAmount(newInput)
+            },
+            label = { Text("Amount") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            singleLine = true,
+            modifier = Modifier.weight(0.9f)
+        )
+
+        if (isFillVisible) {
+            TextButton(
+                onClick = onFillRemaining,
+                contentPadding = PaddingValues(horizontal = 6.dp)
+            ) {
+                Text("Fill", style = MaterialTheme.typography.labelSmall)
+            }
+        }
+
+        IconButton(
+            onClick = onRemove,
+            modifier = Modifier.size(28.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Delete,
+                contentDescription = "Remove Split Line",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp)
+            )
         }
     }
 }

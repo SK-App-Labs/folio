@@ -36,9 +36,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -77,6 +79,20 @@ internal fun CreditCardSettlementBottomSheet(
     val cardSpec = remember(state.creditCardAccount.currencyCode) {
         SupportedCurrencies.getByCode(state.creditCardAccount.currencyCode)
             ?: SupportedCurrencies.fromCode(state.creditCardAccount.currencyCode)
+    }
+
+    var localAmountInput by rememberSaveable(state.creditCardAccount.id) { mutableStateOf(state.amountInput) }
+    LaunchedEffect(state.amountInput) {
+        if (state.amountInput != localAmountInput) {
+            localAmountInput = state.amountInput
+        }
+    }
+
+    var localNote by rememberSaveable(state.creditCardAccount.id) { mutableStateOf(state.note) }
+    LaunchedEffect(state.note) {
+        if (state.note != localNote) {
+            localNote = state.note
+        }
     }
 
     ModalBottomSheet(
@@ -210,8 +226,9 @@ internal fun CreditCardSettlementBottomSheet(
             }
 
             OutlinedTextField(
-                value = state.amountInput,
+                value = localAmountInput,
                 onValueChange = { v ->
+                    localAmountInput = v
                     onUpdateState {
                         it.copy(preset = SettlementAmountPreset.CUSTOM, amountInput = v)
                     }
@@ -345,8 +362,11 @@ internal fun CreditCardSettlementBottomSheet(
             }
 
             OutlinedTextField(
-                value = state.note,
-                onValueChange = { v -> onUpdateState { it.copy(note = v) } },
+                value = localNote,
+                onValueChange = { v ->
+                    localNote = v
+                    onUpdateState { it.copy(note = v) }
+                },
                 label = { Text("Settlement Note") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()

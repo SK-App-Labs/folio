@@ -58,6 +58,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -238,6 +239,43 @@ fun TransactionEntryFormContent(
     var splitLineIdForCategoryPicker by rememberSaveable { mutableStateOf<Long?>(null) }
     var showBookmarksDialog by rememberSaveable { mutableStateOf(false) }
     var showNewTagDialog by rememberSaveable { mutableStateOf(false) }
+
+    var localAmountInput by remember(uiState.editingTransactionId) {
+        mutableStateOf(if (uiState.expressionBuffer == "0") "" else uiState.expressionBuffer)
+    }
+    LaunchedEffect(uiState.expressionBuffer) {
+        val expected = if (uiState.expressionBuffer == "0") "" else uiState.expressionBuffer
+        if (localAmountInput != expected) {
+            localAmountInput = expected
+        }
+    }
+
+    var localTransferFee by remember(uiState.editingTransactionId) {
+        mutableStateOf(uiState.transferFeeInput)
+    }
+    LaunchedEffect(uiState.transferFeeInput) {
+        if (localTransferFee != uiState.transferFeeInput) {
+            localTransferFee = uiState.transferFeeInput
+        }
+    }
+
+    var localPayee by remember(uiState.editingTransactionId) {
+        mutableStateOf(uiState.payeeOrDescription)
+    }
+    LaunchedEffect(uiState.payeeOrDescription) {
+        if (localPayee != uiState.payeeOrDescription) {
+            localPayee = uiState.payeeOrDescription
+        }
+    }
+
+    var localNote by remember(uiState.editingTransactionId) {
+        mutableStateOf(uiState.note)
+    }
+    LaunchedEffect(uiState.note) {
+        if (localNote != uiState.note) {
+            localNote = uiState.note
+        }
+    }
 
     val formattedDate = remember(uiState.ledgerDateEpochDay) {
         val date = LocalDate.ofEpochDay(uiState.ledgerDateEpochDay)
@@ -628,8 +666,11 @@ fun TransactionEntryFormContent(
                                     modifier = Modifier.padding(end = 4.dp)
                                 )
                                 BasicTextField(
-                                    value = if (uiState.expressionBuffer == "0") "" else uiState.expressionBuffer,
-                                    onValueChange = onAmountInputChange,
+                                    value = localAmountInput,
+                                    onValueChange = { newInput ->
+                                        localAmountInput = newInput
+                                        onAmountInputChange(newInput)
+                                    },
                                     keyboardOptions = KeyboardOptions(
                                         keyboardType = KeyboardType.Decimal,
                                         imeAction = ImeAction.Next
@@ -653,7 +694,7 @@ fun TransactionEntryFormContent(
                                         .widthIn(min = 40.dp, max = 260.dp),
                                     decorationBox = { innerTextField ->
                                         Box(contentAlignment = Alignment.CenterEnd) {
-                                            if (uiState.expressionBuffer == "0" || uiState.expressionBuffer.isEmpty()) {
+                                            if (localAmountInput.isEmpty() || localAmountInput == "0") {
                                                 Text(
                                                     text = "0",
                                                     style = tabularMoneyStyle(MaterialTheme.typography.headlineMedium),
@@ -866,8 +907,11 @@ fun TransactionEntryFormContent(
                 // Optional Transfer Fee Input
                 AnimatedVisibility(visible = uiState.mode == TransactionType.TRANSFER) {
                     OutlinedTextField(
-                        value = uiState.transferFeeInput,
-                        onValueChange = onTransferFeeChange,
+                        value = localTransferFee,
+                        onValueChange = { newInput ->
+                            localTransferFee = newInput
+                            onTransferFeeChange(newInput)
+                        },
                         label = { Text("Optional Transfer Fee (${uiState.currencySpec.symbol})") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
@@ -906,8 +950,11 @@ fun TransactionEntryFormContent(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     OutlinedTextField(
-                        value = uiState.payeeOrDescription,
-                        onValueChange = onPayeeChange,
+                        value = localPayee,
+                        onValueChange = { newInput ->
+                            localPayee = newInput
+                            onPayeeChange(newInput)
+                        },
                         label = { Text("Payee / Description") },
                         singleLine = true,
                         modifier = Modifier
@@ -916,8 +963,11 @@ fun TransactionEntryFormContent(
                     )
 
                     OutlinedTextField(
-                        value = uiState.note,
-                        onValueChange = onNoteChange,
+                        value = localNote,
+                        onValueChange = { newInput ->
+                            localNote = newInput
+                            onNoteChange(newInput)
+                        },
                         label = { Text("Note / Memo") },
                         singleLine = true,
                         modifier = Modifier

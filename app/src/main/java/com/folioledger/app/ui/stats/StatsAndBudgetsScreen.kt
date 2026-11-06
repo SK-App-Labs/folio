@@ -4465,6 +4465,13 @@ private fun BudgetEditorBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
 
+    var localLimitInput by rememberSaveable(state.budgetId) { mutableStateOf(state.limitAmountInput) }
+    LaunchedEffect(state.limitAmountInput) {
+        if (state.limitAmountInput != localLimitInput) {
+            localLimitInput = state.limitAmountInput
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -4586,8 +4593,11 @@ private fun BudgetEditorBottomSheet(
             }
 
             OutlinedTextField(
-                value = state.limitAmountInput,
-                onValueChange = { v -> onUpdateState { it.copy(limitAmountInput = v) } },
+                value = localLimitInput,
+                onValueChange = { v ->
+                    localLimitInput = v
+                    onUpdateState { it.copy(limitAmountInput = v) }
+                },
                 label = { Text("Monthly Limit Amount (${currencySpec.symbol})") },
                 placeholder = { Text("e.g. 50000 or 15000+5000") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -4979,6 +4989,13 @@ private fun MonthlySavingsTargetDialog(
     onRemove: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    var localInput by rememberSaveable { mutableStateOf(currentInput) }
+    LaunchedEffect(currentInput) {
+        if (currentInput != localInput) {
+            localInput = currentInput
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -4992,8 +5009,11 @@ private fun MonthlySavingsTargetDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 OutlinedTextField(
-                    value = currentInput,
-                    onValueChange = onInputChange,
+                    value = localInput,
+                    onValueChange = {
+                        localInput = it
+                        onInputChange(it)
+                    },
                     label = { Text("Target Amount (${currencySpec.symbol})") },
                     placeholder = { Text("e.g. 50000") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -5005,7 +5025,7 @@ private fun MonthlySavingsTargetDialog(
         confirmButton = {
             Button(
                 onClick = onSave,
-                enabled = currentInput.isNotBlank()
+                enabled = localInput.isNotBlank()
             ) {
                 Text("Save Target")
             }
@@ -5053,6 +5073,19 @@ private fun SavingsGoalEditorBottomSheet(
     }
     val currentAccountId = selectedAccountId ?: eligibleAccounts.firstOrNull()?.id ?: 0L
 
+    var localTitle by rememberSaveable(selectedAccountId) { mutableStateOf(title) }
+    LaunchedEffect(title) {
+        if (title != localTitle) {
+            localTitle = title
+        }
+    }
+    var localTargetAmount by rememberSaveable(selectedAccountId) { mutableStateOf(targetAmountInput) }
+    LaunchedEffect(targetAmountInput) {
+        if (targetAmountInput != localTargetAmount) {
+            localTargetAmount = targetAmountInput
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState
@@ -5065,7 +5098,7 @@ private fun SavingsGoalEditorBottomSheet(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(
-                text = if (targetAmountInput.isNotBlank() && selectedAccountId != null) "Edit Savings Goal" else "New Savings Goal",
+                text = if (localTargetAmount.isNotBlank() && selectedAccountId != null) "Edit Savings Goal" else "New Savings Goal",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -5093,7 +5126,7 @@ private fun SavingsGoalEditorBottomSheet(
                     FilterChip(
                         selected = acc.id == currentAccountId,
                         onClick = {
-                            onUpdate(acc.id, title, targetAmountInput, targetDateEpochDay)
+                            onUpdate(acc.id, localTitle, localTargetAmount, targetDateEpochDay)
                         },
                         label = { Text(acc.name) },
                         leadingIcon = {
@@ -5110,8 +5143,11 @@ private fun SavingsGoalEditorBottomSheet(
 
             // Goal Title
             OutlinedTextField(
-                value = title,
-                onValueChange = { onUpdate(currentAccountId, it, targetAmountInput, targetDateEpochDay) },
+                value = localTitle,
+                onValueChange = {
+                    localTitle = it
+                    onUpdate(currentAccountId, it, localTargetAmount, targetDateEpochDay)
+                },
                 label = { Text("Goal Title") },
                 placeholder = { Text("e.g. Emergency Fund, House Down Payment") },
                 singleLine = true,
@@ -5120,8 +5156,11 @@ private fun SavingsGoalEditorBottomSheet(
 
             // Target Amount
             OutlinedTextField(
-                value = targetAmountInput,
-                onValueChange = { onUpdate(currentAccountId, title, it, targetDateEpochDay) },
+                value = localTargetAmount,
+                onValueChange = {
+                    localTargetAmount = it
+                    onUpdate(currentAccountId, localTitle, it, targetDateEpochDay)
+                },
                 label = { Text("Target Amount (${currencySpec.symbol})") },
                 placeholder = { Text("e.g. 500000") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -5136,7 +5175,7 @@ private fun SavingsGoalEditorBottomSheet(
                     .fillMaxWidth()
                     .padding(top = 8.dp)
             ) {
-                if (targetAmountInput.isNotBlank()) {
+                if (localTargetAmount.isNotBlank()) {
                     OutlinedButton(
                         onClick = onDelete,
                         colors = ButtonDefaults.outlinedButtonColors(
@@ -5149,7 +5188,7 @@ private fun SavingsGoalEditorBottomSheet(
                 }
                 Button(
                     onClick = onSave,
-                    enabled = targetAmountInput.isNotBlank() && currentAccountId > 0L,
+                    enabled = localTargetAmount.isNotBlank() && currentAccountId > 0L,
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("Save Goal")

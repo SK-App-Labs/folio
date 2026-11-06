@@ -28,7 +28,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -160,6 +165,13 @@ internal fun SearchAndActiveFilterBanner(
     onRemoveTransfersFilter: () -> Unit = {},
     onRemoveAmountBounds: () -> Unit = {}
 ) {
+    var localQuery by rememberSaveable { mutableStateOf(queryText) }
+    LaunchedEffect(queryText) {
+        if (queryText != localQuery) {
+            localQuery = queryText
+        }
+    }
+
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.fillMaxWidth()
@@ -175,8 +187,11 @@ internal fun SearchAndActiveFilterBanner(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 OutlinedTextField(
-                    value = queryText,
-                    onValueChange = onQueryChange,
+                    value = localQuery,
+                    onValueChange = {
+                        localQuery = it
+                        onQueryChange(it)
+                    },
                     placeholder = {
                         Text(
                             text = "Search",
@@ -191,8 +206,11 @@ internal fun SearchAndActiveFilterBanner(
                         )
                     },
                     trailingIcon = {
-                        if (queryText.isNotEmpty()) {
-                            IconButton(onClick = { onQueryChange("") }) {
+                        if (localQuery.isNotEmpty()) {
+                            IconButton(onClick = {
+                                localQuery = ""
+                                onQueryChange("")
+                            }) {
                                 Icon(
                                     imageVector = Icons.Filled.Clear,
                                     contentDescription = "Clear Search"
