@@ -164,6 +164,8 @@
     <string name="setting_spreadsheets">स्प्रेडशीट (CSV आयात और निर्यात)</string>
     <string name="setting_pdf_statements">PDF विवरण और कर रिपोर्ट</string>
     <string name="setting_user_guide">उपयोगकर्ता गाइड और सहायता</string>
+    <string name="setting_rate_app">Google Play पर Folio को रेट करें</string>
+    <string name="setting_rate_app_not_ready">ऐप प्रकाशित होने के बाद Play Store पेज उपलब्ध होगा</string>
     <string name="setting_tip_jar">टिप जार और सपोर्टर बैज</string>
     <string name="setting_danger_reset">सभी बहीखाता डेटा हटाएं</string>
 </resources>

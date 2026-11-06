@@ -164,6 +164,8 @@
     <string name="setting_spreadsheets">스프레드시트 (CSV 가져오기·내보내기)</string>
     <string name="setting_pdf_statements">PDF 계좌 내역서 및 세무 보고서</string>
     <string name="setting_user_guide">사용자 안내서 및 문의</string>
+    <string name="setting_rate_app">Google Play에서 평가하기</string>
+    <string name="setting_rate_app_not_ready">앱 출시 후 Play 스토어 페이지가 열립니다</string>
     <string name="setting_tip_jar">개발자 후원 및 배지</string>
     <string name="setting_danger_reset">가계부 전체 데이터 초기화</string>
 </resources>

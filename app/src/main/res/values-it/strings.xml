@@ -164,6 +164,8 @@
     <string name="setting_spreadsheets">Fogli di calcolo (CSV)</string>
     <string name="setting_pdf_statements">Estratti conto PDF e report fiscali</string>
     <string name="setting_user_guide">Guida utente e supporto</string>
+    <string name="setting_rate_app">Valuta Folio su Google Play</string>
+    <string name="setting_rate_app_not_ready">La pagina di Play Store sarà disponibile dopo la pubblicazione</string>
     <string name="setting_tip_jar">Barattolo delle mance e badge</string>
     <string name="setting_danger_reset">Cancella tutti i dati</string>
 </resources>

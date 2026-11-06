@@ -164,6 +164,8 @@
     <string name="setting_spreadsheets">விரிதாள்கள் (CSV இறக்குமதி மற்றும் ஏற்றுமதி)</string>
     <string name="setting_pdf_statements">PDF கணக்கு அறிக்கை மற்றும் வரி சுருக்கம்</string>
     <string name="setting_user_guide">பயனர் கையேடு மற்றும் ஆதரவு</string>
+    <string name="setting_rate_app">Google Play-இல் Folio-வை மதிப்பிடுங்கள்</string>
+    <string name="setting_rate_app_not_ready">செயலி வெளியானதும் Play Store பக்கம் கிடைக்கும்</string>
     <string name="setting_tip_jar">டெவலப்பருக்கு ஆதரவளிக்க மற்றும் பேட்ஜ்</string>
     <string name="setting_danger_reset">அனைத்து தரவையும் அழித்து மீட்டமை</string>
 </resources>

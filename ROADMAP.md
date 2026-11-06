@@ -21,14 +21,14 @@
 
 ## 🔮 Upcoming Feature Milestones
 
-- `[ ]` **Phase 4: Loan EMI Auto-Balancing Split & Native Recurring Commitments**
-  - `[ ]` **Native `[🔁 Repeat]` Commitment Toggle**: Add repeat frequency selection in `TransactionEntrySheet.kt` wired to `budgetAndRecurringDao.upsertRecurringRule(...)` with 0 database migrations.
-  - `[ ]` **Auto-Balancing 1-Tap Loan Transfer Split**: When transferring from Bank to `AccountGroup.LOAN`, auto-calculate Principal paydown ($P = E - I$) from entered Interest ($I$), recording both Transfer and Expense atomically.
-  - `[ ]` **Active Commitments Management Hub**: Provide a dedicated sheet to view, pause, resume, and delete recurring commitments.
+- **Phase 4: Loan EMI Auto-Balancing Split & Native Recurring Commitments**
+  - `[x]` **Native `[🔁 Repeat]` Commitment Toggle**: Added repeat frequency selection in `TransactionEntrySheet.kt` wired to `RecurringScheduleCalculator` and recurring rule creation with 0 database migrations.
+  - `[x]` **Active Commitments Management Hub**: Provided dedicated `RecurringManagerBottomSheet.kt` in Settings to inspect, pause, resume, edit, and delete recurring commitments.
+  - `[ ]` **Auto-Balancing 1-Tap Loan Transfer Split**: When transferring from Bank to `AccountGroup.LOAN`, auto-calculate Principal paydown ($P = E - I$) from entered Interest ($I$), recording both Transfer and Expense atomically (manual split available via `[✂ Split]`).
 
 ---
 
-## 🚀 Phase 2: Google Play Billing Setup (Post-Closed Testing / Pre-Launch)
+## 🚀 Phase 2: Google Play Billing Setup (Post-Launch v1.6.0)
 
 **Goal:** Wire Google Play’s official billing engine so users can make real micro-transactions using their local currencies.
 
@@ -58,9 +58,9 @@
 
 **Goal:** Maximize organic store discovery and long-term user appreciation.
 
-- `[ ]` **3.1 "Rate Folio on Google Play" Entry**
-  - `[ ]` Add a 1-tap shortcut to open `market://details?id=com.folioledger.app` directly on the device's Play Store.
-  - `[ ]` Allow satisfied users who don't wish to spend money to leave 5-star ratings to boost store ranking.
+- `[x]` **3.1 "Rate Folio on Google Play" Entry**
+  - `[x]` Added 1-tap shortcut in `SettingsScreen.kt` under Help & Community to launch `market://details?id=${context.packageName}` with web fallback and unpublished toast guard.
+  - `[x]` Allows satisfied users to leave 5-star ratings to boost store ranking.
 
 - `[ ]` **3.2 Cosmetic Supporter Perk**
   - `[ ]` Automatically unlock an exclusive "Patron Gold" accent palette in `AppearanceBottomSheet.kt` as an extra thank-you.

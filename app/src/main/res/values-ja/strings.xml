@@ -164,6 +164,8 @@
     <string name="setting_spreadsheets">スプレッドシート（CSV入出力）</string>
     <string name="setting_pdf_statements">PDF取引明細と確定申告レポート</string>
     <string name="setting_user_guide">使い方ガイドとサポート</string>
+    <string name="setting_rate_app">Google Play で評価する</string>
+    <string name="setting_rate_app_not_ready">アプリ公開後にPlayストアページが開きます</string>
     <string name="setting_tip_jar">応援チップとバッジ</string>
     <string name="setting_danger_reset">すべての家計簿データを消去</string>
 </resources>

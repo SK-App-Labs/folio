@@ -164,6 +164,8 @@
     <string name="setting_spreadsheets">Spreadsheet (Impor &amp; Ekspor CSV)</string>
     <string name="setting_pdf_statements">Laporan Rekening &amp; Pajak PDF</string>
     <string name="setting_user_guide">Panduan Pengguna &amp; Dukungan</string>
+    <string name="setting_rate_app">Beri Nilai Folio di Google Play</string>
+    <string name="setting_rate_app_not_ready">Halaman Play Store akan tersedia setelah dirilis</string>
     <string name="setting_tip_jar">Dukung Pengembang &amp; Lencana</string>
     <string name="setting_danger_reset">Hapus Semua Data &amp; Reset</string>
 </resources>

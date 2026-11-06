@@ -164,6 +164,8 @@
     <string name="setting_spreadsheets">Tabellen (CSV-Import &amp; Export)</string>
     <string name="setting_pdf_statements">PDF-Kontoauszüge &amp; Steuerberichte</string>
     <string name="setting_user_guide">Benutzerhandbuch &amp; Hilfe</string>
+    <string name="setting_rate_app">Folio bei Google Play bewerten</string>
+    <string name="setting_rate_app_not_ready">Play Store-Eintrag wird nach der Veröffentlichung verfügbar sein</string>
     <string name="setting_tip_jar">Kaffeekasse &amp; Abzeichen</string>
     <string name="setting_danger_reset">Alle Buchungsdaten zurücksetzen</string>
 </resources>

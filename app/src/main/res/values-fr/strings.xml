@@ -164,6 +164,8 @@
     <string name="setting_spreadsheets">Feuilles de calcul (CSV)</string>
     <string name="setting_pdf_statements">Relevés PDF &amp; rapports fiscaux</string>
     <string name="setting_user_guide">Manuel d\'utilisation &amp; support</string>
+    <string name="setting_rate_app">Noter Folio sur Google Play</string>
+    <string name="setting_rate_app_not_ready">La page Play Store sera disponible après la publication</string>
     <string name="setting_tip_jar">Boîte à pourboire &amp; badge</string>
     <string name="setting_danger_reset">Réinitialiser les données</string>
 </resources>

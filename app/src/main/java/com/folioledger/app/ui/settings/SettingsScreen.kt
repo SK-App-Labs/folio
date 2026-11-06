@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -117,9 +118,11 @@ import com.folioledger.app.ui.iconpack.FolioIconPackTheme
 import com.folioledger.app.ui.settings.sheets.IconPackBottomSheet
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.ui.platform.LocalContext
@@ -486,6 +489,37 @@ fun SettingsScreen(
                             valueText = null,
                             enabled = isNotBusy,
                             onClick = { showFeedbackSheet = true }
+                        )
+                        HorizontalDivider(
+                            color = semanticColors.cardStrokeSubtle,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                        SettingsNavigationRow(
+                            icon = Icons.Filled.Star,
+                            title = stringResource(R.string.setting_rate_app),
+                            valueText = "★ ★ ★ ★ ★",
+                            valueColorDot = semanticColors.warningAmber,
+                            enabled = isNotBusy,
+                            onClick = {
+                                val pkgName = context.packageName
+                                val marketIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$pkgName")).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY or Intent.FLAG_ACTIVITY_NEW_DOCUMENT or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+                                }
+                                try {
+                                    context.startActivity(marketIntent)
+                                } catch (e: ActivityNotFoundException) {
+                                    val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$pkgName"))
+                                    try {
+                                        context.startActivity(webIntent)
+                                    } catch (_: Exception) {
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.setting_rate_app_not_ready),
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                            }
                         )
                         HorizontalDivider(
                             color = semanticColors.cardStrokeSubtle,

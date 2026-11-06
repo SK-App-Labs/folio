@@ -164,6 +164,8 @@
     <string name="setting_spreadsheets">Planilhas (Importação e Exportação CSV)</string>
     <string name="setting_pdf_statements">Extratos em PDF e Relatórios Fiscais</string>
     <string name="setting_user_guide">Manual do Usuário e Suporte</string>
+    <string name="setting_rate_app">Avaliar Folio no Google Play</string>
+    <string name="setting_rate_app_not_ready">A página do Play Store estará disponível após a publicação</string>
     <string name="setting_tip_jar">Caixinha de Apoio e Distintivo</string>
     <string name="setting_danger_reset">Apagar Todos os Dados do Livro</string>
 </resources>

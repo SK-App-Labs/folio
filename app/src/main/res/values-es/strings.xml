@@ -164,6 +164,8 @@
     <string name="setting_spreadsheets">Hojas de cálculo (CSV)</string>
     <string name="setting_pdf_statements">Extractos PDF e informes fiscales</string>
     <string name="setting_user_guide">Guía de usuario y soporte</string>
+    <string name="setting_rate_app">Calificar Folio en Google Play</string>
+    <string name="setting_rate_app_not_ready">La ficha de Play Store estará disponible una vez publicada</string>
     <string name="setting_tip_jar">Bote de propinas y badge</string>
     <string name="setting_danger_reset">Restablecer todos los datos</string>
 </resources>

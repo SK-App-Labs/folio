@@ -164,6 +164,8 @@
     <string name="setting_spreadsheets">电子表格 (CSV导入与导出)</string>
     <string name="setting_pdf_statements">PDF对账单与年度税务报表</string>
     <string name="setting_user_guide">使用手册与用户支持</string>
+    <string name="setting_rate_app">在 Google Play 上评价 Folio</string>
+    <string name="setting_rate_app_not_ready">应用发布后即可打开 Play 商店页面</string>
     <string name="setting_tip_jar">请作者喝咖啡与支持徽章</string>
     <string name="setting_danger_reset">重置清空所有账本数据</string>
 </resources>

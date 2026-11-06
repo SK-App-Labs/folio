@@ -20,6 +20,8 @@
     <string name="setting_spreadsheets">Spreadsheets &amp; CSV</string>
     <string name="setting_pdf_statements">PDF Statements &amp; Tax Reports</string>
     <string name="setting_user_guide">Folio User Guide &amp; FAQs</string>
+    <string name="setting_rate_app">Rate Folio on Google Play</string>
+    <string name="setting_rate_app_not_ready">Play Store listing will open once published</string>
     <string name="setting_tip_jar">Support Folio ☕</string>
     <string name="setting_danger_reset">Reset All Ledger Data</string>
 </resources>
