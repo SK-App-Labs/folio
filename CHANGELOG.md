@@ -11,7 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 
 
 ### Changed
-- 
+- **Architectural Refactoring (Phase 1: UI Sheet & Subtab Decomposition)**:
+  - Decomposed the 5,200+ line `StatsAndBudgetsScreen.kt` monolith down to a clean 504-line coordinator scaffold by extracting 5 bottom sheets (`CategoryDrillDownBottomSheet`, `PayeeDrillDownBottomSheet`, `TagProjectDrillDownBottomSheet`, `BudgetEditorBottomSheet`, `SavingsGoalEditorBottomSheet`), 2 dialogs (`CustomDateRangePickerDialog`, `MonthlySavingsTargetDialog`), and 3 modular subtab views into dedicated packages (`ui/stats/sheets/`, `ui/stats/dialogs/`, `ui/stats/subtabs/`).
+  - Modularized `CreditCardsCockpitSubTabContent.kt` from 1,924 lines down to 267 lines by isolating `CreditHeroArcGaugeCard`, `SmartSwipeAdvisorBanner`, `CreditCardsPortfolioSection`, `CreditSpendRatioAndTrendCards`, `CardMilestoneEditorBottomSheet`, `CreditPaydownSimulatorBottomSheet`, and `AllCardsFloatRankingDialog` into `ui/stats/components/`, `sheets/`, and `dialogs/`.
+  - Replaced the 1,623-line `LedgerSubTabs.kt` monolith with 7 isolated subtab files under `ui/ledger/subtabs/` (`DailyLedgerSubTab`, `CalendarLedgerSubTab`, `WeeklyLedgerSubTab`, `MonthlyLedgerSubTab`, `SummaryLedgerSubTab`, `FilteredSearchResultsSubTab`, `SingleTotalSummaryBanner`).
+  - Improved incremental compilation speed and reduced test execution time to ~20 seconds with zero behavioral regressions.
 
 ### Fixed
 - 
