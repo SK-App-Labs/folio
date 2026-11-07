@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
+- **Architectural Refactoring (Phase 24: Tag Project DrillDown Sheet Modularization & Date Span Domain Extraction)**:
+  - Decomposed and streamlined `TagProjectDrillDownBottomSheet.kt` from 682 lines down to 180 lines (~74% reduction) by removing 50+ lines of unused wildcard imports and isolating hero cards, category breakdowns, and passbook transactions into `ui/stats/sheets/components/`:
+    - `domain/util/TagDateSpanFormatter.kt` (25 lines): Extracted pure domain date span formatter for active trips and event passbooks ("Active", "15 Oct", "15 Oct – 22 Oct").
+    - `ui/stats/sheets/components/TagProjectHeroSummaryCard.kt` (255 lines): Extracted polymorphic hero summary card handling Reimbursements & Claims overview (reimbursement status badge, 3-column metrics for Outlay / Reimbursed / Still Owed, and progress bar) vs Event & Trip overview (Duration, Daily Burn rate, Total Spend).
+    - `ui/stats/sheets/components/TagCategoryDistributionSection.kt` (105 lines): Extracted category distribution card with percentage badges, category icon badges, and currency-aware amount formatting.
+    - `ui/stats/sheets/components/TagTransactionRowItem.kt` (110 lines): Extracted clickable transaction passbook row item featuring category badge, payee/note label, account name, formatted date, and color-coded transaction amount.
+  - Added dedicated pure JVM unit test suite `TagDateSpanFormatterTest.kt` with 3 tests verifying null handling, single-day trips, and multi-day spans.
 - **Architectural Refactoring (Phase 23: Category Manager Sheet Modularization & Search Filter Domain Extraction)**:
   - Decomposed and streamlined `CategoryManagerBottomSheet.kt` from 640 lines down to 175 lines (~73% reduction) by isolating dialogs, accordion card items, and search filtering:
     - `domain/util/CategoryDrillDownCalculator.kt`: Added pure domain filter `filterCategoryTree` supporting blank query passthrough, parent keyword matches with full subcategory preservation, and subcategory-only keyword filtering.
