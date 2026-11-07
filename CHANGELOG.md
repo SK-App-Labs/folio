@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
+- **Architectural Refactoring (Phase 13: Accounts Domain Calculation & UI Models Extraction)**:
+  - Decomposed and streamlined `AccountsViewModel.kt` from 1,288 lines down to 768 lines (~40% reduction) by isolating pure passbook algorithms and domain UI models:
+    - `domain/util/AccountPassbookCalculator.kt`: Extracted `PassbookPeriodCalculator` (financial month date clamping, custom month start ranges, credit card statement cycle resolution, and forward/backward month stepping) and `AccountPassbookCalculator` (`buildAccountPassbookUiModel` calculating running balances, day groupings, inflows/outflows, and debit card transaction rollups to parent bank accounts).
+    - `ui/accounts/AccountsUiModels.kt`: Extracted public UI models (`PassbookPeriodRange`, `AccountPassbookEntryUiModel`, `AccountPassbookDayGroup`, `AccountPassbookUiModel`, `AccountEditorDialogState`, `SettlementAmountPreset`, `CreditCardSettlementSheetState`, `ReconcileBalanceDialogState`, `AccountsUiState`).
+  - Added dedicated pure JVM test suite `AccountPassbookCalculatorTest.kt` with 5 comprehensive unit tests (standard month start, custom start day cycle boundary math, month offset stepping, inflow/outflow delta aggregation, child debit card transaction rollup).
 - **Architectural Refactoring (Phase 12: Transaction Entry Sheet Modularization)**:
   - Decomposed `TransactionEntrySheet.kt` from 1,323 lines down to 673 lines (~49% reduction) by isolating UI components and modal dialogs into `ui/entry/components/`:
     - `ui/entry/components/EntryHeaderAndDateBar.kt`: Extracted `EntryModeSelectorHeader` (mode selector tabs, bookmarks trigger, close action), `EntryDateAndTimeBar` (date stepping, date picker button chip, time picker button chip, feature action toggles), `EntryRecurringBanner` (live human-readable recurring schedule summary and edit/turn-off triggers), and reusable `ActionToggleButton`.
