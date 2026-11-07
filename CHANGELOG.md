@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
+- **Architectural Refactoring (Phase 19: Support & Guide Sheets Modularization)**:
+  - Decomposed and modularized `FolioGuideAndSupportSheets.kt` from 922 lines down to 53 lines (~94% reduction) into dedicated sheet components and knowledge base models:
+    - `ui/settings/guides/FolioGuideTopics.kt` (260 lines): Extracted user guide topics repository, `GuideCategoryTab` (All, Getting Started, Features, Credit Cards, FAQs), and `GuideTopicItem` domain model covering account setup, gestures, 5 ledger views, smart calculator/splits, passbooks, CSV imports, analytics, backups, and credit card billing cycles.
+    - `ui/settings/sheets/UserGuideBottomSheet.kt` (257 lines): Extracted searchable user guide bottom sheet with keyword search filtering, category tab row, and animated expandable topic cards.
+    - `ui/settings/sheets/TipJarBottomSheet.kt` (299 lines): Extracted voluntary supporter tip jar sheet with tiered patron options (Coffee, Supporter, Patron), badge status unlocks, and app sharing launcher.
+    - `ui/components/FolioBrandLogoBadge.kt` (38 lines): Isolated reusable Folio signature brand logo badge using adaptive vector assets.
+    - `FolioGuideAndSupportSheets.kt` (53 lines): Preserved 100% backward API compatibility via delegating composables and typealiases.
+  - Added dedicated pure JVM unit test suite `FolioGuideTopicsTest.kt` with 3 comprehensive tests verifying topic ID uniqueness, complete non-blank content, and category distribution.
 - **Architectural Refactoring (Phase 18: PDF Reports Sheet Modularization & Period Preset Domain Resolver)**:
   - Decomposed and streamlined `PdfReportsBottomSheet.kt` from 861 lines down to 196 lines (~77% reduction) by isolating report configuration sections, success dialogs, and date preset resolution:
     - `data/pdf/PassbookPeriodPresetResolver.kt`: Extracted pure period range resolution mapping `PassbookPeriodPreset` (current month, last month, last 3 months, YTD, all-time, custom) to epoch day bounds with deterministic date support.
