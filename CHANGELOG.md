@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
+- **Architectural Refactoring (Phase 25: Settings CSV Import Dialogs Modularization)**:
+  - Decomposed and streamlined `SettingsDialogs.kt` from 697 lines down to 216 lines (~69% reduction) by isolating complex spreadsheet import dialogs into dedicated files in `ui/settings/dialogs/`:
+    - `ui/settings/dialogs/ImportCsvPreviewDialog.kt` (390 lines): Extracted full CSV import analysis preview dialog featuring total row statistics, opening balance anchor badges, duplicate handling radio selectors (Exclude Duplicates Recommended vs Allow Duplicates), warning diagnostics, and collapsible duplicate sample inspection rows.
+    - `ui/settings/dialogs/ImportCsvResultDialog.kt` (95 lines): Extracted post-import summary dialog displaying counts for imported transactions, configured accounts, updated transactions, skipped duplicates, and newly created categories/accounts.
+    - `ui/settings/dialogs/SettingsDialogs.kt` (216 lines): Retained general settings dialogs (`MonthStartDayPickerDialog`, `RestoreConfirmationDialog`, `ClearAllDataConfirmationDialog`).
 - **Architectural Refactoring (Phase 24: Tag Project DrillDown Sheet Modularization & Date Span Domain Extraction)**:
   - Decomposed and streamlined `TagProjectDrillDownBottomSheet.kt` from 682 lines down to 180 lines (~74% reduction) by removing 50+ lines of unused wildcard imports and isolating hero cards, category breakdowns, and passbook transactions into `ui/stats/sheets/components/`:
     - `domain/util/TagDateSpanFormatter.kt` (25 lines): Extracted pure domain date span formatter for active trips and event passbooks ("Active", "15 Oct", "15 Oct – 22 Oct").
