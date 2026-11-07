@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
+- **Architectural Refactoring (Phase 26: Folio Common Components Modularization)**:
+  - Decomposed and streamlined `FolioCommonComponents.kt` from 1,109 lines down to 195 lines (~82% reduction) by isolating shared component subdomains into dedicated files in `ui/components/`:
+    - `ui/components/CategoryIconBadge.kt` (385 lines): Extracted category badge rendering with adaptive shape/size, emoji pack support, icon pack resolution (`resolveFolioIcon`), cached color parsing (`parseHexColorSafely`), complete key palette (`ALL_CATEGORY_ICON_KEYS`), and domain suggestion engine (`suggestIconAndColorForCategoryName`).
+    - `ui/components/PeriodSelectorHeader.kt` (215 lines): Extracted top period navigation bar featuring date browsing (previous/next), jump-to-today button, calendar dialog launcher, bookmark shortcuts, and filter badge indicators.
+    - `ui/components/ThreeColumnSummaryBanner.kt` (240 lines): Extracted 3-column financial metric card supporting period ledger cashflow summaries, net worth overviews, and custom columns with carry-over displays.
+    - `ui/components/FolioCommonComponents.kt` (195 lines): Retained core primitives `MoneyColorMode`, `MoneyColorMode.fromTransactionType`, `MoneyText`, and `EmptyStateCard`.
 - **Architectural Refactoring (Phase 25: Settings CSV Import Dialogs Modularization)**:
   - Decomposed and streamlined `SettingsDialogs.kt` from 697 lines down to 216 lines (~69% reduction) by isolating complex spreadsheet import dialogs into dedicated files in `ui/settings/dialogs/`:
     - `ui/settings/dialogs/ImportCsvPreviewDialog.kt` (390 lines): Extracted full CSV import analysis preview dialog featuring total row statistics, opening balance anchor badges, duplicate handling radio selectors (Exclude Duplicates Recommended vs Allow Duplicates), warning diagnostics, and collapsible duplicate sample inspection rows.
