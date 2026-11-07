@@ -168,4 +168,16 @@
     <string name="setting_rate_app_not_ready">アプリ公開後にPlayストアページが開きます</string>
     <string name="setting_tip_jar">応援チップとバッジ</string>
     <string name="setting_danger_reset">すべての家計簿データを消去</string>
+
+    <!-- Phase 5 Localization Polish -->
+    <string name="stats_overview_mode_categories">カテゴリー</string>
+    <string name="stats_overview_mode_cashflow">キャッシュフロー</string>
+    <string name="stats_overview_mode_net_worth">純資産</string>
+    <string name="stats_top_expense_drivers">主な支出要因</string>
+    <string name="stats_top_income_sources">主な収入源</string>
+    <string name="budget_add_budget">予算を追加</string>
+    <string name="budget_add_goal">目標を追加</string>
+    <string name="budget_btn_set_target">目標を設定</string>
+    <string name="budget_category_budgets_title">カテゴリー予算</string>
+    <string name="budget_savings_goals_title">貯蓄目標と資産保管庫</string>
 </resources>

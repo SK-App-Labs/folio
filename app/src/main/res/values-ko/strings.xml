@@ -168,4 +168,16 @@
     <string name="setting_rate_app_not_ready">앱 출시 후 Play 스토어 페이지가 열립니다</string>
     <string name="setting_tip_jar">개발자 후원 및 배지</string>
     <string name="setting_danger_reset">가계부 전체 데이터 초기화</string>
+
+    <!-- Phase 5 Localization Polish -->
+    <string name="stats_overview_mode_categories">카테고리</string>
+    <string name="stats_overview_mode_cashflow">현금 흐름</string>
+    <string name="stats_overview_mode_net_worth">순자산</string>
+    <string name="stats_top_expense_drivers">주요 지출 항목</string>
+    <string name="stats_top_income_sources">주요 수입원</string>
+    <string name="budget_add_budget">예산 추가</string>
+    <string name="budget_add_goal">목표 추가</string>
+    <string name="budget_btn_set_target">목표 설정</string>
+    <string name="budget_category_budgets_title">카테고리 예산</string>
+    <string name="budget_savings_goals_title">저축 목표 및 자산 금고</string>
 </resources>

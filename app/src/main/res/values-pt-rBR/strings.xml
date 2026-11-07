@@ -168,4 +168,16 @@
     <string name="setting_rate_app_not_ready">A página do Play Store estará disponível após a publicação</string>
     <string name="setting_tip_jar">Caixinha de Apoio e Distintivo</string>
     <string name="setting_danger_reset">Apagar Todos os Dados do Livro</string>
+
+    <!-- Phase 5 Localization Polish -->
+    <string name="stats_overview_mode_categories">Categorias</string>
+    <string name="stats_overview_mode_cashflow">Fluxo de Caixa</string>
+    <string name="stats_overview_mode_net_worth">Patrimônio Líquido</string>
+    <string name="stats_top_expense_drivers">Maiores Despesas</string>
+    <string name="stats_top_income_sources">Principais Fontes de Renda</string>
+    <string name="budget_add_budget">Adicionar Orçamento</string>
+    <string name="budget_add_goal">Adicionar Meta</string>
+    <string name="budget_btn_set_target">Definir Meta</string>
+    <string name="budget_category_budgets_title">Orçamentos por Categoria</string>
+    <string name="budget_savings_goals_title">Metas de Poupança e Cofres</string>
 </resources>

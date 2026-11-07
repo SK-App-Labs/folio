@@ -168,4 +168,16 @@
     <string name="setting_rate_app_not_ready">ऐप प्रकाशित होने के बाद Play Store पेज उपलब्ध होगा</string>
     <string name="setting_tip_jar">टिप जार और सपोर्टर बैज</string>
     <string name="setting_danger_reset">सभी बहीखाता डेटा हटाएं</string>
+
+    <!-- Phase 5 Localization Polish -->
+    <string name="stats_overview_mode_categories">श्रेणियाँ</string>
+    <string name="stats_overview_mode_cashflow">कैशफ़्लो</string>
+    <string name="stats_overview_mode_net_worth">कुल संपत्ति</string>
+    <string name="stats_top_expense_drivers">शीर्ष खर्च</string>
+    <string name="stats_top_income_sources">शीर्ष आय स्रोत</string>
+    <string name="budget_add_budget">बजट जोड़ें</string>
+    <string name="budget_add_goal">लक्ष्य जोड़ें</string>
+    <string name="budget_btn_set_target">लक्ष्य निर्धारित करें</string>
+    <string name="budget_category_budgets_title">श्रेणी बजट</string>
+    <string name="budget_savings_goals_title">बचत लक्ष्य और संपत्तियां</string>
 </resources>

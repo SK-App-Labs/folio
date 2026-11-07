@@ -70,11 +70,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.folioledger.app.R
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.CardMilestoneConfig
 import com.folioledger.app.domain.model.CategoryType
@@ -322,7 +324,7 @@ internal fun CreditHeroArcGaugeCard(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "TOTAL CC DEBT",
+                        text = stringResource(R.string.safe_to_spend_formula_cards),
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,

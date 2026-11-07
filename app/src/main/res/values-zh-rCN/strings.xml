@@ -168,4 +168,16 @@
     <string name="setting_rate_app_not_ready">应用发布后即可打开 Play 商店页面</string>
     <string name="setting_tip_jar">请作者喝咖啡与支持徽章</string>
     <string name="setting_danger_reset">重置清空所有账本数据</string>
+
+    <!-- Phase 5 Localization Polish -->
+    <string name="stats_overview_mode_categories">分类</string>
+    <string name="stats_overview_mode_cashflow">现金流</string>
+    <string name="stats_overview_mode_net_worth">净资产</string>
+    <string name="stats_top_expense_drivers">主要支出项</string>
+    <string name="stats_top_income_sources">主要收入来源</string>
+    <string name="budget_add_budget">添加预算</string>
+    <string name="budget_add_goal">添加目标</string>
+    <string name="budget_btn_set_target">设定目标</string>
+    <string name="budget_category_budgets_title">分类预算</string>
+    <string name="budget_savings_goals_title">储蓄目标与财富保险库</string>
 </resources>

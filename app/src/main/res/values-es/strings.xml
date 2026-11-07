@@ -168,4 +168,16 @@
     <string name="setting_rate_app_not_ready">La ficha de Play Store estará disponible una vez publicada</string>
     <string name="setting_tip_jar">Bote de propinas y badge</string>
     <string name="setting_danger_reset">Restablecer todos los datos</string>
+
+    <!-- Phase 5 Localization Polish -->
+    <string name="stats_overview_mode_categories">Categorías</string>
+    <string name="stats_overview_mode_cashflow">Flujo de caja</string>
+    <string name="stats_overview_mode_net_worth">Patrimonio neto</string>
+    <string name="stats_top_expense_drivers">Principales gastos</string>
+    <string name="stats_top_income_sources">Principales fuentes de ingresos</string>
+    <string name="budget_add_budget">Añadir presupuesto</string>
+    <string name="budget_add_goal">Añadir meta</string>
+    <string name="budget_btn_set_target">Establecer meta</string>
+    <string name="budget_category_budgets_title">Presupuestos por categoría</string>
+    <string name="budget_savings_goals_title">Metas de ahorro y bóvedas</string>
 </resources>

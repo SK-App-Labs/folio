@@ -47,4 +47,16 @@
     <!-- Payee Intelligence -->
     <string name="payee_sort_outlay">Total Outlay</string>
     <string name="payee_sort_frequency">Frequency</string>
+
+    <!-- Phase 5 Localization Polish -->
+    <string name="stats_overview_mode_categories">Categories</string>
+    <string name="stats_overview_mode_cashflow">Cashflow</string>
+    <string name="stats_overview_mode_net_worth">Net Worth</string>
+    <string name="stats_top_expense_drivers">Top Expense Drivers</string>
+    <string name="stats_top_income_sources">Top Income Sources</string>
+    <string name="budget_add_budget">Add Budget</string>
+    <string name="budget_add_goal">Add Goal</string>
+    <string name="budget_btn_set_target">Set Target</string>
+    <string name="budget_category_budgets_title">Category Budgets</string>
+    <string name="budget_savings_goals_title">Savings Goals &amp; Wealth Vaults</string>
 </resources>

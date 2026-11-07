@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 
 
 ### Changed
+- **Architectural Refactoring (Phase 5: Localization Polish & Complete 13-Language Parity)**:
+  - Externalized hardcoded user-facing strings across newly decomposed subtabs and shared components:
+    - `FolioCommonComponents.kt`: Connected `ThreeColumnSummaryBanner` default overloads (period summary, net worth overview, and carry-over badges) to dynamic localized string resources.
+    - `AccountGroupSectionCard.kt`: Connected "Due Now" and "Unbilled" credit card status badges to localized string resources.
+    - `WeeklyLedgerSubTab.kt` & `MonthlyLedgerSubTab.kt`: Replaced hardcoded empty state and active month badge strings with localized resources.
+    - `StatsOverviewSubTabContent.kt`: Connected overview mode switches, income/expense toggles, top driver titles, Net Worth Velocity, Emergency Runway, and Safe-to-Spend formula labels to localized strings.
+    - `BudgetsSubTabContent.kt`: Connected section headers, "Add Budget", "Add Goal", and "Set Target" actions to localized strings.
+    - `CreditHeroArcGaugeCard.kt`: Connected formula debt and limit labels to localized strings.
+  - Added 10 new localized string keys with complete 100% translation parity across all 13 supported languages (English, German, Spanish, French, Hindi, Indonesian, Italian, Japanese, Korean, Portuguese Brazil, Tamil, Simplified Chinese, Traditional Chinese).
 - **Architectural Refactoring (Phase 4: Compose Draw Optimization & List Stability)**:
   - Eliminated Canvas heap churn and per-frame memory allocations across financial charts:
     - `NetWorthAnalyticsComponents.kt`: Replaced `Canvas` in `CreditUtilizationGauge` with `Modifier.drawWithCache` to pre-cache tick geometry and bounds; hoisted `primaryMetricAmounts`, `primaryColorTone`, and `gradientColors` into `remember` blocks outside draw passes in `NetWorthGrowthCanvasChart`.

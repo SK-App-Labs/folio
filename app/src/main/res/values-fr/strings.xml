@@ -168,4 +168,16 @@
     <string name="setting_rate_app_not_ready">La page Play Store sera disponible après la publication</string>
     <string name="setting_tip_jar">Boîte à pourboire &amp; badge</string>
     <string name="setting_danger_reset">Réinitialiser les données</string>
+
+    <!-- Phase 5 Localization Polish -->
+    <string name="stats_overview_mode_categories">Catégories</string>
+    <string name="stats_overview_mode_cashflow">Flux de trésorerie</string>
+    <string name="stats_overview_mode_net_worth">Valeur nette</string>
+    <string name="stats_top_expense_drivers">Principaux postes de dépenses</string>
+    <string name="stats_top_income_sources">Principales sources de revenus</string>
+    <string name="budget_add_budget">Ajouter un budget</string>
+    <string name="budget_add_goal">Ajouter un objectif</string>
+    <string name="budget_btn_set_target">Définir l\'objectif</string>
+    <string name="budget_category_budgets_title">Budgets par catégorie</string>
+    <string name="budget_savings_goals_title">Objectifs d\'épargne et coffres</string>
 </resources>

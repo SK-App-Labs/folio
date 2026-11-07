@@ -168,4 +168,16 @@
     <string name="setting_rate_app_not_ready">La pagina di Play Store sarà disponibile dopo la pubblicazione</string>
     <string name="setting_tip_jar">Barattolo delle mance e badge</string>
     <string name="setting_danger_reset">Cancella tutti i dati</string>
+
+    <!-- Phase 5 Localization Polish -->
+    <string name="stats_overview_mode_categories">Categorie</string>
+    <string name="stats_overview_mode_cashflow">Flusso di cassa</string>
+    <string name="stats_overview_mode_net_worth">Patrimonio netto</string>
+    <string name="stats_top_expense_drivers">Principali voci di spesa</string>
+    <string name="stats_top_income_sources">Principali fonti di entrata</string>
+    <string name="budget_add_budget">Aggiungi budget</string>
+    <string name="budget_add_goal">Aggiungi obiettivo</string>
+    <string name="budget_btn_set_target">Imposta obiettivo</string>
+    <string name="budget_category_budgets_title">Budget di categoria</string>
+    <string name="budget_savings_goals_title">Obiettivi di risparmio e caveau</string>
 </resources>

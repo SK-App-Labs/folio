@@ -115,6 +115,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.folioledger.app.R
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSavingsGoal
 import com.folioledger.app.domain.model.AccountSummary
@@ -382,7 +383,7 @@ internal fun BudgetsManagerSubTabContent(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Category Budgets (${categoryBudgets.size})",
+                                text = "${stringResource(R.string.budget_category_budgets_title)} (${categoryBudgets.size})",
                                 style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
                                 fontWeight = FontWeight.Bold
                             )
@@ -405,7 +406,7 @@ internal fun BudgetsManagerSubTabContent(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Add Budget",
+                                text = stringResource(R.string.budget_add_budget),
                                 style = MaterialTheme.typography.labelLarge
                             )
                         }
@@ -473,7 +474,7 @@ internal fun BudgetsManagerSubTabContent(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Savings Goals & Wealth Vaults (${savingsGoals.size})",
+                                text = "${stringResource(R.string.budget_savings_goals_title)} (${savingsGoals.size})",
                                 style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
                                 fontWeight = FontWeight.Bold
                             )
@@ -496,7 +497,7 @@ internal fun BudgetsManagerSubTabContent(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Add Goal",
+                                text = stringResource(R.string.budget_add_goal),
                                 style = MaterialTheme.typography.labelLarge
                             )
                         }
@@ -1042,7 +1043,7 @@ internal fun MonthlySavingsTargetHeroCard(
                         modifier = Modifier.height(32.dp)
                     ) {
                         Text(
-                            text = "Set Target",
+                            text = stringResource(R.string.budget_btn_set_target),
                             style = MaterialTheme.typography.labelSmall
                         )
                     }

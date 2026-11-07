@@ -194,7 +194,7 @@ internal fun AccountGroupSectionCard(
                                 contentAlignment = Alignment.CenterEnd
                             ) {
                                 Text(
-                                    text = "DUE NOW",
+                                    text = stringResource(R.string.cc_label_due_now),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
@@ -207,7 +207,7 @@ internal fun AccountGroupSectionCard(
                                 contentAlignment = Alignment.CenterEnd
                             ) {
                                 Text(
-                                    text = "UNBILLED",
+                                    text = stringResource(R.string.cc_label_unbilled),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),

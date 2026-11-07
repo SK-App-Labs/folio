@@ -117,6 +117,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSavingsGoal
+import com.folioledger.app.R
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.BudgetProgress
 import com.folioledger.app.domain.model.CategoryNode
@@ -187,11 +188,11 @@ internal fun StatsBreakdownSubTabContent(
         // 1. Period Headline Summary Banner
         item(key = "stats_summary_banner", contentType = "stats_summary_banner") {
             ThreeColumnSummaryBanner(
-                firstLabel = "Income",
+                firstLabel = stringResource(R.string.ledger_banner_income),
                 firstAmount = uiState.periodSummary.totalIncome,
-                secondLabel = "Expenses",
+                secondLabel = stringResource(R.string.ledger_banner_expense),
                 secondAmount = uiState.periodSummary.totalExpense,
-                thirdLabel = "Net Cashflow",
+                thirdLabel = stringResource(R.string.ledger_banner_net),
                 thirdAmount = uiState.periodSummary.netCashflow,
                 currencySpec = uiState.currencySpec,
                 grouping = uiState.numberGrouping,
@@ -257,7 +258,11 @@ internal fun StatsBreakdownSubTabContent(
                             )
                             Spacer(modifier = Modifier.width(5.dp))
                             Text(
-                                text = mode.title,
+                                text = when (mode) {
+                                    OverviewMode.CATEGORIES -> stringResource(R.string.stats_overview_mode_categories)
+                                    OverviewMode.CASHFLOW -> stringResource(R.string.stats_overview_mode_cashflow)
+                                    OverviewMode.NET_WORTH -> stringResource(R.string.stats_overview_mode_net_worth)
+                                },
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = contentColor,
@@ -318,7 +323,7 @@ internal fun StatsBreakdownSubTabContent(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Expenses",
+                                    text = stringResource(R.string.ledger_banner_expense),
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = if (isExpense) FontWeight.Bold else FontWeight.Medium,
                                     color = if (isExpense) {
@@ -367,7 +372,7 @@ internal fun StatsBreakdownSubTabContent(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Income",
+                                    text = stringResource(R.string.ledger_banner_income),
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = if (isIncome) FontWeight.Bold else FontWeight.Medium,
                                     color = if (isIncome) {
@@ -460,7 +465,7 @@ internal fun StatsBreakdownSubTabContent(
                 if (uiState.expenseCategoryStats.isNotEmpty()) {
                     item(key = "top_expense_drivers", contentType = "top_expense_drivers") {
                         TopDriversSummaryCard(
-                            title = "Top Expense Drivers",
+                            title = stringResource(R.string.stats_top_expense_drivers),
                             stats = uiState.expenseCategoryStats.take(3),
                             totalMinor = uiState.periodSummary.totalExpense,
                             currencySpec = uiState.currencySpec,
@@ -475,7 +480,7 @@ internal fun StatsBreakdownSubTabContent(
                 if (uiState.incomeCategoryStats.isNotEmpty()) {
                     item(key = "top_income_sources", contentType = "top_income_sources") {
                         TopDriversSummaryCard(
-                            title = "Top Income Sources",
+                            title = stringResource(R.string.stats_top_income_sources),
                             stats = uiState.incomeCategoryStats.take(3),
                             totalMinor = uiState.periodSummary.totalIncome,
                             currencySpec = uiState.currencySpec,
@@ -817,7 +822,7 @@ internal fun NetWorthVelocityCard(
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                         Text(
-                            text = "Net Worth Velocity",
+                            text = stringResource(R.string.nw_velocity_title),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -971,7 +976,7 @@ internal fun EmergencyRunwayCard(
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                         Text(
-                            text = "Emergency Fund Runway",
+                            text = stringResource(R.string.nw_velocity_runway),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -1143,7 +1148,7 @@ internal fun ShortfallAlertCard(
                     modifier = Modifier.size(20.dp)
                 )
                 Text(
-                    text = "14-Day Overdraft / Shortfall Warning",
+                    text = stringResource(R.string.shortfall_alert_title),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = semanticColors.onWarningAmberContainer
@@ -1259,7 +1264,7 @@ internal fun SafeToSpendCard(
                     }
 
                     Text(
-                        text = "Safe-to-Spend Today",
+                        text = stringResource(R.string.safe_to_spend_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -1315,7 +1320,7 @@ internal fun SafeToSpendCard(
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        text = "LIQUID CASH",
+                        text = stringResource(R.string.safe_to_spend_formula_liquid),
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
@@ -1340,7 +1345,7 @@ internal fun SafeToSpendCard(
 
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        text = "CARD DEBT",
+                        text = stringResource(R.string.safe_to_spend_formula_cards),
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
@@ -1368,7 +1373,7 @@ internal fun SafeToSpendCard(
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Text(
-                        text = "14D BILLS",
+                        text = stringResource(R.string.safe_to_spend_formula_commitments),
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,

@@ -168,4 +168,16 @@
     <string name="setting_rate_app_not_ready">செயலி வெளியானதும் Play Store பக்கம் கிடைக்கும்</string>
     <string name="setting_tip_jar">டெவலப்பருக்கு ஆதரவளிக்க மற்றும் பேட்ஜ்</string>
     <string name="setting_danger_reset">அனைத்து தரவையும் அழித்து மீட்டமை</string>
+
+    <!-- Phase 5 Localization Polish -->
+    <string name="stats_overview_mode_categories">வகைகள்</string>
+    <string name="stats_overview_mode_cashflow">பணப்புழக்கம்</string>
+    <string name="stats_overview_mode_net_worth">நிகர மதிப்பு</string>
+    <string name="stats_top_expense_drivers">முக்கிய செலவுகள்</string>
+    <string name="stats_top_income_sources">முக்கிய வருமான ஆதாரங்கள்</string>
+    <string name="budget_add_budget">பட்ஜெட் சேர்க்க</string>
+    <string name="budget_add_goal">இலக்கு சேர்க்க</string>
+    <string name="budget_btn_set_target">இலக்கு அமைக்க</string>
+    <string name="budget_category_budgets_title">வகை பட்ஜெட்டுகள்</string>
+    <string name="budget_savings_goals_title">சேமிப்பு இலக்குகள்</string>
 </resources>

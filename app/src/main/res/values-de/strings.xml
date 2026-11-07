@@ -168,4 +168,16 @@
     <string name="setting_rate_app_not_ready">Play Store-Eintrag wird nach der Veröffentlichung verfügbar sein</string>
     <string name="setting_tip_jar">Kaffeekasse &amp; Abzeichen</string>
     <string name="setting_danger_reset">Alle Buchungsdaten zurücksetzen</string>
+
+    <!-- Phase 5 Localization Polish -->
+    <string name="stats_overview_mode_categories">Kategorien</string>
+    <string name="stats_overview_mode_cashflow">Cashflow</string>
+    <string name="stats_overview_mode_net_worth">Nettovermögen</string>
+    <string name="stats_top_expense_drivers">Größte Ausgabentreiber</string>
+    <string name="stats_top_income_sources">Größte Einnahmequellen</string>
+    <string name="budget_add_budget">Budget hinzufügen</string>
+    <string name="budget_add_goal">Sparziel hinzufügen</string>
+    <string name="budget_btn_set_target">Ziel festlegen</string>
+    <string name="budget_category_budgets_title">Kategorie-Budgets</string>
+    <string name="budget_savings_goals_title">Sparziele &amp; Vermögenstresore</string>
 </resources>

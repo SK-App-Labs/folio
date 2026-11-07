@@ -168,4 +168,16 @@
     <string name="setting_rate_app_not_ready">Halaman Play Store akan tersedia setelah dirilis</string>
     <string name="setting_tip_jar">Dukung Pengembang &amp; Lencana</string>
     <string name="setting_danger_reset">Hapus Semua Data &amp; Reset</string>
+
+    <!-- Phase 5 Localization Polish -->
+    <string name="stats_overview_mode_categories">Kategori</string>
+    <string name="stats_overview_mode_cashflow">Arus Kas</string>
+    <string name="stats_overview_mode_net_worth">Kekayaan Bersih</string>
+    <string name="stats_top_expense_drivers">Pengeluaran Terbesar</string>
+    <string name="stats_top_income_sources">Sumber Pendapatan Utama</string>
+    <string name="budget_add_budget">Tambah Anggaran</string>
+    <string name="budget_add_goal">Tambah Target</string>
+    <string name="budget_btn_set_target">Tetapkan Target</string>
+    <string name="budget_category_budgets_title">Anggaran Kategori</string>
+    <string name="budget_savings_goals_title">Target Tabungan &amp; Brankas</string>
 </resources>

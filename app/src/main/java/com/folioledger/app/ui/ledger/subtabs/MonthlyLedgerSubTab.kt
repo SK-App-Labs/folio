@@ -51,6 +51,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.res.stringResource
+import com.folioledger.app.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -181,7 +183,7 @@ internal fun MonthlyLedgerSubTabContent(
                                             color = MaterialTheme.colorScheme.primaryContainer
                                         ) {
                                             Text(
-                                                text = "Current",
+                                                text = stringResource(R.string.ledger_current_month_badge),
                                                 style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -244,7 +246,7 @@ internal fun MonthlyLedgerSubTabContent(
 
                             if (monthItem.transactionCount == 0) {
                                 Text(
-                                    text = "No transactions recorded for this month",
+                                    text = stringResource(R.string.ledger_no_tx_for_month),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center,
