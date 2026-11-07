@@ -165,4 +165,40 @@ object StatsPeriodCalculator {
         val targetYearMonth = YearMonth.from(startLocalDate).plusYears(deltaYears)
         return resolveClampedDate(targetYearMonth, monthStartDay).toEpochDay()
     }
+
+    data class SteppedPeriod(
+        val referenceDateEpochDay: Long,
+        val customStartEpochDay: Long,
+        val customEndEpochDay: Long
+    )
+
+    fun stepPeriod(
+        granularity: StatsPeriodGranularity,
+        referenceDateEpochDay: Long,
+        monthStartDay: Int,
+        customStartEpochDay: Long,
+        customEndEpochDay: Long,
+        delta: Long
+    ): SteppedPeriod {
+        return when (granularity) {
+            StatsPeriodGranularity.WEEKLY -> {
+                val newRef = referenceDateEpochDay + (delta * 7L)
+                SteppedPeriod(newRef, customStartEpochDay, customEndEpochDay)
+            }
+            StatsPeriodGranularity.MONTHLY -> {
+                val newRef = stepFinancialMonth(referenceDateEpochDay, monthStartDay, delta)
+                SteppedPeriod(newRef, customStartEpochDay, customEndEpochDay)
+            }
+            StatsPeriodGranularity.ANNUALLY -> {
+                val newRef = stepFinancialYear(referenceDateEpochDay, monthStartDay, delta)
+                SteppedPeriod(newRef, customStartEpochDay, customEndEpochDay)
+            }
+            StatsPeriodGranularity.CUSTOM -> {
+                val spanDays = (customEndEpochDay - customStartEpochDay + 1L).coerceAtLeast(1L)
+                val newStart = customStartEpochDay + (delta * spanDays)
+                val newEnd = customEndEpochDay + (delta * spanDays)
+                SteppedPeriod(newEnd, newStart, newEnd)
+            }
+        }
+    }
 }

@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
+- **Architectural Refactoring (Phase 10: Stats & Budgets Domain Calculation Extraction)**:
+  - Decomposed and streamlined `StatsAndBudgetsViewModel.kt` (1,752 lines down to 1,264 lines, ~28% reduction) by extracting domain calculation logic, period stepping, and category drilldown matching into pure testable domain utilities:
+    - `domain/util/CategoryDrillDownCalculator.kt`: Extracted pure functions `attachComparativeDeltas`, `collectCategoryAndSubcategoryIds`, `findCategoryNode`, `filterMatchingTransactions`, and `computeCategoryHistoricalTrend` with full support for parent and nested subcategory rollups.
+    - `domain/util/StatsPeriodCalculator.kt`: Added `stepPeriod(...)` supporting weekly, monthly, annual, and custom period navigation with boundary-clamped financial month handling.
+    - `ui/stats/StatsAndBudgetsUiModels.kt`: Extracted UI models (`StatsSubTab`, `BudgetEditorDialogState`, `CategoryDrillDownState`, `StatsAndBudgetsUiState`, and internal control models) out of ViewModel file.
+    - `ui/stats/StatsPredictiveCalculations.kt`: Isolated predictive forecasting algorithms (`calculateSafeToSpend`, `calculatePayeeIntelligence`, `calculateTagProjectIntelligence`, `calculateNetWorthCockpit`) maintaining 100% backward API compatibility.
+  - Added dedicated pure JVM test suite `CategoryDrillDownCalculatorTest.kt` with 5 comprehensive unit tests (direct match, child rollup, non-matching rejection, empty category tree handling, historical trend aggregation).
 - **Architectural Refactoring (Phase 9: Stats Screen Section Modularization)**:
   - Decomposed the 1,750-line `StatsOverviewSubTabContent.kt` monolith down to 537 lines (~69% reduction) into clean, decoupled components under `ui/stats/components/`:
     - `ui/stats/components/StatsFinancialHealthCards.kt`: Extracted `CashflowPerformanceInsightCard` (cashflow efficiency, savings rate, prior period deltas), `TopDriversSummaryCard` (top category spend drivers ranking), `NetWorthVelocityCard` (30-day velocity, MoM percentage and absolute growth), and `EmergencyRunwayCard` (health tier, liquid vs investment coverage progress).
