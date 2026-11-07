@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
+- **Architectural Refactoring (Phase 6: Ledger Bucketing Domain Extraction & Testability)**:
+  - Extracted 550+ lines of financial bucketing algorithms, date aggregations, and currency conversion folds from `LedgerHomeViewModel.kt` (1,659 lines down to 1,136 lines) into a pure Kotlin domain calculator `LedgerBucketingCalculator.kt` in `domain/util/`:
+    - `computeIncomeAndExpenseTotals`: Operating income/expense math with multi-currency conversion, fee attribution, and scoped account transfer directionality.
+    - `computeTransferTotal`: Consolidated 4 duplicate transfer/settlement summing blocks into a single reusable domain function.
+    - `buildDailyGroups`: Date-grouped descending transactions with net cashflow and daily transfer summaries.
+    - `buildWeekdayHeaders`: Weekday header generation across custom start-of-week settings.
+    - `buildCalendarGridCells`: Complete calendar month grid padding and per-cell financial totals.
+    - `buildWeeklyBucketsForPeriod`: Financial month weekly bucket slicing.
+    - `buildAccountPeriodFlows`: Multi-account cash flow summaries.
+    - `buildScopedCategorySpendStats`: Category spend ranking, split transaction breakdown, and top-driver distribution.
+  - Consolidated ledger data models (`FinancialPeriodRange`, `DailyLedgerGroup`, `CalendarDayCell`, `WeeklyLedgerBucket`, `YearlyMonthOverviewItem`, `AccountPeriodFlowSummary`) into `domain/model/LedgerDomainModels.kt` while providing backwards-compatible typealiases in `ui.ledger`.
+  - Added dedicated pure JVM test suite (`LedgerBucketingCalculatorTest.kt`) covering 11 comprehensive test cases with 100% pass rate in ~8 seconds.
 - **Architectural Refactoring (Phase 5: Localization Polish & Complete 13-Language Parity)**:
   - Externalized hardcoded user-facing strings across newly decomposed subtabs and shared components:
     - `FolioCommonComponents.kt`: Connected `ThreeColumnSummaryBanner` default overloads (period summary, net worth overview, and carry-over badges) to dynamic localized string resources.
