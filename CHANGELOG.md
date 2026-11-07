@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
+- **Architectural Refactoring (Phase 15: Settings UI Models & Recurring Burden Calculator Domain Extraction)**:
+  - Decomposed and streamlined `SettingsViewModel.kt` from 1,107 lines down to 941 lines (~15% reduction) by isolating recurring commitments burden calculation and settings state models:
+    - `domain/util/RecurringBurdenCalculator.kt`: Extracted pure functions `computeMonthlyBurden` and `computeMonthlyEquivalent` calculating monthly fixed burden, recurring expense vs transfer distribution, and remaining installment aggregation across 13 recurrence frequencies.
+    - `ui/settings/SettingsUiModels.kt`: Extracted domain UI models (`CategoryEditorDialogState`, `SettingsUiState`).
+  - Added dedicated pure JVM test suite `RecurringBurdenCalculatorTest.kt` with 2 comprehensive test suites (frequency multipliers verification across all repeat frequencies, active/inactive rule filtering, and active vs finished installment inclusion).
 - **Architectural Refactoring (Phase 14: Transaction Entry Domain Rules & UI Models Extraction)**:
   - Decomposed `TransactionEntryViewModel.kt` from 1,146 lines down to 887 lines (~23% reduction) by isolating pure domain validation engines and state models:
     - `domain/util/TransactionEntryRulesEngine.kt`: Extracted pure functions `validateSplitTransaction` (strict multi-line validation, zero-sum verification, unallocated delta calculation) and `generateInstallmentSchedule` (EMI schedule projection with deterministic first-month remainder attribution).

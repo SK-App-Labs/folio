@@ -28,6 +28,7 @@ import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
+import com.folioledger.app.domain.util.RecurringBurdenCalculator
 import com.folioledger.app.ui.components.suggestIconAndColorForCategoryName
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -38,69 +39,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
 import java.time.LocalDate
-
-@Immutable
-data class CategoryEditorDialogState(
-    val isEditing: Boolean = false,
-    val categoryId: Long = 0L,
-    val name: String = "",
-    val type: CategoryType = CategoryType.EXPENSE,
-    val parentId: Long? = null,
-    val parentCategoryName: String? = null,
-    val iconName: String = "category",
-    val colorHex: String = "#059669",
-    val isSmartIconMatched: Boolean = false,
-    val isIconManuallyOverridden: Boolean = false,
-    val validationError: String? = null
-)
-
-@Immutable
-data class SettingsUiState(
-    val userPreferences: UserPreferences = UserPreferences(),
-    val currencySpec: CurrencySpec = SupportedCurrencies.INR,
-    val accounts: List<AccountSummary> = emptyList(),
-    val expenseCategories: List<CategoryNode> = emptyList(),
-    val incomeCategories: List<CategoryNode> = emptyList(),
-    val tags: List<String> = emptyList(),
-    val bookmarks: List<TransactionBookmark> = emptyList(),
-    val recurringRules: List<RecurringCommitmentItem> = emptyList(),
-    val installmentPlans: List<InstallmentPlanWithProgress> = emptyList(),
-    val activeRecurringCount: Int = 0,
-    val activeMonthlyRecurringBurden: MinorMoney = MinorMoney.ZERO,
-    val activeMonthlyTransfersBurden: MinorMoney = MinorMoney.ZERO,
-    val activeMonthlyInstallmentsBurden: MinorMoney = MinorMoney.ZERO,
-    val totalMonthlyFixedBurden: MinorMoney = MinorMoney.ZERO,
-    val formattedMonthlyBurden: String = "",
-    val isRecurringManagerOpen: Boolean = false,
-    val isCategoryManagerOpen: Boolean = false,
-    val selectedCategoryManagerType: CategoryType = CategoryType.EXPENSE,
-    val categoryEditorState: CategoryEditorDialogState? = null,
-    val isTagManagerOpen: Boolean = false,
-    val isBookmarkManagerOpen: Boolean = false,
-    val isPdfReportsSheetOpen: Boolean = false,
-    val lastGeneratedPdfResult: PdfExportResult? = null,
-    val isGeneratingPdf: Boolean = false,
-    val pendingRestoreUriString: String? = null,
-    val csvPreview: ImportCsvPreview? = null,
-    val csvImportResult: ImportCsvResult? = null,
-    val isBusyWithFileOperation: Boolean = false,
-    val fileOperationStatusLabel: String? = null,
-    val snackbarMessage: String? = null,
-    val lastCompletedFileForShare: File? = null,
-    val autoBackupFiles: List<File> = emptyList()
-) {
-    val activeManagedCategories: List<CategoryNode>
-        get() = when (selectedCategoryManagerType) {
-            CategoryType.EXPENSE -> expenseCategories
-            CategoryType.INCOME -> incomeCategories
-        }
-
-    val totalExpenseCategoryCount: Int
-        get() = expenseCategories.sumOf { 1 + it.subcategories.size }
-
-    val totalIncomeCategoryCount: Int
-        get() = incomeCategories.sumOf { 1 + it.subcategories.size }
-}
 
 private data class SettingsInternalControlState(
     val isRecurringManagerOpen: Boolean = false,
@@ -162,39 +100,9 @@ class SettingsViewModel(
         controlState
     ) { prefs, metadata, accounts, (recurringRules, installmentPlans), ctrl ->
         val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
-        val activeRules = recurringRules.filter { it.isActive }
-        val activeRecurringCount = activeRules.size
-
-        var monthlyRecurringExpenseMinor = 0L
-        var monthlyRecurringTransferMinor = 0L
-        for (rule in activeRules) {
-            val amountMinor = rule.amount.amountMinor
-            val monthlyEquivalent = when (rule.frequency) {
-                RepeatFrequency.EVERY_DAY -> amountMinor * 30L
-                RepeatFrequency.WEEKDAYS -> amountMinor * 22L
-                RepeatFrequency.WEEKENDS -> amountMinor * 8L
-                RepeatFrequency.EVERY_WEEK -> amountMinor * 4L
-                RepeatFrequency.EVERY_2_WEEKS -> amountMinor * 2L
-                RepeatFrequency.EVERY_4_WEEKS -> amountMinor
-                RepeatFrequency.EVERY_MONTH, RepeatFrequency.END_OF_MONTH -> amountMinor
-                RepeatFrequency.EVERY_2_MONTHS -> amountMinor / 2L
-                RepeatFrequency.EVERY_3_MONTHS -> amountMinor / 3L
-                RepeatFrequency.EVERY_4_MONTHS -> amountMinor / 4L
-                RepeatFrequency.EVERY_6_MONTHS -> amountMinor / 6L
-                RepeatFrequency.ANNUALLY -> amountMinor / 12L
-            }
-            when (rule.type) {
-                TransactionType.EXPENSE -> monthlyRecurringExpenseMinor += monthlyEquivalent
-                TransactionType.TRANSFER -> monthlyRecurringTransferMinor += monthlyEquivalent
-                else -> Unit
-            }
-        }
-
-        val activeInstallments = installmentPlans.filter { it.remainingInstallmentsCount > 0 }
-        val monthlyInstallmentsMinor = activeInstallments.sumOf { it.monthlyAmount.amountMinor }
-        val totalMonthlyFixedMinor = monthlyRecurringExpenseMinor + monthlyInstallmentsMinor
+        val burden = RecurringBurdenCalculator.computeMonthlyBurden(recurringRules, installmentPlans)
         val formattedMonthly = MoneyFormatterAndCalculator.formatMinorMoney(
-            money = MinorMoney(totalMonthlyFixedMinor),
+            money = burden.totalMonthlyFixedBurden,
             currencySpec = currencySpec,
             grouping = prefs.numberGrouping,
             includeSymbol = true
@@ -210,11 +118,11 @@ class SettingsViewModel(
             bookmarks = metadata.bookmarks,
             recurringRules = recurringRules,
             installmentPlans = installmentPlans,
-            activeRecurringCount = activeRecurringCount,
-            activeMonthlyRecurringBurden = MinorMoney(monthlyRecurringExpenseMinor),
-            activeMonthlyTransfersBurden = MinorMoney(monthlyRecurringTransferMinor),
-            activeMonthlyInstallmentsBurden = MinorMoney(monthlyInstallmentsMinor),
-            totalMonthlyFixedBurden = MinorMoney(totalMonthlyFixedMinor),
+            activeRecurringCount = burden.activeRecurringCount,
+            activeMonthlyRecurringBurden = burden.monthlyRecurringExpense,
+            activeMonthlyTransfersBurden = burden.monthlyRecurringTransfer,
+            activeMonthlyInstallmentsBurden = burden.monthlyInstallments,
+            totalMonthlyFixedBurden = burden.totalMonthlyFixedBurden,
             formattedMonthlyBurden = formattedMonthly,
             isRecurringManagerOpen = ctrl.isRecurringManagerOpen,
             isCategoryManagerOpen = ctrl.isCategoryManagerOpen,
