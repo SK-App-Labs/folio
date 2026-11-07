@@ -16,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -82,8 +83,11 @@ fun TagTransactionRowItem(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    val dateLabel = remember(transaction.ledgerDateEpochDay) {
+                        LocalDate.ofEpochDay(transaction.ledgerDateEpochDay).format(dateFormatter)
+                    }
                     Text(
-                        text = "${transaction.accountName} · ${LocalDate.ofEpochDay(transaction.ledgerDateEpochDay).format(dateFormatter)}",
+                        text = "${transaction.accountName} · $dateLabel",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

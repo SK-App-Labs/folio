@@ -7,6 +7,7 @@ import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.MonthlyTrendBar
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.ui.stats.SubcategoryBreakdownItem
 import kotlin.math.abs
 
 object CategoryDrillDownCalculator {
@@ -120,19 +121,21 @@ object CategoryDrillDownCalculator {
         categoryName: String,
         matchingCategoryIds: Set<Long>
     ): List<MonthlyTrendBar> {
+        // Performance Optimization: Filter matching category transactions once instead of scanning allTransactions across every trend bar
+        val matchingAllTxs = allTransactions.filter { tx ->
+            val directMatch = tx.categoryId != null && tx.categoryId in matchingCategoryIds
+            val splitMatch = tx.isSplit && tx.splits.any { it.categoryId in matchingCategoryIds }
+            val nameMatch = tx.categoryName != null && tx.categoryName.equals(categoryName, ignoreCase = true)
+            val parentNameMatch = tx.parentCategoryName != null && tx.parentCategoryName.equals(categoryName, ignoreCase = true)
+            directMatch || splitMatch || nameMatch || parentNameMatch
+        }
+
         return trendBars.map { bar ->
             var cycleExpenseMinor = 0L
             var cycleIncomeMinor = 0L
 
-            for (tx in allTransactions) {
+            for (tx in matchingAllTxs) {
                 if (tx.ledgerDateEpochDay !in bar.startEpochDay..bar.endEpochDay) continue
-
-                val directMatch = tx.categoryId != null && tx.categoryId in matchingCategoryIds
-                val splitMatch = tx.isSplit && tx.splits.any { it.categoryId in matchingCategoryIds }
-                val nameMatch = tx.categoryName != null && tx.categoryName.equals(categoryName, ignoreCase = true)
-                val parentNameMatch = tx.parentCategoryName != null && tx.parentCategoryName.equals(categoryName, ignoreCase = true)
-
-                if (!directMatch && !splitMatch && !nameMatch && !parentNameMatch) continue
 
                 val rawAmount = abs(tx.amount.amountMinor)
                 if (categoryType == CategoryType.EXPENSE) {
@@ -157,5 +160,45 @@ object CategoryDrillDownCalculator {
                 netSavings = MinorMoney(cycleIncomeMinor - cycleExpenseMinor)
             )
         }
+    }
+
+    /**
+     * Precomputes subcategory totals and distribution percentages on background dispatchers,
+     * removing expensive grouping and sorting calculations from the UI thread when opening the bottom sheet.
+     */
+    fun computeSubcategoryBreakdown(
+        transactions: List<TransactionItem>,
+        parentNetAmount: MinorMoney,
+        parentCategoryName: String
+    ): List<SubcategoryBreakdownItem> {
+        val amountBySubcategory = mutableMapOf<String, Long>()
+        val countBySubcategory = mutableMapOf<String, Int>()
+
+        for (tx in transactions) {
+            if (tx.isSplit && tx.splits.isNotEmpty()) {
+                for (split in tx.splits) {
+                    val subName = split.categoryName.ifBlank { "Uncategorized Split" }
+                    val subAmount = abs(split.amount.amountMinor)
+                    amountBySubcategory[subName] = (amountBySubcategory[subName] ?: 0L) + subAmount
+                    countBySubcategory[subName] = (countBySubcategory[subName] ?: 0) + 1
+                }
+            } else {
+                val subName = tx.categoryName?.ifBlank { null } ?: parentCategoryName
+                val subAmount = abs(tx.amount.amountMinor)
+                amountBySubcategory[subName] = (amountBySubcategory[subName] ?: 0L) + subAmount
+                countBySubcategory[subName] = (countBySubcategory[subName] ?: 0) + 1
+            }
+        }
+
+        val parentTotalMinor = parentNetAmount.amountMinor.coerceAtLeast(1L)
+        return amountBySubcategory.map { (subName, minorSum) ->
+            val pct = (minorSum.toFloat() / parentTotalMinor.toFloat() * 100f).coerceIn(0f, 100f)
+            SubcategoryBreakdownItem(
+                name = subName,
+                totalAmount = MinorMoney(minorSum),
+                transactionCount = countBySubcategory[subName] ?: 1,
+                percentageOfParent = pct
+            )
+        }.sortedByDescending { it.totalAmount.amountMinor }
     }
 }

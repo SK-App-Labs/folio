@@ -36,6 +36,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -92,20 +93,22 @@ fun RankedCategoryBreakdownGroupedCard(
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             visibleStats.forEachIndexed { index, stat ->
-                if (index > 0) {
-                    HorizontalDivider(
-                        color = semanticColors.cardStrokeSubtle,
-                        modifier = Modifier.padding(horizontal = 14.dp)
+                key(stat.categoryId) {
+                    if (index > 0) {
+                        HorizontalDivider(
+                            color = semanticColors.cardStrokeSubtle,
+                            modifier = Modifier.padding(horizontal = 14.dp)
+                        )
+                    }
+                    RankedCategoryStatRowItem(
+                        stat = stat,
+                        categoryType = categoryType,
+                        isHighlighted = stat.categoryId == highlightedCategoryId,
+                        currencySpec = currencySpec,
+                        grouping = grouping,
+                        onClick = { onCategoryClick(stat) }
                     )
                 }
-                RankedCategoryStatRowItem(
-                    stat = stat,
-                    categoryType = categoryType,
-                    isHighlighted = stat.categoryId == highlightedCategoryId,
-                    currencySpec = currencySpec,
-                    grouping = grouping,
-                    onClick = { onCategoryClick(stat) }
-                )
             }
 
             if (hasMore) {

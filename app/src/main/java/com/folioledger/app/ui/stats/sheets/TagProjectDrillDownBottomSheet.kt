@@ -215,7 +215,7 @@ internal fun TagProjectDrillDownBottomSheet(
             // Tagged Transaction Items
             items(
                 items = drillDownState.transactions,
-                key = { "tag_drill_${it.id}" }
+                key = { it.id }
             ) { tx ->
                 TagTransactionRowItem(
                     transaction = tx,

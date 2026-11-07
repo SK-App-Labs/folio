@@ -176,6 +176,11 @@ internal fun PayeeDrillDownBottomSheet(
     val initial = remember(drillDownState.payeeName) {
         drillDownState.payeeName.trim().firstOrNull()?.uppercase() ?: "M"
     }
+    val parsedCategoryDistribution = remember(drillDownState.categoryDistribution) {
+        drillDownState.categoryDistribution.map { catStat ->
+            catStat to parseHexColorSafely(catStat.colorHex)
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -375,8 +380,7 @@ internal fun PayeeDrillDownBottomSheet(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                drillDownState.categoryDistribution.forEach { catStat ->
-                                    val catColor = parseHexColorSafely(catStat.colorHex)
+                                parsedCategoryDistribution.forEach { (catStat, catColor) ->
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -447,8 +451,11 @@ internal fun PayeeDrillDownBottomSheet(
             // Transaction Items
             items(
                 items = drillDownState.transactions,
-                key = { "payee_drill_${it.id}" }
+                key = { it.id }
             ) { tx ->
+                val dateLabel = remember(tx.ledgerDateEpochDay) {
+                    LocalDate.ofEpochDay(tx.ledgerDateEpochDay).format(dateFormatter)
+                }
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -482,7 +489,7 @@ internal fun PayeeDrillDownBottomSheet(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = LocalDate.ofEpochDay(tx.ledgerDateEpochDay).format(dateFormatter),
+                                    text = dateLabel,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

@@ -133,6 +133,10 @@ object CreditCardCockpitCalculator {
         var singleCardExceeding30: CreditCardAnalyticsItem? = null
         val milestoneMap = CardMilestoneCalculator.parseMilestones(milestonesJson)
 
+        // Performance Optimization: Filter and group credit expenses once to eliminate repeated full scans of allTxs
+        val creditExpenses = allTxs.filter { it.type == TransactionType.EXPENSE && it.accountId in creditCardIds }
+        val creditExpensesByCard = creditExpenses.groupBy { it.accountId }
+
         for (card in creditCards) {
             val stmtDay = (card.settlementDayOfMonth ?: 1).coerceIn(1, 31)
             val dueDay = (card.paymentDueDayOfMonth ?: 20).coerceIn(1, 31)
@@ -215,9 +219,12 @@ object CreditCardCockpitCalculator {
                 val todayEpoch = today.toEpochDay()
 
                 var qualifyingMinor = 0L
-                for (tx in allTxs) {
-                    if (tx.accountId == card.id && tx.type == TransactionType.EXPENSE && tx.ledgerDateEpochDay in cycleStartEpoch..todayEpoch) {
-                        qualifyingMinor += Math.abs(tx.amount.amountMinor)
+                val cardTxs = creditExpensesByCard[card.id]
+                if (cardTxs != null) {
+                    for (tx in cardTxs) {
+                        if (tx.ledgerDateEpochDay in cycleStartEpoch..todayEpoch) {
+                            qualifyingMinor += Math.abs(tx.amount.amountMinor)
+                        }
                     }
                 }
                 CardMilestoneCalculator.evaluateMilestone(
@@ -230,12 +237,15 @@ object CreditCardCockpitCalculator {
             // Card YTD Spend & Top Category
             var ytdMinor = 0L
             val catSpendMap = mutableMapOf<String, Long>()
-            for (tx in allTxs) {
-                if (tx.accountId == card.id && tx.type == TransactionType.EXPENSE && tx.ledgerDateEpochDay >= currentYearStartEpoch) {
-                    val amt = Math.abs(tx.amount.amountMinor)
-                    ytdMinor += amt
-                    val catName = tx.categoryName ?: "General"
-                    catSpendMap[catName] = (catSpendMap[catName] ?: 0L) + amt
+            val cardTxs = creditExpensesByCard[card.id]
+            if (cardTxs != null) {
+                for (tx in cardTxs) {
+                    if (tx.ledgerDateEpochDay >= currentYearStartEpoch) {
+                        val amt = Math.abs(tx.amount.amountMinor)
+                        ytdMinor += amt
+                        val catName = tx.categoryName ?: "General"
+                        catSpendMap[catName] = (catSpendMap[catName] ?: 0L) + amt
+                    }
                 }
             }
             val ytdSpend = MinorMoney(ytdMinor)
@@ -325,14 +335,11 @@ object CreditCardCockpitCalculator {
             liquidPercentage = liquidPct
         )
 
-        // 5. 6-Month Historical Credit Spend Trend
+        // 5. 6-Month Historical Credit Spend Trend (iterate pre-filtered creditExpenses instead of full allTxs scans)
         val creditTrendBars = trendBars.map { bar ->
             var barSpendMinor = 0L
-            for (tx in allTxs) {
-                if (tx.ledgerDateEpochDay in bar.startEpochDay..bar.endEpochDay &&
-                    tx.type == TransactionType.EXPENSE &&
-                    tx.accountId in creditCardIds
-                ) {
+            for (tx in creditExpenses) {
+                if (tx.ledgerDateEpochDay in bar.startEpochDay..bar.endEpochDay) {
                     barSpendMinor += Math.abs(tx.amount.amountMinor)
                 }
             }

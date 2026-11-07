@@ -292,21 +292,24 @@ internal fun TagsAndNotesRankingsSubTabContent(
                 )
             }
         } else {
+            val isPayeeMode = uiState.selectedRankingMode == RankingMode.PAYEES_AND_NOTES
             itemsIndexed(
                 items = items,
-                key = { idx, item -> "${uiState.selectedRankingMode}_${idx}_${item.label}" }
+                key = { _, item -> item.label },
+                contentType = { _, _ -> "spend_ranking_item" }
             ) { index, item ->
+                val onItemClick = remember(item.label, isPayeeMode) {
+                    {
+                        if (isPayeeMode) onPayeeClick(item.label) else onTagClick(item.label)
+                    }
+                }
                 SpendRankingItemCard(
                     rankNumber = index + 1,
                     item = item,
-                    isTagMode = uiState.selectedRankingMode == RankingMode.TAGS,
+                    isTagMode = !isPayeeMode,
                     currencySpec = uiState.currencySpec,
                     grouping = uiState.numberGrouping,
-                    onClick = if (uiState.selectedRankingMode == RankingMode.PAYEES_AND_NOTES) {
-                        { onPayeeClick(item.label) }
-                    } else {
-                        { onTagClick(item.label) }
-                    }
+                    onClick = onItemClick
                 )
             }
         }

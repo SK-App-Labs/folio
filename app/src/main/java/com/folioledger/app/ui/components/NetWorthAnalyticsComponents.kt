@@ -54,6 +54,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import java.util.Locale
@@ -341,6 +342,22 @@ fun NetWorthGrowthCanvasChart(
                     )
                 }
 
+                val density = LocalDensity.current
+                val padTopPx = remember(density) { with(density) { 16.dp.toPx() } }
+                val padBottomPx = remember(density) { with(density) { 20.dp.toPx() } }
+                val chartHeightPx = remember(density) { with(density) { 190.dp.toPx() } }
+                val usableHeightPx = chartHeightPx - padTopPx - padBottomPx
+                val zeroYPx = remember(padTopPx, usableHeightPx, ceiling, totalSpan) {
+                    (padTopPx + usableHeightPx * (ceiling / totalSpan)).coerceIn(padTopPx, padTopPx + usableHeightPx)
+                }
+                val fillBrush = remember(gradientColors, padTopPx, zeroYPx) {
+                    Brush.verticalGradient(
+                        colors = gradientColors,
+                        startY = padTopPx,
+                        endY = zeroYPx.coerceAtLeast(padTopPx + 1f)
+                    )
+                }
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -356,22 +373,19 @@ fun NetWorthGrowthCanvasChart(
                 ) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         val width = size.width
-                        val height = size.height
-                        val padTop = 16.dp.toPx()
-                        val padBottom = 20.dp.toPx()
-                        val usableHeight = height - padTop - padBottom
                         val stepX = width / (trendItems.size - 1).coerceAtLeast(1)
-                        val zeroY = (padTop + usableHeight * (ceiling / totalSpan)).coerceIn(padTop, padTop + usableHeight)
+                        val invTotalSpan = 1f / totalSpan
 
+                        // Zero-allocation coordinate computation
                         fun getY(amountMinor: Long): Float {
-                            val rawY = padTop + usableHeight * ((ceiling - amountMinor.toFloat()) / totalSpan)
-                            return zeroY + (rawY - zeroY) * animProgress
+                            val rawY = padTopPx + usableHeightPx * ((ceiling - amountMinor.toFloat()) * invTotalSpan)
+                            return zeroYPx + (rawY - zeroYPx) * animProgress
                         }
 
                         // Horizontal Subtle Grid lines
                         val horizontalLines = 3
                         for (i in 0..horizontalLines) {
-                            val gridY = padTop + (usableHeight / horizontalLines) * i
+                            val gridY = padTopPx + (usableHeightPx / horizontalLines) * i
                             drawLine(
                                 color = gridColor,
                                 start = Offset(0f, gridY),
@@ -385,8 +399,8 @@ fun NetWorthGrowthCanvasChart(
                         if (floor < 0f) {
                             drawLine(
                                 color = zeroBaselineColor,
-                                start = Offset(0f, zeroY),
-                                end = Offset(width, zeroY),
+                                start = Offset(0f, zeroYPx),
+                                end = Offset(width, zeroYPx),
                                 strokeWidth = 1.5.dp.toPx(),
                                 pathEffect = zeroDashEffect
                             )
@@ -447,7 +461,7 @@ fun NetWorthGrowthCanvasChart(
                         nwPath.reset()
                         fillPath.reset()
 
-                        val baselineY = zeroY
+                        val baselineY = zeroYPx
 
                         primaryMetricAmounts.forEachIndexed { i, amount ->
                             val x = i * stepX
@@ -469,14 +483,10 @@ fun NetWorthGrowthCanvasChart(
                         fillPath.lineTo(lastX, baselineY)
                         fillPath.close()
 
-                        // Gradient Area Fill
+                        // Gradient Area Fill (cached Brush, 0 allocations per frame)
                         drawPath(
                             path = fillPath,
-                            brush = Brush.verticalGradient(
-                                colors = gradientColors,
-                                startY = padTop,
-                                endY = baselineY.coerceAtLeast(padTop + 1f)
-                            )
+                            brush = fillBrush
                         )
 
                         // Smooth Spline Stroke
@@ -530,8 +540,8 @@ fun NetWorthGrowthCanvasChart(
                             val activeX = selectedIndex * stepX
                             drawLine(
                                 color = primaryColorTone.copy(alpha = 0.5f),
-                                start = Offset(activeX, padTop),
-                                end = Offset(activeX, height - padBottom),
+                                start = Offset(activeX, padTopPx),
+                                end = Offset(activeX, size.height - padBottomPx),
                                 strokeWidth = 1.5.dp.toPx(),
                                 pathEffect = activeDashEffect
                             )

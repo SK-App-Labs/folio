@@ -365,12 +365,19 @@ class StatsAndBudgetsViewModel(
                     matchingCategoryIds = matchingCategoryIds
                 )
 
+                val subcategoryBreakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
+                    transactions = matchingTxns,
+                    parentNetAmount = stat.netAmount,
+                    parentCategoryName = stat.categoryName
+                )
+
                 CategoryDrillDownState(
                     categoryStat = stat,
                     categoryType = ctrl.selectedCategoryType,
                     transactions = matchingTxns,
                     matchingBudget = matchingBudget,
-                    categorySixMonthTrendBars = categoryTrendBars
+                    categorySixMonthTrendBars = categoryTrendBars,
+                    subcategoryBreakdown = subcategoryBreakdown
                 )
             } else {
                 null

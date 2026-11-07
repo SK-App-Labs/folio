@@ -924,6 +924,18 @@ fun SixMonthSmoothTrendAreaChart(
             val twelveDpPx = remember(density) { with(density) { 12.dp.toPx() } }
             val sixteenDpPx = remember(density) { with(density) { 16.dp.toPx() } }
 
+            val totalHeightPx = remember(density, chartHeight) { with(density) { chartHeight.toPx() } }
+            val usableHeightPx = totalHeightPx - topPaddingPx - bottomPaddingPx
+            val fillBrush = remember(gradientColors, topPaddingPx, usableHeightPx) {
+                Brush.verticalGradient(
+                    colors = gradientColors,
+                    startY = topPaddingPx,
+                    endY = topPaddingPx + usableHeightPx
+                )
+            }
+            val pointsX = remember(bars.size) { FloatArray(bars.size) }
+            val pointsY = remember(bars.size) { FloatArray(bars.size) }
+
             val textPaint = remember(density) {
                 android.graphics.Paint().apply {
                     color = android.graphics.Color.GRAY
@@ -963,15 +975,17 @@ fun SixMonthSmoothTrendAreaChart(
                 if (bars.isEmpty()) return@Canvas
 
                 val slotWidth = size.width / bars.size.toFloat()
-                val points = rawAmounts.mapIndexed { idx, rawVal ->
+                for (idx in rawAmounts.indices) {
+                    val rawVal = rawAmounts[idx]
                     val x = idx * slotWidth + slotWidth / 2f
                     val ratio = (rawVal.toFloat() / maxAmountMinor.toFloat()).coerceIn(0f, 1f) * entryProgress
                     val y = topPaddingPx + usableHeight * (1f - ratio)
-                    Offset(x, y)
+                    pointsX[idx] = x
+                    pointsY[idx] = y
                 }
 
-                if (selectedIndex in points.indices) {
-                    val selX = points[selectedIndex].x
+                if (selectedIndex in 0 until bars.size) {
+                    val selX = pointsX[selectedIndex]
                     drawRoundRect(
                         color = highlightBg,
                         topLeft = Offset(selX - slotWidth / 2f + fourDpPx, topPaddingPx),
@@ -983,32 +997,33 @@ fun SixMonthSmoothTrendAreaChart(
                 strokePath.reset()
                 fillPath.reset()
 
-                strokePath.moveTo(points.first().x, points.first().y)
-                fillPath.moveTo(points.first().x, topPaddingPx + usableHeight)
-                fillPath.lineTo(points.first().x, points.first().y)
+                val firstX = pointsX[0]
+                val firstY = pointsY[0]
+                strokePath.moveTo(firstX, firstY)
+                fillPath.moveTo(firstX, topPaddingPx + usableHeight)
+                fillPath.lineTo(firstX, firstY)
 
-                for (i in 0 until points.size - 1) {
-                    val p1 = points[i]
-                    val p2 = points[i + 1]
-                    val controlX1 = p1.x + (p2.x - p1.x) * 0.35f
-                    val controlY1 = p1.y
-                    val controlX2 = p1.x + (p2.x - p1.x) * 0.65f
-                    val controlY2 = p2.y
+                for (i in 0 until bars.size - 1) {
+                    val p1X = pointsX[i]
+                    val p1Y = pointsY[i]
+                    val p2X = pointsX[i + 1]
+                    val p2Y = pointsY[i + 1]
+                    val controlX1 = p1X + (p2X - p1X) * 0.35f
+                    val controlY1 = p1Y
+                    val controlX2 = p1X + (p2X - p1X) * 0.65f
+                    val controlY2 = p2Y
 
-                    strokePath.cubicTo(controlX1, controlY1, controlX2, controlY2, p2.x, p2.y)
-                    fillPath.cubicTo(controlX1, controlY1, controlX2, controlY2, p2.x, p2.y)
+                    strokePath.cubicTo(controlX1, controlY1, controlX2, controlY2, p2X, p2Y)
+                    fillPath.cubicTo(controlX1, controlY1, controlX2, controlY2, p2X, p2Y)
                 }
 
-                fillPath.lineTo(points.last().x, topPaddingPx + usableHeight)
+                val lastX = pointsX[bars.size - 1]
+                fillPath.lineTo(lastX, topPaddingPx + usableHeight)
                 fillPath.close()
 
                 drawPath(
                     path = fillPath,
-                    brush = Brush.verticalGradient(
-                        colors = gradientColors,
-                        startY = topPaddingPx,
-                        endY = topPaddingPx + usableHeight
-                    )
+                    brush = fillBrush
                 )
 
                 drawPath(
@@ -1021,36 +1036,39 @@ fun SixMonthSmoothTrendAreaChart(
                     )
                 )
 
-                points.forEachIndexed { idx, pt ->
+                for (idx in 0 until bars.size) {
+                    val ptX = pointsX[idx]
+                    val ptY = pointsY[idx]
                     val isSelected = idx == selectedIndex
+                    val center = Offset(ptX, ptY)
                     if (isSelected) {
                         drawCircle(
                             color = lineColor.copy(alpha = 0.22f),
                             radius = twelveDpPx,
-                            center = pt
+                            center = center
                         )
                         drawCircle(
                             color = lineColor,
                             radius = sixDpPx,
-                            center = pt
+                            center = center
                         )
                         drawCircle(
                             color = Color.White,
                             radius = threeDpPx,
-                            center = pt
+                            center = center
                         )
                     } else {
                         drawCircle(
                             color = lineColor,
                             radius = fourDpPx,
-                            center = pt
+                            center = center
                         )
                     }
 
                     val monthLabel = monthLabels[idx]
                     drawContext.canvas.nativeCanvas.drawText(
                         monthLabel,
-                        pt.x,
+                        ptX,
                         topPaddingPx + usableHeight + sixteenDpPx,
                         textPaint
                     )

@@ -75,12 +75,21 @@ data class BudgetEditorDialogState(
 )
 
 @Immutable
+data class SubcategoryBreakdownItem(
+    val name: String,
+    val totalAmount: MinorMoney,
+    val transactionCount: Int,
+    val percentageOfParent: Float
+)
+
+@Immutable
 data class CategoryDrillDownState(
     val categoryStat: CategorySpendStat,
     val categoryType: CategoryType,
     val transactions: List<TransactionItem>,
     val matchingBudget: BudgetProgress?,
-    val categorySixMonthTrendBars: List<MonthlyTrendBar> = emptyList()
+    val categorySixMonthTrendBars: List<MonthlyTrendBar> = emptyList(),
+    val subcategoryBreakdown: List<SubcategoryBreakdownItem> = emptyList()
 )
 
 @Immutable

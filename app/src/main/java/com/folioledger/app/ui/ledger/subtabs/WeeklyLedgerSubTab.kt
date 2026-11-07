@@ -211,7 +211,7 @@ internal fun WeeklyLedgerSubTabContent(
                                             currencySpec = uiState.currencySpec,
                                             grouping = uiState.numberGrouping,
                                             showDate = true,
-                                            onClick = { onTransactionClick(tx) }
+                                            onTransactionClick = onTransactionClick
                                         )
                                     }
                                 }

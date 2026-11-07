@@ -160,13 +160,6 @@ import java.util.Locale
 import kotlinx.coroutines.launch
 
 
-private data class SubcategoryBreakdownItem(
-    val name: String,
-    val totalAmount: MinorMoney,
-    val transactionCount: Int,
-    val percentageOfParent: Float
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun CategoryDrillDownBottomSheet(
@@ -183,38 +176,7 @@ internal fun CategoryDrillDownBottomSheet(
     val stat = drillDownState.categoryStat
     val catColor = remember(stat.colorHex) { parseHexColorSafely(stat.colorHex) }
     val dateFormatter = remember { DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US) }
-
-    val subcategoryBreakdown = remember(drillDownState.transactions, stat.netAmount) {
-        val amountBySubcategory = mutableMapOf<String, Long>()
-        val countBySubcategory = mutableMapOf<String, Int>()
-
-        for (tx in drillDownState.transactions) {
-            if (tx.isSplit && tx.splits.isNotEmpty()) {
-                for (split in tx.splits) {
-                    val subName = split.categoryName.ifBlank { "Uncategorized Split" }
-                    val subAmount = Math.abs(split.amount.amountMinor)
-                    amountBySubcategory[subName] = (amountBySubcategory[subName] ?: 0L) + subAmount
-                    countBySubcategory[subName] = (countBySubcategory[subName] ?: 0) + 1
-                }
-            } else {
-                val subName = tx.categoryName?.ifBlank { null } ?: stat.categoryName
-                val subAmount = Math.abs(tx.amount.amountMinor)
-                amountBySubcategory[subName] = (amountBySubcategory[subName] ?: 0L) + subAmount
-                countBySubcategory[subName] = (countBySubcategory[subName] ?: 0) + 1
-            }
-        }
-
-        val parentTotalMinor = stat.netAmount.amountMinor.coerceAtLeast(1L)
-        amountBySubcategory.map { (subName, minorSum) ->
-            val pct = (minorSum.toFloat() / parentTotalMinor.toFloat() * 100f).coerceIn(0f, 100f)
-            SubcategoryBreakdownItem(
-                name = subName,
-                totalAmount = MinorMoney(minorSum),
-                transactionCount = countBySubcategory[subName] ?: 1,
-                percentageOfParent = pct
-            )
-        }.sortedByDescending { it.totalAmount.amountMinor }
-    }
+    val subcategoryBreakdown = drillDownState.subcategoryBreakdown
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -501,7 +463,7 @@ internal fun CategoryDrillDownBottomSheet(
                     )
                 }
             } else {
-                items(drillDownState.transactions, key = { "drill_${it.id}" }) { tx ->
+                items(drillDownState.transactions, key = { it.id }) { tx ->
                     val dateLabel = remember(tx.ledgerDateEpochDay) {
                         LocalDate.ofEpochDay(tx.ledgerDateEpochDay).format(dateFormatter)
                     }

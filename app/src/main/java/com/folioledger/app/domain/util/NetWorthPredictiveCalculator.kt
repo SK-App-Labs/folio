@@ -21,6 +21,8 @@ import java.util.Locale
 
 object NetWorthPredictiveCalculator {
 
+    private val shortMonthFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM yyyy", Locale.US)
+
     fun computeNetWorthTrend(
         allAccounts: List<AccountSummary>,
         allTransactions: List<TransactionItem>,
@@ -28,7 +30,6 @@ object NetWorthPredictiveCalculator {
         periodGranularity: StatsPeriodGranularity
     ): List<NetWorthGrowthTrendItem> {
         val refLocalDate = LocalDate.ofEpochDay(referenceDateEpochDay)
-        val shortMonthFormatter = DateTimeFormatter.ofPattern("MMM yyyy", Locale.US)
 
         val targetYearMonths: List<YearMonth> = if (periodGranularity == StatsPeriodGranularity.ANNUALLY) {
             (1..12).map { month -> YearMonth.of(refLocalDate.year, month) }
@@ -38,6 +39,20 @@ object NetWorthPredictiveCalculator {
         val trendItems = ArrayList<NetWorthGrowthTrendItem>(targetYearMonths.size)
 
         val activeAccounts = allAccounts.filter { !it.isArchived && it.includeInNetWorth && it.groupType != AccountGroup.DEBIT_CARD }
+        if (activeAccounts.isEmpty()) {
+            return trendItems
+        }
+
+        // Performance Optimization: Group relevant transactions by account ID once to eliminate
+        // O(Months * Accounts * Transactions) repeated quadratic linear scans and intermediate list allocations.
+        val txsByAccount = HashMap<Long, MutableList<TransactionItem>>()
+        for (tx in allTransactions) {
+            txsByAccount.getOrPut(tx.accountId) { mutableListOf() }.add(tx)
+            val toAcc = tx.transferToAccountId
+            if (toAcc != null && toAcc != tx.accountId) {
+                txsByAccount.getOrPut(toAcc) { mutableListOf() }.add(tx)
+            }
+        }
 
         for (targetYearMonth in targetYearMonths) {
             val endOfMonthEpochDay = targetYearMonth.atEndOfMonth().toEpochDay()
@@ -48,32 +63,32 @@ object NetWorthPredictiveCalculator {
             for (acc in activeAccounts) {
                 var currentMinor = acc.currentBalance.amountMinor
 
-                val futureTxs = allTransactions.filter { tx ->
-                    tx.ledgerDateEpochDay > endOfMonthEpochDay &&
-                            (tx.accountId == acc.id || tx.transferToAccountId == acc.id)
-                }
+                val accountTxs = txsByAccount[acc.id]
+                if (accountTxs != null) {
+                    for (tx in accountTxs) {
+                        if (tx.ledgerDateEpochDay <= endOfMonthEpochDay) continue
 
-                for (tx in futureTxs) {
-                    val amount = Math.abs(tx.amount.amountMinor)
-                    val fee = Math.abs(tx.transferFee.amountMinor)
+                        val amount = Math.abs(tx.amount.amountMinor)
+                        val fee = Math.abs(tx.transferFee.amountMinor)
 
-                    if (tx.accountId == acc.id) {
-                        when (tx.type) {
-                            TransactionType.INCOME, TransactionType.REFUND -> currentMinor -= amount
-                            TransactionType.EXPENSE -> currentMinor += (amount + fee)
-                            TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> currentMinor += (amount + fee)
-                            TransactionType.OPENING_BALANCE,
-                            TransactionType.RECONCILIATION -> {
-                                val isOutflow = tx.transferToAccountId != null
-                                if (isOutflow) {
-                                    currentMinor += amount
-                                } else {
-                                    currentMinor -= amount
+                        if (tx.accountId == acc.id) {
+                            when (tx.type) {
+                                TransactionType.INCOME, TransactionType.REFUND -> currentMinor -= amount
+                                TransactionType.EXPENSE -> currentMinor += (amount + fee)
+                                TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> currentMinor += (amount + fee)
+                                TransactionType.OPENING_BALANCE,
+                                TransactionType.RECONCILIATION -> {
+                                    val isOutflow = tx.transferToAccountId != null
+                                    if (isOutflow) {
+                                        currentMinor += amount
+                                    } else {
+                                        currentMinor -= amount
+                                    }
                                 }
                             }
+                        } else if (tx.transferToAccountId == acc.id) {
+                            currentMinor -= amount
                         }
-                    } else if (tx.transferToAccountId == acc.id) {
-                        currentMinor -= amount
                     }
                 }
 

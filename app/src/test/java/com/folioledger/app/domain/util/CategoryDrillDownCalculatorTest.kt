@@ -182,6 +182,29 @@ class CategoryDrillDownCalculatorTest {
         assertEquals(0, filtered.size)
     }
 
+    @Test
+    fun `computeSubcategoryBreakdown aggregates subcategories and calculates distribution correctly`() {
+        val tx1 = createDummyTransaction(id = 1L, categoryId = 10L, type = TransactionType.EXPENSE, amount = MinorMoney(6000L), categoryName = "Fruits", ledgerDateEpochDay = 100L)
+        val tx2 = createDummyTransaction(id = 2L, categoryId = 10L, type = TransactionType.EXPENSE, amount = MinorMoney(4000L), categoryName = "Vegetables", ledgerDateEpochDay = 101L)
+
+        val breakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
+            transactions = listOf(tx1, tx2),
+            parentNetAmount = MinorMoney(10000L),
+            parentCategoryName = "Groceries"
+        )
+
+        assertEquals(2, breakdown.size)
+        assertEquals("Fruits", breakdown[0].name)
+        assertEquals(MinorMoney(6000L), breakdown[0].totalAmount)
+        assertEquals(60f, breakdown[0].percentageOfParent, 0.01f)
+        assertEquals(1, breakdown[0].transactionCount)
+
+        assertEquals("Vegetables", breakdown[1].name)
+        assertEquals(MinorMoney(4000L), breakdown[1].totalAmount)
+        assertEquals(40f, breakdown[1].percentageOfParent, 0.01f)
+        assertEquals(1, breakdown[1].transactionCount)
+    }
+
     private fun createDummyTransaction(
         id: Long,
         categoryId: Long?,
