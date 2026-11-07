@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
+- **Architectural Refactoring (Phase 21: Account Passbook Sheet Modularization)**:
+  - Decomposed and streamlined `AccountPassbookBottomSheet.kt` from 633 lines down to 260 lines (~59% reduction) by isolating headers and contextual action rows into `ui/accounts/components/`:
+    - `ui/accounts/components/PassbookTopAccountHeader.kt` (168 lines): Extracted top account header bar rendering account icon badge, account type tag, debit card linkage count, live balance display, pin toggle, reconcile button, edit card button, and close trigger.
+    - `ui/accounts/components/PassbookQuickActionsRow.kt` (196 lines): Extracted polymorphic quick actions row handling credit card settlement vs expense addition, investment portfolio value updates, and standard bank/cash transaction creation & reconciliation.
 - **Architectural Refactoring (Phase 20: Account Editor Sheet Modularization)**:
   - Decomposed and streamlined `AccountEditorBottomSheet.kt` from 700 lines down to 247 lines (~65% reduction) by isolating account groups, adaptive details, and action buttons into `ui/accounts/components/`:
     - `ui/accounts/components/AccountGroupPickerSection.kt` (160 lines): Extracted 2×2 quick-pick tile grid for primary account groups (Bank Account, Credit Card, Cash, Debit Card) and animated collapsible drawer for secondary groups (Savings, Prepaid Wallet, Investment, Overdraft, Loan, Other).
