@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
+- **Architectural Refactoring (Phase 11: Budgets Subtab Modularization)**:
+  - Decomposed `BudgetsSubTabContent.kt` from 1,275 lines down to 420 lines (~67% reduction) into clean, decoupled components under `ui/stats/components/`:
+    - `ui/stats/components/BudgetProgressCards.kt`: Extracted `BudgetProgressCard` (semantic threshold alerts, real-time spending velocity and pacing tick indicator, safe daily spend calculation) and `BudgetTrackWithPacingTick` (custom Canvas pacing bar).
+    - `ui/stats/components/SavingsGoalCards.kt`: Extracted `MonthlySavingsTargetHeroCard` (double-entry savings goal progress and unallocated surplus indicator) and `AccountSavingsGoalCard` (account-backed wealth vault targets verified directly against live balances).
 - **Architectural Refactoring (Phase 10: Stats & Budgets Domain Calculation Extraction)**:
   - Decomposed and streamlined `StatsAndBudgetsViewModel.kt` (1,752 lines down to 1,264 lines, ~28% reduction) by extracting domain calculation logic, period stepping, and category drilldown matching into pure testable domain utilities:
     - `domain/util/CategoryDrillDownCalculator.kt`: Extracted pure functions `attachComparativeDeltas`, `collectCategoryAndSubcategoryIds`, `findCategoryNode`, `filterMatchingTransactions`, and `computeCategoryHistoricalTrend` with full support for parent and nested subcategory rollups.
