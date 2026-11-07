@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
+- **Architectural Refactoring (Phase 14: Transaction Entry Domain Rules & UI Models Extraction)**:
+  - Decomposed `TransactionEntryViewModel.kt` from 1,146 lines down to 887 lines (~23% reduction) by isolating pure domain validation engines and state models:
+    - `domain/util/TransactionEntryRulesEngine.kt`: Extracted pure functions `validateSplitTransaction` (strict multi-line validation, zero-sum verification, unallocated delta calculation) and `generateInstallmentSchedule` (EMI schedule projection with deterministic first-month remainder attribution).
+    - `ui/entry/TransactionEntryUiModels.kt`: Extracted domain UI models (`InstallmentPreviewItem`, `SplitValidationSummary`, `SplitLineDraft`, `TransactionEntryUiState`).
+  - Added dedicated pure JVM test suite `TransactionEntryRulesEngineTest.kt` with 8 comprehensive unit tests (zero parent total, insufficient split rows, missing categories, zero line amounts, under-allocation, over-allocation, exact match, installment schedule division & date projection).
 - **Architectural Refactoring (Phase 13: Accounts Domain Calculation & UI Models Extraction)**:
   - Decomposed and streamlined `AccountsViewModel.kt` from 1,288 lines down to 768 lines (~40% reduction) by isolating pure passbook algorithms and domain UI models:
     - `domain/util/AccountPassbookCalculator.kt`: Extracted `PassbookPeriodCalculator` (financial month date clamping, custom month start ranges, credit card statement cycle resolution, and forward/backward month stepping) and `AccountPassbookCalculator` (`buildAccountPassbookUiModel` calculating running balances, day groupings, inflows/outflows, and debit card transaction rollups to parent bank accounts).
