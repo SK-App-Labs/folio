@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
+- **Architectural Refactoring (Phase 7: Settings Screen & Dialog Modularization)**:
+  - Decomposed the 1,632-line `SettingsScreen.kt` monolith down to 593 lines (64% reduction) by isolating dialogs, shared navigation components, and section group cards into dedicated packages:
+    - `ui/settings/dialogs/SettingsDialogs.kt`: Isolated `MonthStartDayPickerDialog`, `RestoreConfirmationDialog`, `ClearAllDataConfirmationDialog`, `ImportCsvPreviewDialog`, and `ImportCsvResultDialog` with pure state hoisting and zero ViewModel coupling.
+    - `ui/settings/components/SettingsComponents.kt`: Modularized shared reusable UI rows (`SettingsGroupCard`, `SettingsNavigationRow`, `SettingsSwitchRow`) and SAF backup intent dispatcher `shareBackupFile`.
+    - `ui/settings/components/SettingsSectionCards.kt`: Extracted 4 isolated settings group cards (`TaxonomySettingsCard`, `AppearanceSecuritySettingsCard`, `DataBackupsSettingsCard`, `CommunityHelpSettingsCard`) and `SettingsFooter`.
 - **Architectural Refactoring (Phase 6: Ledger Bucketing Domain Extraction & Testability)**:
   - Extracted 550+ lines of financial bucketing algorithms, date aggregations, and currency conversion folds from `LedgerHomeViewModel.kt` (1,659 lines down to 1,136 lines) into a pure Kotlin domain calculator `LedgerBucketingCalculator.kt` in `domain/util/`:
     - `computeIncomeAndExpenseTotals`: Operating income/expense math with multi-currency conversion, fee attribution, and scoped account transfer directionality.
