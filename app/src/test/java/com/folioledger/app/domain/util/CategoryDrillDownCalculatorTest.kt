@@ -135,6 +135,53 @@ class CategoryDrillDownCalculatorTest {
         assertEquals(MinorMoney(3000L), result[1].totalExpense)
     }
 
+    @Test
+    fun `filterCategoryTree with blank query returns all categories unchanged`() {
+        val sub = CategoryNode(id = 11L, name = "Organic", type = CategoryType.EXPENSE, parentId = 1L, iconName = "eco", colorHex = "#000")
+        val parent = CategoryNode(id = 1L, name = "Groceries", type = CategoryType.EXPENSE, parentId = null, iconName = "cart", colorHex = "#000", subcategories = listOf(sub))
+        val tree = listOf(parent)
+
+        assertEquals(tree, CategoryDrillDownCalculator.filterCategoryTree(tree, ""))
+        assertEquals(tree, CategoryDrillDownCalculator.filterCategoryTree(tree, "   "))
+    }
+
+    @Test
+    fun `filterCategoryTree matching parent name includes parent and all subcategories`() {
+        val sub1 = CategoryNode(id = 11L, name = "Organic", type = CategoryType.EXPENSE, parentId = 1L, iconName = "eco", colorHex = "#000")
+        val sub2 = CategoryNode(id = 12L, name = "Snacks", type = CategoryType.EXPENSE, parentId = 1L, iconName = "fastfood", colorHex = "#000")
+        val parent1 = CategoryNode(id = 1L, name = "Groceries", type = CategoryType.EXPENSE, parentId = null, iconName = "cart", colorHex = "#000", subcategories = listOf(sub1, sub2))
+        val parent2 = CategoryNode(id = 2L, name = "Utilities", type = CategoryType.EXPENSE, parentId = null, iconName = "bolt", colorHex = "#000")
+        val tree = listOf(parent1, parent2)
+
+        val filtered = CategoryDrillDownCalculator.filterCategoryTree(tree, "grocer")
+        assertEquals(1, filtered.size)
+        assertEquals("Groceries", filtered[0].name)
+        assertEquals(2, filtered[0].subcategories.size)
+    }
+
+    @Test
+    fun `filterCategoryTree matching subcategory only includes parent with matching subcategory`() {
+        val sub1 = CategoryNode(id = 11L, name = "Organic Veggies", type = CategoryType.EXPENSE, parentId = 1L, iconName = "eco", colorHex = "#000")
+        val sub2 = CategoryNode(id = 12L, name = "Snacks", type = CategoryType.EXPENSE, parentId = 1L, iconName = "fastfood", colorHex = "#000")
+        val parent = CategoryNode(id = 1L, name = "Groceries", type = CategoryType.EXPENSE, parentId = null, iconName = "cart", colorHex = "#000", subcategories = listOf(sub1, sub2))
+        val tree = listOf(parent)
+
+        val filtered = CategoryDrillDownCalculator.filterCategoryTree(tree, "veggie")
+        assertEquals(1, filtered.size)
+        assertEquals(1, filtered[0].subcategories.size)
+        assertEquals("Organic Veggies", filtered[0].subcategories[0].name)
+    }
+
+    @Test
+    fun `filterCategoryTree with no match returns empty list`() {
+        val sub = CategoryNode(id = 11L, name = "Organic", type = CategoryType.EXPENSE, parentId = 1L, iconName = "eco", colorHex = "#000")
+        val parent = CategoryNode(id = 1L, name = "Groceries", type = CategoryType.EXPENSE, parentId = null, iconName = "cart", colorHex = "#000", subcategories = listOf(sub))
+        val tree = listOf(parent)
+
+        val filtered = CategoryDrillDownCalculator.filterCategoryTree(tree, "NonExistentXYZ")
+        assertEquals(0, filtered.size)
+    }
+
     private fun createDummyTransaction(
         id: Long,
         categoryId: Long?,

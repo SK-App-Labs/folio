@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
+- **Architectural Refactoring (Phase 23: Category Manager Sheet Modularization & Search Filter Domain Extraction)**:
+  - Decomposed and streamlined `CategoryManagerBottomSheet.kt` from 640 lines down to 175 lines (~73% reduction) by isolating dialogs, accordion card items, and search filtering:
+    - `domain/util/CategoryDrillDownCalculator.kt`: Added pure domain filter `filterCategoryTree` supporting blank query passthrough, parent keyword matches with full subcategory preservation, and subcategory-only keyword filtering.
+    - `ui/settings/sheets/components/CategoryEditorDialog.kt` (230 lines): Extracted full category editor dialog featuring color swatches grid (13 palette choices), icon selector grid (`ALL_CATEGORY_ICON_KEYS`), animated smart icon suggestion badge, and validation feedback.
+    - `ui/settings/sheets/components/CategoryParentCard.kt` (235 lines): Extracted accordion parent category card with category icon badge, subcategory count indicator, overflow options menu (Add Subcategory, Edit, Delete), and animated expandable subcategory list with inline edit/delete triggers.
+    - `ui/settings/sheets/CategoryManagerBottomSheet.kt` (175 lines): Retained backward-compatible delegating forwarder for `CategoryEditorDialog` preserving external settings screen integrations.
+  - Added 4 dedicated unit tests in `CategoryDrillDownCalculatorTest.kt` verifying blank query handling, parent matches, child-only matches, and no-match empty sets.
 - **Architectural Refactoring (Phase 22: Data & Backup Sheet Modularization & Time Formatter Domain Extraction)**:
   - Decomposed and streamlined `DataAndBackupBottomSheet.kt` from 676 lines down to 10 lines (~98% reduction) by isolating distinct backup subdomains into dedicated sheets and domain utility:
     - `domain/util/BackupTimeFormatter.kt` (42 lines): Extracted pure domain timestamp formatter for relative backup labels ("Never", "Today, 2:30 PM", "Yesterday, 9:15 AM", "3d ago", formatted date) with injectable time zone and deterministic reference date support.

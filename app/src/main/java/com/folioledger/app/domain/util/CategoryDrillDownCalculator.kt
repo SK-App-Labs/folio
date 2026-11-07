@@ -61,6 +61,33 @@ object CategoryDrillDownCalculator {
         return null
     }
 
+    /**
+     * Filters a category tree by search query string:
+     * - Returns full tree untouched when query is blank.
+     * - Retains full parent and all subcategories if parent name matches.
+     * - Retains parent with matching subcategories if only subcategories match.
+     * - Filters out nodes where neither parent nor any subcategory matches.
+     */
+    fun filterCategoryTree(
+        categories: List<CategoryNode>,
+        searchQuery: String
+    ): List<CategoryNode> {
+        val trimmed = searchQuery.trim()
+        if (trimmed.isEmpty()) return categories
+
+        return categories.mapNotNull { parent ->
+            val parentMatches = parent.name.contains(trimmed, ignoreCase = true)
+            val matchingSubs = parent.subcategories.filter { sub ->
+                sub.name.contains(trimmed, ignoreCase = true)
+            }
+            if (parentMatches || matchingSubs.isNotEmpty()) {
+                parent.copy(
+                    subcategories = if (parentMatches) parent.subcategories else matchingSubs
+                )
+            } else null
+        }
+    }
+
     fun filterMatchingTransactions(
         transactions: List<TransactionItem>,
         categoryType: CategoryType,
