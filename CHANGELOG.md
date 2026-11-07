@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
+- **Architectural Refactoring (Phase 12: Transaction Entry Sheet Modularization)**:
+  - Decomposed `TransactionEntrySheet.kt` from 1,323 lines down to 673 lines (~49% reduction) by isolating UI components and modal dialogs into `ui/entry/components/`:
+    - `ui/entry/components/EntryHeaderAndDateBar.kt`: Extracted `EntryModeSelectorHeader` (mode selector tabs, bookmarks trigger, close action), `EntryDateAndTimeBar` (date stepping, date picker button chip, time picker button chip, feature action toggles), `EntryRecurringBanner` (live human-readable recurring schedule summary and edit/turn-off triggers), and reusable `ActionToggleButton`.
+    - `ui/entry/components/EntryAmountDisplayCard.kt`: Extracted `EntryAmountDisplayCard` (amount banner with dual-mode calculator/keypad toggle, expression evaluation, currency symbol, and full-featured numeric input field).
+    - `ui/entry/components/EntryAccountAndCategoryCards.kt`: Extracted `EntryAccountAndCategoryCards` (2-column source account, destination account for transfers, and primary category picker cards).
+    - `ui/entry/components/EntryDialogs.kt`: Extracted isolated dialog launchers `EntryDatePickerDialog` (Material3 DatePickerDialog), `EntryTimePickerLauncher` (system TimePickerDialog with lifecycle disposal), and `CreateTagDialog`.
 - **Architectural Refactoring (Phase 11: Budgets Subtab Modularization)**:
   - Decomposed `BudgetsSubTabContent.kt` from 1,275 lines down to 420 lines (~67% reduction) into clean, decoupled components under `ui/stats/components/`:
     - `ui/stats/components/BudgetProgressCards.kt`: Extracted `BudgetProgressCard` (semantic threshold alerts, real-time spending velocity and pacing tick indicator, safe daily spend calculation) and `BudgetTrackWithPacingTick` (custom Canvas pacing bar).
