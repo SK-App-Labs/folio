@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
+- **Architectural Refactoring (Phase 22: Data & Backup Sheet Modularization & Time Formatter Domain Extraction)**:
+  - Decomposed and streamlined `DataAndBackupBottomSheet.kt` from 676 lines down to 10 lines (~98% reduction) by isolating distinct backup subdomains into dedicated sheets and domain utility:
+    - `domain/util/BackupTimeFormatter.kt` (42 lines): Extracted pure domain timestamp formatter for relative backup labels ("Never", "Today, 2:30 PM", "Yesterday, 9:15 AM", "3d ago", formatted date) with injectable time zone and deterministic reference date support.
+    - `ui/settings/sheets/AutoBackupBottomSheet.kt` (314 lines): Extracted automated rolling backup sheet featuring toggle switch, retention policy radio selector (10 Sessions, 30 Days Tiered, 90 Days), snapshot history list, snapshot file size/timestamp badges, and restore/share action triggers.
+    - `ui/settings/sheets/TransferAndManualBackupBottomSheet.kt` (235 lines): Extracted phone migration & ZIP transfer sheet featuring last backup hero status banner, 1-tap share action, portable archive creation, cloud document picker restore, and local fast restore.
+    - `ui/settings/sheets/SpreadsheetsBottomSheet.kt` (124 lines): Extracted spreadsheet and CSV sheet handling full multi-section ledger export (Accounts, Categories & Ledger) and CSV bank statement import.
+    - `ui/settings/sheets/DataAndBackupBottomSheet.kt` (10 lines): Retained backward-compatible delegating forwarder for `formatBackupRelativeTime` preserving existing test and settings component integrations.
+  - Added dedicated pure JVM unit test suite `BackupTimeFormatterTest.kt` with 5 tests verifying null/zero handling, today/yesterday relative times, 2-6 day intervals, and long-term date formats.
 - **Architectural Refactoring (Phase 21: Account Passbook Sheet Modularization)**:
   - Decomposed and streamlined `AccountPassbookBottomSheet.kt` from 633 lines down to 260 lines (~59% reduction) by isolating headers and contextual action rows into `ui/accounts/components/`:
     - `ui/accounts/components/PassbookTopAccountHeader.kt` (168 lines): Extracted top account header bar rendering account icon badge, account type tag, debit card linkage count, live balance display, pin toggle, reconcile button, edit card button, and close trigger.
