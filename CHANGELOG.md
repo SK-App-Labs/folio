@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
+- **Architectural Refactoring (Phase 20: Account Editor Sheet Modularization)**:
+  - Decomposed and streamlined `AccountEditorBottomSheet.kt` from 700 lines down to 247 lines (~65% reduction) by isolating account groups, adaptive details, and action buttons into `ui/accounts/components/`:
+    - `ui/accounts/components/AccountGroupPickerSection.kt` (160 lines): Extracted 2×2 quick-pick tile grid for primary account groups (Bank Account, Credit Card, Cash, Debit Card) and animated collapsible drawer for secondary groups (Savings, Prepaid Wallet, Investment, Overdraft, Loan, Other).
+    - `ui/accounts/components/AccountBalanceAndDetailsSection.kt` (220 lines): Extracted adaptive account details section managing Credit Card limit input & billing cycle integration, linked parent bank account selector for Debit Cards, and initial balance input with Material3 date picker dialog.
+    - `ui/accounts/components/AccountEditorActionButtons.kt` (60 lines): Extracted bottom action button row handling Delete confirmation, Archive/Unarchive toggle, and Save/Create submission.
 - **Architectural Refactoring (Phase 19: Support & Guide Sheets Modularization)**:
   - Decomposed and modularized `FolioGuideAndSupportSheets.kt` from 922 lines down to 53 lines (~94% reduction) into dedicated sheet components and knowledge base models:
     - `ui/settings/guides/FolioGuideTopics.kt` (260 lines): Extracted user guide topics repository, `GuideCategoryTab` (All, Getting Started, Features, Credit Cards, FAQs), and `GuideTopicItem` domain model covering account setup, gestures, 5 ledger views, smart calculator/splits, passbooks, CSV imports, analytics, backups, and credit card billing cycles.
