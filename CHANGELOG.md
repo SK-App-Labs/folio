@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
+- **Architectural Refactoring (Phase 17: Recurring Commitments Manager Sheet Modularization)**:
+  - Decomposed `RecurringManagerBottomSheet.kt` from 939 lines down to 226 lines (~76% reduction) by isolating tab sections, dialogs, and hero cards into `ui/settings/sheets/components/`:
+    - `ui/settings/sheets/components/MonthlyBurdenHeroCard.kt` (113 lines): Extracted hero card computing and rendering monthly fixed commitments, multi-currency formatting, and 3-way breakdown (subscriptions, auto-save transfers, active credit card EMIs).
+    - `ui/settings/sheets/components/SubscriptionsTabContent.kt` (237 lines): Extracted subscriptions/recurring tab with empty state, recurrence frequency badges, due-date calculations, pause/resume toggles, edit triggers, and delete actions.
+    - `ui/settings/sheets/components/InstallmentsTabContent.kt` (178 lines): Extracted credit card installments tab with progress indicators, monthly EMI amounts, and remaining balance summaries.
+    - `ui/settings/sheets/components/EditRecurringRuleDialog.kt` (144 lines): Extracted edit dialog with safe minor money parsing, recurrence frequency picker dropdown, and next occurrence recalculation.
 - **Architectural Refactoring (Phase 16: Ledger Sheets & Dialogs Modularization)**:
   - Decomposed and modularized `LedgerSheetsAndDialogs.kt` from 905 lines down to 78 lines (~91% reduction) by isolating sheets and dialogs into dedicated packages under `ui/ledger/`:
     - `ui/ledger/sheets/TransactionDetailActionSheet.kt` (340 lines): Extracted full-featured bottom sheet for transaction inspection, multi-currency conversion preview, installment details, split breakdown view, tag chips, and delete confirmation dialog.
