@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
+- **Architectural Refactoring (Phase 8: Account Sheets Modularization & Dialog Extraction)**:
+  - Decomposed massive bottom sheets `AccountPassbookBottomSheet.kt` (1,590 lines down to 633 lines, ~60% reduction) and `AccountEditorBottomSheet.kt` (1,423 lines down to 700 lines, ~51% reduction) into clean, focused components and isolated dialogs:
+    - `ui/accounts/dialogs/ReconcileBalanceDialog.kt`: Extracted account balance reconciliation dialog with live target calculation, debt/asset awareness, and haptic feedback. Maintained backward compatibility via a deprecated wrapper in `AccountPassbookBottomSheet.kt`.
+    - `ui/accounts/dialogs/DayOfMonthPickerDialog.kt`: Extracted reusable month day picker dialog (1..31) with scrollable chip grid.
+    - `ui/accounts/components/PassbookHeroCards.kt`: Extracted `CreditCardPassbookHeroCard` (including tier utilization badge and billing cycle breakdown) and `InvestmentPassbookHeroCard` (portfolio valuation and unrealized gain/loss).
+    - `ui/accounts/components/PassbookItemCards.kt`: Extracted `PassbookTwoTierSummaryCard`, `PassbookSummaryMetricCell`, `PassbookDayGroupHeaderRow`, and `PassbookTransactionEntryRowCard`.
+    - `ui/accounts/components/CreditCardBillingCycleSection.kt`: Encapsulated credit card cycle computation, statement anchor date picker, payment due day picker, closed/active cycle date preview, dynamic ledger balances, and outstanding debt summary card.
+    - `ui/accounts/components/AccountEditorComponents.kt`: Extracted `AccountTypeQuickPickTile`, `formatAccountTypeSingularTitle`, `AccountCurrencyPickerCard`, and `AccountAppearanceCustomizerCard`.
 - **Architectural Refactoring (Phase 7: Settings Screen & Dialog Modularization)**:
   - Decomposed the 1,632-line `SettingsScreen.kt` monolith down to 593 lines (64% reduction) by isolating dialogs, shared navigation components, and section group cards into dedicated packages:
     - `ui/settings/dialogs/SettingsDialogs.kt`: Isolated `MonthStartDayPickerDialog`, `RestoreConfirmationDialog`, `ClearAllDataConfirmationDialog`, `ImportCsvPreviewDialog`, and `ImportCsvResultDialog` with pure state hoisting and zero ViewModel coupling.

@@ -47,7 +47,7 @@ import com.folioledger.app.ui.accounts.components.AccountGroupSectionCard
 import com.folioledger.app.ui.accounts.sheets.AccountEditorBottomSheet
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.accounts.sheets.AccountPassbookBottomSheet
-import com.folioledger.app.ui.accounts.sheets.ReconcileBalanceDialog
+import com.folioledger.app.ui.accounts.dialogs.ReconcileBalanceDialog
 import com.folioledger.app.ui.accounts.sheets.CreditCardSettlementBottomSheet
 import com.folioledger.app.ui.components.EmptyStateCard
 import com.folioledger.app.ui.components.ThreeColumnSummaryBanner
