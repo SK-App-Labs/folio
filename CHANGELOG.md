@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
+- **Architectural Refactoring (Phase 16: Ledger Sheets & Dialogs Modularization)**:
+  - Decomposed and modularized `LedgerSheetsAndDialogs.kt` from 905 lines down to 78 lines (~91% reduction) by isolating sheets and dialogs into dedicated packages under `ui/ledger/`:
+    - `ui/ledger/sheets/TransactionDetailActionSheet.kt` (340 lines): Extracted full-featured bottom sheet for transaction inspection, multi-currency conversion preview, installment details, split breakdown view, tag chips, and delete confirmation dialog.
+    - `ui/ledger/sheets/ReinforcedSearchFilterBottomSheet.kt` (490 lines): Extracted multi-tab filter sheet supporting search keyword, period range switch, expense/income/account tabbed filters, tag selection, transfer inclusion toggle, and min/max amount range inputs with live result counts.
+    - `ui/ledger/dialogs/QuickBookmarksLauncherDialog.kt` (121 lines): Extracted modal dialog presenting saved bookmark templates with currency and formatting support for rapid transaction seeding.
+    - `LedgerSheetsAndDialogs.kt` (78 lines): Maintained 100% backward compatibility via typealiases and delegating wrapper composables.
 - **Architectural Refactoring (Phase 15: Settings UI Models & Recurring Burden Calculator Domain Extraction)**:
   - Decomposed and streamlined `SettingsViewModel.kt` from 1,107 lines down to 941 lines (~15% reduction) by isolating recurring commitments burden calculation and settings state models:
     - `domain/util/RecurringBurdenCalculator.kt`: Extracted pure functions `computeMonthlyBurden` and `computeMonthlyEquivalent` calculating monthly fixed burden, recurring expense vs transfer distribution, and remaining installment aggregation across 13 recurrence frequencies.
