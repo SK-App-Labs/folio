@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
+- **Architectural Refactoring (Phase 18: PDF Reports Sheet Modularization & Period Preset Domain Resolver)**:
+  - Decomposed and streamlined `PdfReportsBottomSheet.kt` from 861 lines down to 196 lines (~77% reduction) by isolating report configuration sections, success dialogs, and date preset resolution:
+    - `data/pdf/PassbookPeriodPresetResolver.kt`: Extracted pure period range resolution mapping `PassbookPeriodPreset` (current month, last month, last 3 months, YTD, all-time, custom) to epoch day bounds with deterministic date support.
+    - `ui/settings/sheets/components/PdfTaxReportSection.kt` (207 lines): Extracted annual tax report section with fiscal year calendar selection (Jan–Dec, Apr–Mar, Jul–Jun), year stepper, multi-currency valuation note, deductible tax tag filters, and PDF generation action.
+    - `ui/settings/sheets/components/PdfAccountStatementSection.kt` (186 lines): Extracted passbook statement section with horizontal account picker, period presets, running balance toggle, and notes/tags inclusion options.
+    - `ui/settings/sheets/components/PdfExportSuccessDialog.kt` (168 lines): Extracted export completion dialog featuring file size/page count summary, view/print launcher, direct share sheet launcher, and SAF custom directory export.
+  - Added dedicated pure JVM unit test suite `PassbookPeriodPresetResolverTest.kt` with 6 comprehensive unit tests covering all preset ranges against a fixed deterministic reference date.
 - **Architectural Refactoring (Phase 17: Recurring Commitments Manager Sheet Modularization)**:
   - Decomposed `RecurringManagerBottomSheet.kt` from 939 lines down to 226 lines (~76% reduction) by isolating tab sections, dialogs, and hero cards into `ui/settings/sheets/components/`:
     - `ui/settings/sheets/components/MonthlyBurdenHeroCard.kt` (113 lines): Extracted hero card computing and rendering monthly fixed commitments, multi-currency formatting, and 3-way breakdown (subscriptions, auto-save transfers, active credit card EMIs).
