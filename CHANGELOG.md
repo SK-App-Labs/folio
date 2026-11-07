@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
+- **Architectural Refactoring (Phase 9: Stats Screen Section Modularization)**:
+  - Decomposed the 1,750-line `StatsOverviewSubTabContent.kt` monolith down to 537 lines (~69% reduction) into clean, decoupled components under `ui/stats/components/`:
+    - `ui/stats/components/StatsFinancialHealthCards.kt`: Extracted `CashflowPerformanceInsightCard` (cashflow efficiency, savings rate, prior period deltas), `TopDriversSummaryCard` (top category spend drivers ranking), `NetWorthVelocityCard` (30-day velocity, MoM percentage and absolute growth), and `EmergencyRunwayCard` (health tier, liquid vs investment coverage progress).
+    - `ui/stats/components/SafeToSpendCard.kt`: Extracted `SafeToSpendCard` (headline discretionary spending amount, multi-clause status description, liquid minus debt formula equation breakdown) and `ShortfallAlertCard` (upcoming commitment shortfall detection banner). Decoupled `BudgetsSubTabContent.kt` to import cleanly from `components`.
+    - `ui/stats/components/RankedCategoryBreakdownComponents.kt`: Extracted `RankedCategoryBreakdownGroupedCard` (collapsible top 5 / all categories matrix) and `RankedCategoryStatRowItem` (animated percentage bar, subcategory expansion list, and 1-tap category transaction drilldown).
 - **Architectural Refactoring (Phase 8: Account Sheets Modularization & Dialog Extraction)**:
   - Decomposed massive bottom sheets `AccountPassbookBottomSheet.kt` (1,590 lines down to 633 lines, ~60% reduction) and `AccountEditorBottomSheet.kt` (1,423 lines down to 700 lines, ~51% reduction) into clean, focused components and isolated dialogs:
     - `ui/accounts/dialogs/ReconcileBalanceDialog.kt`: Extracted account balance reconciliation dialog with live target calculation, debt/asset awareness, and haptic feedback. Maintained backward compatibility via a deprecated wrapper in `AccountPassbookBottomSheet.kt`.

@@ -134,6 +134,8 @@ import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.accounts.sheets.CreditCardSettlementBottomSheet
 import com.folioledger.app.ui.components.CategoryIconBadge
+import com.folioledger.app.ui.stats.components.SafeToSpendCard
+import com.folioledger.app.ui.stats.components.ShortfallAlertCard
 import com.folioledger.app.ui.components.CreditHealthDashboardCard
 import com.folioledger.app.ui.components.EmptyStateCard
 import com.folioledger.app.ui.components.InteractiveCategoryDonutChart
