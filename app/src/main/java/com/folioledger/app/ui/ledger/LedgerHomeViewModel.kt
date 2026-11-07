@@ -236,6 +236,7 @@ data class LedgerHomeUiState(
     val selectedCalendarDayTransactions: List<TransactionItem> = emptyList(),
     val selectedCalendarDayIncome: MinorMoney = MinorMoney.ZERO,
     val selectedCalendarDayExpense: MinorMoney = MinorMoney.ZERO,
+    val selectedCalendarDayTransfer: MinorMoney = MinorMoney.ZERO,
     val weeklyBuckets: List<WeeklyLedgerBucket> = emptyList(),
     val expandedWeekIndices: Set<Int> = setOf(1),
     val yearlyMonthItems: List<YearlyMonthOverviewItem> = emptyList(),
@@ -742,6 +743,24 @@ class LedgerHomeViewModel(
             secondaryCurrencies = prefs.secondaryCurrencies
         )
 
+        val selectedDayTransferMinor = selectedDayTxns
+            .filter { it.type == TransactionType.TRANSFER || it.type == TransactionType.CC_SETTLEMENT }
+            .sumOf { tx ->
+                val primarySpec = base.currencySpec
+                if (tx.currencyCode != primarySpec.code) {
+                    val rate = prefs.secondaryCurrencies.firstOrNull { it.code == tx.currencyCode }?.exchangeRateToPrimary ?: 1.0
+                    val sourceSpec = SupportedCurrencies.fromCode(tx.currencyCode)
+                    MoneyFormatterAndCalculator.convertMinorMoney(
+                        sourceMinor = tx.amount.amountMinor,
+                        sourceFractionDigits = sourceSpec.fractionDigits,
+                        targetFractionDigits = primarySpec.fractionDigits,
+                        rateToTarget = rate
+                    )
+                } else {
+                    tx.amount.amountMinor
+                }
+            }
+
         val isCurrentPeriod = todayEpochDay in periodRange.startEpochDay..periodRange.endEpochDay
         val defaultExpandedWeeks = if (isCurrentPeriod) {
             val activeWeek = base.weeklyBuckets.firstOrNull { bucket ->
@@ -833,6 +852,7 @@ class LedgerHomeViewModel(
             selectedCalendarDayTransactions = selectedDayTxns,
             selectedCalendarDayIncome = selectedDayIncome,
             selectedCalendarDayExpense = selectedDayExpense,
+            selectedCalendarDayTransfer = MinorMoney(selectedDayTransferMinor),
             weeklyBuckets = base.weeklyBuckets,
             expandedWeekIndices = effectiveExpandedWeeks,
             yearlyMonthItems = yearlyMonthItems,
@@ -1423,7 +1443,7 @@ class LedgerHomeViewModel(
                     primaryCurrencySpec = primaryCurrencySpec,
                     secondaryCurrencies = secondaryCurrencies
                 )
-                val transferTxns = dayTxns.filter { it.type == TransactionType.TRANSFER }
+                val transferTxns = dayTxns.filter { it.type == TransactionType.TRANSFER || it.type == TransactionType.CC_SETTLEMENT }
                 val transferTotalMinor = transferTxns.sumOf { tx ->
                     if (primaryCurrencySpec != null && tx.currencyCode != primaryCurrencySpec.code) {
                         val rate = secondaryCurrencies.firstOrNull { it.code == tx.currencyCode }?.exchangeRateToPrimary ?: 1.0

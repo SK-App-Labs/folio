@@ -839,4 +839,110 @@ class MonthlyLedgerCalculationsTest {
         // ₹1,000 (100000 paise) + ₹1,700 (170000 paise) = ₹2,700 (270000 paise)
         assertEquals(270000L, transferMinor)
     }
+
+    @Test
+    fun testCalendarTransferIncludesCCSettlement() {
+        val transferTx = TransactionItem(
+            id = 1L,
+            type = TransactionType.TRANSFER,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(500000L), // ₹5,000
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Bank A",
+            transferToAccountId = 2L,
+            transferToAccountName = "Bank B"
+        )
+        val ccSettlementTx = TransactionItem(
+            id = 2L,
+            type = TransactionType.CC_SETTLEMENT,
+            timestampEpochMillis = 2000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(300000L), // ₹3,000
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Bank A",
+            transferToAccountId = 3L,
+            transferToAccountName = "Credit Card"
+        )
+        val expenseTx = TransactionItem(
+            id = 3L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 3000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(10000L), // ₹100
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Bank A"
+        )
+
+        val dayTxns = listOf(transferTx, ccSettlementTx, expenseTx)
+        val calendarTransferTxns = dayTxns.filter { it.type == TransactionType.TRANSFER || it.type == TransactionType.CC_SETTLEMENT }
+
+        assertEquals(2, calendarTransferTxns.size)
+        val calendarTransferTotalMinor = calendarTransferTxns.sumOf { it.amount.amountMinor }
+        assertEquals(800000L, calendarTransferTotalMinor)
+    }
+
+    @Test
+    fun testCalendarDayCellTransferDisplayScenarios() {
+        // Scenario 1: Only transfer present -> show transfer pill
+        val cellOnlyTransfer = CalendarDayCell(
+            epochDay = 20000L,
+            dayNumber = 15,
+            formattedCompactIncome = "",
+            formattedCompactExpense = "",
+            transferCount = 1,
+            formattedCompactTransfer = "5k"
+        )
+        val showTransferPill1 = cellOnlyTransfer.transferCount > 0 && cellOnlyTransfer.formattedCompactTransfer.isNotEmpty() &&
+            (cellOnlyTransfer.formattedCompactIncome.isEmpty() || cellOnlyTransfer.formattedCompactExpense.isEmpty())
+        assertTrue("Only transfer should show transfer pill", showTransferPill1)
+        val showHeaderBadge1 = cellOnlyTransfer.transferCount > 0 && cellOnlyTransfer.formattedCompactIncome.isNotEmpty() && cellOnlyTransfer.formattedCompactExpense.isNotEmpty()
+        assertFalse("Only transfer should NOT show header indicator badge", showHeaderBadge1)
+
+        // Scenario 2: Income + Transfer (Expense empty) -> show income and transfer pill
+        val cellIncomeAndTransfer = CalendarDayCell(
+            epochDay = 20000L,
+            dayNumber = 16,
+            formattedCompactIncome = "10k",
+            formattedCompactExpense = "",
+            transferCount = 1,
+            formattedCompactTransfer = "5k"
+        )
+        val showTransferPill2 = cellIncomeAndTransfer.transferCount > 0 && cellIncomeAndTransfer.formattedCompactTransfer.isNotEmpty() &&
+            (cellIncomeAndTransfer.formattedCompactIncome.isEmpty() || cellIncomeAndTransfer.formattedCompactExpense.isEmpty())
+        assertTrue("Income + transfer should show transfer pill", showTransferPill2)
+        val showHeaderBadge2 = cellIncomeAndTransfer.transferCount > 0 && cellIncomeAndTransfer.formattedCompactIncome.isNotEmpty() && cellIncomeAndTransfer.formattedCompactExpense.isNotEmpty()
+        assertFalse("Income + transfer should not show header badge (transfer pill is visible)", showHeaderBadge2)
+
+        // Scenario 3: Expense + Transfer (Income empty) -> show expense and transfer pill
+        val cellExpenseAndTransfer = CalendarDayCell(
+            epochDay = 20000L,
+            dayNumber = 17,
+            formattedCompactIncome = "",
+            formattedCompactExpense = "2k",
+            transferCount = 1,
+            formattedCompactTransfer = "5k"
+        )
+        val showTransferPill3 = cellExpenseAndTransfer.transferCount > 0 && cellExpenseAndTransfer.formattedCompactTransfer.isNotEmpty() &&
+            (cellExpenseAndTransfer.formattedCompactIncome.isEmpty() || cellExpenseAndTransfer.formattedCompactExpense.isEmpty())
+        assertTrue("Expense + transfer should show transfer pill", showTransferPill3)
+
+        // Scenario 4: Income + Expense + Transfer -> bottom column shows income & expense; header badge shows transfer arrow
+        val cellAllThree = CalendarDayCell(
+            epochDay = 20000L,
+            dayNumber = 18,
+            formattedCompactIncome = "10k",
+            formattedCompactExpense = "2k",
+            transferCount = 1,
+            formattedCompactTransfer = "5k"
+        )
+        val showTransferPill4 = cellAllThree.transferCount > 0 && cellAllThree.formattedCompactTransfer.isNotEmpty() &&
+            (cellAllThree.formattedCompactIncome.isEmpty() || cellAllThree.formattedCompactExpense.isEmpty())
+        assertFalse("When both income and expense are present, bottom transfer pill is omitted to prevent overflow", showTransferPill4)
+        val showHeaderBadge4 = cellAllThree.transferCount > 0 && cellAllThree.formattedCompactIncome.isNotEmpty() && cellAllThree.formattedCompactExpense.isNotEmpty()
+        assertTrue("When both income and expense are present, transfer arrow badge is displayed in the day header", showHeaderBadge4)
+    }
 }

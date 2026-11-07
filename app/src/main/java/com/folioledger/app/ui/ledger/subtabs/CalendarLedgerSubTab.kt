@@ -147,6 +147,15 @@ private fun CalendarDayCellView(
                                 )
                         )
                     }
+                    if (cell.transferCount > 0 && cell.formattedCompactIncome.isNotEmpty() && cell.formattedCompactExpense.isNotEmpty()) {
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(
+                            text = "\u21C4",
+                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                            fontWeight = FontWeight.Bold,
+                            color = semanticColors.transferBlue
+                        )
+                    }
                 }
 
                 Column(
@@ -171,14 +180,16 @@ private fun CalendarDayCellView(
                             maxLines = 1
                         )
                     }
-                    if (cell.formattedCompactIncome.isEmpty() && cell.formattedCompactExpense.isEmpty() && cell.transferCount > 0 && cell.formattedCompactTransfer.isNotEmpty()) {
+                    val showTransferPill = cell.transferCount > 0 && cell.formattedCompactTransfer.isNotEmpty() &&
+                        (cell.formattedCompactIncome.isEmpty() || cell.formattedCompactExpense.isEmpty())
+                    if (showTransferPill) {
                         Surface(
                             shape = RoundedCornerShape(4.dp),
                             color = semanticColors.transferBlueContainer.copy(alpha = 0.85f),
                             modifier = Modifier.padding(top = 1.dp)
                         ) {
                             Text(
-                                text = "â‡„ ${cell.formattedCompactTransfer}",
+                                text = "\u21C4 ${cell.formattedCompactTransfer}",
                                 style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                                 fontWeight = FontWeight.Bold,
                                 color = semanticColors.onTransferBlueContainer,
@@ -303,7 +314,10 @@ internal fun CalendarLedgerSubTabContent(
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
                                 text = "${uiState.selectedCalendarDayTransactions.size} trans",
                                 style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
@@ -329,6 +343,27 @@ internal fun CalendarLedgerSubTabContent(
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold
                                 )
+                            }
+                            if (uiState.selectedCalendarDayTransfer.isPositive) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = "\u21C4",
+                                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                                        fontWeight = FontWeight.Bold,
+                                        color = semanticColors.transferBlue
+                                    )
+                                    MoneyText(
+                                        money = uiState.selectedCalendarDayTransfer,
+                                        currencySpec = uiState.currencySpec,
+                                        grouping = uiState.numberGrouping,
+                                        colorMode = MoneyColorMode.TRANSFER,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                         }
                     }

@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 ## [Unreleased]
-### Added
-- 
+### Fixed
+- **Calendar Subtab Transfer Display & Accounting**:
+  - Resolved character encoding mojibake (`"â‡„ "` -> `"\u21C4 "`) on calendar day cells.
+  - Fixed transfer visibility on mixed-activity days: transfers are now displayed alongside income or expenses rather than being suppressed. On days with both income and expense, a compact bidirectional transfer badge (`⇄`) is shown in the day header row.
+  - Added transfer summary total (`selectedCalendarDayTransfer`) to `LedgerHomeUiState` and displayed `⇄ <amount>` in `semanticColors.transferBlue` inside the selected day summary header card.
+  - Aligned calendar transfer filtering with the Daily tab to include credit card settlement transfers (`TransactionType.CC_SETTLEMENT`).
 
 ### Changed
 - **Architectural Refactoring (Phase 5: Localization Polish & Complete 13-Language Parity)**:
