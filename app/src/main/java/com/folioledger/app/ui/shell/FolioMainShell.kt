@@ -1,4 +1,4 @@
-﻿package com.folioledger.app.ui.shell
+package com.folioledger.app.ui.shell
 
 import android.app.Activity
 import android.content.Context
@@ -20,8 +20,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.systemBars
 import com.folioledger.app.ui.shell.components.DemoModeActiveTopBanner
 import com.folioledger.app.ui.shell.sheets.WelcomeExpressBottomSheet
 import androidx.compose.material.icons.Icons
@@ -227,7 +232,19 @@ fun FolioMainShell(
                     )
                 }
 
-                Box(modifier = Modifier.weight(1f)) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .then(
+                            if (settingsUiState.userPreferences.isDemoModeActive) {
+                                Modifier
+                                    .consumeWindowInsets(WindowInsets.statusBars)
+                                    .consumeWindowInsets(WindowInsets.systemBars.only(WindowInsetsSides.Top))
+                            } else {
+                                Modifier
+                            }
+                        )
+                ) {
                     Crossfade(
                         targetState = selectedTab,
                         animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
