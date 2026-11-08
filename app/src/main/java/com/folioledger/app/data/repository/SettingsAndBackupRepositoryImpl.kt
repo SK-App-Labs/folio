@@ -1,4 +1,4 @@
-package com.folioledger.app.data.repository
+﻿package com.folioledger.app.data.repository
 
 import android.content.Context
 import android.net.Uri
@@ -101,6 +101,7 @@ class SettingsAndBackupRepositoryImpl(
     private val autoBackupManager = AutoBackupManager(context, database, userPreferencesDataSource, backupEngine)
     private val csvEngine = CsvExportImportEngine(context, database, userPreferencesDataSource)
     private val pdfHelper = PdfStatementRepositoryHelper(context, database, userPreferencesDataSource)
+    private val demoModeManager = com.folioledger.app.data.demo.DemoModeManager(context, database, userPreferencesDataSource, backupEngine)
 
     // User Preferences
     override fun observeUserPreferences(): Flow<UserPreferences> =
@@ -185,4 +186,14 @@ class SettingsAndBackupRepositoryImpl(
     ): Result<PdfExportResult> = pdfHelper.generateAnnualTaxStatementPdf(
         fiscalYearType, anchorYear, customStartEpochDay, customEndEpochDay, selectedTaxTags
     )
+
+    // Demo Mode & Sandbox
+    override suspend fun enterDemoMode(primaryCurrencyCode: String?): Result<Unit> =
+        demoModeManager.enterDemoMode(primaryCurrencyCode)
+
+    override suspend fun exitDemoMode(): Result<Unit> =
+        demoModeManager.exitDemoMode()
+
+    override fun isDemoStashAvailable(): Boolean =
+        demoModeManager.isStashAvailable()
 }

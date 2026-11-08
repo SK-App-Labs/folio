@@ -1,4 +1,4 @@
-package com.folioledger.app.ui.settings.components
+﻿package com.folioledger.app.ui.settings.components
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Sync
@@ -245,7 +246,9 @@ fun DataBackupsSettingsCard(
         title = stringResource(R.string.settings_group_data),
         modifier = modifier
     ) {
-        val autoBackupValue = if (prefs.autoBackupEnabled) {
+        val autoBackupValue = if (prefs.isDemoModeActive) {
+            "Paused (Demo Sandbox)"
+        } else if (prefs.autoBackupEnabled) {
             when (prefs.autoBackupRetention) {
                 AutoBackupRetention.TEN_SESSIONS -> "10 Sessions"
                 AutoBackupRetention.THIRTY_DAYS -> "30 Days (Tiered)"
@@ -324,6 +327,7 @@ fun CommunityHelpSettingsCard(
     onOpenFeedbackSheet: () -> Unit,
     onRateApp: () -> Unit,
     onOpenTipJarSheet: () -> Unit,
+    onToggleDemoModeClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
@@ -332,6 +336,30 @@ fun CommunityHelpSettingsCard(
         title = stringResource(R.string.settings_group_community),
         modifier = modifier
     ) {
+        if (prefs.isDemoModeActive) {
+            SettingsNavigationRow(
+                icon = Icons.Default.PlayArrow,
+                title = if (prefs.hasStashedRealLedger) "Exit Demo Sandbox (Restore Real Data)" else "Exit Demo Sandbox (Start Fresh)",
+                valueText = "Active",
+                valueColorDot = semanticColors.warningAmber,
+                enabled = isNotBusy,
+                onClick = onToggleDemoModeClick
+            )
+        } else {
+            SettingsNavigationRow(
+                icon = Icons.Default.PlayArrow,
+                title = "Launch Interactive Demo Mode",
+                valueText = "Sandbox",
+                valueColorDot = semanticColors.incomeEmerald,
+                enabled = isNotBusy,
+                onClick = onToggleDemoModeClick
+            )
+        }
+        HorizontalDivider(
+            color = semanticColors.cardStrokeSubtle,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
         SettingsNavigationRow(
             icon = Icons.AutoMirrored.Filled.MenuBook,
             title = stringResource(R.string.setting_user_guide),

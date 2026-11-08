@@ -1,4 +1,4 @@
-// File: app/src/main/java/com/folioledger/app/ui/settings/SettingsScreen.kt
+﻿// File: app/src/main/java/com/folioledger/app/ui/settings/SettingsScreen.kt
 package com.folioledger.app.ui.settings
 
 import com.folioledger.app.BuildConfig
@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Star
@@ -165,6 +166,7 @@ fun SettingsScreen(
     var isTransferBackupSheetOpen by rememberSaveable { mutableStateOf(false) }
     var isSpreadsheetsSheetOpen by rememberSaveable { mutableStateOf(false) }
     var isTagsAndBookmarksSheetOpen by rememberSaveable { mutableStateOf(false) }
+    var showDemoModeConfirmDialog by rememberSaveable { mutableStateOf(false) }
 
     var showMonthStartDayDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -335,7 +337,8 @@ fun SettingsScreen(
                                 }
                             }
                         },
-                        onOpenTipJarSheet = { showTipJarSheet = true }
+                        onOpenTipJarSheet = { showTipJarSheet = true },
+                        onToggleDemoModeClick = { showDemoModeConfirmDialog = true }
                     )
                 }
 
@@ -489,6 +492,71 @@ fun SettingsScreen(
                 viewModel.clearAllData()
             },
             onDismiss = { showClearAllDataDialog = false }
+        )
+    }
+
+    if (showDemoModeConfirmDialog) {
+        val isDemoActive = prefs.isDemoModeActive
+        val hasStash = prefs.hasStashedRealLedger
+        AlertDialog(
+            onDismissRequest = { showDemoModeConfirmDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = if (isDemoActive) {
+                        if (hasStash) "Exit Demo Sandbox?" else "Reset Demo Data?"
+                    } else {
+                        "Launch Interactive Demo Mode?"
+                    },
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = if (isDemoActive) {
+                        if (hasStash) {
+                            "Your real ledger will be restored from your private internal stash. Any transactions or edits created during this demo session will be discarded."
+                        } else {
+                            "This will wipe the sample demo data and reset your ledger so you can start tracking your personal finances."
+                        }
+                    } else {
+                        "Folio will safely stash your current ledger in protected storage, pause auto-backups, and load a rich sample dataset with accounts, charts, credit card float tracking, and passbooks. You can restore your real ledger at any time."
+                    },
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDemoModeConfirmDialog = false
+                        if (isDemoActive) {
+                            viewModel.exitDemoMode()
+                        } else {
+                            viewModel.enterDemoMode()
+                        }
+                    }
+                ) {
+                    Text(
+                        if (isDemoActive) {
+                            if (hasStash) "Restore Real Ledger" else "Wipe & Start Fresh"
+                        } else {
+                            "Enter Demo Sandbox"
+                        }
+                    )
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showDemoModeConfirmDialog = false }) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 

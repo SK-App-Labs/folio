@@ -149,7 +149,10 @@ data class UserPreferences(
     val cardMilestonesJson: String = "{}",
     val iconPackTheme: String = "MATERIAL_FILLED",
     val monthlySavingsTargetMinor: Long = 0L,
-    val savingsGoalsJson: String = "{}"
+    val savingsGoalsJson: String = "{}",
+    val hasSeenWelcomeSheet: Boolean = false,
+    val isDemoModeActive: Boolean = false,
+    val hasStashedRealLedger: Boolean = false
 )
 
 @Immutable

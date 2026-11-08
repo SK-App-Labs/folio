@@ -245,4 +245,10 @@ interface SettingsAndBackupRepository {
         customEndEpochDay: Long? = null,
         selectedTaxTags: Set<String> = emptySet()
     ): Result<com.folioledger.app.data.pdf.PdfExportResult>
+
+    suspend fun enterDemoMode(primaryCurrencyCode: String? = null): Result<Unit>
+
+    suspend fun exitDemoMode(): Result<Unit>
+
+    fun isDemoStashAvailable(): Boolean
 }

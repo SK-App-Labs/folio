@@ -1,4 +1,4 @@
-package com.folioledger.app.data.repository
+﻿package com.folioledger.app.data.repository
 
 import android.content.Context
 import android.net.Uri
@@ -108,7 +108,7 @@ class AutoBackupManager(
     suspend fun triggerSessionAutoBackupIfDirty(): Result<String?> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
             val currentPrefs = userPreferences.observeUserPreferences().first()
-            if (!currentPrefs.autoBackupEnabled) {
+            if (currentPrefs.isDemoModeActive || !currentPrefs.autoBackupEnabled) {
                 return@runCatchingNonCancellation null
             }
             if (!SessionChangeTracker.canBackupNow()) {

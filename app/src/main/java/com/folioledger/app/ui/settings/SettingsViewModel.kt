@@ -1,4 +1,4 @@
-// File: app/src/main/java/com/folioledger/app/ui/settings/SettingsViewModel.kt
+﻿// File: app/src/main/java/com/folioledger/app/ui/settings/SettingsViewModel.kt
 package com.folioledger.app.ui.settings
 
 import androidx.compose.runtime.Immutable
@@ -803,6 +803,85 @@ class SettingsViewModel(
                             isBusyWithFileOperation = false,
                             fileOperationStatusLabel = null,
                             snackbarMessage = error.message ?: "Failed to clear local data"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    fun dismissWelcomeSheet() {
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { it.copy(hasSeenWelcomeSheet = true) }
+        }
+    }
+
+    fun enterDemoMode(
+        currencyCode: String? = null,
+        numberGrouping: NumberGroupingSystem? = null,
+        onComplete: () -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            if (numberGrouping != null) {
+                settingsAndBackupRepository.updateUserPreferences { it.copy(numberGrouping = numberGrouping) }
+            }
+            controlState.update {
+                it.copy(
+                    isBusyWithFileOperation = true,
+                    fileOperationStatusLabel = "Preparing interactive demo sandbox..."
+                )
+            }
+            val result = settingsAndBackupRepository.enterDemoMode(currencyCode)
+            result.fold(
+                onSuccess = {
+                    controlState.update {
+                        it.copy(
+                            isBusyWithFileOperation = false,
+                            fileOperationStatusLabel = null,
+                            snackbarMessage = "🧪 Demo Sandbox active! Feel free to test."
+                        )
+                    }
+                    onComplete()
+                },
+                onFailure = { error ->
+                    controlState.update {
+                        it.copy(
+                            isBusyWithFileOperation = false,
+                            fileOperationStatusLabel = null,
+                            snackbarMessage = error.message ?: "Failed to enter demo mode"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    fun exitDemoMode(onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            controlState.update {
+                it.copy(
+                    isBusyWithFileOperation = true,
+                    fileOperationStatusLabel = "Restoring your real ledger..."
+                )
+            }
+            val result = settingsAndBackupRepository.exitDemoMode()
+            result.fold(
+                onSuccess = {
+                    controlState.update {
+                        it.copy(
+                            isBusyWithFileOperation = false,
+                            fileOperationStatusLabel = null,
+                            snackbarMessage = "Ledger restored successfully"
+                        )
+                    }
+                    onComplete()
+                },
+                onFailure = { error ->
+                    controlState.update {
+                        it.copy(
+                            isBusyWithFileOperation = false,
+                            fileOperationStatusLabel = null,
+                            snackbarMessage = error.message ?: "Failed to restore ledger"
                         )
                     }
                 }

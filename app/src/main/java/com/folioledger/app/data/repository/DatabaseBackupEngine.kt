@@ -1,4 +1,4 @@
-package com.folioledger.app.data.repository
+﻿package com.folioledger.app.data.repository
 
 import android.content.Context
 import android.net.Uri
@@ -552,7 +552,10 @@ class DatabaseBackupEngine(
                     cardMilestonesJson = prefsObj.optString("cardMilestonesJson", current.cardMilestonesJson),
                     iconPackTheme = prefsObj.optString("iconPackTheme", current.iconPackTheme),
                     monthlySavingsTargetMinor = prefsObj.optLong("monthlySavingsTargetMinor", current.monthlySavingsTargetMinor),
-                    savingsGoalsJson = prefsObj.optString("savingsGoalsJson", current.savingsGoalsJson)
+                    savingsGoalsJson = prefsObj.optString("savingsGoalsJson", current.savingsGoalsJson),
+                    hasSeenWelcomeSheet = true,
+                    isDemoModeActive = false,
+                    hasStashedRealLedger = false
                 )
             }
         }

@@ -1,4 +1,4 @@
-package com.folioledger.app.ui.shell
+﻿package com.folioledger.app.ui.shell
 
 import android.app.Activity
 import android.content.Context
@@ -10,14 +10,20 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import com.folioledger.app.ui.shell.components.DemoModeActiveTopBanner
+import com.folioledger.app.ui.shell.sheets.WelcomeExpressBottomSheet
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.AccountBalanceWallet
@@ -71,6 +77,7 @@ enum class FolioMainTab(
     SETTINGS("Settings", Icons.Default.Settings, R.string.nav_tab_settings)
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun FolioMainShell(
     viewModelFactory: ViewModelProvider.Factory,
@@ -84,6 +91,7 @@ fun FolioMainShell(
     val ledgerUiState by ledgerViewModel.uiState.collectAsStateWithLifecycle()
     val accountsUiState by accountsViewModel.uiState.collectAsStateWithLifecycle()
     val statsUiState by statsViewModel.uiState.collectAsStateWithLifecycle()
+    val settingsUiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
 
     var selectedTab by rememberSaveable { mutableStateOf(FolioMainTab.TRANSACTIONS) }
     var isEntrySheetOpen by rememberSaveable { mutableStateOf(false) }
@@ -206,11 +214,25 @@ fun FolioMainShell(
             )
             val saveableStateHolder = rememberSaveableStateHolder()
 
-            Crossfade(
-                targetState = selectedTab,
-                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-                label = "MainTabCrossfade"
-            ) { targetTab ->
+            Column(modifier = Modifier.fillMaxSize()) {
+                AnimatedVisibility(
+                    visible = settingsUiState.userPreferences.isDemoModeActive,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    DemoModeActiveTopBanner(
+                        hasStashedRealLedger = settingsUiState.userPreferences.hasStashedRealLedger,
+                        onRestoreRealLedger = { settingsViewModel.exitDemoMode() },
+                        onStartFreshLedger = { settingsViewModel.exitDemoMode() }
+                    )
+                }
+
+                Box(modifier = Modifier.weight(1f)) {
+                    Crossfade(
+                        targetState = selectedTab,
+                        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                        label = "MainTabCrossfade"
+                    ) { targetTab ->
                 saveableStateHolder.SaveableStateProvider(key = targetTab) {
                     when (targetTab) {
                         FolioMainTab.TRANSACTIONS -> {
@@ -235,6 +257,9 @@ fun FolioMainShell(
                                     )
                                     entryViewModel.applyBookmark(bookmark)
                                     isEntrySheetOpen = true
+                                },
+                                onExploreDemoClick = {
+                                    settingsViewModel.enterDemoMode()
                                 }
                             )
                         }
@@ -305,15 +330,34 @@ fun FolioMainShell(
                     }
                 }
             }
-
-            if (isEntrySheetOpen) {
-                TransactionEntrySheet(
-                    viewModel = entryViewModel,
-                    onDismiss = { isEntrySheetOpen = false },
-                    onTransactionSaved = { isEntrySheetOpen = false }
-                )
-            }
         }
+    }
+
+    if (isEntrySheetOpen) {
+        TransactionEntrySheet(
+            viewModel = entryViewModel,
+            onDismiss = { isEntrySheetOpen = false },
+            onTransactionSaved = { isEntrySheetOpen = false }
+        )
+    }
+
+    if (!settingsUiState.userPreferences.hasSeenWelcomeSheet) {
+        WelcomeExpressBottomSheet(
+            initialCurrencyCode = settingsUiState.userPreferences.primaryCurrencyCode,
+            onExploreWithDemo = { currency, grouping ->
+                settingsViewModel.enterDemoMode(currency, grouping)
+            },
+            onStartFresh = { currency, grouping ->
+                settingsViewModel.setPrimaryCurrency(currency)
+                settingsViewModel.setNumberGrouping(grouping)
+                settingsViewModel.dismissWelcomeSheet()
+            },
+            onDismissRequest = {
+                settingsViewModel.dismissWelcomeSheet()
+            }
+        )
+    }
+}
 }
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {

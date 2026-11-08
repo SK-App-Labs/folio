@@ -1,4 +1,4 @@
-package com.folioledger.app.data.repository
+﻿package com.folioledger.app.data.repository
 
 import android.content.Context
 import android.net.Uri
@@ -118,6 +118,9 @@ class UserPreferencesDataSource(private val context: Context) {
         val ICON_PACK_THEME = stringPreferencesKey("icon_pack_theme")
         val MONTHLY_SAVINGS_TARGET_MINOR = longPreferencesKey("monthly_savings_target_minor")
         val SAVINGS_GOALS_JSON = stringPreferencesKey("savings_goals_json")
+        val HAS_SEEN_WELCOME_SHEET = booleanPreferencesKey("has_seen_welcome_sheet")
+        val IS_DEMO_MODE_ACTIVE = booleanPreferencesKey("is_demo_mode_active")
+        val HAS_STASHED_REAL_LEDGER = booleanPreferencesKey("has_stashed_real_ledger")
     }
 
     fun observeUserPreferences(): Flow<UserPreferences> {
@@ -170,6 +173,9 @@ class UserPreferencesDataSource(private val context: Context) {
             mutablePrefs[PreferenceKeys.ICON_PACK_THEME] = updated.iconPackTheme
             mutablePrefs[PreferenceKeys.MONTHLY_SAVINGS_TARGET_MINOR] = updated.monthlySavingsTargetMinor
             mutablePrefs[PreferenceKeys.SAVINGS_GOALS_JSON] = updated.savingsGoalsJson
+            mutablePrefs[PreferenceKeys.HAS_SEEN_WELCOME_SHEET] = updated.hasSeenWelcomeSheet
+            mutablePrefs[PreferenceKeys.IS_DEMO_MODE_ACTIVE] = updated.isDemoModeActive
+            mutablePrefs[PreferenceKeys.HAS_STASHED_REAL_LEDGER] = updated.hasStashedRealLedger
         }
         Unit
         }
@@ -206,7 +212,10 @@ class UserPreferencesDataSource(private val context: Context) {
             cardMilestonesJson = prefs[PreferenceKeys.CARD_MILESTONES_JSON] ?: "{}",
             iconPackTheme = prefs[PreferenceKeys.ICON_PACK_THEME] ?: "MATERIAL_FILLED",
             monthlySavingsTargetMinor = prefs[PreferenceKeys.MONTHLY_SAVINGS_TARGET_MINOR] ?: 0L,
-            savingsGoalsJson = prefs[PreferenceKeys.SAVINGS_GOALS_JSON] ?: "{}"
+            savingsGoalsJson = prefs[PreferenceKeys.SAVINGS_GOALS_JSON] ?: "{}",
+            hasSeenWelcomeSheet = prefs[PreferenceKeys.HAS_SEEN_WELCOME_SHEET] ?: false,
+            isDemoModeActive = prefs[PreferenceKeys.IS_DEMO_MODE_ACTIVE] ?: false,
+            hasStashedRealLedger = prefs[PreferenceKeys.HAS_STASHED_REAL_LEDGER] ?: false
         )
     }
 

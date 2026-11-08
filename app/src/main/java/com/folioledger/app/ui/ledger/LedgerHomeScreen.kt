@@ -61,7 +61,8 @@ fun LedgerHomeScreen(
     contentPadding: PaddingValues = PaddingValues(0.dp),
     onOpenNewTransactionForDate: (epochDay: Long) -> Unit = {},
     onEditTransaction: (TransactionItem) -> Unit = {},
-    onSelectBookmarkTemplate: (TransactionBookmark) -> Unit = {}
+    onSelectBookmarkTemplate: (TransactionBookmark) -> Unit = {},
+    onExploreDemoClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -228,7 +229,8 @@ fun LedgerHomeScreen(
                                     onTransactionClick = viewModel::inspectTransaction,
                                     onAddTransactionClick = {
                                         onOpenNewTransactionForDate(uiState.referenceDateEpochDay)
-                                    }
+                                    },
+                                    onExploreDemoClick = onExploreDemoClick
                                 )
                             }
 

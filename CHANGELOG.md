@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 ## [Unreleased]
+### Added
+- **Interactive Demo Mode & Auto-Stash Sandbox Architecture**:
+  - Implemented an express onboarding bottom sheet (`WelcomeExpressBottomSheet`) allowing first-time users to select primary currency, number grouping format (`International 1,234,567.89` vs `Indian 12,34,567.89`), and immediately preview Folio with rich sample data or start fresh with custom accounts.
+  - Implemented the headless `DemoModeManager` paired with an atomic Auto-Stash & Restore mechanism:
+    - Automatically stashes active real user data to `context.noBackupFilesDir/demo_stash/pre_demo_real_ledger.zip` via an atomic `.tmp` swap before seeding sample data.
+    - Wipes tables in strict reverse-topological order to guarantee zero foreign-key constraint violations and zero Room schema migrations.
+    - Pauses the automated rolling backup engine (`AutoBackupManager`) while demo mode is active, completely safeguarding user backups from demo data contamination.
+    - Safely restores stashed real data or resets to a clean empty ledger upon exiting demo mode.
+  - Built `DemoDataSeeder`:
+    - Dynamically generates ~45 transactions across 90 days relative to `LocalDate.now()` with intelligent currency scaling (`scaleMinor` for USD, INR, JPY, EUR, etc.).
+    - Populates 8 account groups (Cash, Salary Bank, Bill Checking, Savings Vault, 2 Credit Cards, Index Fund, and Home Loan).
+    - Seeds Credit Card 1 (billed statement due in 12 days) and Credit Card 2 (statement closing in 25 days) to showcase the Smart Swipe Advisor float optimizer, Grace Period countdown, and Card Milestones.
+    - Seeds 3 recurring commitments within the next 14 days to activate the 14-Day Overdraft Warning and Safe-to-Spend Today calculations.
+    - Seeds 4 budgets (including an ~85% threshold warning on Food & Dining), 3 bookmarks, and tags (`#vacation`, `#reimbursable`).
+  - Added persistent `DemoModeActiveTopBanner` in `FolioMainShell` with one-tap ledger restore / start fresh CTAs.
+  - Added empty-state "Preview App with Live Demo Data" trigger on the `Daily` ledger subtab.
+  - Added interactive demo launch / exit row in `Settings -> Community & Help`.
+  - Added unit test suite `DemoModeAndSandboxTest` covering currency scaling, preferences lifecycle, and state transitions (236/236 passing tests).
+
 ### Fixed
 - **Calendar Subtab Transfer Display & Accounting**:
   - Resolved character encoding mojibake (`"â‡„ "` -> `"\u21C4 "`) on calendar day cells.

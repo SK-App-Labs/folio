@@ -1,4 +1,4 @@
-package com.folioledger.app.ui.ledger.subtabs
+﻿package com.folioledger.app.ui.ledger.subtabs
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -76,7 +77,8 @@ import java.util.Locale
 internal fun DailyLedgerSubTabContent(
     uiState: LedgerHomeUiState,
     onTransactionClick: (TransactionItem) -> Unit,
-    onAddTransactionClick: () -> Unit
+    onAddTransactionClick: () -> Unit,
+    onExploreDemoClick: () -> Unit = {}
 ) {
     val lazyListState = rememberLazyListState()
 
@@ -120,6 +122,26 @@ internal fun DailyLedgerSubTabContent(
                     actionLabel = "+ Add Transaction",
                     onActionClick = onAddTransactionClick
                 )
+
+                if (!uiState.userPreferences.isDemoModeActive && uiState.scopedAccountId == null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = onExploreDemoClick,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Preview App with Live Demo Data",
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                        )
+                    }
+                }
             }
         } else {
             uiState.dailyGroups.forEach { group ->
