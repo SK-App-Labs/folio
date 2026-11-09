@@ -379,9 +379,9 @@ internal fun CreditCardAccountRow(
                     money = unbilledCycleAmount,
                     currencySpec = accountCurrency,
                     grouping = grouping,
-                    colorOverride = MaterialTheme.colorScheme.onSurfaceVariant,
+                    colorOverride = MaterialTheme.colorScheme.onSurface,
                     style = ccMoneyStyle,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }

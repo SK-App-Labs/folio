@@ -139,7 +139,7 @@ internal fun AccountGroupSectionCard(
                             money = MinorMoney(groupUnbilledMinor),
                             currencySpec = currencySpec,
                             grouping = grouping,
-                            colorOverride = MaterialTheme.colorScheme.onSurfaceVariant,
+                            colorOverride = MaterialTheme.colorScheme.onSurface,
                             style = ccMoneyStyle,
                             fontWeight = FontWeight.Bold
                         )

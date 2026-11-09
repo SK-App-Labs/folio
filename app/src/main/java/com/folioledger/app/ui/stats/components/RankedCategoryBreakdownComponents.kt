@@ -245,10 +245,17 @@ fun RankedCategoryStatRowItem(
                         }
                     }
                     if (stat.subcategories.isNotEmpty()) {
+                        val subText = if (stat.subcategories.size == 1) {
+                            "1 subcategory"
+                        } else {
+                            "${stat.subcategories.size} subcategories"
+                        }
                         Text(
-                            text = if (stat.changePercentage != null) "• ${stat.subcategories.size} sub" else "${stat.subcategories.size} subcategories",
+                            text = if (stat.changePercentage != null) "• $subText" else subText,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
