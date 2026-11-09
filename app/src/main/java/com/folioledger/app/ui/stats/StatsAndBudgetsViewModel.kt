@@ -48,8 +48,6 @@ import com.folioledger.app.domain.util.StatsPeriodCalculator
 import com.folioledger.app.domain.util.CategoryDrillDownCalculator
 import com.folioledger.app.ui.accounts.CreditCardCycleCalculator
 import com.folioledger.app.ui.accounts.CreditCardCycleWindow
-import com.folioledger.app.ui.accounts.CreditCardSettlementSheetState
-import com.folioledger.app.ui.accounts.SettlementAmountPreset
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -508,8 +506,6 @@ class StatsAndBudgetsViewModel(
             creditCardHealthList = creditHealthList,
             creditCockpitState = creditCockpitState,
             assetAccountsForSettlement = assetAccountsForSettlement,
-            settlementSheetState = ctrl.settlementSheetState,
-            isSettlementSaving = ctrl.isSettlementSaving,
             budgetProgressList = bundle.budgets,
             overallBudgetProgress = overallBudget,
             categoryBudgetProgressList = categoryBudgets,
@@ -974,139 +970,6 @@ class StatsAndBudgetsViewModel(
         referenceDateEpochDay = referenceDateEpochDay,
         milestonesJson = milestonesJson
     )
-
-    fun openCreditCardSettlementSheet(creditCard: AccountSummary) {
-        val currentState = controlState.value
-        val spec = SupportedCurrencies.fromCode(creditCard.currencyCode)
-        val statementDue = creditCard.creditCardStatementPayable ?: MinorMoney.ZERO
-        val totalDebt = creditCard.currentBalance.abs()
-        val initialPreset = if (statementDue.isPositive) {
-            SettlementAmountPreset.STATEMENT_PAYABLE
-        } else {
-            SettlementAmountPreset.FULL_OUTSTANDING
-        }
-        val initialMinor = if (statementDue.isPositive) statementDue else totalDebt
-
-        val defaultSourceId = uiState.value.assetAccountsForSettlement.firstOrNull {
-            it.currencyCode == creditCard.currencyCode && it.currentBalance.isPositive
-        }?.id ?: uiState.value.assetAccountsForSettlement.firstOrNull()?.id
-
-        controlState.update {
-            it.copy(
-                settlementSheetState = CreditCardSettlementSheetState(
-                    creditCardAccount = creditCard,
-                    selectedSourceAccountId = defaultSourceId,
-                    preset = initialPreset,
-                    amountInput = formatMinorPlainForInput(initialMinor, spec.fractionDigits),
-                    ledgerDateEpochDay = currentState.referenceDateEpochDay,
-                    note = "CC Bill Settlement - ${creditCard.name}",
-                    validationError = null
-                )
-            )
-        }
-    }
-
-    fun updateSettlementSheetState(
-        transform: (CreditCardSettlementSheetState) -> CreditCardSettlementSheetState
-    ) {
-        controlState.update { current ->
-            val existing = current.settlementSheetState ?: return@update current
-            current.copy(settlementSheetState = transform(existing).copy(validationError = null))
-        }
-    }
-
-    fun selectSettlementPreset(preset: SettlementAmountPreset) {
-        val sheet = controlState.value.settlementSheetState ?: return
-        val card = sheet.creditCardAccount
-        val spec = SupportedCurrencies.fromCode(card.currencyCode)
-        val newAmountInput = when (preset) {
-            SettlementAmountPreset.STATEMENT_PAYABLE -> {
-                val payable = card.creditCardStatementPayable ?: MinorMoney.ZERO
-                formatMinorPlainForInput(payable.abs(), spec.fractionDigits)
-            }
-            SettlementAmountPreset.FULL_OUTSTANDING -> {
-                formatMinorPlainForInput(card.currentBalance.abs(), spec.fractionDigits)
-            }
-            SettlementAmountPreset.CUSTOM -> sheet.amountInput
-        }
-        updateSettlementSheetState {
-            it.copy(preset = preset, amountInput = newAmountInput)
-        }
-    }
-
-    fun dismissSettlementSheet() {
-        controlState.update { it.copy(settlementSheetState = null) }
-    }
-
-    fun submitCreditCardSettlement() {
-        val sheet = controlState.value.settlementSheetState ?: return
-        val sourceId = sheet.selectedSourceAccountId
-        if (sourceId == null) {
-            updateSettlementSheetState {
-                it.copy(validationError = "Select a source Bank or Cash account to pay from.")
-            }
-            return
-        }
-
-        val sourceAccount = uiState.value.assetAccountsForSettlement.firstOrNull { it.id == sourceId }
-        if (sourceAccount != null && sourceAccount.currencyCode != sheet.creditCardAccount.currencyCode) {
-            updateSettlementSheetState {
-                it.copy(validationError = "Source account currency (${sourceAccount.currencyCode}) must match credit card currency (${sheet.creditCardAccount.currencyCode}).")
-            }
-            return
-        }
-
-        val spec = SupportedCurrencies.fromCode(sheet.creditCardAccount.currencyCode)
-        val evaluatedResult = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
-            expression = sheet.amountInput,
-            fractionDigits = spec.fractionDigits
-        )
-
-        val settlementMoney = evaluatedResult.getOrNull()
-        if (settlementMoney == null || !settlementMoney.isPositive) {
-            updateSettlementSheetState {
-                it.copy(validationError = "Enter a valid positive settlement amount.")
-            }
-            return
-        }
-
-        viewModelScope.launch {
-            controlState.update { it.copy(isSettlementSaving = true) }
-            val result = accountRepository.settleCreditCardStatement(
-                sourceAssetAccountId = sourceId,
-                creditCardAccountId = sheet.creditCardAccount.id,
-                settlementAmount = settlementMoney,
-                timestampEpochMillis = System.currentTimeMillis(),
-                ledgerDateEpochDay = sheet.ledgerDateEpochDay,
-                note = sheet.note.trim()
-            )
-            result.fold(
-                onSuccess = {
-                    val formatted = MoneyFormatterAndCalculator.formatMinorMoney(
-                        money = settlementMoney,
-                        currencySpec = spec
-                    )
-                    controlState.update {
-                        it.copy(
-                            isSettlementSaving = false,
-                            settlementSheetState = null,
-                            snackbarMessage = "Settled $formatted towards ${sheet.creditCardAccount.name}"
-                        )
-                    }
-                },
-                onFailure = { error ->
-                    controlState.update { state ->
-                        state.copy(
-                            isSettlementSaving = false,
-                            settlementSheetState = state.settlementSheetState?.copy(
-                                validationError = error.message ?: "Failed to record settlement."
-                            )
-                        )
-                    }
-                }
-            )
-        }
-    }
 
     fun saveCardMilestoneConfig(
         accountId: Long,

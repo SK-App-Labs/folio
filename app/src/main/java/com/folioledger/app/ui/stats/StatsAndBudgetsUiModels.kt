@@ -21,7 +21,6 @@ import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.util.StatsPeriodCalculator
-import com.folioledger.app.ui.accounts.CreditCardSettlementSheetState
 import java.time.LocalDate
 
 typealias StatsPeriodGranularity = com.folioledger.app.domain.model.StatsPeriodGranularity
@@ -136,8 +135,6 @@ data class StatsAndBudgetsUiState(
     val creditCardHealthList: List<CreditCardHealthUiModel> = emptyList(),
     val creditCockpitState: CreditCardCockpitUiState = CreditCardCockpitUiState(),
     val assetAccountsForSettlement: List<AccountSummary> = emptyList(),
-    val settlementSheetState: CreditCardSettlementSheetState? = null,
-    val isSettlementSaving: Boolean = false,
     val budgetProgressList: List<BudgetProgress> = emptyList(),
     val overallBudgetProgress: BudgetProgress? = null,
     val categoryBudgetProgressList: List<BudgetProgress> = emptyList(),
@@ -205,8 +202,6 @@ internal data class StatsInternalControlState(
     val budgetEditorDialogState: BudgetEditorDialogState? = null,
     val isSavingBudget: Boolean = false,
     val isRunwayIncludingInvestments: Boolean = false,
-    val settlementSheetState: CreditCardSettlementSheetState? = null,
-    val isSettlementSaving: Boolean = false,
     val isMonthlySavingsTargetDialogOpen: Boolean = false,
     val monthlySavingsTargetInput: String = "",
     val isSavingsGoalSheetOpen: Boolean = false,

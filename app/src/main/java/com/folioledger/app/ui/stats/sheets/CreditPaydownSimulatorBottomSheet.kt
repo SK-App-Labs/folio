@@ -116,8 +116,7 @@ internal fun CreditPaydownSimulatorBottomSheet(
     cockpit: CreditCardCockpitUiState,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    onDismiss: () -> Unit,
-    onSettleTargetDebt: () -> Unit
+    onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
@@ -256,30 +255,18 @@ internal fun CreditPaydownSimulatorBottomSheet(
                 }
             }
 
-            if (neededPaydownMinor > 0L) {
-                Button(
-                    onClick = onSettleTargetDebt,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                ) {
-                    Text(
-                        text = "Pay Down Debt Now",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            } else {
-                FilledTonalButton(
-                    onClick = onDismiss,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                ) {
-                    Text("Done")
-                }
+            Button(
+                onClick = onDismiss,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                Text(
+                    text = "Done",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }

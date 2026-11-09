@@ -118,8 +118,6 @@ internal fun UnifiedCardsPortfolioSection(
     cards: List<CreditCardAnalyticsItem>,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    onOpenSettlement: (AccountSummary) -> Unit,
-    onCardClick: ((AccountSummary) -> Unit)?,
     onOpenMilestoneEditor: (CreditCardAnalyticsItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -146,11 +144,6 @@ internal fun UnifiedCardsPortfolioSection(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Text(
-                text = "Tap card for passbook",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.outline
-            )
         }
 
         sortedCards.forEach { cardItem ->
@@ -158,8 +151,6 @@ internal fun UnifiedCardsPortfolioSection(
                 card = cardItem,
                 currencySpec = currencySpec,
                 grouping = grouping,
-                onOpenSettlement = { onOpenSettlement(cardItem.account) },
-                onCardClick = { onCardClick?.invoke(cardItem.account) },
                 onOpenMilestoneEditor = { onOpenMilestoneEditor(cardItem) }
             )
         }
@@ -171,8 +162,6 @@ internal fun CardPortfolioItemCard(
     card: CreditCardAnalyticsItem,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    onOpenSettlement: () -> Unit,
-    onCardClick: () -> Unit,
     onOpenMilestoneEditor: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -193,10 +182,7 @@ internal fun CardPortfolioItemCard(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .clickable(onClick = onCardClick)
+        modifier = modifier.fillMaxWidth()
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -247,26 +233,27 @@ internal fun CardPortfolioItemCard(
                     }
                 }
 
-                // Action Area: Pay Button if Billed, otherwise Float or Clear Pill
+                // Action Area: Billed Status Pill, Float Pill, or Clear Pill
                 if (card.isBilled && card.billedAmount.isPositive) {
-                    Button(
-                        onClick = onOpenSettlement,
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (card.isUrgent || card.isOverdue) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = if (card.isUrgent || card.isOverdue) {
+                            semanticColors.expenseCoral.copy(alpha = 0.14f)
+                        } else {
+                            semanticColors.warningAmber.copy(alpha = 0.14f)
+                        }
+                    ) {
+                        Text(
+                            text = if (card.isOverdue) "Overdue" else "Billed",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (card.isUrgent || card.isOverdue) {
                                 semanticColors.expenseCoral
                             } else {
                                 semanticColors.warningAmber
-                            }
-                        ),
-                        modifier = Modifier.height(28.dp)
-                    ) {
-                        Text(
-                            text = "Pay Now",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            },
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                         )
                     }
                 } else if (card.currentDebt.isPositive) {

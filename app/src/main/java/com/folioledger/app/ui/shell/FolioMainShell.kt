@@ -288,11 +288,6 @@ fun FolioMainShell(
                                     entryViewModel.loadTransactionItemForEdit(transaction)
                                     isEntrySheetOpen = true
                                 },
-                                onAccountClick = { account ->
-                                    originTabBeforeAccountInspection = FolioMainTab.STATS
-                                    accountsViewModel.selectAccountForInspection(account.id)
-                                    selectedTab = FolioMainTab.ACCOUNTS
-                                },
                                 onAddTransactionForAccount = { account ->
                                     entryViewModel.resetForNewTransaction(
                                         preselectedAccountId = account.id,

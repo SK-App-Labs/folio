@@ -113,8 +113,6 @@ private val fullDateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Local
 @Composable
 fun CreditCardsCockpitSubTabContent(
     uiState: StatsAndBudgetsUiState,
-    onOpenSettlement: (AccountSummary) -> Unit,
-    onAccountClick: ((AccountSummary) -> Unit)? = null,
     onAddTransactionForAccount: ((AccountSummary) -> Unit)? = null,
     onSaveCardMilestone: ((accountId: Long, title: String, startDateEpochDay: Long, targetMinor: Long, feeMinor: Long?, autoRenew: Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -182,8 +180,6 @@ fun CreditCardsCockpitSubTabContent(
                     cards = cockpit.cardAnalyticsItems,
                     currencySpec = uiState.currencySpec,
                     grouping = uiState.numberGrouping,
-                    onOpenSettlement = onOpenSettlement,
-                    onCardClick = onAccountClick,
                     onOpenMilestoneEditor = { cardItem -> selectedMilestoneCard = cardItem }
                 )
             }
@@ -237,15 +233,7 @@ fun CreditCardsCockpitSubTabContent(
             cockpit = cockpit,
             currencySpec = uiState.currencySpec,
             grouping = uiState.numberGrouping,
-            onDismiss = { isPaydownSimulatorOpen = false },
-            onSettleTargetDebt = {
-                isPaydownSimulatorOpen = false
-                val targetCard = cockpit.cardAnalyticsItems.maxByOrNull { it.utilizationPercent }?.account
-                    ?: cockpit.activeCards.firstOrNull()
-                if (targetCard != null) {
-                    onOpenSettlement(targetCard)
-                }
-            }
+            onDismiss = { isPaydownSimulatorOpen = false }
         )
     }
 

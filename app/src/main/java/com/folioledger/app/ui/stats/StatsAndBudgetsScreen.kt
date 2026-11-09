@@ -131,7 +131,6 @@ import com.folioledger.app.domain.model.SpendRankingItem
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
-import com.folioledger.app.ui.accounts.sheets.CreditCardSettlementBottomSheet
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.CreditHealthDashboardCard
 import com.folioledger.app.ui.components.EmptyStateCard
@@ -164,7 +163,6 @@ fun StatsAndBudgetsScreen(
     viewModel: StatsAndBudgetsViewModel,
     contentPadding: PaddingValues = PaddingValues(0.dp),
     onInspectTransaction: (TransactionItem) -> Unit = {},
-    onAccountClick: ((AccountSummary) -> Unit)? = null,
     onAddTransactionForAccount: ((AccountSummary) -> Unit)? = null,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -282,8 +280,6 @@ fun StatsAndBudgetsScreen(
                     StatsSubTab.CREDIT_CARDS -> {
                         CreditCardsCockpitSubTabContent(
                             uiState = uiState,
-                            onOpenSettlement = viewModel::openCreditCardSettlementSheet,
-                            onAccountClick = onAccountClick,
                             onAddTransactionForAccount = onAddTransactionForAccount,
                             onSaveCardMilestone = viewModel::saveCardMilestoneConfig,
                             contentPadding = contentPadding
@@ -392,20 +388,6 @@ fun StatsAndBudgetsScreen(
                 }
             },
             onDismiss = viewModel::dismissBudgetEditorDialog
-        )
-    }
-
-    val settlementState = uiState.settlementSheetState
-    if (settlementState != null) {
-        CreditCardSettlementBottomSheet(
-            state = settlementState,
-            assetAccounts = uiState.assetAccountsForSettlement,
-            grouping = uiState.numberGrouping,
-            isSaving = uiState.isSettlementSaving,
-            onSelectPreset = viewModel::selectSettlementPreset,
-            onUpdateState = viewModel::updateSettlementSheetState,
-            onConfirmSettlement = viewModel::submitCreditCardSettlement,
-            onDismiss = viewModel::dismissSettlementSheet
         )
     }
 
