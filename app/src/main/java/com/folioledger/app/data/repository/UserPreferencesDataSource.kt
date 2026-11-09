@@ -122,6 +122,12 @@ class UserPreferencesDataSource(private val context: Context) {
         val HAS_SEEN_WELCOME_SHEET = booleanPreferencesKey("has_seen_welcome_sheet")
         val IS_DEMO_MODE_ACTIVE = booleanPreferencesKey("is_demo_mode_active")
         val HAS_STASHED_REAL_LEDGER = booleanPreferencesKey("has_stashed_real_ledger")
+        val REMINDERS_ENABLED = booleanPreferencesKey("reminders_enabled")
+        val CC_REMINDER_LEAD_DAYS = intPreferencesKey("cc_reminder_lead_days")
+        val BILL_REMINDER_LEAD_DAYS = intPreferencesKey("bill_reminder_lead_days")
+        val REMINDER_HOUR_OF_DAY = intPreferencesKey("reminder_hour_of_day")
+        val REMINDER_MINUTE = intPreferencesKey("reminder_minute")
+        val HIDE_AMOUNTS_ON_LOCK_SCREEN = booleanPreferencesKey("hide_amounts_on_lock_screen")
     }
 
     fun observeUserPreferences(): Flow<UserPreferences> {
@@ -178,6 +184,12 @@ class UserPreferencesDataSource(private val context: Context) {
             mutablePrefs[PreferenceKeys.HAS_SEEN_WELCOME_SHEET] = updated.hasSeenWelcomeSheet
             mutablePrefs[PreferenceKeys.IS_DEMO_MODE_ACTIVE] = updated.isDemoModeActive
             mutablePrefs[PreferenceKeys.HAS_STASHED_REAL_LEDGER] = updated.hasStashedRealLedger
+            mutablePrefs[PreferenceKeys.REMINDERS_ENABLED] = updated.remindersEnabled
+            mutablePrefs[PreferenceKeys.CC_REMINDER_LEAD_DAYS] = updated.ccReminderLeadDays.coerceIn(0, 14)
+            mutablePrefs[PreferenceKeys.BILL_REMINDER_LEAD_DAYS] = updated.billReminderLeadDays.coerceIn(0, 7)
+            mutablePrefs[PreferenceKeys.REMINDER_HOUR_OF_DAY] = updated.reminderHourOfDay.coerceIn(0, 23)
+            mutablePrefs[PreferenceKeys.REMINDER_MINUTE] = updated.reminderMinute.coerceIn(0, 59)
+            mutablePrefs[PreferenceKeys.HIDE_AMOUNTS_ON_LOCK_SCREEN] = updated.hideAmountsOnLockScreen
         }
         Unit
         }
@@ -217,7 +229,13 @@ class UserPreferencesDataSource(private val context: Context) {
             savingsGoalsJson = prefs[PreferenceKeys.SAVINGS_GOALS_JSON] ?: "{}",
             hasSeenWelcomeSheet = prefs[PreferenceKeys.HAS_SEEN_WELCOME_SHEET] ?: false,
             isDemoModeActive = prefs[PreferenceKeys.IS_DEMO_MODE_ACTIVE] ?: false,
-            hasStashedRealLedger = prefs[PreferenceKeys.HAS_STASHED_REAL_LEDGER] ?: false
+            hasStashedRealLedger = prefs[PreferenceKeys.HAS_STASHED_REAL_LEDGER] ?: false,
+            remindersEnabled = prefs[PreferenceKeys.REMINDERS_ENABLED] ?: false,
+            ccReminderLeadDays = prefs[PreferenceKeys.CC_REMINDER_LEAD_DAYS] ?: 3,
+            billReminderLeadDays = prefs[PreferenceKeys.BILL_REMINDER_LEAD_DAYS] ?: 1,
+            reminderHourOfDay = prefs[PreferenceKeys.REMINDER_HOUR_OF_DAY] ?: 9,
+            reminderMinute = prefs[PreferenceKeys.REMINDER_MINUTE] ?: 0,
+            hideAmountsOnLockScreen = prefs[PreferenceKeys.HIDE_AMOUNTS_ON_LOCK_SCREEN] ?: false
         )
     }
 

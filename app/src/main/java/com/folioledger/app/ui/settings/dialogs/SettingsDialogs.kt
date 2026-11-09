@@ -182,3 +182,177 @@ fun ClearAllDataConfirmationDialog(
         }
     )
 }
+
+
+@Composable
+fun CcLeadDaysDialog(
+    selectedDays: Int,
+    onSelectDays: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val options = listOf(
+        0 to "On Due Date",
+        1 to "1 Day Before",
+        2 to "2 Days Before",
+        3 to "3 Days Before (Recommended)",
+        5 to "5 Days Before"
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Credit Card Due Notice",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = "Choose how many days before your credit card payment due date Folio should notify you.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    options.forEach { (days, label) ->
+                        FilterChip(
+                            selected = selectedDays == days,
+                            onClick = {
+                                onSelectDays(days)
+                                onDismiss()
+                            },
+                            label = { Text(label) }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun BillLeadDaysDialog(
+    selectedDays: Int,
+    onSelectDays: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val options = listOf(
+        0 to "On Due Date",
+        1 to "1 Day Before (Recommended)",
+        2 to "2 Days Before",
+        3 to "3 Days Before"
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Upcoming Bill Notice",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = "Choose how many days before a recurring bill or subscription Folio should notify you.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    options.forEach { (days, label) ->
+                        FilterChip(
+                            selected = selectedDays == days,
+                            onClick = {
+                                onSelectDays(days)
+                                onDismiss()
+                            },
+                            label = { Text(label) }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun ReminderTimePickerDialog(
+    selectedHour: Int,
+    selectedMinute: Int,
+    onSelectTime: (Int, Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val options = listOf(
+        Pair(8, 0) to "08:00 AM",
+        Pair(9, 0) to "09:00 AM (Default)",
+        Pair(10, 0) to "10:00 AM",
+        Pair(12, 0) to "12:00 PM",
+        Pair(18, 0) to "06:00 PM",
+        Pair(20, 0) to "08:00 PM"
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Preferred Reminder Time",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = "Select when Folio should evaluate and post your daily bill and credit card due reminders.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    options.forEach { (time, label) ->
+                        val isSelected = selectedHour == time.first && selectedMinute == time.second
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                onSelectTime(time.first, time.second)
+                                onDismiss()
+                            },
+                            label = { Text(label) }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}

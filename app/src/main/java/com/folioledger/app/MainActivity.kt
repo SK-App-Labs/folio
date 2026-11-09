@@ -42,7 +42,9 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import android.content.Context
 import androidx.fragment.app.FragmentActivity
+import com.folioledger.app.data.notification.FolioNotificationManager
 import com.folioledger.app.domain.model.TransactionType
+
 import com.folioledger.app.ui.settings.sheets.FolioLocaleManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -56,9 +58,15 @@ import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+sealed interface FolioNotificationAction {
+    data class SettleCard(val accountId: Long) : FolioNotificationAction
+    data class LogBill(val recurringRuleId: Long) : FolioNotificationAction
+}
+
 class MainLockViewModel : ViewModel() {
     val isSessionUnlocked = mutableStateOf(false)
     val pendingShortcutAction = mutableStateOf<TransactionType?>(null)
+    val pendingNotificationAction = mutableStateOf<FolioNotificationAction?>(null)
 }
 
 class MainActivity : FragmentActivity() {
@@ -74,6 +82,7 @@ class MainActivity : FragmentActivity() {
         if (!isChangingConfigurations) {
             lockViewModel.isSessionUnlocked.value = false
             lockViewModel.pendingShortcutAction.value = null
+            lockViewModel.pendingNotificationAction.value = null
             val app = application as FolioApplication
             app.applicationScope.launch(Dispatchers.IO) {
                 app.container.settingsAndBackupRepository.triggerSessionAutoBackupIfDirty()
@@ -86,6 +95,25 @@ class MainActivity : FragmentActivity() {
         setIntent(intent)
         extractShortcutAction(intent)?.let { action ->
             lockViewModel.pendingShortcutAction.value = action
+        }
+        extractNotificationAction(intent)?.let { action ->
+            lockViewModel.pendingNotificationAction.value = action
+        }
+    }
+
+    private fun extractNotificationAction(intent: Intent?): FolioNotificationAction? {
+        if (intent == null) return null
+        val action = intent.getStringExtra(FolioNotificationManager.EXTRA_NOTIFICATION_ACTION) ?: return null
+        return when (action) {
+            FolioNotificationManager.ACTION_SETTLE_CARD -> {
+                val accountId = intent.getLongExtra(FolioNotificationManager.EXTRA_ACCOUNT_ID, -1L)
+                if (accountId != -1L) FolioNotificationAction.SettleCard(accountId) else null
+            }
+            FolioNotificationManager.ACTION_LOG_BILL -> {
+                val ruleId = intent.getLongExtra(FolioNotificationManager.EXTRA_RECURRING_RULE_ID, -1L)
+                if (ruleId != -1L) FolioNotificationAction.LogBill(ruleId) else null
+            }
+            else -> null
         }
     }
 
@@ -107,6 +135,9 @@ class MainActivity : FragmentActivity() {
 
         extractShortcutAction(intent)?.let { action ->
             lockViewModel.pendingShortcutAction.value = action
+        }
+        extractNotificationAction(intent)?.let { action ->
+            lockViewModel.pendingNotificationAction.value = action
         }
 
         val appContainer = (application as FolioApplication).container
@@ -198,11 +229,16 @@ class MainActivity : FragmentActivity() {
                     ) {}
                 } else if (!activePrefs.biometricLockEnabled || isSessionUnlocked) {
                     val pendingShortcut by lockViewModel.pendingShortcutAction
+                    val pendingNotification by lockViewModel.pendingNotificationAction
                     FolioMainShell(
                         viewModelFactory = viewModelFactory,
                         initialShortcutAction = pendingShortcut,
                         onShortcutActionConsumed = {
                             lockViewModel.pendingShortcutAction.value = null
+                        },
+                        initialNotificationAction = pendingNotification,
+                        onNotificationActionConsumed = {
+                            lockViewModel.pendingNotificationAction.value = null
                         }
                     )
                 } else {

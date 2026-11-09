@@ -4,10 +4,17 @@
     <!-- Settings Group Cards -->
     <string name="settings_group_taxonomy">LEDGER &amp; TAXONOMY</string>
     <string name="settings_group_appearance">APPEARANCE &amp; SECURITY</string>
+    <string name="settings_group_notifications">NOTIFICATIONS &amp; REMINDERS</string>
     <string name="settings_group_data">DATA &amp; BACKUPS</string>
     <string name="settings_group_community">HELP &amp; COMMUNITY</string>
 
     <!-- Settings Navigation Rows -->
+    <string name="setting_due_reminders">Payment &amp; Bill Reminders</string>
+    <string name="setting_due_reminders_desc">Local alerts for upcoming bills and credit card dues</string>
+    <string name="setting_cc_lead_days">Credit Card Due Notice</string>
+    <string name="setting_bill_lead_days">Upcoming Bill Notice</string>
+    <string name="setting_reminder_time">Preferred Reminder Time</string>
+    <string name="setting_mask_notification_amounts">Hide Amounts on Lock Screen</string>
     <string name="setting_currency_format">Currency &amp; Number Format</string>
     <string name="setting_secondary_currencies">Secondary Currencies</string>
     <string name="setting_app_language">App Language</string>

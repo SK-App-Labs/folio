@@ -61,6 +61,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.folioledger.app.R
+import com.folioledger.app.FolioNotificationAction
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.ui.accounts.AccountsScreen
 import com.folioledger.app.ui.accounts.AccountsViewModel
@@ -89,7 +90,9 @@ enum class FolioMainTab(
 fun FolioMainShell(
     viewModelFactory: ViewModelProvider.Factory,
     initialShortcutAction: TransactionType? = null,
-    onShortcutActionConsumed: () -> Unit = {}
+    onShortcutActionConsumed: () -> Unit = {},
+    initialNotificationAction: FolioNotificationAction? = null,
+    onNotificationActionConsumed: () -> Unit = {}
 ) {
     val ledgerViewModel: LedgerHomeViewModel = viewModel(factory = viewModelFactory)
     val accountsViewModel: AccountsViewModel = viewModel(factory = viewModelFactory)
@@ -111,6 +114,23 @@ fun FolioMainShell(
             entryViewModel.resetForNewTransaction(defaultMode = initialShortcutAction)
             isEntrySheetOpen = true
             onShortcutActionConsumed()
+        }
+    }
+
+    LaunchedEffect(initialNotificationAction) {
+        when (val action = initialNotificationAction) {
+            is FolioNotificationAction.SettleCard -> {
+                selectedTab = FolioMainTab.ACCOUNTS
+                accountsViewModel.openSettlementSheetForAccountId(action.accountId)
+                onNotificationActionConsumed()
+            }
+            is FolioNotificationAction.LogBill -> {
+                selectedTab = FolioMainTab.TRANSACTIONS
+                entryViewModel.loadRecurringRuleForEntry(action.recurringRuleId)
+                isEntrySheetOpen = true
+                onNotificationActionConsumed()
+            }
+            null -> Unit
         }
     }
 

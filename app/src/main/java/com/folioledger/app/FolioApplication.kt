@@ -4,10 +4,13 @@ package com.folioledger.app
 import android.app.Application
 import androidx.room.InvalidationTracker
 import com.folioledger.app.data.backup.SessionChangeTracker
+import com.folioledger.app.data.notification.DueRemindersScheduler
+import com.folioledger.app.data.notification.FolioNotificationManager
 import com.folioledger.app.di.AppContainer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class FolioApplication : Application() {
@@ -19,6 +22,9 @@ class FolioApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+
+        // Initialize notification channels
+        FolioNotificationManager.createNotificationChannels(this)
 
         // Attach Room InvalidationTracker to automatically mark session dirty on any database write
         container.database.invalidationTracker.addObserver(
@@ -39,7 +45,7 @@ class FolioApplication : Application() {
             }
         )
 
-        // Automatically process due recurring commitments on launch
+        // Automatically process due recurring commitments on launch & ensure worker is scheduled if enabled
         applicationScope.launch {
             try {
                 container.analyticsAndBudgetRepository.processDueRecurringRulesOnce(
@@ -47,6 +53,19 @@ class FolioApplication : Application() {
                 )
             } catch (e: Exception) {
                 android.util.Log.e("FolioApplication", "Failed to process due recurring rules on startup", e)
+            }
+
+            try {
+                val prefs = container.settingsAndBackupRepository.observeUserPreferences().first()
+                if (prefs.remindersEnabled) {
+                    DueRemindersScheduler.scheduleDailyReminders(
+                        context = this@FolioApplication,
+                        hourOfDay = prefs.reminderHourOfDay,
+                        minute = prefs.reminderMinute
+                    )
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("FolioApplication", "Failed to schedule due reminders on startup", e)
             }
         }
     }

@@ -151,6 +151,12 @@ class DatabaseBackupEngine(
                     put("iconPackTheme", currentPrefs.iconPackTheme)
                     put("monthlySavingsTargetMinor", currentPrefs.monthlySavingsTargetMinor)
                     put("savingsGoalsJson", currentPrefs.savingsGoalsJson)
+                    put("remindersEnabled", currentPrefs.remindersEnabled)
+                    put("ccReminderLeadDays", currentPrefs.ccReminderLeadDays)
+                    put("billReminderLeadDays", currentPrefs.billReminderLeadDays)
+                    put("reminderHourOfDay", currentPrefs.reminderHourOfDay)
+                    put("reminderMinute", currentPrefs.reminderMinute)
+                    put("hideAmountsOnLockScreen", currentPrefs.hideAmountsOnLockScreen)
                 }
             )
 
@@ -555,7 +561,13 @@ class DatabaseBackupEngine(
                     savingsGoalsJson = prefsObj.optString("savingsGoalsJson", current.savingsGoalsJson),
                     hasSeenWelcomeSheet = true,
                     isDemoModeActive = false,
-                    hasStashedRealLedger = false
+                    hasStashedRealLedger = false,
+                    remindersEnabled = prefsObj.optBoolean("remindersEnabled", current.remindersEnabled),
+                    ccReminderLeadDays = prefsObj.optInt("ccReminderLeadDays", current.ccReminderLeadDays),
+                    billReminderLeadDays = prefsObj.optInt("billReminderLeadDays", current.billReminderLeadDays),
+                    reminderHourOfDay = prefsObj.optInt("reminderHourOfDay", current.reminderHourOfDay),
+                    reminderMinute = prefsObj.optInt("reminderMinute", current.reminderMinute),
+                    hideAmountsOnLockScreen = prefsObj.optBoolean("hideAmountsOnLockScreen", current.hideAmountsOnLockScreen)
                 )
             }
         }

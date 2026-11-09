@@ -19,9 +19,11 @@ import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.repository.AccountRepository
+import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
+import kotlinx.coroutines.flow.first
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.TransactionEntryRulesEngine
 import java.time.Instant
@@ -70,7 +72,8 @@ class TransactionEntryViewModel(
     private val transactionRepository: TransactionRepository,
     accountRepository: AccountRepository,
     private val categoryAndTagRepository: CategoryAndTagRepository,
-    settingsAndBackupRepository: SettingsAndBackupRepository
+    settingsAndBackupRepository: SettingsAndBackupRepository,
+    private val analyticsAndBudgetRepository: AnalyticsAndBudgetRepository? = null
 ) : ViewModel() {
 
     private var nextSplitLocalId = 1L
@@ -695,6 +698,34 @@ class TransactionEntryViewModel(
                 } else {
                     current.copy(selectedTags = current.selectedTags + cleaned)
                 }
+            }
+        }
+    }
+
+    fun loadRecurringRuleForEntry(ruleId: Long) {
+        val repo = analyticsAndBudgetRepository ?: return
+        viewModelScope.launch {
+            val rules = repo.observeAllRecurringRules().first()
+            val rule = rules.firstOrNull { it.id == ruleId } ?: return@launch
+            val currentUi = uiState.value
+            val isTransferMode = rule.type == TransactionType.TRANSFER || rule.type == TransactionType.CC_SETTLEMENT
+            val plainAmount = formatMinorPlain(rule.amount, currentUi.currencySpec.fractionDigits)
+            formState.update { current ->
+                current.copy(
+                    editingTransactionId = 0L,
+                    mode = rule.type,
+                    expressionBuffer = plainAmount,
+                    selectedAccountId = rule.accountId,
+                    transferToAccountId = if (isTransferMode) rule.transferToAccountId else null,
+                    selectedCategoryId = if (isTransferMode) null else rule.categoryId,
+                    payeeOrDescription = rule.payeeOrDescription.ifEmpty { rule.title },
+                    note = rule.note,
+                    ledgerDateEpochDay = rule.nextOccurrenceEpochDay,
+                    timestampEpochMillis = System.currentTimeMillis(),
+                    isSplit = false,
+                    isKeypadVisible = false,
+                    errorMessage = null
+                )
             }
         }
     }

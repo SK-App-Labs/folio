@@ -24,6 +24,14 @@
   - `[x]` Zero-allocation canvas chart rendering for 60/120fps UI responsiveness.
   - `[x]` 243 passing JVM unit tests covering persistence, demo mode, backup retention, PDF preset resolution, domain calculators, ViewModels, and predictive intelligence.
 
+- `[x]` **M13: Local Bill & Credit Card Due Reminders (Zero-Network Push Engine)**
+  - `[x]` Native Android `WorkManager` daily background worker (`DueRemindersWorker` & `DueRemindersScheduler`) scheduled at user's preferred time (default 09:00 AM).
+  - `[x]` Isolated domain calculation engine (`DueRemindersEvaluator`) with unit tests covering overdue alerts, notice windows, and zero-balance skip rules.
+  - `[x]` Dedicated Android Notification Channels (`folio_channel_credit_cards`, `folio_channel_recurring_bills`) with Android 13+ `POST_NOTIFICATIONS` runtime permission flow.
+  - `[x]` Deep-linking actions: 1-tap "Settle Now" directly opens `CreditCardSettlementSheet` pre-filled with the current amount due, and "Log Payment" opens `TransactionEntrySheet`.
+  - `[x]` Settings UI opt-in toggle, customizable notice lead times (credit cards & recurring bills), preferred reminder time picker, and lock-screen privacy mask.
+  - `[x]` Full biometric guard compatibility: prevents unauthenticated access to settlements or ledger data when app lock is active.
+
 
 ---
 

@@ -635,6 +635,11 @@ class AccountsViewModel(
         }
     }
 
+    fun openSettlementSheetForAccountId(accountId: Long) {
+        val account = uiState.value.allAccounts.firstOrNull { it.id == accountId } ?: return
+        openSettlementSheet(account)
+    }
+
     fun openSettlementSheet(creditCard: AccountSummary) {
         val currentState = uiState.value
         val eligibleSource = currentState.assetAccountsForSettlement.firstOrNull {

@@ -336,6 +336,62 @@ class SettingsViewModel(
         }
     }
 
+    fun setRemindersEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                current.copy(remindersEnabled = enabled)
+            }
+            controlState.update {
+                it.copy(
+                    snackbarMessage = if (enabled) {
+                        "Payment & bill reminders enabled"
+                    } else {
+                        "Payment & bill reminders disabled"
+                    }
+                )
+            }
+        }
+    }
+
+    fun setCcReminderLeadDays(days: Int) {
+        val safeDays = days.coerceIn(0, 14)
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                current.copy(ccReminderLeadDays = safeDays)
+            }
+        }
+    }
+
+    fun setBillReminderLeadDays(days: Int) {
+        val safeDays = days.coerceIn(0, 7)
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                current.copy(billReminderLeadDays = safeDays)
+            }
+        }
+    }
+
+    fun setReminderTime(hourOfDay: Int, minute: Int) {
+        val safeHour = hourOfDay.coerceIn(0, 23)
+        val safeMin = minute.coerceIn(0, 59)
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                current.copy(
+                    reminderHourOfDay = safeHour,
+                    reminderMinute = safeMin
+                )
+            }
+        }
+    }
+
+    fun setHideAmountsOnLockScreen(hide: Boolean) {
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                current.copy(hideAmountsOnLockScreen = hide)
+            }
+        }
+    }
+
     fun unlockSupporterBadge(tierTitle: String) {
         viewModelScope.launch {
             settingsAndBackupRepository.updateUserPreferences { current ->

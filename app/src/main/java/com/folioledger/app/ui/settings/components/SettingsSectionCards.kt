@@ -11,6 +11,9 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Feedback
@@ -227,6 +230,105 @@ fun AppearanceSecuritySettingsCard(
             onCheckedChange = onToggleBiometricLock
         )
     }
+}
+
+@Composable
+fun RemindersSettingsCard(
+    prefs: UserPreferences,
+    isNotBusy: Boolean,
+    onToggleReminders: (Boolean) -> Unit,
+    onOpenCcLeadDaysDialog: () -> Unit,
+    onOpenBillLeadDaysDialog: () -> Unit,
+    onOpenReminderTimeDialog: () -> Unit,
+    onToggleHideAmounts: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+
+    SettingsGroupCard(
+        title = stringResource(R.string.settings_group_notifications),
+        modifier = modifier
+    ) {
+        SettingsSwitchRow(
+            icon = Icons.Default.Notifications,
+            title = stringResource(R.string.setting_due_reminders),
+            checked = prefs.remindersEnabled,
+            enabled = isNotBusy,
+            onCheckedChange = onToggleReminders
+        )
+
+        if (prefs.remindersEnabled) {
+            HorizontalDivider(
+                color = semanticColors.cardStrokeSubtle,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+
+            val ccText = when (prefs.ccReminderLeadDays) {
+                0 -> "On Due Date"
+                1 -> "1 day before"
+                else -> "${prefs.ccReminderLeadDays} days before"
+            }
+            SettingsNavigationRow(
+                icon = Icons.Default.CreditCard,
+                title = stringResource(R.string.setting_cc_lead_days),
+                valueText = ccText,
+                enabled = isNotBusy,
+                onClick = onOpenCcLeadDaysDialog
+            )
+
+            HorizontalDivider(
+                color = semanticColors.cardStrokeSubtle,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+
+            val billText = when (prefs.billReminderLeadDays) {
+                0 -> "On Due Date"
+                1 -> "1 day before"
+                else -> "${prefs.billReminderLeadDays} days before"
+            }
+            SettingsNavigationRow(
+                icon = Icons.Default.CalendarMonth,
+                title = stringResource(R.string.setting_bill_lead_days),
+                valueText = billText,
+                enabled = isNotBusy,
+                onClick = onOpenBillLeadDaysDialog
+            )
+
+            HorizontalDivider(
+                color = semanticColors.cardStrokeSubtle,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+
+            val timeText = formatReminderTimeDisplay(prefs.reminderHourOfDay, prefs.reminderMinute)
+            SettingsNavigationRow(
+                icon = Icons.Default.History,
+                title = stringResource(R.string.setting_reminder_time),
+                valueText = timeText,
+                enabled = isNotBusy,
+                onClick = onOpenReminderTimeDialog
+            )
+
+            HorizontalDivider(
+                color = semanticColors.cardStrokeSubtle,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+
+            SettingsSwitchRow(
+                icon = Icons.Default.Lock,
+                title = stringResource(R.string.setting_mask_notification_amounts),
+                checked = prefs.hideAmountsOnLockScreen,
+                enabled = isNotBusy,
+                onCheckedChange = onToggleHideAmounts
+            )
+        }
+    }
+}
+
+internal fun formatReminderTimeDisplay(hourOfDay: Int, minute: Int): String {
+    val h = if (hourOfDay == 0) 12 else if (hourOfDay > 12) hourOfDay - 12 else hourOfDay
+    val amPm = if (hourOfDay < 12) "AM" else "PM"
+    val minStr = if (minute < 10) "0$minute" else "$minute"
+    return "$h:$minStr $amPm"
 }
 
 @Composable

@@ -152,7 +152,13 @@ data class UserPreferences(
     val savingsGoalsJson: String = "{}",
     val hasSeenWelcomeSheet: Boolean = false,
     val isDemoModeActive: Boolean = false,
-    val hasStashedRealLedger: Boolean = false
+    val hasStashedRealLedger: Boolean = false,
+    val remindersEnabled: Boolean = false,
+    val ccReminderLeadDays: Int = 3,
+    val billReminderLeadDays: Int = 1,
+    val reminderHourOfDay: Int = 9,
+    val reminderMinute: Int = 0,
+    val hideAmountsOnLockScreen: Boolean = false
 )
 
 @Immutable

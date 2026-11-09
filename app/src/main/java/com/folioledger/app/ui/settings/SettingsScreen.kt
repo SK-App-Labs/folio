@@ -103,7 +103,15 @@ import com.folioledger.app.ui.settings.components.AppearanceSecuritySettingsCard
 import com.folioledger.app.ui.settings.components.CommunityHelpSettingsCard
 import com.folioledger.app.ui.settings.components.DataBackupsSettingsCard
 import com.folioledger.app.ui.settings.components.SettingsFooter
+import android.Manifest
+import android.os.Build
+import com.folioledger.app.data.notification.DueRemindersScheduler
+import com.folioledger.app.data.notification.FolioNotificationManager
+import com.folioledger.app.ui.settings.components.RemindersSettingsCard
 import com.folioledger.app.ui.settings.components.SettingsGroupCard
+import com.folioledger.app.ui.settings.dialogs.BillLeadDaysDialog
+import com.folioledger.app.ui.settings.dialogs.CcLeadDaysDialog
+import com.folioledger.app.ui.settings.dialogs.ReminderTimePickerDialog
 import com.folioledger.app.ui.settings.components.SettingsNavigationRow
 import com.folioledger.app.ui.settings.components.SettingsSwitchRow
 import com.folioledger.app.ui.settings.components.TaxonomySettingsCard
@@ -171,6 +179,25 @@ fun SettingsScreen(
     var showDemoModeConfirmDialog by rememberSaveable { mutableStateOf(false) }
 
     var showMonthStartDayDialog by rememberSaveable { mutableStateOf(false) }
+    var showCcLeadDaysDialog by rememberSaveable { mutableStateOf(false) }
+    var showBillLeadDaysDialog by rememberSaveable { mutableStateOf(false) }
+    var showReminderTimeDialog by rememberSaveable { mutableStateOf(false) }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            viewModel.setRemindersEnabled(true)
+            DueRemindersScheduler.scheduleDailyReminders(
+                context = context,
+                hourOfDay = uiState.userPreferences.reminderHourOfDay,
+                minute = uiState.userPreferences.reminderMinute
+            )
+        } else {
+            viewModel.setRemindersEnabled(false)
+            Toast.makeText(context, "Notification permission is required for reminders", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     val csvDocumentPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -293,6 +320,36 @@ fun SettingsScreen(
                         onOpenIconPackSheet = { isIconPackSheetOpen = true },
                         onOpenLanguageSheet = { isLanguageSheetOpen = true },
                         onToggleBiometricLock = viewModel::setBiometricLockEnabled
+                    )
+                }
+
+                item {
+                    RemindersSettingsCard(
+                        prefs = prefs,
+                        isNotBusy = isNotBusy,
+                        onToggleReminders = { enabled ->
+                            if (enabled) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                    !FolioNotificationManager.hasNotificationPermission(context)
+                                ) {
+                                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    viewModel.setRemindersEnabled(true)
+                                    DueRemindersScheduler.scheduleDailyReminders(
+                                        context = context,
+                                        hourOfDay = prefs.reminderHourOfDay,
+                                        minute = prefs.reminderMinute
+                                    )
+                                }
+                            } else {
+                                viewModel.setRemindersEnabled(false)
+                                DueRemindersScheduler.cancelDailyReminders(context)
+                            }
+                        },
+                        onOpenCcLeadDaysDialog = { showCcLeadDaysDialog = true },
+                        onOpenBillLeadDaysDialog = { showBillLeadDaysDialog = true },
+                        onOpenReminderTimeDialog = { showReminderTimeDialog = true },
+                        onToggleHideAmounts = viewModel::setHideAmountsOnLockScreen
                     )
                 }
 
@@ -595,6 +652,36 @@ fun SettingsScreen(
                 showMonthStartDayDialog = false
             },
             onDismiss = { showMonthStartDayDialog = false }
+        )
+    }
+
+    if (showCcLeadDaysDialog) {
+        CcLeadDaysDialog(
+            selectedDays = prefs.ccReminderLeadDays,
+            onSelectDays = viewModel::setCcReminderLeadDays,
+            onDismiss = { showCcLeadDaysDialog = false }
+        )
+    }
+
+    if (showBillLeadDaysDialog) {
+        BillLeadDaysDialog(
+            selectedDays = prefs.billReminderLeadDays,
+            onSelectDays = viewModel::setBillReminderLeadDays,
+            onDismiss = { showBillLeadDaysDialog = false }
+        )
+    }
+
+    if (showReminderTimeDialog) {
+        ReminderTimePickerDialog(
+            selectedHour = prefs.reminderHourOfDay,
+            selectedMinute = prefs.reminderMinute,
+            onSelectTime = { hour, min ->
+                viewModel.setReminderTime(hour, min)
+                if (prefs.remindersEnabled) {
+                    DueRemindersScheduler.scheduleDailyReminders(context, hour, min)
+                }
+            },
+            onDismiss = { showReminderTimeDialog = false }
         )
     }
 
