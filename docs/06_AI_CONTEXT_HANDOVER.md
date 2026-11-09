@@ -1,4 +1,4 @@
-# FOLIO LEDGER — AI CONTEXT HANDOVER CARD (v1.4.0+)
+# FOLIO LEDGER — AI CONTEXT HANDOVER CARD (v1.5.0+)
 
 ## 1. Project Identity & Tech Stack
 - **App Name:** Folio: Expense & Budget Ledger
@@ -7,7 +7,7 @@
 - **Architecture:** 100% Offline-First, Single-Activity MVVM, Jetpack Compose (Material 3), Room SQLite (`FolioDatabase` v2), Preferences DataStore, Manual DI (`AppContainer` + `FolioViewModelFactory`).
 - **Build Config:** Min SDK 29 (Android 10), Target/Compile SDK 37, Kotlin 2.x, KSP, `activityCompose = "1.10.1"`, AndroidX `core-splashscreen = "1.0.1"`.
 - **Build & Compilation Verification Command:** `./gradlew app:compileDebugKotlin`
-- **Unit Test Execution Command:** `$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'; .\gradlew testDebugUnitTest`
+- **Unit Test Execution Command:** `$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'; .\gradlew testDebugUnitTest` (243/243 passing tests)
 - **Strict Coding Rule:** Always output 100% complete replacement files from line 1 (`// File: ...`) to the final closing brace (`Ctrl + A -> Delete -> Paste`). Never output partial snippets or `TODO()` placeholders.
 
 ## 2. Core Accounting & Domain Invariants
@@ -35,10 +35,14 @@
     - *Merchant & Payee Intelligence*: Dual sorting (Outlay vs. Frequency) with recurring cadence detection.
     - *Events, Trips & Reimbursements*: Smart mode detection differentiating reimbursable claims (computing net pending owed) from event budgets (computing daily burn rate and date span).
     - *Safe-to-Spend & 14-Day Overdraft Radar*: Calculates unencumbered liquid cash deducting credit card debt and upcoming 14-day recurring commitments. Fires `AccountShortfallAlert` when any account faces a projected negative balance.
+13. **Interactive Demo Mode & Auto-Stash Sandbox Architecture:**
+    - Express onboarding via `WelcomeExpressBottomSheet` allows immediate preview with live sample data or starting fresh.
+    - Headless `DemoModeManager` manages state, while `DemoDataSeeder` seeds ~45 transactions across 90 days relative to `LocalDate.now()` with currency scaling (`scaleMinor`).
+    - Pre-demo real data is stashed to `noBackupFilesDir/demo_stash/pre_demo_real_ledger.zip` via an atomic `.tmp` swap. Table wipe occurs in strict reverse-topological order. `AutoBackupManager` is paused during demo mode. Real user data is seamlessly restored on exiting demo mode.
 
 ## 3. UI, Design System & Theme Engine Standards
 1. **Header Layout Alignment Standard:** All top-level screen headers use `headlineSmall` (24sp Bold) with `padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp)` to align across `AccountsScreen`, `TransactionsScreen`, `StatsAndBudgetsScreen`, and `SettingsScreen`.
-2. **Card Enclosure Standard:** All grouped cards use `surfaceContainerLow` with `BorderStroke(1.dp, semanticColors.cardStrokeSubtle)` and `18.dp` or `16.dp` rounded corners. This ensures cards maintain crisp, enclosed visual boundaries in both Light Theme (where background contrast is low) and Dark Theme.
+2. **Card Enclosure Standard:** All grouped cards use `surfaceContainerLow` with `BorderStroke(1.dp, semanticColors.cardStrokeSubtle)` and `18.dp` or `16.dp` rounded corners. Ensures cards maintain crisp, enclosed visual boundaries in Light Theme and Dark Theme.
 3. **Transaction FAB Visibility Scoping (`FolioMainShell.kt`):** Restricted `FloatingActionButton` (+ New Transaction) strictly to the `TRANSACTIONS` tab using `AnimatedVisibility`. Hidden on `STATS`, `ACCOUNTS`, and `SETTINGS` to keep dashboards and drill-downs completely unblocked.
 4. **Bottom Navigation Inset Calibration:** Avoids double window insets padding between the bottom bar and list viewports, guaranteeing uniform, comfortable bottom list clearance across all devices and gesture navigation bars.
 5. **Stats Tab Architecture (4 Sub-Tabs):**
@@ -61,29 +65,25 @@
 
 ## 4. Package & File Map (`app/src/main/java/com/folioledger/app/`)
 - **Root & DI:** `FolioApplication.kt`, `MainActivity.kt`, `di/AppContainer.kt`, `di/FolioViewModelFactory.kt`
-- **Domain Layer (`domain/`):** 
-  - `model/DomainEnumsAndMoney.kt`, `model/DomainModels.kt` (includes `MinorMoney`, `RecurringCommitmentItem`, etc.)
-  - `util/MoneyFormatterAndCalculator.kt`
-  - `usecase/AccountingRulesEngine.kt`
-  - `repository/DomainRepositories.kt` (includes `observeActiveRecurringCommitments()`)
-- **Data Layer (`data/`):** 
-  - `local/FolioDatabase.kt` (v2, `MIGRATION_1_2`), `local/RoomTypeConverters.kt`, `local/entity/FolioEntities.kt` (includes `RecurringRuleEntity`), `local/dao/FolioDaos.kt`
-  - `repository/AccountAndTransactionRepositoriesImpl.kt`
-  - `repository/AnalyticsAndBudgetRepositoryImpl.kt`
-  - `repository/SettingsAndCategoryRepositoriesImpl.kt`
-  - `backup/AutoBackupEngine.kt`, `pdf/PdfStatementExporter.kt`
+- **Domain Layer (`domain/`):**
+  - `model/`: `DomainEnumsAndMoney.kt`, `DomainModels.kt`, `LedgerDomainModels.kt`, `StatsAndAnalyticsModels.kt`
+  - `repository/`: `DomainRepositories.kt`
+  - `usecase/`: `AccountingRulesEngine.kt`
+  - `util/`: 17 pure calculators (`AccountPassbookCalculator.kt`, `BackupTimeFormatter.kt`, `CardMilestoneCalculator.kt`, `CategoryDrillDownCalculator.kt`, `CreditCardCockpitCalculator.kt`, `CreditCardCycleCalculator.kt`, `LedgerBucketingCalculator.kt`, `MerchantAndTagAnalyticsCalculator.kt`, `MoneyFormatterAndCalculator.kt`, `NetWorthPredictiveCalculator.kt`, `RecurringBurdenCalculator.kt`, `RecurringScheduleCalculator.kt`, `SafeToSpendCalculator.kt`, `SavingsGoalCalculator.kt`, `StatsPeriodCalculator.kt`, `TagDateSpanFormatter.kt`, `TransactionEntryRulesEngine.kt`)
+- **Data Layer (`data/`):**
+  - `local/`: `FolioDatabase.kt` (v2, `MIGRATION_1_2`), `DefaultCategorySeeder.kt`, `entity/FolioEntities.kt`, `dao/FolioDaos.kt`
+  - `demo/`: `DemoModeManager.kt`, `DemoDataSeeder.kt`
+  - `backup/`: `AutoBackupEngine.kt`
+  - `pdf/`: `PassbookPeriodPresetResolver.kt`, `PdfReportModels.kt`, `PdfStatementEngine.kt`
+  - `repository/`: `AccountRepositoryImpl.kt`, `AnalyticsAndBudgetRepositoryImpl.kt`, `AutoBackupManager.kt`, `CategoryAndTagRepositoryImpl.kt`, `CsvExportImportEngine.kt`, `DatabaseBackupEngine.kt`, `PdfStatementRepositoryHelper.kt`, `RepositoryExtensions.kt`, `SettingsAndBackupRepositoryImpl.kt`, `StorageAccessUtils.kt`, `TransactionRepositoryImpl.kt`, `UserPreferencesDataSource.kt`
 - **UI Layer (`ui/`):**
-  - `theme/FolioTheme.kt` (6 Theme Modes, 12 Accent Palettes in 6x2 grid)
-  - `components/FolioCommonComponents.kt` (`CategoryIconBadge`, `MoneyText`, `resolveFolioIcon`)
-  - `shell/FolioMainShell.kt` (4 tabs + FAB scoping)
-  - `ledger/` (`LedgerHomeScreen.kt`, `LedgerHeaderBanners.kt`, `LedgerItemCards.kt`, `LedgerSubTabs.kt`, `LedgerSheetsAndDialogs.kt`)
-  - `entry/TransactionEntryViewModel.kt`, `entry/TransactionEntrySheet.kt`
-  - `accounts/` (`AccountsViewModel.kt`, `AccountsScreen.kt`, `components/AccountGroupSectionCard.kt`, `components/AccountRows.kt`, `sheets/AccountEditorBottomSheet.kt`, `sheets/AccountPassbookBottomSheet.kt`, `sheets/CreditCardSettlementBottomSheet.kt`)
-  - `stats/` (`StatsAndBudgetsViewModel.kt`, `StatsAndBudgetsScreen.kt`, `StatsPredictiveCalculations.kt`)
-  - `settings/` (`SettingsViewModel.kt`, `SettingsScreen.kt`, `FolioGuideAndSupportSheets.kt`, `sheets/*`)
+  - `components/`: `CategoryIconBadge.kt`, `FolioBrandLogoBadge.kt`, `FolioCharts.kt`, `FolioCommonComponents.kt`, `NetWorthAnalyticsComponents.kt`, `PeriodSelectorHeader.kt`, `ThreeColumnSummaryBanner.kt`
+  - `accounts/`: `AccountsScreen.kt`, `AccountsUiModels.kt`, `AccountsViewModel.kt`, `components/*`, `dialogs/*`, `sheets/*`
+  - `entry/`: `TransactionEntrySheet.kt`, `TransactionEntryUiModels.kt`, `TransactionEntryViewModel.kt`, `components/*`
+  - `iconpack/`: `EmojiIconResolver.kt`, `FolioIconPackTheme.kt`, `FolioIconResolver.kt`, `LucideIconResolver.kt`, `MaterialIconResolver.kt`, `PhosphorIconResolver.kt`
+  - `ledger/`: `LedgerHeaderBanners.kt`, `LedgerHomeScreen.kt`, `LedgerHomeViewModel.kt`, `LedgerItemCards.kt`, `LedgerSheetsAndDialogs.kt`, `dialogs/*`, `sheets/*`, `subtabs/*`
+  - `settings/`: `SettingsScreen.kt`, `SettingsUiModels.kt`, `SettingsViewModel.kt`, `FolioGuideAndSupportSheets.kt`, `dialogs/*`, `guides/*`, `sheets/*`, `components/*`
+  - `stats/`: `StatsAndBudgetsScreen.kt`, `StatsAndBudgetsUiModels.kt`, `StatsAndBudgetsViewModel.kt`, `StatsPredictiveCalculations.kt`, `components/*`, `sheets/*`, `subtabs/*`
 - **Unit Test Suites (`app/src/test/java/com/folioledger/app/`):**
-  - `ui/stats/NetWorthVelocityCalculationsTest.kt`
-  - `ui/stats/PayeeIntelligenceCalculationsTest.kt`
-  - `ui/stats/TagProjectIntelligenceCalculationsTest.kt`
-  - `ui/stats/SafeToSpendCalculationsTest.kt`
-  - `ui/stats/CreditCardCockpitCalculationsTest.kt`
+  - 243 passing JVM unit tests covering data persistence, demo mode, backup retention, PDF preset resolution, domain calculators, ViewModels, icon pack resolution, and predictive calculations.
+

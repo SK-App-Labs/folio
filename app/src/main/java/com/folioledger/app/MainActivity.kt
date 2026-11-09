@@ -1,5 +1,6 @@
 package com.folioledger.app
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -41,6 +42,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import android.content.Context
 import androidx.fragment.app.FragmentActivity
+import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.ui.settings.sheets.FolioLocaleManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -50,11 +52,13 @@ import com.folioledger.app.di.FolioViewModelFactory
 import com.folioledger.app.ui.ledger.LedgerHomeViewModel
 import com.folioledger.app.ui.shell.FolioMainShell
 import com.folioledger.app.ui.theme.FolioTheme
+import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class MainLockViewModel : ViewModel() {
     val isSessionUnlocked = mutableStateOf(false)
+    val pendingShortcutAction = mutableStateOf<TransactionType?>(null)
 }
 
 class MainActivity : FragmentActivity() {
@@ -69,10 +73,29 @@ class MainActivity : FragmentActivity() {
         super.onStop()
         if (!isChangingConfigurations) {
             lockViewModel.isSessionUnlocked.value = false
+            lockViewModel.pendingShortcutAction.value = null
             val app = application as FolioApplication
             app.applicationScope.launch(Dispatchers.IO) {
                 app.container.settingsAndBackupRepository.triggerSessionAutoBackupIfDirty()
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        extractShortcutAction(intent)?.let { action ->
+            lockViewModel.pendingShortcutAction.value = action
+        }
+    }
+
+    private fun extractShortcutAction(intent: Intent?): TransactionType? {
+        val action = intent?.getStringExtra("shortcut_action") ?: return null
+        return when (action.uppercase(Locale.US)) {
+            "EXPENSE" -> TransactionType.EXPENSE
+            "INCOME" -> TransactionType.INCOME
+            "TRANSFER" -> TransactionType.TRANSFER
+            else -> null
         }
     }
 
@@ -81,6 +104,10 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
         enableEdgeToEdge()
+
+        extractShortcutAction(intent)?.let { action ->
+            lockViewModel.pendingShortcutAction.value = action
+        }
 
         val appContainer = (application as FolioApplication).container
         val viewModelFactory = FolioViewModelFactory(appContainer)
@@ -170,7 +197,14 @@ class MainActivity : FragmentActivity() {
                         color = MaterialTheme.colorScheme.background
                     ) {}
                 } else if (!activePrefs.biometricLockEnabled || isSessionUnlocked) {
-                    FolioMainShell(viewModelFactory = viewModelFactory)
+                    val pendingShortcut by lockViewModel.pendingShortcutAction
+                    FolioMainShell(
+                        viewModelFactory = viewModelFactory,
+                        initialShortcutAction = pendingShortcut,
+                        onShortcutActionConsumed = {
+                            lockViewModel.pendingShortcutAction.value = null
+                        }
+                    )
                 } else {
                     LaunchedEffect(isSessionUnlocked) {
                         if (!isSessionUnlocked) {

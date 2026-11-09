@@ -42,15 +42,21 @@
 - **Accordion Chevron Rule:** 16.dp IconButton (`ExpandMore`/`ExpandLess`) is rendered on ALL main category cards (including empty ones) to reveal subcategories or the `+ Add Subcategory under [Parent]` button with empty state guidance.
 - **Edge-to-Edge Navigation Bar Insets:** Avoids double window insets padding between the bottom bar and list viewports, guaranteeing uniform, comfortable bottom list clearance across all devices.
 
-## 4. Navigation Architecture (4 Primary Bottom Tabs + Scoped FAB)
+## 4. **Navigation Architecture (4 Primary Bottom Tabs + Scoped FAB)**
 1. **Tab 1: `Trans.` (Ledger Home)**
-    - Top Period Selector (`< Oct 2026 >`) + Search, Filter, and Bookmark (`★`) icons.
-    - Decomposed into 5 domain sub-files (`LedgerHeaderBanners`, `LedgerItemCards`, `LedgerSubTabs`, `LedgerSheetsAndDialogs`, `LedgerHomeScreen`).
-    - Sticky daily date headers with scroll-fading daily totals.
-    - 5 Horizontal Sub-Tabs: `Daily` | `Calendar` | `Weekly` | `Monthly` | `Summary`.
+    - Top Period Selector (`PeriodSelectorHeader`) (`< Oct 2026 >`) + Search, Filter, and Bookmark (`★`) icons.
+    - Three-Column Summary Banner (`ThreeColumnSummaryBanner`) displaying period income, expense, and net cashflow.
+    - Express Onboarding Banner (`DemoModeActiveTopBanner`) when active with 1-tap restore / start fresh CTAs.
+    - Decomposed into 5 domain sub-tab files in `ui/ledger/subtabs/`:
+      - `DailyLedgerSubTab.kt`: Sticky daily date headers with scroll-fading daily totals and empty state demo launcher.
+      - `CalendarLedgerSubTab.kt`: Full-month grid displaying daily cashflows, compact bidirectional transfer badges (`⇄`), and day selection cards.
+      - `WeeklyLedgerSubTab.kt`: ISO week grouping cards with period totals.
+      - `MonthlyLedgerSubTab.kt`: 12-month historical cashflow comparison list.
+      - `SummaryLedgerSubTab.kt`: High-level period overview with 3-column summary and optional carry-over line item.
+      - `FilteredSearchResultsSubTab.kt`: Filtered transaction results with live keyword and criteria matching.
 2. **Tab 2: `Stats` (Analytics, Intelligence & Budgets)**
     - Top-bar chip dropdown granularity selector (`StatsPeriodGranularityDropdownChip`).
-    - 4 Horizontal Sub-Tabs:
+    - 4 Horizontal Sub-Tabs in `ui/stats/subtabs/`:
       - **`Overview` (`StatsSubTab.STATS`)**:
         - Donut chart + Ranked main category list with drill-down breakdown and category-specific 6-month historical trend.
         - Cashflow section featuring **Safe-to-Spend Card** (`SafeToSpendCard`) and 14-day proactive **Shortfall Alert Radar** (`ShortfallAlertCard`).
@@ -76,6 +82,7 @@
 4. **Tab 4: `Settings` (Configuration & Data)**
     - Modularized into `com.folioledger.app.ui.settings.sheets` package (`AppearanceBottomSheet`, `RegionalFormatBottomSheet`, `DataAndBackupBottomSheet`, `CategoryManagerBottomSheet`, `TagsAndBookmarksBottomSheet`, `AutoBackupBottomSheet`, `TransferAndManualBackupBottomSheet`, `SpreadsheetsBottomSheet`, `SecondaryCurrenciesBottomSheet`, `PdfStatementExportBottomSheet`).
     - 4 Grouped Cards (`ORGANIZATION & TAXONOMY`, `APPEARANCE & SECURITY`, `DATA & BACKUPS`, `HELP & COMMUNITY`).
+    - Express Onboarding Sheet (`WelcomeExpressBottomSheet` with currency, number grouping, and interactive demo mode launcher).
     - Currency & Number Formatting Sheet (`RegionalFormatBottomSheet` with 1-line `Standard` vs `Indian` grouping, real-time currency search bar, popular currency chips, and full-width currency cards).
     - Secondary Currencies & Exchange Rates (`SecondaryCurrenciesBottomSheet` with active rate editing and 170+ currency picker).
     - PDF Account Statement & Tax Reports (`PdfStatementExportBottomSheet` with universal tax schedule and branded passbook exports).
@@ -84,3 +91,4 @@
     - Unified Tags & Bookmarks (`TagsAndBookmarksBottomSheet` with `#Tags` and `Bookmarks ★` tabs).
     - Appearance & Theme Sheet (`AppearanceBottomSheet` with Live Theme & Accent Preview card, 6 visual theme mode cards, and guaranteed 6x2 accent swatch grid).
 - **Floating Action Button (`+`):** Scoped strictly to the `TRANSACTIONS` tab (`FolioMainTab.TRANSACTIONS`) using `AnimatedVisibility`. Completely unblocks the bottom-right corner of the `Stats`, `Accounts`, and `Settings` tabs. Opens `TransactionEntrySheet` with calculator keypad, mode tabs, Splits, Bookmarks, and `CategoryPickerBottomSheet`.
+

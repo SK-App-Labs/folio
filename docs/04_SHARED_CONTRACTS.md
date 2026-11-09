@@ -204,3 +204,20 @@ data class UserPreferences(
 - **CategoryAndTagRepository**: Observe category trees, manage categories, subcategories, tags, and bookmarks.
 - **AnalyticsAndBudgetRepository**: Observe PeriodLedgerSummary, category breakdown stats, 6-month trend bars, note/tag rankings, BudgetProgress, and `observeActiveRecurringCommitments()`.
 - **SettingsAndBackupRepository**: Observe/update UserPreferences, export CSV, create portable .zip backup, restore .zip backup, and configure secondary currencies.
+
+## 4. Demo Mode & Sandbox Contracts (`com.folioledger.app.data.demo`)
+
+```kotlin
+interface DemoModeManager {
+    val isDemoModeActive: StateFlow<Boolean>
+    suspend fun enterDemoMode()
+    suspend fun exitDemoMode(restoreRealData: Boolean)
+}
+```
+
+## 5. Extracted UI State Models & Domain Models
+- **`AccountsUiModels.kt`**: `PassbookPeriodRange`, `AccountPassbookEntryUiModel`, `AccountPassbookDayGroup`, `AccountPassbookUiModel`, `AccountEditorDialogState`, `SettlementAmountPreset`, `CreditCardSettlementSheetState`, `ReconcileBalanceDialogState`, `AccountsUiState`
+- **`TransactionEntryUiModels.kt`**: `InstallmentPreviewItem`, `SplitValidationSummary`, `SplitLineDraft`, `TransactionEntryUiState`
+- **`SettingsUiModels.kt`**: `CategoryEditorDialogState`, `SettingsUiState`
+- **`StatsAndBudgetsUiModels.kt`**: `StatsSubTab`, `BudgetEditorDialogState`, `CategoryDrillDownState`, `StatsAndBudgetsUiState`
+

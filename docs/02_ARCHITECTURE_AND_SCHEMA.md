@@ -124,10 +124,46 @@ To ensure 100% compatibility with AGP 9.4+ Built-in Kotlin and lightning-fast co
 
 ## 4. Pure Analytics & Predictive Intelligence Architecture
 To guarantee testability, maintain responsiveness, and prevent ViewModel lifecycle leaks:
-- All financial aggregation logic for Net Worth Velocity, Emergency Runway, Merchant Intelligence, Reimbursable Project Netting, and Safe-to-Spend is isolated into **`StatsPredictiveCalculations.kt`** as pure Kotlin functions.
+- All financial aggregation logic for Net Worth Velocity, Emergency Runway, Merchant Intelligence, Reimbursable Project Netting, and Safe-to-Spend is isolated into **`StatsPredictiveCalculations.kt`** and specialized domain utilities under **`domain/util/`** as pure Kotlin functions.
 - ViewModels invoke these calculations via `withContext(Dispatchers.Default)` to ensure the Android Main Thread remains unblocked during heavy multi-month or multi-account calculations.
-- Accompanied by dedicated unit test suites:
-  - `NetWorthVelocityCalculationsTest.kt`
-  - `PayeeIntelligenceCalculationsTest.kt`
-  - `TagProjectIntelligenceCalculationsTest.kt`
-  - `SafeToSpendCalculationsTest.kt`
+- Decomposed domain calculation utilities in `domain/util/`:
+  1. `AccountPassbookCalculator.kt` (Running balances, day grouping, debit card rollups)
+  2. `BackupTimeFormatter.kt` (Relative timestamp labels for backup management)
+  3. `CardMilestoneCalculator.kt` (Credit card anniversary milestones & spend tracking)
+  4. `CategoryDrillDownCalculator.kt` (Category tree filtering & subcategory breakdowns)
+  5. `CreditCardCockpitCalculator.kt` (Single-pass credit card cockpit spend processing)
+  6. `CreditCardCycleCalculator.kt` (Billed statement closing vs unbilled calculation)
+  7. `LedgerBucketingCalculator.kt` (Daily/Weekly/Monthly/Calendar ledger grouping)
+  8. `MerchantAndTagAnalyticsCalculator.kt` (Payee frequency/outlay and tag date span calculation)
+  9. `MoneyFormatterAndCalculator.kt` (Minor money arithmetic & currency formatting)
+  10. `NetWorthPredictiveCalculator.kt` (Pre-grouped O(1) net worth trajectory trend calculation)
+  11. `RecurringBurdenCalculator.kt` (Monthly fixed commitment burden calculation)
+  12. `RecurringScheduleCalculator.kt` (Recurrence frequency next occurrence projection)
+  13. `SafeToSpendCalculator.kt` (Discretionary cash & 14-day overdraft radar)
+  14. `SavingsGoalCalculator.kt` (Wealth vault & surplus progress calculations)
+  15. `StatsPeriodCalculator.kt` (Financial period stepping with clamped month boundaries)
+  16. `TagDateSpanFormatter.kt` (Trip & event active date span formatting)
+  17. `TransactionEntryRulesEngine.kt` (Split transaction validation & installment schedules)
+- Accompanied by 243 passing unit tests across `app/src/test/java/com/folioledger/app/`.
+
+## 5. Interactive Demo Mode & Auto-Stash Sandbox Architecture
+- **Express Onboarding (`WelcomeExpressBottomSheet`)**: Allows first-time users to select primary currency, number grouping system (`International` vs `Indian`), and immediately preview Folio with rich sample data or start fresh.
+- **Headless `DemoModeManager`**:
+  - Controls demo state (`isDemoModeActive`).
+  - Pauses `AutoBackupManager` while demo mode is active to prevent demo data contamination in automated user backups.
+  - Paired with an atomic Auto-Stash & Restore mechanism:
+    - Atomically stashes active real user data to `context.noBackupFilesDir/demo_stash/pre_demo_real_ledger.zip` via an atomic `.tmp` swap before seeding sample data.
+    - Table wiping occurs in strict reverse-topological order (`transaction_tags`, `transaction_splits`, `transactions`, `bookmarks`, `budgets`, `recurring_rules`, `installment_plans`, `accounts`, `categories`) to guarantee zero foreign-key constraint violations and zero Room schema migrations.
+    - Safely restores stashed real data or resets to a clean empty ledger upon exiting demo mode.
+- **`DemoDataSeeder`**:
+  - Dynamically generates ~45 transactions across 90 days relative to `LocalDate.now()` with currency scaling (`scaleMinor` for USD, INR, JPY, EUR, etc.).
+  - Populates 8 account groups (Cash, Salary Bank, Bill Checking, Savings Vault, 2 Credit Cards, Index Fund, and Home Loan).
+  - Seeds Credit Card 1 (billed statement due in 12 days) and Credit Card 2 (statement closing in 25 days) to showcase the Smart Swipe Advisor float optimizer, Grace Period countdown, and Card Milestones.
+  - Seeds 3 recurring commitments within the next 14 days to activate the 14-Day Overdraft Warning and Safe-to-Spend Today calculations.
+  - Seeds 4 budgets (including an ~85% threshold warning on Food & Dining), 3 bookmarks, and tags (`#vacation`, `#reimbursable`).
+
+## 6. Zero-Allocation Canvas Chart Performance Architecture
+- **Zero-Allocation Canvas Chart Drawing (`FolioCharts.kt` & `NetWorthAnalyticsComponents.kt`)**:
+  - In `SixMonthSmoothTrendAreaChart`: `Brush.verticalGradient` allocations are hoisted outside `Canvas` with `remember`, and per-frame `ArrayList<Offset>` allocations are replaced with reusable `FloatArray` buffers (`pointsX` and `pointsY`), eliminating garbage collection churn during 60/120fps entry animations and touch scrubbing.
+  - In `NetWorthGrowthCanvasChart`: pre-computed usable canvas dimensions, cached `Brush.verticalGradient`, and eliminated per-frame local function closure allocations inside `Canvas`.
+

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- File: app/src/main/res/xml/shortcuts.xml -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="add_expense"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_expense"
+        android:shortcutShortLabel="@string/shortcut_add_expense_short"
+        android:shortcutLongLabel="@string/shortcut_add_expense_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.folioledger.app"
+            android:targetClass="com.folioledger.app.MainActivity">
+            <extra
+                android:name="shortcut_action"
+                android:value="EXPENSE" />
+        </intent>
+        <categories android:name="android.intent.category.DEFAULT" />
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="add_income"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_income"
+        android:shortcutShortLabel="@string/shortcut_add_income_short"
+        android:shortcutLongLabel="@string/shortcut_add_income_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.folioledger.app"
+            android:targetClass="com.folioledger.app.MainActivity">
+            <extra
+                android:name="shortcut_action"
+                android:value="INCOME" />
+        </intent>
+        <categories android:name="android.intent.category.DEFAULT" />
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="transfer"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_transfer"
+        android:shortcutShortLabel="@string/shortcut_transfer_short"
+        android:shortcutLongLabel="@string/shortcut_transfer_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.folioledger.app"
+            android:targetClass="com.folioledger.app.MainActivity">
+            <extra
+                android:name="shortcut_action"
+                android:value="TRANSFER" />
+        </intent>
+        <categories android:name="android.intent.category.DEFAULT" />
+    </shortcut>
+</shortcuts>

@@ -43,6 +43,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -60,6 +61,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.folioledger.app.R
+import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.ui.accounts.AccountsScreen
 import com.folioledger.app.ui.accounts.AccountsViewModel
 import com.folioledger.app.ui.entry.TransactionEntrySheet
@@ -86,6 +88,8 @@ enum class FolioMainTab(
 @Composable
 fun FolioMainShell(
     viewModelFactory: ViewModelProvider.Factory,
+    initialShortcutAction: TransactionType? = null,
+    onShortcutActionConsumed: () -> Unit = {}
 ) {
     val ledgerViewModel: LedgerHomeViewModel = viewModel(factory = viewModelFactory)
     val accountsViewModel: AccountsViewModel = viewModel(factory = viewModelFactory)
@@ -100,6 +104,15 @@ fun FolioMainShell(
     var selectedTab by rememberSaveable { mutableStateOf(FolioMainTab.TRANSACTIONS) }
     var isEntrySheetOpen by rememberSaveable { mutableStateOf(false) }
     var originTabBeforeAccountInspection by rememberSaveable { mutableStateOf<FolioMainTab?>(null) }
+
+    LaunchedEffect(initialShortcutAction) {
+        if (initialShortcutAction != null) {
+            selectedTab = FolioMainTab.TRANSACTIONS
+            entryViewModel.resetForNewTransaction(defaultMode = initialShortcutAction)
+            isEntrySheetOpen = true
+            onShortcutActionConsumed()
+        }
+    }
 
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
