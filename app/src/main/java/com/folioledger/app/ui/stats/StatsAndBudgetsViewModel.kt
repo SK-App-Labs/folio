@@ -695,6 +695,27 @@ class StatsAndBudgetsViewModel(
         }
     }
 
+    fun resetToOverviewSubTabAndJumpToToday() {
+        val today = LocalDate.now().toEpochDay()
+        controlState.update { current ->
+            current.copy(
+                selectedSubTab = StatsSubTab.STATS,
+                selectedOverviewMode = OverviewMode.CATEGORIES,
+                referenceDateEpochDay = today,
+                highlightedDonutCategoryId = null,
+                drillDownCategoryId = null,
+                drillDownPayeeName = null,
+                drillDownTagName = null,
+                isCustomDatePickerOpen = false,
+                periodGranularity = if (current.periodGranularity == StatsPeriodGranularity.CUSTOM) {
+                    StatsPeriodGranularity.MONTHLY
+                } else {
+                    current.periodGranularity
+                }
+            )
+        }
+    }
+
     fun onDonutSliceSelected(stat: CategorySpendStat?) {
         controlState.update {
             it.copy(highlightedDonutCategoryId = stat?.categoryId)

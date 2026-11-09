@@ -105,6 +105,7 @@ fun FolioMainShell(
     val haptic = LocalHapticFeedback.current
     var backPressedTime by remember { mutableLongStateOf(0L) }
     var lastTransTabTapTime by remember { mutableLongStateOf(0L) }
+    var lastStatsTabTapTime by remember { mutableLongStateOf(0L) }
 
     // 1. Back Handler for secondary tabs (STATS, ACCOUNTS, SETTINGS)
     BackHandler(enabled = selectedTab != FolioMainTab.TRANSACTIONS && !isEntrySheetOpen) {
@@ -172,6 +173,23 @@ fun FolioMainShell(
                                     } else {
                                         // Switched from another main tab
                                         lastTransTabTapTime = now
+                                    }
+                                }
+                                if (tab == FolioMainTab.STATS) {
+                                    if (selectedTab == FolioMainTab.STATS) {
+                                        if (now - lastStatsTabTapTime < 500L) {
+                                            // Double-tap on active Stats tab: switch to Overview subtab and jump to today
+                                            statsViewModel.resetToOverviewSubTabAndJumpToToday()
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            lastStatsTabTapTime = 0L
+                                        } else {
+                                            // Single tap on active Stats tab: jump to today within current subtab
+                                            lastStatsTabTapTime = now
+                                            statsViewModel.jumpToToday()
+                                        }
+                                    } else {
+                                        // Switched from another main tab
+                                        lastStatsTabTapTime = now
                                     }
                                 }
                                 selectedTab = tab
