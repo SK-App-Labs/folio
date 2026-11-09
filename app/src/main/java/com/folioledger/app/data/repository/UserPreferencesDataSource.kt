@@ -1,4 +1,4 @@
-﻿package com.folioledger.app.data.repository
+package com.folioledger.app.data.repository
 
 import android.content.Context
 import android.net.Uri
@@ -84,6 +84,7 @@ import kotlin.math.pow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
@@ -133,6 +134,7 @@ class UserPreferencesDataSource(private val context: Context) {
                 }
             }
             .map { prefs -> mapPreferencesToDomain(prefs) }
+            .distinctUntilChanged()
     }
 
     suspend fun updateUserPreferences(

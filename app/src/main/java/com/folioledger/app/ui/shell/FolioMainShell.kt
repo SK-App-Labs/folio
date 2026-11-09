@@ -95,8 +95,7 @@ fun FolioMainShell(
 
     val ledgerUiState by ledgerViewModel.uiState.collectAsStateWithLifecycle()
     val accountsUiState by accountsViewModel.uiState.collectAsStateWithLifecycle()
-    val statsUiState by statsViewModel.uiState.collectAsStateWithLifecycle()
-    val settingsUiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
+    val userPreferences by settingsViewModel.userPreferences.collectAsStateWithLifecycle()
 
     var selectedTab by rememberSaveable { mutableStateOf(FolioMainTab.TRANSACTIONS) }
     var isEntrySheetOpen by rememberSaveable { mutableStateOf(false) }
@@ -221,12 +220,12 @@ fun FolioMainShell(
 
             Column(modifier = Modifier.fillMaxSize()) {
                 AnimatedVisibility(
-                    visible = settingsUiState.userPreferences.isDemoModeActive,
+                    visible = userPreferences.isDemoModeActive,
                     enter = expandVertically() + fadeIn(),
                     exit = shrinkVertically() + fadeOut()
                 ) {
                     DemoModeActiveTopBanner(
-                        hasStashedRealLedger = settingsUiState.userPreferences.hasStashedRealLedger,
+                        hasStashedRealLedger = userPreferences.hasStashedRealLedger,
                         onRestoreRealLedger = { settingsViewModel.exitDemoMode() },
                         onStartFreshLedger = { settingsViewModel.exitDemoMode() }
                     )
@@ -236,7 +235,7 @@ fun FolioMainShell(
                     modifier = Modifier
                         .weight(1f)
                         .then(
-                            if (settingsUiState.userPreferences.isDemoModeActive) {
+                            if (userPreferences.isDemoModeActive) {
                                 Modifier
                                     .consumeWindowInsets(WindowInsets.statusBars)
                                     .consumeWindowInsets(WindowInsets.systemBars.only(WindowInsetsSides.Top))
@@ -358,9 +357,9 @@ fun FolioMainShell(
         )
     }
 
-    if (!settingsUiState.userPreferences.hasSeenWelcomeSheet) {
+    if (!userPreferences.hasSeenWelcomeSheet) {
         WelcomeExpressBottomSheet(
-            initialCurrencyCode = settingsUiState.userPreferences.primaryCurrencyCode,
+            initialCurrencyCode = userPreferences.primaryCurrencyCode,
             onExploreWithDemo = { currency, grouping ->
                 settingsViewModel.enterDemoMode(currency, grouping)
             },

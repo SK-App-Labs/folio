@@ -61,14 +61,14 @@ class DemoModeManager(
                 }
             }
 
-            // 2. Wipe SQLite tables in reverse-topological order
-            wipeLedgerTables()
+            // 2. Wipe SQLite tables and seed demo dataset atomically in a single transaction
+            val demoCardMilestonesJson = database.withTransaction {
+                wipeLedgerTables()
+                DefaultCategorySeeder.seedIfEmpty(database.categoryAndTagDao())
+                DemoDataSeeder.seed(database, effectiveCurrency)
+            }
 
-            // 3. Seed default categories & demo dataset
-            DefaultCategorySeeder.seedIfEmpty(database.categoryAndTagDao())
-            val demoCardMilestonesJson = DemoDataSeeder.seed(database, effectiveCurrency)
-
-            // 4. Update preferences
+            // 3. Update preferences
             userPreferences.updateUserPreferences { prefs ->
                 prefs.copy(
                     primaryCurrencyCode = effectiveCurrency,
@@ -98,9 +98,11 @@ class DemoModeManager(
                     )
                 }.getOrThrow()
             } else {
-                // No stash available, start fresh with empty ledger and default categories
-                wipeLedgerTables()
-                DefaultCategorySeeder.seedIfEmpty(database.categoryAndTagDao())
+                // No stash available, start fresh with empty ledger and default categories in a single atomic transaction
+                database.withTransaction {
+                    wipeLedgerTables()
+                    DefaultCategorySeeder.seedIfEmpty(database.categoryAndTagDao())
+                }
                 if (stashFile.exists()) stashFile.delete()
                 userPreferences.updateUserPreferences { prefs ->
                     prefs.copy(
@@ -115,21 +117,19 @@ class DemoModeManager(
     }
 
     private suspend fun wipeLedgerTables() {
-        database.withTransaction {
-            val txDao = database.transactionDao()
-            val catTagDao = database.categoryAndTagDao()
-            val budgetRecurringDao = database.budgetAndRecurringDao()
-            val accountDao = database.accountDao()
+        val txDao = database.transactionDao()
+        val catTagDao = database.categoryAndTagDao()
+        val budgetRecurringDao = database.budgetAndRecurringDao()
+        val accountDao = database.accountDao()
 
-            txDao.deleteAllTagCrossRefs()
-            txDao.deleteAllSplits()
-            txDao.deleteAllTransactions()
-            txDao.deleteAllInstallmentPlans()
-            budgetRecurringDao.deleteAllRecurringRules()
-            budgetRecurringDao.deleteAllBudgets()
-            catTagDao.deleteAllBookmarks()
-            catTagDao.deleteAllTags()
-            accountDao.deleteAllAccounts()
-        }
+        txDao.deleteAllTagCrossRefs()
+        txDao.deleteAllSplits()
+        txDao.deleteAllTransactions()
+        txDao.deleteAllInstallmentPlans()
+        budgetRecurringDao.deleteAllRecurringRules()
+        budgetRecurringDao.deleteAllBudgets()
+        catTagDao.deleteAllBookmarks()
+        catTagDao.deleteAllTags()
+        accountDao.deleteAllAccounts()
     }
 }

@@ -1,4 +1,4 @@
-﻿// File: app/src/main/java/com/folioledger/app/ui/settings/SettingsViewModel.kt
+// File: app/src/main/java/com/folioledger/app/ui/settings/SettingsViewModel.kt
 package com.folioledger.app.ui.settings
 
 import androidx.compose.runtime.Immutable
@@ -91,6 +91,14 @@ class SettingsViewModel(
     ) { rules, plans ->
         rules to plans
     }
+
+    val userPreferences: StateFlow<UserPreferences> = settingsAndBackupRepository
+        .observeUserPreferences()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = UserPreferences()
+        )
 
     val uiState: StateFlow<SettingsUiState> = combine(
         settingsAndBackupRepository.observeUserPreferences(),
