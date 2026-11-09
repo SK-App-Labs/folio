@@ -548,9 +548,48 @@ class CsvExportImportEngineTest {
     }
 
     @Test
-    fun sideBySideTemplate_fullParsingSimulation() {
+    fun sideBySideTemplate_cleanWithoutDummyDataRows() {
         val template = generateSideBySideCsvTemplateContent()
         val lines = template.lines().filter { it.isNotBlank() }
+
+        // Must only have 3 rows: Banner, Column Headers, and Hint guide row. No dummy data!
+        assertEquals(3, lines.size)
+        assertEquals(CsvSectionState.SIDE_BY_SIDE, detectSectionHeader(lines[0]))
+        assertTrue(isSideBySideHeader(parseCsvLine(lines[1])))
+        assertTrue(lines[2].startsWith("#"))
+    }
+
+    @Test
+    fun isSideBySideHeader_doesNotMisclassifySingleTableCsvs() {
+        // Standard single-table CSV headers exported from other apps or bank statements
+        val singleTableTokens1 = listOf("Date", "Account Name", "Category", "Subcategory", "Amount")
+        org.junit.Assert.assertFalse(isSideBySideHeader(singleTableTokens1))
+
+        val singleTableTokens2 = listOf("Date", "Type", "Amount", "Currency", "Account", "Category", "Payee", "Note")
+        org.junit.Assert.assertFalse(isSideBySideHeader(singleTableTokens2))
+
+        val singleTableTokens3 = listOf("Date", "Account", "Transfer To Account", "Category", "Subcategory", "Amount")
+        org.junit.Assert.assertFalse(isSideBySideHeader(singleTableTokens3))
+
+        // Side-by-side header with account definition columns or duplicate category columns
+        val sideBySideTokens = listOf(
+            "Account Name", "Group", "Account Currency", "Starting Balance", "Anchor Date", "Credit Limit", "Settlement Day", "",
+            "Category", "Subcategory", "Category Type", "",
+            "Date", "Type", "Amount", "Currency", "Account", "Transfer To Account", "Category", "Subcategory", "Payee", "Note", "Tags"
+        )
+        assertTrue(isSideBySideHeader(sideBySideTokens))
+    }
+
+    @Test
+    fun sideBySideTemplate_fullParsingSimulation() {
+        val template = generateSideBySideCsvTemplateContent()
+        val userDataRows = listOf(
+            "Checking Account,BANK_ACCOUNT,USD,5000.00,2026-11-01,,,,Groceries,Supermarket,EXPENSE,,2026-11-01,EXPENSE,45.50,USD,Checking Account,,Groceries,Supermarket,Whole Foods,Weekly grocery haul,groceries; food",
+            "Credit Card,CREDIT_CARD,USD,0.00,2026-11-01,10000.00,15,,Salary,,INCOME,,2026-11-02,INCOME,3500.00,USD,Checking Account,,Salary,,Acme Corp,Monthly salary,career",
+            "Cash Wallet,CASH,USD,200.00,2026-11-01,,,,Dining,Restaurants,EXPENSE,,2026-11-03,TRANSFER,150.00,USD,Checking Account,Cash Wallet,,,,ATM cash withdrawal,cash",
+            ",,,,,,,,,,,,2026-11-04,EXPENSE,18.75,USD,Credit Card,,Dining,Restaurants,Starbucks,Afternoon coffee,coffee"
+        )
+        val lines = (template.lines().filter { it.isNotBlank() } + userDataRows)
 
         var currentSection = CsvSectionState.LEGACY
         var sideBySideColMap: SideBySideColMap? = null
@@ -602,16 +641,16 @@ class CsvExportImportEngineTest {
             }
         }
 
-        // 3 accounts in template
+        // 3 accounts parsed from user data
         assertEquals(listOf("Checking Account", "Credit Card", "Cash Wallet"), parsedAccounts)
 
-        // 3 categories in template
+        // 3 categories parsed from user data
         assertEquals(3, parsedCategories.size)
         assertEquals("Groceries" to "Supermarket", parsedCategories[0])
         assertEquals("Salary" to null, parsedCategories[1])
         assertEquals("Dining" to "Restaurants", parsedCategories[2])
 
-        // 4 transactions in template (including the 4th row where Account & Category columns are empty)
+        // 4 transactions parsed from user data (including the 4th row where Account & Category columns are empty)
         assertEquals(4, parsedTransactions.size)
         assertEquals("2026-11-01:45.50:Checking Account", parsedTransactions[0])
         assertEquals("2026-11-02:3500.00:Checking Account", parsedTransactions[1])

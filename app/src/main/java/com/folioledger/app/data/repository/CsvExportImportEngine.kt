@@ -361,6 +361,10 @@ class CsvExportImportEngine(
         val existingAccountNames = existingAccounts.map { it.name.trim().lowercase() }.toSet()
         val existingCategories = database.categoryAndTagDao().getAllCategoriesOnce()
         val existingCategoryNames = existingCategories.map { it.name.trim().lowercase() }.toSet()
+        val defaultCurrency = runCatching {
+            userPreferences.observeUserPreferences().first().primaryCurrencyCode
+        }.getOrNull()?.ifBlank { "INR" } ?: "INR"
+
         val existingTransactions = database.transactionDao().getAllTransactionsRawOnce()
         val accountMap = existingAccounts.associateBy { it.name.trim().lowercase() }
 
@@ -504,9 +508,16 @@ class CsvExportImportEngine(
 
                                 val isTransfer = type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT
                                 val catIdx = sbs.txCategoryIdx
+                                val subCatIdx = sbs.txSubcategoryIdx
                                 val categoryName = if (isTransfer) null else catIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
-                                if (categoryName != null && !existingCategoryNames.contains(categoryName.lowercase())) {
-                                    newCategories.add(categoryName)
+                                val subCategoryName = if (isTransfer) null else subCatIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
+                                if (categoryName != null) {
+                                    if (!existingCategoryNames.contains(categoryName.lowercase())) {
+                                        newCategories.add(categoryName)
+                                    }
+                                    if (subCategoryName != null) {
+                                        newCategories.add("$categoryName › $subCategoryName")
+                                    }
                                 }
 
                                 val payeeIdx = sbs.txPayeeIdx
@@ -698,6 +709,10 @@ class CsvExportImportEngine(
         val catTagDao = database.categoryAndTagDao()
         val txDao = database.transactionDao()
 
+        val defaultCurrency = runCatching {
+            userPreferences.observeUserPreferences().first().primaryCurrencyCode
+        }.getOrNull()?.ifBlank { "INR" } ?: "INR"
+
         val accountNameToEntity = accountDao.getAllAccountsOnce()
             .associateBy { it.name.trim().lowercase() }
             .toMutableMap()
@@ -820,7 +835,8 @@ class CsvExportImportEngine(
         }
 
         suspend fun getOrCreateTag(name: String): TagEntity {
-            val trimmedName = name.trim()
+            val trimmedName = name.trim().removePrefix("#").trim()
+            if (trimmedName.isEmpty()) return TagEntity(id = 0L, name = "General")
             val key = trimmedName.lowercase()
             tagNameToEntity[key]?.let { return it }
             val existing = catTagDao.getTagByNameOnce(trimmedName)
@@ -908,8 +924,8 @@ class CsvExportImportEngine(
                             val rawGroup = sbs.accGroupIdx?.let { tokens.getOrNull(it)?.trim() }
                             val group = parseAccountGroupFromTokens(rawGroup, accName)
 
-                            val currency = sbs.accCurrencyIdx?.let { tokens.getOrNull(it)?.trim() }?.ifBlank { "INR" }
-                                ?: "INR"
+                            val currency = sbs.accCurrencyIdx?.let { tokens.getOrNull(it)?.trim() }?.ifBlank { defaultCurrency }
+                                ?: defaultCurrency
                             val spec = SupportedCurrencies.fromCode(currency)
 
                             val rawBal = sbs.accStartingBalIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
@@ -990,7 +1006,7 @@ class CsvExportImportEngine(
 
                         if (rawDate.isNotEmpty() || rawAmount.isNotEmpty() || accountName.isNotEmpty()) {
                             val epochDay = parseDateStringToEpochDay(rawDate)
-                            val currency = sbs.txCurrencyIdx?.let { tokens.getOrNull(it)?.trim() }?.ifBlank { "INR" } ?: "INR"
+                            val currency = sbs.txCurrencyIdx?.let { tokens.getOrNull(it)?.trim() }?.ifBlank { defaultCurrency } ?: defaultCurrency
                             val spec = SupportedCurrencies.fromCode(currency)
                             val amountMinor = parseAmountDecimalToMinor(rawAmount, spec.fractionDigits)
 
@@ -1054,7 +1070,7 @@ class CsvExportImportEngine(
                                 val payee = sbs.txPayeeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
                                 val note = sbs.txNoteIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
                                 val tagsStr = sbs.txTagsIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
-                                val tagList = tagsStr.split(";", ",").map { it.trim() }.filter { it.isNotEmpty() }
+                                val tagList = tagsStr.split(";", ",").map { it.trim().removePrefix("#").trim() }.filter { it.isNotEmpty() }
 
                                 val absAmount = Math.abs(amountMinor)
                                 val fingerprint = "${epochDay}|${sourceAccount.id}|${type.name}|${absAmount}|${payee.lowercase()}"
@@ -1099,8 +1115,8 @@ class CsvExportImportEngine(
                                 ?: colMap["grouptype"]?.let { tokens.getOrNull(it)?.trim() }
                             val group = parseAccountGroupFromTokens(rawGroup, name)
 
-                            val currency = colMap["currency"]?.let { tokens.getOrNull(it)?.trim() }?.ifBlank { "INR" }
-                                ?: "INR"
+                            val currency = colMap["currency"]?.let { tokens.getOrNull(it)?.trim() }?.ifBlank { defaultCurrency }
+                                ?: defaultCurrency
                             val spec = SupportedCurrencies.fromCode(currency)
 
                             val rawBal = colMap["startingbalance"]?.let { tokens.getOrNull(it)?.trim() }
@@ -1213,7 +1229,7 @@ class CsvExportImportEngine(
                         val rawDate = tokens.getOrNull(dateIdx) ?: ""
                         val epochDay = parseDateStringToEpochDay(rawDate)
                         val currencyIdx = colMap["currency"]
-                        val currency = currencyIdx?.let { tokens.getOrNull(it)?.trim() }?.ifBlank { "INR" } ?: "INR"
+                        val currency = currencyIdx?.let { tokens.getOrNull(it)?.trim() }?.ifBlank { defaultCurrency } ?: defaultCurrency
                         val spec = SupportedCurrencies.fromCode(currency)
                         val rawAmount = tokens.getOrNull(amountIdx) ?: ""
                         val amountMinor = parseAmountDecimalToMinor(rawAmount, spec.fractionDigits)
@@ -1289,7 +1305,7 @@ class CsvExportImportEngine(
                         val note = noteIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
                         val tagsIdx = colMap["tags"]
                         val tagsStr = tagsIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
-                        val tagList = tagsStr.split(";", ",").map { it.trim() }.filter { it.isNotEmpty() }
+                        val tagList = tagsStr.split(";", ",").map { it.trim().removePrefix("#").trim() }.filter { it.isNotEmpty() }
 
                         val absAmount = Math.abs(amountMinor)
                         val fingerprint = "${epochDay}|${sourceAccount.id}|${type.name}|${absAmount}|${payee.lowercase()}"
@@ -1515,13 +1531,18 @@ internal data class SideBySideColMap(
 
 internal fun isSideBySideHeader(tokens: List<String>): Boolean {
     val normalized = tokens.map { it.trim().lowercase().replace("_", "").replace(" ", "") }
-    val hasDate = normalized.any { it == "date" || it == "txdate" || it == "transactiondate" }
+    val hasDate = normalized.any { it == "date" || it == "txdate" || it == "transactiondate" || it == "postingdate" }
     val hasAmount = normalized.any { it == "amount" || it == "txnamount" || it == "amountformatted" }
-    val hasAccountCol = normalized.any {
-        it == "startingbalance" || it == "openingbalance" || it == "creditlimit" || it == "settlementday" ||
-        (it == "accountname" && normalized.any { c -> c == "categorytype" || c == "subcategory" })
+
+    // Side-by-side spreadsheets contain account balance/limit definitions or category definitions alongside transactions
+    val hasAccountDefs = normalized.any {
+        it == "startingbalance" || it == "openingbalance" || it == "creditlimit" || it == "settlementday"
     }
-    return hasDate && hasAmount && hasAccountCol
+    val hasCategoryType = normalized.any { it == "categorytype" }
+    val hasDuplicateCategory = normalized.count { it == "category" || it == "maincategory" || it == "categoryname" } >= 2
+    val hasDuplicateAccount = normalized.count { it == "account" || it == "accountname" || it == "sourceaccount" } >= 2
+
+    return hasDate && hasAmount && (hasAccountDefs || hasCategoryType || (hasDuplicateCategory && hasDuplicateAccount))
 }
 
 internal fun parseSideBySideColMap(tokens: List<String>): SideBySideColMap {
@@ -1560,7 +1581,7 @@ internal fun parseSideBySideColMap(tokens: List<String>): SideBySideColMap {
         val isBeforeTx = dateIdx == null || idx < dateIdx
         if (isBeforeTx) {
             when {
-                col == "accountname" || (col == "name" && accName == null) -> accName = idx
+                col == "accountname" || col == "account" || (col == "name" && accName == null) -> accName = idx
                 col == "accountgroup" || col == "group" || col == "grouptype" -> accGroup = idx
                 col == "accountcurrency" || (col == "currency" && accCurrency == null) -> accCurrency = idx
                 col == "startingbalance" || col == "openingbalance" || col == "balance" -> accStartingBal = idx
@@ -1570,21 +1591,21 @@ internal fun parseSideBySideColMap(tokens: List<String>): SideBySideColMap {
 
                 col == "categorytype" || (col == "type" && catType == null) -> catType = idx
                 col == "subcategory" || col == "subname" || col == "sub" -> catSub = idx
-                col == "category" || col == "maincategory" || (col == "name" && accName != null) -> catMain = idx
+                col == "category" || col == "categoryname" || col == "maincategory" || (col == "name" && accName != null) -> catMain = idx
             }
         } else {
             when {
                 idx == dateIdx -> txDate = idx
                 col == "amount" || col == "txnamount" || col == "amountformatted" || col == "total" -> txAmount = idx
-                col == "transfertoaccount" || col == "transferto" || col == "destinationaccount" -> txTransferAccount = idx
-                col == "account" || col == "sourceaccount" || col == "fromaccount" || col == "bank" || col == "wallet" -> txAccount = idx
+                col == "transfertoaccount" || col == "transferto" || col == "toaccount" || col == "destinationaccount" -> txTransferAccount = idx
+                col == "account" || col == "accountname" || col == "sourceaccount" || col == "fromaccount" || col == "bank" || col == "wallet" -> txAccount = idx
                 col == "type" || col == "txtype" || col == "transactiontype" -> txType = idx
                 col == "currency" || col == "txcurrency" -> txCurrency = idx
                 col == "subcategory" || col == "subname" || col == "subcat" -> txSubcategory = idx
-                col == "category" || col == "maincategory" -> txCategory = idx
+                col == "category" || col == "categoryname" || col == "maincategory" -> txCategory = idx
                 col == "payee" || col == "payeeordescription" || col == "description" || col == "merchant" -> txPayee = idx
                 col == "note" || col == "notes" || col == "memo" -> txNote = idx
-                col == "tags" || col == "tag" -> txTags = idx
+                col == "tags" || col == "tag" || col == "label" || col == "labels" -> txTags = idx
             }
         }
     }
@@ -1622,11 +1643,7 @@ internal fun generateSideBySideCsvTemplateContent(): String {
     val sb = StringBuilder()
     sb.append("[ACCOUNTS],,,,,,,,[CATEGORIES],,,,[TRANSACTIONS],,,,,,,,,,\n")
     sb.append("Account Name,Group,Account Currency,Starting Balance,Anchor Date,Credit Limit,Settlement Day,,Category,Subcategory,Category Type,,Date,Type,Amount,Currency,Account,Transfer To Account,Category,Subcategory,Payee,Note,Tags\n")
-    sb.append("# e.g. Checking Account,# BANK_ACCOUNT | CREDIT_CARD | CASH | SAVINGS | LOAN,# ISO Code (USD/EUR/INR),# e.g. 5000.00,# YYYY-MM-DD,# e.g. 10000.00,# 1-31,,# Main Category Name,# Optional Subcategory,# EXPENSE | INCOME,,# YYYY-MM-DD,# EXPENSE | INCOME | TRANSFER,# e.g. 45.50,# ISO Code,# Source Account,# Destination if Transfer,# Category,# Subcategory,# Merchant / Payee,# Optional Note,# Semicolon-separated\n")
-    sb.append("Checking Account,BANK_ACCOUNT,USD,5000.00,2026-11-01,,,,Groceries,Supermarket,EXPENSE,,2026-11-01,EXPENSE,45.50,USD,Checking Account,,Groceries,Supermarket,Whole Foods,Weekly grocery haul,#groceries; #food\n")
-    sb.append("Credit Card,CREDIT_CARD,USD,0.00,2026-11-01,10000.00,15,,Salary,,INCOME,,2026-11-02,INCOME,3500.00,USD,Checking Account,,Salary,,Acme Corp,Monthly salary,#career\n")
-    sb.append("Cash Wallet,CASH,USD,200.00,2026-11-01,,,,Dining,Restaurants,EXPENSE,,2026-11-03,TRANSFER,150.00,USD,Checking Account,Cash Wallet,,,,ATM cash withdrawal,#cash\n")
-    sb.append(",,,,,,,,,,,,2026-11-04,EXPENSE,18.75,USD,Credit Card,,Dining,Restaurants,Starbucks,Afternoon coffee,#coffee\n")
+    sb.append("# e.g. Checking Account,# BANK_ACCOUNT | CREDIT_CARD | CASH | SAVINGS | LOAN,# ISO Code (USD/EUR/INR),# e.g. 5000.00,# YYYY-MM-DD,# e.g. 10000.00,# 1-31,,# Main Category Name,# Optional Subcategory,# EXPENSE | INCOME,,# YYYY-MM-DD,# EXPENSE | INCOME | TRANSFER,# e.g. 45.50,# ISO Code,# Source Account,# Destination if Transfer,# Category,# Subcategory,# Merchant / Payee,# Optional Note,# Semicolon-separated tags (e.g. groceries; food)\n")
     return sb.toString()
 }
 
