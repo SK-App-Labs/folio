@@ -1,4 +1,4 @@
-﻿package com.folioledger.app.ui.settings.components
+package com.folioledger.app.ui.settings.components
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -11,16 +11,16 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Feedback
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LocalCafe
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PictureAsPdf
@@ -54,14 +54,9 @@ import com.folioledger.app.ui.settings.sheets.formatBackupRelativeTime
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 
 @Composable
-fun TaxonomySettingsCard(
+fun GeneralAccountingSettingsCard(
     prefs: UserPreferences,
-    uiState: SettingsUiState,
     isNotBusy: Boolean,
-    onOpenCategories: () -> Unit,
-    onToggleSubcategories: (Boolean) -> Unit,
-    onOpenTagsAndBookmarks: () -> Unit,
-    onOpenRecurringManager: () -> Unit,
     onOpenRegionalFormat: () -> Unit,
     onOpenSecondaryCurrencies: () -> Unit,
     onOpenMonthStartDayDialog: () -> Unit,
@@ -71,53 +66,9 @@ fun TaxonomySettingsCard(
     val semanticColors = LocalFolioSemanticColors.current
 
     SettingsGroupCard(
-        title = stringResource(R.string.settings_group_taxonomy),
+        title = stringResource(R.string.settings_group_accounting),
         modifier = modifier
     ) {
-        SettingsNavigationRow(
-            icon = Icons.Default.Category,
-            title = stringResource(R.string.setting_categories),
-            valueText = "${uiState.expenseCategories.size + uiState.incomeCategories.size} active",
-            enabled = isNotBusy,
-            onClick = onOpenCategories
-        )
-        HorizontalDivider(
-            color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-        SettingsSwitchRow(
-            icon = Icons.Default.Category,
-            title = "Enable Subcategories",
-            checked = prefs.subcategoriesEnabled,
-            enabled = isNotBusy,
-            onCheckedChange = onToggleSubcategories
-        )
-        HorizontalDivider(
-            color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-        SettingsNavigationRow(
-            icon = Icons.AutoMirrored.Filled.Label,
-            title = stringResource(R.string.setting_tags_bookmarks),
-            valueText = "${uiState.tags.size} tags • ${uiState.bookmarks.size} saved",
-            enabled = isNotBusy,
-            onClick = onOpenTagsAndBookmarks
-        )
-        HorizontalDivider(
-            color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-        SettingsNavigationRow(
-            icon = Icons.Default.Autorenew,
-            title = "Recurring & Subscriptions",
-            valueText = "${uiState.activeRecurringCount} active • ${uiState.formattedMonthlyBurden}/mo",
-            enabled = isNotBusy,
-            onClick = onOpenRecurringManager
-        )
-        HorizontalDivider(
-            color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
         SettingsNavigationRow(
             icon = Icons.Default.Payments,
             title = stringResource(R.string.setting_currency_format),
@@ -169,14 +120,77 @@ fun TaxonomySettingsCard(
 }
 
 @Composable
-fun AppearanceSecuritySettingsCard(
+fun CategoriesCommitmentsSettingsCard(
+    prefs: UserPreferences,
+    uiState: SettingsUiState,
+    isNotBusy: Boolean,
+    onOpenCategories: () -> Unit,
+    onToggleSubcategories: (Boolean) -> Unit,
+    onOpenTagsAndBookmarks: () -> Unit,
+    onOpenRecurringManager: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+
+    SettingsGroupCard(
+        title = stringResource(R.string.settings_group_taxonomy),
+        modifier = modifier
+    ) {
+        SettingsNavigationRow(
+            icon = Icons.Default.Category,
+            title = stringResource(R.string.setting_categories),
+            valueText = "${uiState.expenseCategories.size + uiState.incomeCategories.size} active",
+            enabled = isNotBusy,
+            onClick = onOpenCategories
+        )
+        HorizontalDivider(
+            color = semanticColors.cardStrokeSubtle,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        SettingsSwitchRow(
+            icon = Icons.Default.Category,
+            title = "Enable Subcategories",
+            checked = prefs.subcategoriesEnabled,
+            enabled = isNotBusy,
+            onCheckedChange = onToggleSubcategories
+        )
+        HorizontalDivider(
+            color = semanticColors.cardStrokeSubtle,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        SettingsNavigationRow(
+            icon = Icons.AutoMirrored.Filled.Label,
+            title = stringResource(R.string.setting_tags_bookmarks),
+            valueText = "${uiState.tags.size} tags • ${uiState.bookmarks.size} saved",
+            enabled = isNotBusy,
+            onClick = onOpenTagsAndBookmarks
+        )
+        HorizontalDivider(
+            color = semanticColors.cardStrokeSubtle,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        SettingsNavigationRow(
+            icon = Icons.Default.Autorenew,
+            title = "Recurring & Subscriptions",
+            valueText = "${uiState.activeRecurringCount} active • ${uiState.formattedMonthlyBurden}/mo",
+            enabled = isNotBusy,
+            onClick = onOpenRecurringManager
+        )
+    }
+}
+
+@Composable
+fun AppearanceNotificationsSettingsCard(
     prefs: UserPreferences,
     isNotBusy: Boolean,
     currentLanguageDisplayName: String,
     onOpenAppearanceSheet: () -> Unit,
     onOpenIconPackSheet: () -> Unit,
     onOpenLanguageSheet: () -> Unit,
-    onToggleBiometricLock: (Boolean) -> Unit,
+    onToggleReminders: (Boolean) -> Unit,
+    onOpenCcLeadDaysDialog: () -> Unit,
+    onOpenBillLeadDaysDialog: () -> Unit,
+    onOpenReminderTimeDialog: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
@@ -222,33 +236,6 @@ fun AppearanceSecuritySettingsCard(
             color = semanticColors.cardStrokeSubtle,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
-        SettingsSwitchRow(
-            icon = Icons.Default.Fingerprint,
-            title = stringResource(R.string.setting_app_lock),
-            checked = prefs.biometricLockEnabled,
-            enabled = isNotBusy,
-            onCheckedChange = onToggleBiometricLock
-        )
-    }
-}
-
-@Composable
-fun RemindersSettingsCard(
-    prefs: UserPreferences,
-    isNotBusy: Boolean,
-    onToggleReminders: (Boolean) -> Unit,
-    onOpenCcLeadDaysDialog: () -> Unit,
-    onOpenBillLeadDaysDialog: () -> Unit,
-    onOpenReminderTimeDialog: () -> Unit,
-    onToggleHideAmounts: (Boolean) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val semanticColors = LocalFolioSemanticColors.current
-
-    SettingsGroupCard(
-        title = stringResource(R.string.settings_group_notifications),
-        modifier = modifier
-    ) {
         SettingsSwitchRow(
             icon = Icons.Default.Notifications,
             title = stringResource(R.string.setting_due_reminders),
@@ -307,19 +294,6 @@ fun RemindersSettingsCard(
                 enabled = isNotBusy,
                 onClick = onOpenReminderTimeDialog
             )
-
-            HorizontalDivider(
-                color = semanticColors.cardStrokeSubtle,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-
-            SettingsSwitchRow(
-                icon = Icons.Default.Lock,
-                title = stringResource(R.string.setting_mask_notification_amounts),
-                checked = prefs.hideAmountsOnLockScreen,
-                enabled = isNotBusy,
-                onCheckedChange = onToggleHideAmounts
-            )
         }
     }
 }
@@ -332,9 +306,11 @@ internal fun formatReminderTimeDisplay(hourOfDay: Int, minute: Int): String {
 }
 
 @Composable
-fun DataBackupsSettingsCard(
+fun SecurityDataSettingsCard(
     prefs: UserPreferences,
     isNotBusy: Boolean,
+    onToggleBiometricLock: (Boolean) -> Unit,
+    onToggleHideAmounts: (Boolean) -> Unit,
     onOpenAutoBackupSheet: () -> Unit,
     onOpenTransferBackupSheet: () -> Unit,
     onOpenPdfReportsSheet: () -> Unit,
@@ -348,6 +324,29 @@ fun DataBackupsSettingsCard(
         title = stringResource(R.string.settings_group_data),
         modifier = modifier
     ) {
+        SettingsSwitchRow(
+            icon = Icons.Default.Fingerprint,
+            title = stringResource(R.string.setting_app_lock),
+            checked = prefs.biometricLockEnabled,
+            enabled = isNotBusy,
+            onCheckedChange = onToggleBiometricLock
+        )
+        HorizontalDivider(
+            color = semanticColors.cardStrokeSubtle,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        SettingsSwitchRow(
+            icon = Icons.Default.Lock,
+            title = stringResource(R.string.setting_mask_notification_amounts),
+            checked = prefs.hideAmountsOnLockScreen,
+            enabled = isNotBusy,
+            onCheckedChange = onToggleHideAmounts
+        )
+        HorizontalDivider(
+            color = semanticColors.cardStrokeSubtle,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
         val autoBackupValue = if (prefs.isDemoModeActive) {
             "Paused (Demo Sandbox)"
         } else if (prefs.autoBackupEnabled) {

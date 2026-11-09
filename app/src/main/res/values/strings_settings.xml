@@ -2,10 +2,11 @@
 <!-- File: app/src/main/res/values/strings_settings.xml -->
 <resources>
     <!-- Settings Group Cards -->
-    <string name="settings_group_taxonomy">LEDGER &amp; TAXONOMY</string>
-    <string name="settings_group_appearance">APPEARANCE &amp; SECURITY</string>
+    <string name="settings_group_accounting">GENERAL &amp; ACCOUNTING</string>
+    <string name="settings_group_taxonomy">CATEGORIES &amp; COMMITMENTS</string>
+    <string name="settings_group_appearance">APPEARANCE &amp; NOTIFICATIONS</string>
     <string name="settings_group_notifications">NOTIFICATIONS &amp; REMINDERS</string>
-    <string name="settings_group_data">DATA &amp; BACKUPS</string>
+    <string name="settings_group_data">SECURITY &amp; DATA PRIVACY</string>
     <string name="settings_group_community">HELP &amp; COMMUNITY</string>
 
     <!-- Settings Navigation Rows -->

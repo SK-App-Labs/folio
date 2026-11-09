@@ -99,22 +99,21 @@ import com.folioledger.app.ui.components.parseHexColorSafely
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.material.icons.filled.Language
 import com.folioledger.app.ui.settings.sheets.AppLanguageBottomSheet
-import com.folioledger.app.ui.settings.components.AppearanceSecuritySettingsCard
-import com.folioledger.app.ui.settings.components.CommunityHelpSettingsCard
-import com.folioledger.app.ui.settings.components.DataBackupsSettingsCard
-import com.folioledger.app.ui.settings.components.SettingsFooter
 import android.Manifest
 import android.os.Build
 import com.folioledger.app.data.notification.DueRemindersScheduler
 import com.folioledger.app.data.notification.FolioNotificationManager
-import com.folioledger.app.ui.settings.components.RemindersSettingsCard
-import com.folioledger.app.ui.settings.components.SettingsGroupCard
+import com.folioledger.app.ui.settings.components.GeneralAccountingSettingsCard
+import com.folioledger.app.ui.settings.components.CategoriesCommitmentsSettingsCard
+import com.folioledger.app.ui.settings.components.AppearanceNotificationsSettingsCard
+import com.folioledger.app.ui.settings.components.SecurityDataSettingsCard
+import com.folioledger.app.ui.settings.components.CommunityHelpSettingsCard
+import com.folioledger.app.ui.settings.components.SettingsFooter
 import com.folioledger.app.ui.settings.dialogs.BillLeadDaysDialog
 import com.folioledger.app.ui.settings.dialogs.CcLeadDaysDialog
 import com.folioledger.app.ui.settings.dialogs.ReminderTimePickerDialog
 import com.folioledger.app.ui.settings.components.SettingsNavigationRow
 import com.folioledger.app.ui.settings.components.SettingsSwitchRow
-import com.folioledger.app.ui.settings.components.TaxonomySettingsCard
 import com.folioledger.app.ui.settings.components.openFolioDownloadsFolder
 import com.folioledger.app.ui.settings.components.shareBackupFile
 import com.folioledger.app.ui.settings.dialogs.ClearAllDataConfirmationDialog
@@ -296,14 +295,9 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 item {
-                    TaxonomySettingsCard(
+                    GeneralAccountingSettingsCard(
                         prefs = prefs,
-                        uiState = uiState,
                         isNotBusy = isNotBusy,
-                        onOpenCategories = { viewModel.setCategoryManagerOpen(true) },
-                        onToggleSubcategories = viewModel::setSubcategoriesEnabled,
-                        onOpenTagsAndBookmarks = { isTagsAndBookmarksSheetOpen = true },
-                        onOpenRecurringManager = { viewModel.setRecurringManagerOpen(true) },
                         onOpenRegionalFormat = { isRegionalFormatSheetOpen = true },
                         onOpenSecondaryCurrencies = { isSecondaryCurrenciesSheetOpen = true },
                         onOpenMonthStartDayDialog = { showMonthStartDayDialog = true },
@@ -312,21 +306,25 @@ fun SettingsScreen(
                 }
 
                 item {
-                    AppearanceSecuritySettingsCard(
+                    CategoriesCommitmentsSettingsCard(
+                        prefs = prefs,
+                        uiState = uiState,
+                        isNotBusy = isNotBusy,
+                        onOpenCategories = { viewModel.setCategoryManagerOpen(true) },
+                        onToggleSubcategories = viewModel::setSubcategoriesEnabled,
+                        onOpenTagsAndBookmarks = { isTagsAndBookmarksSheetOpen = true },
+                        onOpenRecurringManager = { viewModel.setRecurringManagerOpen(true) }
+                    )
+                }
+
+                item {
+                    AppearanceNotificationsSettingsCard(
                         prefs = prefs,
                         isNotBusy = isNotBusy,
                         currentLanguageDisplayName = currentLanguageDisplayName,
                         onOpenAppearanceSheet = { isAppearanceSheetOpen = true },
                         onOpenIconPackSheet = { isIconPackSheetOpen = true },
                         onOpenLanguageSheet = { isLanguageSheetOpen = true },
-                        onToggleBiometricLock = viewModel::setBiometricLockEnabled
-                    )
-                }
-
-                item {
-                    RemindersSettingsCard(
-                        prefs = prefs,
-                        isNotBusy = isNotBusy,
                         onToggleReminders = { enabled ->
                             if (enabled) {
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -348,15 +346,16 @@ fun SettingsScreen(
                         },
                         onOpenCcLeadDaysDialog = { showCcLeadDaysDialog = true },
                         onOpenBillLeadDaysDialog = { showBillLeadDaysDialog = true },
-                        onOpenReminderTimeDialog = { showReminderTimeDialog = true },
-                        onToggleHideAmounts = viewModel::setHideAmountsOnLockScreen
+                        onOpenReminderTimeDialog = { showReminderTimeDialog = true }
                     )
                 }
 
                 item {
-                    DataBackupsSettingsCard(
+                    SecurityDataSettingsCard(
                         prefs = prefs,
                         isNotBusy = isNotBusy,
+                        onToggleBiometricLock = viewModel::setBiometricLockEnabled,
+                        onToggleHideAmounts = viewModel::setHideAmountsOnLockScreen,
                         onOpenAutoBackupSheet = { isAutoBackupSheetOpen = true },
                         onOpenTransferBackupSheet = { isTransferBackupSheetOpen = true },
                         onOpenPdfReportsSheet = viewModel::openPdfReportsSheet,
