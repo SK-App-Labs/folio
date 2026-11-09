@@ -1,4 +1,4 @@
-﻿package com.folioledger.app.data.repository
+package com.folioledger.app.data.repository
 
 import android.content.Context
 import android.net.Uri
@@ -118,6 +118,9 @@ class SettingsAndBackupRepositoryImpl(
         endEpochDay: Long?,
         accountId: Long?
     ): Result<Int> = csvEngine.exportTransactionsToCsv(destinationUriString, startEpochDay, endEpochDay, accountId)
+
+    override suspend fun exportCsvTemplate(destinationUriString: String): Result<File?> =
+        csvEngine.exportCsvTemplate(destinationUriString)
 
     suspend fun exportTransactionsToCsvStream(
         outputStream: OutputStream,

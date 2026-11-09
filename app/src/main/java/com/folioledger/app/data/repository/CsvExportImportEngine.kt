@@ -115,6 +115,32 @@ class CsvExportImportEngine(
         }
     }
 
+    suspend fun exportCsvTemplate(
+        destinationUriString: String
+    ): Result<File?> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            StorageAccessUtils.openOutputStreamForLocation(context, destinationUriString).use { rawStream ->
+                exportCsvTemplateStream(rawStream)
+            }
+            val cleanFileName = destinationUriString
+                .substringAfterLast('/')
+                .substringAfterLast('\\')
+                .ifBlank { "Folio_Import_Template.csv" }
+            val internalDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioBackups")
+            val internalFile = File(internalDir, cleanFileName)
+            if (internalFile.exists()) internalFile else null
+        }
+    }
+
+    suspend fun exportCsvTemplateStream(
+        outputStream: OutputStream
+    ): Unit = withContext(Dispatchers.IO) {
+        outputStream.write(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()))
+        val writer = BufferedWriter(OutputStreamWriter(outputStream, StandardCharsets.UTF_8))
+        writer.write(generateSideBySideCsvTemplateContent())
+        writer.flush()
+    }
+
     suspend fun previewTransactionsCsv(
         sourceUriString: String
     ): Result<ImportCsvPreview> = withContext(Dispatchers.IO) {
@@ -344,15 +370,21 @@ class CsvExportImportEngine(
 
         var currentSection = CsvSectionState.LEGACY
         var colMap: Map<String, Int> = emptyMap()
+        var sideBySideColMap: SideBySideColMap? = null
 
         val detectedFirst = detectSectionHeader(firstLine)
         if (detectedFirst != null) {
             currentSection = detectedFirst
         } else {
             val headerTokens = parseCsvLine(firstLine)
-            colMap = headerTokens.mapIndexed { idx, name ->
-                name.trim().lowercase().replace("_", "").replace(" ", "") to idx
-            }.toMap()
+            if (isSideBySideHeader(headerTokens)) {
+                currentSection = CsvSectionState.SIDE_BY_SIDE
+                sideBySideColMap = parseSideBySideColMap(headerTokens)
+            } else {
+                colMap = headerTokens.mapIndexed { idx, name ->
+                    name.trim().lowercase().replace("_", "").replace(" ", "") to idx
+                }.toMap()
+            }
         }
 
         var totalRows = 0
@@ -374,6 +406,7 @@ class CsvExportImportEngine(
                 if (sec != null) {
                     currentSection = sec
                     colMap = emptyMap()
+                    sideBySideColMap = null
                     line = reader.readLine()
                     continue
                 }
@@ -383,11 +416,16 @@ class CsvExportImportEngine(
                     continue
                 }
 
-                if (colMap.isEmpty()) {
+                if (colMap.isEmpty() && sideBySideColMap == null) {
                     val tokens = parseCsvLine(trimmed)
-                    colMap = tokens.mapIndexed { idx, name ->
-                        name.trim().lowercase().replace("_", "").replace(" ", "") to idx
-                    }.toMap()
+                    if (currentSection == CsvSectionState.SIDE_BY_SIDE || isSideBySideHeader(tokens)) {
+                        currentSection = CsvSectionState.SIDE_BY_SIDE
+                        sideBySideColMap = parseSideBySideColMap(tokens)
+                    } else {
+                        colMap = tokens.mapIndexed { idx, name ->
+                            name.trim().lowercase().replace("_", "").replace(" ", "") to idx
+                        }.toMap()
+                    }
                     line = reader.readLine()
                     continue
                 }
@@ -396,6 +434,112 @@ class CsvExportImportEngine(
                 val tokens = parseCsvLine(trimmed)
 
                 when (currentSection) {
+                    CsvSectionState.SIDE_BY_SIDE -> {
+                        val sbs = sideBySideColMap ?: parseSideBySideColMap(tokens).also { sideBySideColMap = it }
+                        val accName = sbs.accNameIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                        if (accName.isNotEmpty()) {
+                            if (!existingAccountNames.contains(accName.lowercase())) {
+                                newAccounts.add(accName)
+                            }
+                            val balIdx = sbs.accStartingBalIdx
+                            val dateIdx = sbs.accAnchorDateIdx
+                            val rawBal = balIdx?.let { tokens.getOrNull(it)?.trim() }
+                            val rawDate = dateIdx?.let { tokens.getOrNull(it)?.trim() }
+                            if (!rawBal.isNullOrEmpty() && rawBal != "0" && rawBal != "0.00") {
+                                val anchorStr = if (!rawDate.isNullOrEmpty()) " as of $rawDate" else ""
+                                accountsWithOpeningBalance.add("$accName: Starting $rawBal$anchorStr")
+                            }
+                        }
+
+                        val mainName = sbs.catMainIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                        val subName = sbs.catSubIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
+                        if (mainName.isNotEmpty()) {
+                            if (!existingCategoryNames.contains(mainName.lowercase())) {
+                                newCategories.add(mainName)
+                            }
+                            if (subName != null) {
+                                newCategories.add("$mainName › $subName")
+                            }
+                        }
+
+                        val rawDate = sbs.txDateIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                        val rawAmount = sbs.txAmountIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                        val accountName = sbs.txAccountIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+
+                        if (rawDate.isNotEmpty() || rawAmount.isNotEmpty() || accountName.isNotEmpty()) {
+                            val epochDay = parseDateStringToEpochDay(rawDate)
+                            val amountMinor = parseAmountDecimalToMinor(rawAmount, 2)
+
+                            if (epochDay == null) {
+                                if (warnings.size < 5) warnings.add("Row $lineNum: Unrecognized date format '$rawDate'")
+                            } else if (amountMinor == null) {
+                                if (warnings.size < 5) warnings.add("Row $lineNum: Invalid amount '$rawAmount'")
+                            } else if (accountName.isEmpty()) {
+                                if (warnings.size < 5) warnings.add("Row $lineNum: Missing account name")
+                            } else {
+                                if (!existingAccountNames.contains(accountName.lowercase())) {
+                                    newAccounts.add(accountName)
+                                }
+
+                                val transferAccountIdx = sbs.txTransferAccountIdx
+                                val transferAccountName = transferAccountIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
+                                if (transferAccountName != null && !existingAccountNames.contains(transferAccountName.lowercase())) {
+                                    newAccounts.add(transferAccountName)
+                                }
+
+                                val typeIdx = sbs.txTypeIdx
+                                val rawType = typeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                                val type = when {
+                                    rawType.equals("TRANSFER", ignoreCase = true) -> TransactionType.TRANSFER
+                                    rawType.equals("CC_SETTLEMENT", ignoreCase = true) || rawType.contains("SETTLEMENT", ignoreCase = true) -> TransactionType.CC_SETTLEMENT
+                                    rawType.equals("EXPENSE", ignoreCase = true) -> TransactionType.EXPENSE
+                                    rawType.equals("INCOME", ignoreCase = true) -> TransactionType.INCOME
+                                    rawType.equals("REFUND", ignoreCase = true) -> TransactionType.REFUND
+                                    rawType.equals("OPENING_BALANCE", ignoreCase = true) -> TransactionType.OPENING_BALANCE
+                                    rawType.equals("RECONCILIATION", ignoreCase = true) -> TransactionType.RECONCILIATION
+                                    transferAccountName != null -> TransactionType.TRANSFER
+                                    amountMinor < 0L -> TransactionType.EXPENSE
+                                    else -> TransactionType.INCOME
+                                }
+
+                                val isTransfer = type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT
+                                val catIdx = sbs.txCategoryIdx
+                                val categoryName = if (isTransfer) null else catIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
+                                if (categoryName != null && !existingCategoryNames.contains(categoryName.lowercase())) {
+                                    newCategories.add(categoryName)
+                                }
+
+                                val payeeIdx = sbs.txPayeeIdx
+                                val payee = payeeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+
+                                val existingAcc = accountMap[accountName.lowercase()]
+                                val fingerprint = if (existingAcc != null) {
+                                    "${epochDay}|${existingAcc.id}|${type.name}|${Math.abs(amountMinor)}|${payee.lowercase()}"
+                                } else {
+                                    null
+                                }
+
+                                if (fingerprint != null && existingFingerprints.contains(fingerprint)) {
+                                    duplicateCount++
+                                    if (duplicateSamples.size < 20) {
+                                        duplicateSamples.add(
+                                            DuplicateTransactionSample(
+                                                date = rawDate.ifBlank { "Unknown Date" },
+                                                accountName = accountName.ifBlank { "Account" },
+                                                payee = payee.ifBlank { "(No payee)" },
+                                                amount = rawAmount.ifBlank { "0" }
+                                            )
+                                        )
+                                    }
+                                } else {
+                                    validCount++
+                                    if (fingerprint != null) {
+                                        existingFingerprints.add(fingerprint)
+                                    }
+                                }
+                            }
+                        }
+                    }
                     CsvSectionState.ACCOUNTS -> {
                         val nameIdx = colMap["name"] ?: colMap["account"] ?: colMap["accountname"] ?: 0
                         val name = tokens.getOrNull(nameIdx)?.trim() ?: ""
@@ -693,15 +837,21 @@ class CsvExportImportEngine(
 
         var currentSection = CsvSectionState.LEGACY
         var colMap: Map<String, Int> = emptyMap()
+        var sideBySideColMap: SideBySideColMap? = null
 
         val detectedFirst = detectSectionHeader(firstLine)
         if (detectedFirst != null) {
             currentSection = detectedFirst
         } else {
             val headerTokens = parseCsvLine(firstLine)
-            colMap = headerTokens.mapIndexed { idx, name ->
-                name.trim().lowercase().replace("_", "").replace(" ", "") to idx
-            }.toMap()
+            if (isSideBySideHeader(headerTokens)) {
+                currentSection = CsvSectionState.SIDE_BY_SIDE
+                sideBySideColMap = parseSideBySideColMap(headerTokens)
+            } else {
+                colMap = headerTokens.mapIndexed { idx, name ->
+                    name.trim().lowercase().replace("_", "").replace(" ", "") to idx
+                }.toMap()
+            }
         }
 
         var totalRows = 0
@@ -723,6 +873,7 @@ class CsvExportImportEngine(
                 if (sec != null) {
                     currentSection = sec
                     colMap = emptyMap()
+                    sideBySideColMap = null
                     line = reader.readLine()
                     continue
                 }
@@ -732,11 +883,16 @@ class CsvExportImportEngine(
                     continue
                 }
 
-                if (colMap.isEmpty()) {
+                if (colMap.isEmpty() && sideBySideColMap == null) {
                     val tokens = parseCsvLine(trimmed)
-                    colMap = tokens.mapIndexed { idx, name ->
-                        name.trim().lowercase().replace("_", "").replace(" ", "") to idx
-                    }.toMap()
+                    if (currentSection == CsvSectionState.SIDE_BY_SIDE || isSideBySideHeader(tokens)) {
+                        currentSection = CsvSectionState.SIDE_BY_SIDE
+                        sideBySideColMap = parseSideBySideColMap(tokens)
+                    } else {
+                        colMap = tokens.mapIndexed { idx, name ->
+                            name.trim().lowercase().replace("_", "").replace(" ", "") to idx
+                        }.toMap()
+                    }
                     line = reader.readLine()
                     continue
                 }
@@ -745,6 +901,196 @@ class CsvExportImportEngine(
                 val tokens = parseCsvLine(trimmed)
 
                 when (currentSection) {
+                    CsvSectionState.SIDE_BY_SIDE -> {
+                        val sbs = sideBySideColMap ?: parseSideBySideColMap(tokens).also { sideBySideColMap = it }
+                        val accName = sbs.accNameIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                        if (accName.isNotEmpty()) {
+                            val rawGroup = sbs.accGroupIdx?.let { tokens.getOrNull(it)?.trim() }
+                            val group = parseAccountGroupFromTokens(rawGroup, accName)
+
+                            val currency = sbs.accCurrencyIdx?.let { tokens.getOrNull(it)?.trim() }?.ifBlank { "INR" }
+                                ?: "INR"
+                            val spec = SupportedCurrencies.fromCode(currency)
+
+                            val rawBal = sbs.accStartingBalIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                            val balMinor = parseAmountDecimalToMinor(rawBal, spec.fractionDigits) ?: 0L
+
+                            val rawDate = sbs.accAnchorDateIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                            val anchorEpochDay = parseDateStringToEpochDay(rawDate) ?: LocalDate.now().toEpochDay()
+
+                            val rawLimit = sbs.accCreditLimitIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                            val limitMinor = parseAmountDecimalToMinor(rawLimit, spec.fractionDigits)
+
+                            val billDay = sbs.accSettlementDayIdx?.let { tokens.getOrNull(it)?.trim() }
+
+                            val isNew = !accountNameToEntity.containsKey(accName.lowercase())
+                            val acc = getOrCreateAccount(
+                                name = accName,
+                                currency = currency,
+                                groupOverride = group,
+                                limitMinor = limitMinor,
+                                billDay = billDay?.toIntOrNull(),
+                                anchorDateEpochDay = anchorEpochDay
+                            )
+                            if (isNew) {
+                                newAccountsCreated.add(accName)
+                            }
+
+                            if (balMinor != 0L) {
+                                if (acc.groupType == AccountGroup.CREDIT_CARD) {
+                                    val updatedAcc = acc.copy(openingBalanceMinor = Math.abs(balMinor))
+                                    accountDao.updateAccount(updatedAcc)
+                                    accountNameToEntity[accName.lowercase()] = updatedAcc
+                                    accountsConfiguredCount++
+                                } else {
+                                    val isOutflow = balMinor < 0L || acc.groupType.isLiabilityByDefault
+                                    val anchorKey = "${acc.id}|$anchorEpochDay"
+                                    val alreadyHasAnchor = anchorKey in existingAnchorKeys
+                                    if (!alreadyHasAnchor) {
+                                        existingAnchorKeys.add(anchorKey)
+                                        val anchorTx = TransactionEntity(
+                                            id = 0L,
+                                            type = TransactionType.OPENING_BALANCE,
+                                            timestampEpochMillis = anchorEpochDay * 86400000L + 12 * 3600 * 1000L,
+                                            ledgerDateEpochDay = anchorEpochDay,
+                                            amountMinor = Math.abs(balMinor),
+                                            currencyCode = currency,
+                                            accountId = acc.id,
+                                            transferToAccountId = if (isOutflow) acc.id else null,
+                                            payeeOrDescription = "Opening Balance",
+                                            note = "Initial starting balance"
+                                        )
+                                        txDao.insertNewTransactionRaw(anchorTx)
+                                        accountsConfiguredCount++
+                                    }
+                                }
+                            }
+                        }
+
+                        val mainName = sbs.catMainIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                        val subName = sbs.catSubIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
+                        if (mainName.isNotEmpty()) {
+                            val rawType = sbs.catTypeIdx?.let { tokens.getOrNull(it)?.trim() } ?: "EXPENSE"
+                            val catType = if (rawType.equals("INCOME", ignoreCase = true)) CategoryType.INCOME else CategoryType.EXPENSE
+                            val beforeMain = categoryNameToEntity.containsKey("${mainName.lowercase()}|${catType.name}")
+                            val createdCat = getOrCreateCategory(mainName, subName, catType, null, null)
+                            if (createdCat != null) {
+                                if (!beforeMain) {
+                                    newCategoriesCreated.add(mainName)
+                                }
+                                if (subName != null) {
+                                    newCategoriesCreated.add("$mainName › $subName")
+                                }
+                            }
+                        }
+
+                        val rawDate = sbs.txDateIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                        val rawAmount = sbs.txAmountIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                        val accountName = sbs.txAccountIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+
+                        if (rawDate.isNotEmpty() || rawAmount.isNotEmpty() || accountName.isNotEmpty()) {
+                            val epochDay = parseDateStringToEpochDay(rawDate)
+                            val currency = sbs.txCurrencyIdx?.let { tokens.getOrNull(it)?.trim() }?.ifBlank { "INR" } ?: "INR"
+                            val spec = SupportedCurrencies.fromCode(currency)
+                            val amountMinor = parseAmountDecimalToMinor(rawAmount, spec.fractionDigits)
+
+                            if (epochDay == null || amountMinor == null || accountName.isEmpty()) {
+                                val reasons = mutableListOf<String>()
+                                if (epochDay == null) reasons.add("Invalid date '$rawDate'")
+                                if (amountMinor == null) reasons.add("Invalid amount '$rawAmount'")
+                                if (accountName.isEmpty()) reasons.add("Missing account name")
+                                if (errorMessages.size < 10) {
+                                    errorMessages.add("Row $lineNum: ${reasons.joinToString(", ")}.")
+                                }
+                                skippedCount++
+                            } else {
+                                val isNewAcc = !accountNameToEntity.containsKey(accountName.lowercase())
+                                val sourceAccount = getOrCreateAccount(accountName, currency)
+                                if (isNewAcc) {
+                                    newAccountsCreated.add(accountName)
+                                }
+
+                                val transferAccountIdx = sbs.txTransferAccountIdx
+                                val transferAccountName = transferAccountIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
+                                val rawType = sbs.txTypeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                                val type = when {
+                                    rawType.equals("TRANSFER", ignoreCase = true) -> TransactionType.TRANSFER
+                                    rawType.equals("CC_SETTLEMENT", ignoreCase = true) || rawType.contains("SETTLEMENT", ignoreCase = true) -> TransactionType.CC_SETTLEMENT
+                                    rawType.equals("EXPENSE", ignoreCase = true) -> TransactionType.EXPENSE
+                                    rawType.equals("INCOME", ignoreCase = true) -> TransactionType.INCOME
+                                    rawType.equals("REFUND", ignoreCase = true) -> TransactionType.REFUND
+                                    rawType.equals("OPENING_BALANCE", ignoreCase = true) -> TransactionType.OPENING_BALANCE
+                                    rawType.equals("RECONCILIATION", ignoreCase = true) -> TransactionType.RECONCILIATION
+                                    transferAccountName != null -> TransactionType.TRANSFER
+                                    amountMinor < 0L -> TransactionType.EXPENSE
+                                    else -> TransactionType.INCOME
+                                }
+
+                                val transferAccount = if (transferAccountName != null && (type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT)) {
+                                    val isNewTransferAcc = !accountNameToEntity.containsKey(transferAccountName.lowercase())
+                                    val createdTransferAcc = getOrCreateAccount(transferAccountName, currency)
+                                    if (isNewTransferAcc) {
+                                        newAccountsCreated.add(transferAccountName)
+                                    }
+                                    createdTransferAcc
+                                } else {
+                                    null
+                                }
+
+                                val isTransfer = type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT
+                                val categoryEntity = if (isTransfer) {
+                                    null
+                                } else {
+                                    val categoryType = if (type == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE
+                                    val rawCat = sbs.txCategoryIdx?.let { tokens.getOrNull(it)?.trim() }
+                                    val rawSubcat = sbs.txSubcategoryIdx?.let { tokens.getOrNull(it)?.trim() }
+                                    val created = getOrCreateCategory(rawCat, rawSubcat, categoryType)
+                                    if (created != null && rawCat != null && !allCategories.any { it.name.equals(rawCat, ignoreCase = true) }) {
+                                        newCategoriesCreated.add(rawCat)
+                                    }
+                                    created
+                                }
+
+                                val payee = sbs.txPayeeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                                val note = sbs.txNoteIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                                val tagsStr = sbs.txTagsIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                                val tagList = tagsStr.split(";", ",").map { it.trim() }.filter { it.isNotEmpty() }
+
+                                val absAmount = Math.abs(amountMinor)
+                                val fingerprint = "${epochDay}|${sourceAccount.id}|${type.name}|${absAmount}|${payee.lowercase()}"
+
+                                if (skipDuplicates && existingFingerprints.contains(fingerprint)) {
+                                    skippedCount++
+                                } else {
+                                    val newTx = TransactionEntity(
+                                        id = 0L,
+                                        type = type,
+                                        timestampEpochMillis = epochDay * 86_400_000L + 12 * 3600 * 1000L,
+                                        ledgerDateEpochDay = epochDay,
+                                        amountMinor = absAmount,
+                                        currencyCode = currency,
+                                        accountId = sourceAccount.id,
+                                        transferToAccountId = transferAccount?.id,
+                                        transferFeeMinor = 0L,
+                                        categoryId = categoryEntity?.id,
+                                        isSplit = false,
+                                        payeeOrDescription = payee,
+                                        note = note
+                                    )
+                                    val insertedId = txDao.insertNewTransactionRaw(newTx)
+                                    if (tagList.isNotEmpty()) {
+                                        val refs = tagList.map { tagName ->
+                                            val tag = getOrCreateTag(tagName)
+                                            TransactionTagCrossRef(transactionId = insertedId, tagId = tag.id)
+                                        }
+                                        txDao.insertTagCrossRefs(refs)
+                                    }
+                                    existingFingerprints.add(fingerprint)
+                                    importedCount++
+                                }
+                            }
+                        }
+                    }
                     CsvSectionState.ACCOUNTS -> {
                         val nameIdx = colMap["name"] ?: colMap["account"] ?: colMap["accountname"] ?: 0
                         val name = tokens.getOrNull(nameIdx)?.trim() ?: ""
@@ -1081,26 +1427,56 @@ internal enum class CsvSectionState {
     LEGACY,
     ACCOUNTS,
     CATEGORIES,
-    TRANSACTIONS
+    TRANSACTIONS,
+    SIDE_BY_SIDE
 }
 
 internal fun detectSectionHeader(line: String): CsvSectionState? {
     val trimmed = line.trim().uppercase()
-    if (trimmed.startsWith("# HINT") ||
-        trimmed.startsWith("# FORMAT") ||
-        trimmed.startsWith("# EXAMPLE") ||
-        trimmed.startsWith("# NOTE") ||
-        trimmed.startsWith("//")
-    ) {
+    if (trimmed.isEmpty()) return null
+
+    if (trimmed.startsWith("#") || trimmed.startsWith("//")) {
+        // Any comment or hint with colons or commas is a comment/hint, not a Markdown section header
+        if (trimmed.contains(":") || trimmed.contains(",")) {
+            return null
+        }
+    }
+
+    // Side-by-side banner detection: contains multiple section markers across columns
+    val hasAccMarker = trimmed.contains("[ACCOUNT") || trimmed.contains("=== ACCOUNT") || trimmed.contains("## ACCOUNT")
+    val hasCatMarker = trimmed.contains("[CATEGOR") || trimmed.contains("=== CATEGOR") || trimmed.contains("## CATEGOR")
+    val hasTxMarker = trimmed.contains("[TRANSACTION") || trimmed.contains("=== TRANSACTION") || trimmed.contains("## TRANSACTION")
+    val markerCount = (if (hasAccMarker) 1 else 0) + (if (hasCatMarker) 1 else 0) + (if (hasTxMarker) 1 else 0)
+    if (markerCount >= 2) {
+        return CsvSectionState.SIDE_BY_SIDE
+    }
+
+    // Banner without brackets/equals, e.g. "ACCOUNTS,,,,,,,CATEGORIES,,,,TRANSACTIONS,,,,,,,,,"
+    if (!trimmed.contains("DATE") && !trimmed.contains("AMOUNT") && !trimmed.contains("BALANCE") && !trimmed.contains("CURRENCY")) {
+        val hasAccountsWord = trimmed.contains("ACCOUNT")
+        val hasCategoriesWord = trimmed.contains("CATEGOR")
+        val hasTransactionsWord = trimmed.contains("TRANSACTION")
+        val wordCount = (if (hasAccountsWord) 1 else 0) + (if (hasCategoriesWord) 1 else 0) + (if (hasTransactionsWord) 1 else 0)
+        if (wordCount >= 2 && trimmed.contains(",")) {
+            return CsvSectionState.SIDE_BY_SIDE
+        }
+    }
+
+    // Single section header detection
+    val tokens = parseCsvLine(trimmed)
+    val firstToken = tokens.firstOrNull()?.trim() ?: ""
+    val otherTokensNonEmpty = tokens.drop(1).any { it.isNotBlank() }
+
+    // If there are other non-empty columns (like in a header row or data row), it cannot be a single section header
+    if (otherTokensNonEmpty) {
         return null
     }
 
-    val clean = trimmed
+    val clean = firstToken
         .replace("=", "")
         .replace("[", "")
         .replace("]", "")
         .replace("#", "")
-        .replace(",", "")
         .trim()
 
     return when {
@@ -1109,6 +1485,149 @@ internal fun detectSectionHeader(line: String): CsvSectionState? {
         clean.startsWith("TRANSACTION") -> CsvSectionState.TRANSACTIONS
         else -> null
     }
+}
+
+internal data class SideBySideColMap(
+    val accNameIdx: Int? = null,
+    val accGroupIdx: Int? = null,
+    val accCurrencyIdx: Int? = null,
+    val accStartingBalIdx: Int? = null,
+    val accAnchorDateIdx: Int? = null,
+    val accCreditLimitIdx: Int? = null,
+    val accSettlementDayIdx: Int? = null,
+
+    val catMainIdx: Int? = null,
+    val catSubIdx: Int? = null,
+    val catTypeIdx: Int? = null,
+
+    val txDateIdx: Int? = null,
+    val txTypeIdx: Int? = null,
+    val txAmountIdx: Int? = null,
+    val txCurrencyIdx: Int? = null,
+    val txAccountIdx: Int? = null,
+    val txTransferAccountIdx: Int? = null,
+    val txCategoryIdx: Int? = null,
+    val txSubcategoryIdx: Int? = null,
+    val txPayeeIdx: Int? = null,
+    val txNoteIdx: Int? = null,
+    val txTagsIdx: Int? = null
+)
+
+internal fun isSideBySideHeader(tokens: List<String>): Boolean {
+    val normalized = tokens.map { it.trim().lowercase().replace("_", "").replace(" ", "") }
+    val hasDate = normalized.any { it == "date" || it == "txdate" || it == "transactiondate" }
+    val hasAmount = normalized.any { it == "amount" || it == "txnamount" || it == "amountformatted" }
+    val hasAccountCol = normalized.any {
+        it == "startingbalance" || it == "openingbalance" || it == "creditlimit" || it == "settlementday" ||
+        (it == "accountname" && normalized.any { c -> c == "categorytype" || c == "subcategory" })
+    }
+    return hasDate && hasAmount && hasAccountCol
+}
+
+internal fun parseSideBySideColMap(tokens: List<String>): SideBySideColMap {
+    val normalizedTokens = tokens.map { it.trim().lowercase().replace("_", "").replace(" ", "") }
+    val dateIdx = normalizedTokens.indexOfFirst { token ->
+        token == "date" || token == "txdate" || token == "transactiondate" || token == "postingdate"
+    }.takeIf { it >= 0 }
+
+    var accName: Int? = null
+    var accGroup: Int? = null
+    var accCurrency: Int? = null
+    var accStartingBal: Int? = null
+    var accAnchorDate: Int? = null
+    var accCreditLimit: Int? = null
+    var accSettlementDay: Int? = null
+
+    var catMain: Int? = null
+    var catSub: Int? = null
+    var catType: Int? = null
+
+    var txDate: Int? = dateIdx
+    var txType: Int? = null
+    var txAmount: Int? = null
+    var txCurrency: Int? = null
+    var txAccount: Int? = null
+    var txTransferAccount: Int? = null
+    var txCategory: Int? = null
+    var txSubcategory: Int? = null
+    var txPayee: Int? = null
+    var txNote: Int? = null
+    var txTags: Int? = null
+
+    normalizedTokens.forEachIndexed { idx, col ->
+        if (col.isBlank()) return@forEachIndexed
+
+        val isBeforeTx = dateIdx == null || idx < dateIdx
+        if (isBeforeTx) {
+            when {
+                col == "accountname" || (col == "name" && accName == null) -> accName = idx
+                col == "accountgroup" || col == "group" || col == "grouptype" -> accGroup = idx
+                col == "accountcurrency" || (col == "currency" && accCurrency == null) -> accCurrency = idx
+                col == "startingbalance" || col == "openingbalance" || col == "balance" -> accStartingBal = idx
+                col == "anchordate" || col == "openingdate" -> accAnchorDate = idx
+                col == "creditlimit" || col == "limit" -> accCreditLimit = idx
+                col == "settlementday" || col == "billday" || col == "statementday" -> accSettlementDay = idx
+
+                col == "categorytype" || (col == "type" && catType == null) -> catType = idx
+                col == "subcategory" || col == "subname" || col == "sub" -> catSub = idx
+                col == "category" || col == "maincategory" || (col == "name" && accName != null) -> catMain = idx
+            }
+        } else {
+            when {
+                idx == dateIdx -> txDate = idx
+                col == "amount" || col == "txnamount" || col == "amountformatted" || col == "total" -> txAmount = idx
+                col == "transfertoaccount" || col == "transferto" || col == "destinationaccount" -> txTransferAccount = idx
+                col == "account" || col == "sourceaccount" || col == "fromaccount" || col == "bank" || col == "wallet" -> txAccount = idx
+                col == "type" || col == "txtype" || col == "transactiontype" -> txType = idx
+                col == "currency" || col == "txcurrency" -> txCurrency = idx
+                col == "subcategory" || col == "subname" || col == "subcat" -> txSubcategory = idx
+                col == "category" || col == "maincategory" -> txCategory = idx
+                col == "payee" || col == "payeeordescription" || col == "description" || col == "merchant" -> txPayee = idx
+                col == "note" || col == "notes" || col == "memo" -> txNote = idx
+                col == "tags" || col == "tag" -> txTags = idx
+            }
+        }
+    }
+
+    if (accName == null && (accStartingBal != null || accCreditLimit != null)) {
+        accName = 0
+    }
+
+    return SideBySideColMap(
+        accNameIdx = accName,
+        accGroupIdx = accGroup,
+        accCurrencyIdx = accCurrency,
+        accStartingBalIdx = accStartingBal,
+        accAnchorDateIdx = accAnchorDate,
+        accCreditLimitIdx = accCreditLimit,
+        accSettlementDayIdx = accSettlementDay,
+        catMainIdx = catMain,
+        catSubIdx = catSub,
+        catTypeIdx = catType,
+        txDateIdx = txDate,
+        txTypeIdx = txType,
+        txAmountIdx = txAmount,
+        txCurrencyIdx = txCurrency,
+        txAccountIdx = txAccount,
+        txTransferAccountIdx = txTransferAccount,
+        txCategoryIdx = txCategory,
+        txSubcategoryIdx = txSubcategory,
+        txPayeeIdx = txPayee,
+        txNoteIdx = txNote,
+        txTagsIdx = txTags
+    )
+}
+
+internal fun generateSideBySideCsvTemplateContent(): String {
+    val sb = StringBuilder()
+    sb.append("[ACCOUNTS],,,,,,,,[CATEGORIES],,,,[TRANSACTIONS],,,,,,,,,,\n")
+    sb.append("Account Name,Group,Account Currency,Starting Balance,Anchor Date,Credit Limit,Settlement Day,,Category,Subcategory,Category Type,,Date,Type,Amount,Currency,Account,Transfer To Account,Category,Subcategory,Payee,Note,Tags\n")
+    sb.append("# e.g. Checking Account,# BANK_ACCOUNT | CREDIT_CARD | CASH | SAVINGS | LOAN,# ISO Code (USD/EUR/INR),# e.g. 5000.00,# YYYY-MM-DD,# e.g. 10000.00,# 1-31,,# Main Category Name,# Optional Subcategory,# EXPENSE | INCOME,,# YYYY-MM-DD,# EXPENSE | INCOME | TRANSFER,# e.g. 45.50,# ISO Code,# Source Account,# Destination if Transfer,# Category,# Subcategory,# Merchant / Payee,# Optional Note,# Semicolon-separated\n")
+    sb.append("Checking Account,BANK_ACCOUNT,USD,5000.00,2026-11-01,,,,Groceries,Supermarket,EXPENSE,,2026-11-01,EXPENSE,45.50,USD,Checking Account,,Groceries,Supermarket,Whole Foods,Weekly grocery haul,#groceries; #food\n")
+    sb.append("Credit Card,CREDIT_CARD,USD,0.00,2026-11-01,10000.00,15,,Salary,,INCOME,,2026-11-02,INCOME,3500.00,USD,Checking Account,,Salary,,Acme Corp,Monthly salary,#career\n")
+    sb.append("Cash Wallet,CASH,USD,200.00,2026-11-01,,,,Dining,Restaurants,EXPENSE,,2026-11-03,TRANSFER,150.00,USD,Checking Account,Cash Wallet,,,,ATM cash withdrawal,#cash\n")
+    sb.append(",,,,,,,,,,,,2026-11-04,EXPENSE,18.75,USD,Credit Card,,Dining,Restaurants,Starbucks,Afternoon coffee,#coffee\n")
+    return sb.toString()
 }
 
 internal fun parseAccountGroupFromTokens(rawGroup: String?, accountName: String): AccountGroup {

@@ -6,6 +6,10 @@ import com.folioledger.app.data.repository.parseAccountGroupFromTokens
 import com.folioledger.app.data.repository.parseAmountDecimalToMinor
 import com.folioledger.app.data.repository.parseCsvLine
 import com.folioledger.app.data.repository.parseDateStringToEpochDay
+import com.folioledger.app.data.repository.SideBySideColMap
+import com.folioledger.app.data.repository.generateSideBySideCsvTemplateContent
+import com.folioledger.app.data.repository.isSideBySideHeader
+import com.folioledger.app.data.repository.parseSideBySideColMap
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.SupportedCurrencies
@@ -373,6 +377,7 @@ class CsvExportImportEngineTest {
                     if (tokens.firstOrNull()?.contains("Date", ignoreCase = true) == true) continue
                     transactionsParsed.add(tokens[0])
                 }
+                else -> {}
             }
         }
 
@@ -470,6 +475,7 @@ class CsvExportImportEngineTest {
                             }
                         }
                     }
+                    else -> {}
                 }
             }
             line = reader.readLine()
@@ -500,5 +506,116 @@ class CsvExportImportEngineTest {
         assertEquals(AccountGroup.OVERDRAFT, parseAccountGroupFromTokens(null, "Personal Overdraft"))
         assertEquals(AccountGroup.DEBIT_CARD, parseAccountGroupFromTokens(null, "HDFC Debit"))
         assertEquals(AccountGroup.CASH, parseAccountGroupFromTokens(null, "Petty Cash"))
+    }
+    @Test
+    fun sideBySideTemplate_headerDetectionAndColMapping() {
+        val template = generateSideBySideCsvTemplateContent()
+        assertTrue(template.isNotEmpty())
+        val lines = template.lines()
+        val bannerLine = lines[0]
+        val headerLine = lines[1]
+
+        assertEquals(CsvSectionState.SIDE_BY_SIDE, detectSectionHeader(bannerLine))
+        assertEquals(CsvSectionState.SIDE_BY_SIDE, detectSectionHeader("=== ACCOUNTS ===,,,,=== CATEGORIES ===,,,,=== TRANSACTIONS ==="))
+
+        val headerTokens = parseCsvLine(headerLine)
+        assertTrue(isSideBySideHeader(headerTokens))
+
+        val colMap = parseSideBySideColMap(headerTokens)
+        assertEquals(0, colMap.accNameIdx)
+        assertEquals(1, colMap.accGroupIdx)
+        assertEquals(2, colMap.accCurrencyIdx)
+        assertEquals(3, colMap.accStartingBalIdx)
+        assertEquals(4, colMap.accAnchorDateIdx)
+        assertEquals(5, colMap.accCreditLimitIdx)
+        assertEquals(6, colMap.accSettlementDayIdx)
+
+        assertEquals(8, colMap.catMainIdx)
+        assertEquals(9, colMap.catSubIdx)
+        assertEquals(10, colMap.catTypeIdx)
+
+        assertEquals(12, colMap.txDateIdx)
+        assertEquals(13, colMap.txTypeIdx)
+        assertEquals(14, colMap.txAmountIdx)
+        assertEquals(15, colMap.txCurrencyIdx)
+        assertEquals(16, colMap.txAccountIdx)
+        assertEquals(17, colMap.txTransferAccountIdx)
+        assertEquals(18, colMap.txCategoryIdx)
+        assertEquals(19, colMap.txSubcategoryIdx)
+        assertEquals(20, colMap.txPayeeIdx)
+        assertEquals(21, colMap.txNoteIdx)
+        assertEquals(22, colMap.txTagsIdx)
+    }
+
+    @Test
+    fun sideBySideTemplate_fullParsingSimulation() {
+        val template = generateSideBySideCsvTemplateContent()
+        val lines = template.lines().filter { it.isNotBlank() }
+
+        var currentSection = CsvSectionState.LEGACY
+        var sideBySideColMap: SideBySideColMap? = null
+
+        val parsedAccounts = mutableListOf<String>()
+        val parsedCategories = mutableListOf<Pair<String, String?>>()
+        val parsedTransactions = mutableListOf<String>()
+
+        for (line in lines) {
+            val trimmed = line.trim()
+            if (trimmed.isEmpty() || trimmed.all { it == ',' || it.isWhitespace() }) continue
+
+            val detected = detectSectionHeader(trimmed)
+            if (detected != null) {
+                currentSection = detected
+                continue
+            }
+
+            if (trimmed.startsWith("#") || trimmed.startsWith("//")) continue
+
+            val tokens = parseCsvLine(trimmed)
+            if (sideBySideColMap == null) {
+                if (currentSection == CsvSectionState.SIDE_BY_SIDE || isSideBySideHeader(tokens)) {
+                    currentSection = CsvSectionState.SIDE_BY_SIDE
+                    sideBySideColMap = parseSideBySideColMap(tokens)
+                    continue
+                }
+            }
+
+            if (currentSection == CsvSectionState.SIDE_BY_SIDE && sideBySideColMap != null) {
+                val sbs = sideBySideColMap
+                val accName = sbs.accNameIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                if (accName.isNotEmpty()) {
+                    parsedAccounts.add(accName)
+                }
+
+                val catMain = sbs.catMainIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                if (catMain.isNotEmpty()) {
+                    val catSub = sbs.catSubIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
+                    parsedCategories.add(catMain to catSub)
+                }
+
+                val txDate = sbs.txDateIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                val txAmount = sbs.txAmountIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                if (txDate.isNotEmpty() && txAmount.isNotEmpty()) {
+                    val txAccount = sbs.txAccountIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                    parsedTransactions.add("$txDate:$txAmount:$txAccount")
+                }
+            }
+        }
+
+        // 3 accounts in template
+        assertEquals(listOf("Checking Account", "Credit Card", "Cash Wallet"), parsedAccounts)
+
+        // 3 categories in template
+        assertEquals(3, parsedCategories.size)
+        assertEquals("Groceries" to "Supermarket", parsedCategories[0])
+        assertEquals("Salary" to null, parsedCategories[1])
+        assertEquals("Dining" to "Restaurants", parsedCategories[2])
+
+        // 4 transactions in template (including the 4th row where Account & Category columns are empty)
+        assertEquals(4, parsedTransactions.size)
+        assertEquals("2026-11-01:45.50:Checking Account", parsedTransactions[0])
+        assertEquals("2026-11-02:3500.00:Checking Account", parsedTransactions[1])
+        assertEquals("2026-11-03:150.00:Checking Account", parsedTransactions[2])
+        assertEquals("2026-11-04:18.75:Credit Card", parsedTransactions[3])
     }
 }

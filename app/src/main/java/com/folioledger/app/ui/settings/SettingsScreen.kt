@@ -1,4 +1,4 @@
-﻿// File: app/src/main/java/com/folioledger/app/ui/settings/SettingsScreen.kt
+// File: app/src/main/java/com/folioledger/app/ui/settings/SettingsScreen.kt
 package com.folioledger.app.ui.settings
 
 import com.folioledger.app.BuildConfig
@@ -449,6 +449,9 @@ fun SettingsScreen(
             },
             onImportCsv = {
                 csvDocumentPicker.launch(arrayOf("text/csv", "text/comma-separated-values", "application/vnd.ms-excel", "*/*"))
+            },
+            onDownloadTemplate = {
+                viewModel.downloadCsvTemplate("Folio_Import_Template.csv")
             },
             onDismiss = { isSpreadsheetsSheetOpen = false }
         )

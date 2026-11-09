@@ -786,6 +786,40 @@ class SettingsViewModel(
         }
     }
 
+    fun downloadCsvTemplate(destinationFileName: String = "Folio_Import_Template.csv") {
+        viewModelScope.launch {
+            controlState.update {
+                it.copy(
+                    isBusyWithFileOperation = true,
+                    fileOperationStatusLabel = "Generating CSV import template..."
+                )
+            }
+            val result = settingsAndBackupRepository.exportCsvTemplate(destinationFileName)
+            result.fold(
+                onSuccess = { file ->
+                    controlState.update {
+                        it.copy(
+                            isBusyWithFileOperation = false,
+                            fileOperationStatusLabel = null,
+                            lastCompletedFileForShare = file,
+                            snackbarMessage = "Template saved to Downloads/Folio/$destinationFileName"
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    controlState.update {
+                        it.copy(
+                            isBusyWithFileOperation = false,
+                            fileOperationStatusLabel = null,
+                            lastCompletedFileForShare = null,
+                            snackbarMessage = error.message ?: "Failed to generate CSV template"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
     fun clearAllData() {
         viewModelScope.launch {
             controlState.update {

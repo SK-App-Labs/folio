@@ -20,6 +20,7 @@ import com.folioledger.app.domain.model.TransactionSearchFilter
 import com.folioledger.app.domain.model.ImportCsvPreview
 import com.folioledger.app.domain.model.ImportCsvResult
 import com.folioledger.app.domain.model.UserPreferences
+import java.io.File
 import kotlinx.coroutines.flow.Flow
 
 interface AccountRepository {
@@ -206,6 +207,8 @@ interface SettingsAndBackupRepository {
         endEpochDay: Long? = null,
         accountId: Long? = null
     ): Result<Int>
+
+    suspend fun exportCsvTemplate(destinationUriString: String): Result<File?>
 
     suspend fun previewTransactionsCsv(sourceUriString: String): Result<ImportCsvPreview>
 
