@@ -8,8 +8,8 @@
         android:shortcutShortLabel="@string/shortcut_add_expense_short"
         android:shortcutLongLabel="@string/shortcut_add_expense_long">
         <intent
-            android:action="android.intent.action.VIEW"
-            android:targetPackage="com.folioledger.app"
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.skal.folio"
             android:targetClass="com.folioledger.app.MainActivity">
             <extra
                 android:name="shortcut_action"
@@ -25,8 +25,8 @@
         android:shortcutShortLabel="@string/shortcut_add_income_short"
         android:shortcutLongLabel="@string/shortcut_add_income_long">
         <intent
-            android:action="android.intent.action.VIEW"
-            android:targetPackage="com.folioledger.app"
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.skal.folio"
             android:targetClass="com.folioledger.app.MainActivity">
             <extra
                 android:name="shortcut_action"
@@ -42,8 +42,8 @@
         android:shortcutShortLabel="@string/shortcut_transfer_short"
         android:shortcutLongLabel="@string/shortcut_transfer_long">
         <intent
-            android:action="android.intent.action.VIEW"
-            android:targetPackage="com.folioledger.app"
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.skal.folio"
             android:targetClass="com.folioledger.app.MainActivity">
             <extra
                 android:name="shortcut_action"

@@ -2,7 +2,7 @@
 
 ---
 
-## ✅ Completed Feature Milestones (v1.3.0 – v1.4.0)
+## ✅ Completed Feature Milestones (v1.3.0 – v1.5.0)
 
 - `[x]` **M10: Secondary Currencies, PDF Statements & Auto-Backup Engine**
   - `[x]` Multi-currency engine with manual exchange rates and dynamic net worth valuation.
@@ -16,6 +16,14 @@
   - `[x]` Phase 2: Merchant & Payee Intelligence (dual sort by Outlay vs Frequency, 6-month trends, cadence detection, drill-down sheet).
   - `[x]` Phase 3: Events, Trips & Reimbursements Hub in Tags (smart mode detection: reimbursable claim netting vs trip burn rate, 1-tap receipt drill-down).
   - `[x]` Phase 4: Safe-to-Spend & 14-Day Overdraft Shortfall Radar (unencumbered discretionary cash protecting card debt and recurring commitments, proactive shortfall warnings).
+
+- `[x]` **M12: Interactive Demo Mode, Auto-Stash Sandbox Architecture & Codebase Modularization**
+  - `[x]` Express Onboarding bottom sheet (`WelcomeExpressBottomSheet`) for currency, number grouping selection, and interactive demo seeding.
+  - `[x]` Headless `DemoModeManager` & `DemoDataSeeder` with atomic auto-stash to `noBackupFilesDir/demo_stash/pre_demo_real_ledger.zip` and reverse-topological table resets.
+  - `[x]` Comprehensive 26-Phase architectural decomposition of ViewModels, bottom sheets, dialogs, and domain calculators.
+  - `[x]` Zero-allocation canvas chart rendering for 60/120fps UI responsiveness.
+  - `[x]` 243 passing JVM unit tests covering persistence, demo mode, backup retention, PDF preset resolution, domain calculators, ViewModels, and predictive intelligence.
+
 
 ---
 
