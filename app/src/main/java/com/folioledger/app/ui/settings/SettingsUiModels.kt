@@ -32,6 +32,17 @@ data class CategoryEditorDialogState(
 )
 
 @Immutable
+data class FileExportSuccessUiModel(
+    val title: String,
+    val subtitle: String,
+    val fileName: String,
+    val fileSizeBytes: Long,
+    val file: File?,
+    val publicDisplayPath: String = "Downloads/Folio/$fileName",
+    val mimeType: String = if (fileName.endsWith(".zip", ignoreCase = true)) "application/zip" else "text/csv"
+)
+
+@Immutable
 data class SettingsUiState(
     val userPreferences: UserPreferences = UserPreferences(),
     val currencySpec: CurrencySpec = SupportedCurrencies.INR,
@@ -64,6 +75,7 @@ data class SettingsUiState(
     val fileOperationStatusLabel: String? = null,
     val snackbarMessage: String? = null,
     val lastCompletedFileForShare: File? = null,
+    val lastExportedFileSuccess: FileExportSuccessUiModel? = null,
     val autoBackupFiles: List<File> = emptyList()
 ) {
     val activeManagedCategories: List<CategoryNode>

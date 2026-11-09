@@ -157,6 +157,15 @@ class SettingsAndBackupRepositoryImpl(
     override fun getLatestBackupFile(): File? =
         autoBackupManager.getLatestBackupFile()
 
+    override fun getExportedFile(fileName: String): File? {
+        val cleanFileName = fileName
+            .substringAfterLast('/')
+            .substringAfterLast('\\')
+        val internalDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioBackups")
+        val file = File(internalDir, cleanFileName)
+        return if (file.exists()) file else null
+    }
+
     override suspend fun triggerSessionAutoBackupIfDirty(): Result<String?> =
         autoBackupManager.triggerSessionAutoBackupIfDirty()
 

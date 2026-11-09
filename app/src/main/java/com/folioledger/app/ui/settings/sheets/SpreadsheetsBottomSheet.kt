@@ -171,7 +171,7 @@ fun SpreadsheetsBottomSheet(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Side-by-side template with sample rows for Accounts, Categories & Transactions",
+                            text = "Side-by-side template with syntax guides for Accounts, Categories & Transactions",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

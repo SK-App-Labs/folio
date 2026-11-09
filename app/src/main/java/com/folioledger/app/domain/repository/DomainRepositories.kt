@@ -225,6 +225,8 @@ interface SettingsAndBackupRepository {
 
     fun getLatestBackupFile(): java.io.File?
 
+    fun getExportedFile(fileName: String): java.io.File?
+
     suspend fun triggerSessionAutoBackupIfDirty(): Result<String?>
 
     fun listAutoBackupFiles(): List<java.io.File>

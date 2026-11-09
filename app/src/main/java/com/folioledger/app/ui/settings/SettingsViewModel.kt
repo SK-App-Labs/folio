@@ -57,6 +57,7 @@ private data class SettingsInternalControlState(
     val fileOperationStatusLabel: String? = null,
     val snackbarMessage: String? = null,
     val lastCompletedFileForShare: File? = null,
+    val lastExportedFileSuccess: FileExportSuccessUiModel? = null,
     val autoBackupFiles: List<File> = emptyList()
 )
 
@@ -148,6 +149,7 @@ class SettingsViewModel(
             fileOperationStatusLabel = ctrl.fileOperationStatusLabel,
             snackbarMessage = ctrl.snackbarMessage,
             lastCompletedFileForShare = ctrl.lastCompletedFileForShare,
+            lastExportedFileSuccess = ctrl.lastExportedFileSuccess,
             autoBackupFiles = ctrl.autoBackupFiles
         )
     }.stateIn(
@@ -656,12 +658,24 @@ class SettingsViewModel(
             result.fold(
                 onSuccess = {
                     val latestFile = settingsAndBackupRepository.getLatestBackupFile()
+                    val cleanFileName = destinationUriString
+                        .substringAfterLast('/')
+                        .substringAfterLast('\\')
+                        .ifBlank { "Folio_Backup.zip" }
                     controlState.update {
                         it.copy(
                             isBusyWithFileOperation = false,
                             fileOperationStatusLabel = null,
                             lastCompletedFileForShare = latestFile,
-                            snackbarMessage = "Saved backup to Downloads/Folio/$destinationUriString"
+                            lastExportedFileSuccess = FileExportSuccessUiModel(
+                                title = "Backup Created!",
+                                subtitle = "Portable ZIP backup archive saved to your device",
+                                fileName = cleanFileName,
+                                fileSizeBytes = latestFile?.length() ?: 0L,
+                                file = latestFile,
+                                publicDisplayPath = "Downloads/Folio/$cleanFileName"
+                            ),
+                            snackbarMessage = "Saved backup to Downloads/Folio/$cleanFileName"
                         )
                     }
                     refreshAutoBackupFiles()
@@ -672,6 +686,7 @@ class SettingsViewModel(
                             isBusyWithFileOperation = false,
                             fileOperationStatusLabel = null,
                             lastCompletedFileForShare = null,
+                            lastExportedFileSuccess = null,
                             snackbarMessage = error.message ?: "Backup creation failed"
                         )
                     }
@@ -684,6 +699,10 @@ class SettingsViewModel(
 
     fun clearLastCompletedFileForShare() {
         controlState.update { it.copy(lastCompletedFileForShare = null) }
+    }
+
+    fun clearLastExportedFileSuccess() {
+        controlState.update { it.copy(lastExportedFileSuccess = null) }
     }
 
     fun requestRestoreConfirmation(sourceUriString: String) {
@@ -765,11 +784,25 @@ class SettingsViewModel(
             )
             result.fold(
                 onSuccess = { count ->
+                    val cleanFileName = destinationUriString
+                        .substringAfterLast('/')
+                        .substringAfterLast('\\')
+                        .ifBlank { "Folio_Ledger_Export.csv" }
+                    val exportedFile = settingsAndBackupRepository.getExportedFile(cleanFileName)
                     controlState.update {
                         it.copy(
                             isBusyWithFileOperation = false,
                             fileOperationStatusLabel = null,
-                            snackbarMessage = "Exported $count transactions to Downloads/Folio/$destinationUriString"
+                            lastCompletedFileForShare = exportedFile,
+                            lastExportedFileSuccess = FileExportSuccessUiModel(
+                                title = "Ledger Export Complete!",
+                                subtitle = "$count transactions exported to CSV",
+                                fileName = cleanFileName,
+                                fileSizeBytes = exportedFile?.length() ?: 0L,
+                                file = exportedFile,
+                                publicDisplayPath = "Downloads/Folio/$cleanFileName"
+                            ),
+                            snackbarMessage = "Exported $count transactions to Downloads/Folio/$cleanFileName"
                         )
                     }
                 },
@@ -778,6 +811,8 @@ class SettingsViewModel(
                         it.copy(
                             isBusyWithFileOperation = false,
                             fileOperationStatusLabel = null,
+                            lastCompletedFileForShare = null,
+                            lastExportedFileSuccess = null,
                             snackbarMessage = error.message ?: "CSV export failed"
                         )
                     }
@@ -797,12 +832,25 @@ class SettingsViewModel(
             val result = settingsAndBackupRepository.exportCsvTemplate(destinationFileName)
             result.fold(
                 onSuccess = { file ->
+                    val cleanFileName = destinationFileName
+                        .substringAfterLast('/')
+                        .substringAfterLast('\\')
+                        .ifBlank { "Folio_Import_Template.csv" }
+                    val exportedFile = file ?: settingsAndBackupRepository.getExportedFile(cleanFileName)
                     controlState.update {
                         it.copy(
                             isBusyWithFileOperation = false,
                             fileOperationStatusLabel = null,
-                            lastCompletedFileForShare = file,
-                            snackbarMessage = "Template saved to Downloads/Folio/$destinationFileName"
+                            lastCompletedFileForShare = exportedFile,
+                            lastExportedFileSuccess = FileExportSuccessUiModel(
+                                title = "Template Downloaded!",
+                                subtitle = "Side-by-side CSV template ready for entry",
+                                fileName = cleanFileName,
+                                fileSizeBytes = exportedFile?.length() ?: 0L,
+                                file = exportedFile,
+                                publicDisplayPath = "Downloads/Folio/$cleanFileName"
+                            ),
+                            snackbarMessage = "Template saved to Downloads/Folio/$cleanFileName"
                         )
                     }
                 },
@@ -812,6 +860,7 @@ class SettingsViewModel(
                             isBusyWithFileOperation = false,
                             fileOperationStatusLabel = null,
                             lastCompletedFileForShare = null,
+                            lastExportedFileSuccess = null,
                             snackbarMessage = error.message ?: "Failed to generate CSV template"
                         )
                     }

@@ -119,4 +119,48 @@ class BackupAndDataManagementTest {
         )
         assertTrue(account.isPinned)
     }
+
+    @Test
+    fun fileExportSuccessUiModel_zipMimeType_resolvedCorrectly() {
+        val model = com.folioledger.app.ui.settings.FileExportSuccessUiModel(
+            title = "Backup Created!",
+            subtitle = "Portable ZIP backup archive saved",
+            fileName = "Folio_Backup_2026-11-09.zip",
+            fileSizeBytes = 2048L,
+            file = null
+        )
+        assertEquals("application/zip", model.mimeType)
+        assertEquals("Downloads/Folio/Folio_Backup_2026-11-09.zip", model.publicDisplayPath)
+        assertEquals("Backup Created!", model.title)
+    }
+
+    @Test
+    fun fileExportSuccessUiModel_csvMimeType_resolvedCorrectly() {
+        val model = com.folioledger.app.ui.settings.FileExportSuccessUiModel(
+            title = "Template Downloaded!",
+            subtitle = "Side-by-side CSV template ready for entry",
+            fileName = "Folio_Import_Template.csv",
+            fileSizeBytes = 512L,
+            file = null
+        )
+        assertEquals("text/csv", model.mimeType)
+        assertEquals("Downloads/Folio/Folio_Import_Template.csv", model.publicDisplayPath)
+        assertEquals("Template Downloaded!", model.title)
+    }
+
+    @Test
+    fun settingsUiState_lastExportedFileSuccess_defaultNullAndPreserved() {
+        val defaultState = com.folioledger.app.ui.settings.SettingsUiState()
+        assertNull(defaultState.lastExportedFileSuccess)
+
+        val successModel = com.folioledger.app.ui.settings.FileExportSuccessUiModel(
+            title = "Ledger Export Complete!",
+            subtitle = "10 transactions exported to CSV",
+            fileName = "Folio_Ledger_Export.csv",
+            fileSizeBytes = 1024L,
+            file = null
+        )
+        val stateWithSuccess = defaultState.copy(lastExportedFileSuccess = successModel)
+        assertEquals(successModel, stateWithSuccess.lastExportedFileSuccess)
+    }
 }

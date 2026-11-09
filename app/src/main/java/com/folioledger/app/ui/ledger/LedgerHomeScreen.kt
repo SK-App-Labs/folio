@@ -97,7 +97,12 @@ fun LedgerHomeScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.padding(bottom = contentPadding.calculateBottomPadding())
+            )
+        },
         modifier = Modifier.fillMaxSize()
     ) { scaffoldPadding ->
         Box(

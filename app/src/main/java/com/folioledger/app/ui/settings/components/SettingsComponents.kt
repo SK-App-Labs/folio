@@ -1,7 +1,11 @@
 package com.folioledger.app.ui.settings.components
 
+import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.provider.DocumentsContract
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -195,6 +199,31 @@ fun shareBackupFile(context: Context, file: File) {
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(shareIntent, "Share Folio Backup"))
+        context.startActivity(Intent.createChooser(shareIntent, "Share Folio File"))
+    }.onFailure {
+        Toast.makeText(context, "Failed to share file: ${it.message}", Toast.LENGTH_SHORT).show()
+    }
+}
+
+/**
+ * Attempts to open the device's Downloads/Folio folder in the native Files app.
+ * Falls back to the universal Downloads manager or displays a confirmation toast.
+ */
+fun openFolioDownloadsFolder(context: Context) {
+    val folderUri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADownload%2FFolio")
+    val intent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(folderUri, DocumentsContract.Document.MIME_TYPE_DIR)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    val fallbackIntent = Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+
+    runCatching {
+        context.startActivity(intent)
+    }.recoverCatching {
+        context.startActivity(fallbackIntent)
+    }.onFailure {
+        Toast.makeText(context, "Saved to Downloads/Folio", Toast.LENGTH_SHORT).show()
     }
 }

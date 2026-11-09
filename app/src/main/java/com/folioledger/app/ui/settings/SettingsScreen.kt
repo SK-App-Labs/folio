@@ -107,8 +107,10 @@ import com.folioledger.app.ui.settings.components.SettingsGroupCard
 import com.folioledger.app.ui.settings.components.SettingsNavigationRow
 import com.folioledger.app.ui.settings.components.SettingsSwitchRow
 import com.folioledger.app.ui.settings.components.TaxonomySettingsCard
+import com.folioledger.app.ui.settings.components.openFolioDownloadsFolder
 import com.folioledger.app.ui.settings.components.shareBackupFile
 import com.folioledger.app.ui.settings.dialogs.ClearAllDataConfirmationDialog
+import com.folioledger.app.ui.settings.dialogs.FileExportSuccessDialog
 import com.folioledger.app.ui.settings.dialogs.ImportCsvPreviewDialog
 import com.folioledger.app.ui.settings.dialogs.ImportCsvResultDialog
 import com.folioledger.app.ui.settings.dialogs.MonthStartDayPickerDialog
@@ -214,7 +216,12 @@ fun SettingsScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.padding(bottom = contentPadding.calculateBottomPadding())
+            )
+        },
         modifier = Modifier.fillMaxSize()
     ) { scaffoldPadding ->
         Column(
@@ -485,6 +492,21 @@ fun SettingsScreen(
         ImportCsvResultDialog(
             result = result,
             onDismiss = viewModel::dismissCsvImportResult
+        )
+    }
+
+    uiState.lastExportedFileSuccess?.let { exportSuccess ->
+        FileExportSuccessDialog(
+            model = exportSuccess,
+            onShowInFiles = { openFolioDownloadsFolder(context) },
+            onShare = {
+                exportSuccess.file?.let { file ->
+                    shareBackupFile(context, file)
+                } ?: run {
+                    openFolioDownloadsFolder(context)
+                }
+            },
+            onDismiss = viewModel::clearLastExportedFileSuccess
         )
     }
 
