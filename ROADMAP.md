@@ -26,6 +26,17 @@
   - `[x]` **Active Commitments Management Hub**: Provided dedicated `RecurringManagerBottomSheet.kt` in Settings to inspect, pause, resume, edit, and delete recurring commitments.
   - `[ ]` **Auto-Balancing 1-Tap Loan Transfer Split**: When transferring from Bank to `AccountGroup.LOAN`, auto-calculate Principal paydown ($P = E - I$) from entered Interest ($I$), recording both Transfer and Expense atomically (manual split available via `[✂ Split]`).
 
+- **Phase 5: Two-Tier Category Emoji & Custom Icon Resolver**
+  - `[ ]` **Tier 1 — Reverse Emoji to Icon Pack Vector Mapping**:
+    - When a user types or pastes an emoji (e.g., 🍔, ☕, 🚗, ✈️, 🎮) in the Category Editor dialog, perform reverse lookup to the matching semantic key (`fastfood`, `local_cafe`, `directions_car`, etc.).
+    - Renders the corresponding vector icon in whatever active icon pack is selected (Material Filled, Phosphor Rounded, Lucide Outline).
+  - `[ ]` **Tier 2 — Direct Unicode Emoji Fallback ("Infinite Icons")**:
+    - If the emoji has no direct vector equivalent (e.g., 🦄, 🛹, 🎸, 🪴, 🍣), store the emoji directly as the category's `iconName`.
+    - Renders the full-color Unicode emoji inside the category's tinted badge container using existing `CategoryIconBadge.kt` direct emoji rendering.
+  - `[ ]` **Category Editor UI Enhancement**:
+    - Add an "Or Enter Any Emoji" input field / quick-picker in `CategoryEditorDialog.kt` alongside the 64-icon grid.
+    - Provide real-time badge preview in dialog header showing the matched vector or custom emoji before saving.
+
 ---
 
 ## 🚀 Phase 2: Google Play Billing Setup (Post-Launch v1.6.0)
