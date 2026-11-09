@@ -498,13 +498,15 @@ fun SettingsScreen(
     uiState.lastExportedFileSuccess?.let { exportSuccess ->
         FileExportSuccessDialog(
             model = exportSuccess,
-            onShowInFiles = { openFolioDownloadsFolder(context) },
+            onShowInFiles = {
+                openFolioDownloadsFolder(context)
+                viewModel.clearLastExportedFileSuccess()
+            },
             onShare = {
                 exportSuccess.file?.let { file ->
                     shareBackupFile(context, file)
-                } ?: run {
-                    openFolioDownloadsFolder(context)
-                }
+                    viewModel.clearLastExportedFileSuccess()
+                } ?: Toast.makeText(context, "File sharing not available for this export", Toast.LENGTH_SHORT).show()
             },
             onDismiss = viewModel::clearLastExportedFileSuccess
         )

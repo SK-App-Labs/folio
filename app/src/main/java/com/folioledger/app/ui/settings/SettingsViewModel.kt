@@ -666,7 +666,7 @@ class SettingsViewModel(
                         it.copy(
                             isBusyWithFileOperation = false,
                             fileOperationStatusLabel = null,
-                            lastCompletedFileForShare = latestFile,
+                            lastCompletedFileForShare = null,
                             lastExportedFileSuccess = FileExportSuccessUiModel(
                                 title = "Backup Created!",
                                 subtitle = "Portable ZIP backup archive saved to your device",
@@ -675,7 +675,7 @@ class SettingsViewModel(
                                 file = latestFile,
                                 publicDisplayPath = "Downloads/Folio/$cleanFileName"
                             ),
-                            snackbarMessage = "Saved backup to Downloads/Folio/$cleanFileName"
+                            snackbarMessage = null
                         )
                     }
                     refreshAutoBackupFiles()
@@ -793,7 +793,7 @@ class SettingsViewModel(
                         it.copy(
                             isBusyWithFileOperation = false,
                             fileOperationStatusLabel = null,
-                            lastCompletedFileForShare = exportedFile,
+                            lastCompletedFileForShare = null,
                             lastExportedFileSuccess = FileExportSuccessUiModel(
                                 title = "Ledger Export Complete!",
                                 subtitle = "$count transactions exported to CSV",
@@ -802,7 +802,7 @@ class SettingsViewModel(
                                 file = exportedFile,
                                 publicDisplayPath = "Downloads/Folio/$cleanFileName"
                             ),
-                            snackbarMessage = "Exported $count transactions to Downloads/Folio/$cleanFileName"
+                            snackbarMessage = null
                         )
                     }
                 },
@@ -841,7 +841,7 @@ class SettingsViewModel(
                         it.copy(
                             isBusyWithFileOperation = false,
                             fileOperationStatusLabel = null,
-                            lastCompletedFileForShare = exportedFile,
+                            lastCompletedFileForShare = null,
                             lastExportedFileSuccess = FileExportSuccessUiModel(
                                 title = "Template Downloaded!",
                                 subtitle = "Side-by-side CSV template ready for entry",
@@ -850,7 +850,7 @@ class SettingsViewModel(
                                 file = exportedFile,
                                 publicDisplayPath = "Downloads/Folio/$cleanFileName"
                             ),
-                            snackbarMessage = "Template saved to Downloads/Folio/$cleanFileName"
+                            snackbarMessage = null
                         )
                     }
                 },

@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -31,6 +32,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -41,6 +43,9 @@ import androidx.compose.ui.unit.sp
 import com.folioledger.app.ui.settings.FileExportSuccessUiModel
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun FileExportSuccessDialog(
@@ -51,20 +56,27 @@ fun FileExportSuccessDialog(
 ) {
     val context = LocalContext.current
     val semanticColors = LocalFolioSemanticColors.current
+    val coroutineScope = rememberCoroutineScope()
 
     val saveAsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument(model.mimeType)
     ) { destinationUri ->
         if (destinationUri != null && model.file != null) {
-            runCatching {
-                context.contentResolver.openOutputStream(destinationUri)?.use { out ->
-                    model.file.inputStream().use { input ->
-                        input.copyTo(out)
+            coroutineScope.launch(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.openOutputStream(destinationUri)?.use { out ->
+                        model.file.inputStream().use { input ->
+                            input.copyTo(out)
+                        }
+                    }
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Saved copy to selected location", Toast.LENGTH_SHORT).show()
+                    }
+                }.onFailure { err ->
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Failed to save: ${err.message}", Toast.LENGTH_LONG).show()
                     }
                 }
-                Toast.makeText(context, "Saved copy to selected location", Toast.LENGTH_SHORT).show()
-            }.onFailure {
-                Toast.makeText(context, "Failed to save: ${it.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -170,21 +182,33 @@ fun FileExportSuccessDialog(
                     Button(
                         onClick = onShowInFiles,
                         shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.weight(1.1f)
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                        modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Show in Files", fontSize = 13.sp, maxLines = 1)
+                        Text(
+                            text = "Open Folder",
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
 
                     FilledTonalButton(
                         onClick = onShare,
                         shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.weight(0.9f)
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                        modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Share", fontSize = 13.sp, maxLines = 1)
+                        Text(
+                            text = "Share",
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
 
