@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -62,7 +61,6 @@ fun GeneralAccountingSettingsCard(
     onOpenSecondaryCurrencies: () -> Unit,
     onOpenMonthStartDayDialog: () -> Unit,
     onToggleCarryOver: (Boolean) -> Unit,
-    onToggleSmartClipboard: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
@@ -117,18 +115,6 @@ fun GeneralAccountingSettingsCard(
             checked = prefs.carryOverEnabled,
             enabled = isNotBusy,
             onCheckedChange = onToggleCarryOver
-        )
-        HorizontalDivider(
-            color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-        SettingsSwitchRow(
-            icon = Icons.AutoMirrored.Filled.ReceiptLong,
-            title = "Smart Clipboard Suggestions",
-            subtitle = "Suggest pre-filling transaction details when clipboard contains bank SMS or receipts. 100% on-device.",
-            checked = prefs.smartClipboardEnabled,
-            enabled = isNotBusy,
-            onCheckedChange = onToggleSmartClipboard
         )
     }
 }

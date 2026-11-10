@@ -301,8 +301,7 @@ fun SettingsScreen(
                         onOpenRegionalFormat = { isRegionalFormatSheetOpen = true },
                         onOpenSecondaryCurrencies = { isSecondaryCurrenciesSheetOpen = true },
                         onOpenMonthStartDayDialog = { showMonthStartDayDialog = true },
-                        onToggleCarryOver = viewModel::setCarryOverEnabled,
-                        onToggleSmartClipboard = viewModel::setSmartClipboardEnabled
+                        onToggleCarryOver = viewModel::setCarryOverEnabled
                     )
                 }
 

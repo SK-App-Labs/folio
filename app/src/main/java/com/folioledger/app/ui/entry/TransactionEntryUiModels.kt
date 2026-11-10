@@ -11,7 +11,6 @@ import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.TransactionType
-import com.folioledger.app.domain.parser.ResolvedTransactionFormValues
 import java.time.LocalDate
 
 @Immutable
@@ -85,9 +84,7 @@ data class TransactionEntryUiState(
     val isKeypadVisible: Boolean = true,
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
-    val savedSuccessfullyCounter: Int = 0,
-    val smartClipboardEnabled: Boolean = true,
-    val pendingClipboardTransaction: ResolvedTransactionFormValues? = null
+    val savedSuccessfullyCounter: Int = 0
 ) {
     val activeCategoryTree: List<CategoryNode>
         get() = when (mode) {

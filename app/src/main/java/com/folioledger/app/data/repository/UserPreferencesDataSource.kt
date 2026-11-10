@@ -128,7 +128,6 @@ class UserPreferencesDataSource(private val context: Context) {
         val REMINDER_HOUR_OF_DAY = intPreferencesKey("reminder_hour_of_day")
         val REMINDER_MINUTE = intPreferencesKey("reminder_minute")
         val HIDE_AMOUNTS_ON_LOCK_SCREEN = booleanPreferencesKey("hide_amounts_on_lock_screen")
-        val SMART_CLIPBOARD_ENABLED = booleanPreferencesKey("smart_clipboard_enabled")
     }
 
     fun observeUserPreferences(): Flow<UserPreferences> {
@@ -191,7 +190,6 @@ class UserPreferencesDataSource(private val context: Context) {
             mutablePrefs[PreferenceKeys.REMINDER_HOUR_OF_DAY] = updated.reminderHourOfDay.coerceIn(0, 23)
             mutablePrefs[PreferenceKeys.REMINDER_MINUTE] = updated.reminderMinute.coerceIn(0, 59)
             mutablePrefs[PreferenceKeys.HIDE_AMOUNTS_ON_LOCK_SCREEN] = updated.hideAmountsOnLockScreen
-            mutablePrefs[PreferenceKeys.SMART_CLIPBOARD_ENABLED] = updated.smartClipboardEnabled
         }
         Unit
         }
@@ -237,8 +235,7 @@ class UserPreferencesDataSource(private val context: Context) {
             billReminderLeadDays = prefs[PreferenceKeys.BILL_REMINDER_LEAD_DAYS] ?: 1,
             reminderHourOfDay = prefs[PreferenceKeys.REMINDER_HOUR_OF_DAY] ?: 9,
             reminderMinute = prefs[PreferenceKeys.REMINDER_MINUTE] ?: 0,
-            hideAmountsOnLockScreen = prefs[PreferenceKeys.HIDE_AMOUNTS_ON_LOCK_SCREEN] ?: false,
-            smartClipboardEnabled = prefs[PreferenceKeys.SMART_CLIPBOARD_ENABLED] ?: true
+            hideAmountsOnLockScreen = prefs[PreferenceKeys.HIDE_AMOUNTS_ON_LOCK_SCREEN] ?: false
         )
     }
 

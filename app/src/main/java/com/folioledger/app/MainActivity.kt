@@ -67,7 +67,6 @@ class MainLockViewModel : ViewModel() {
     val isSessionUnlocked = mutableStateOf(false)
     val pendingShortcutAction = mutableStateOf<TransactionType?>(null)
     val pendingNotificationAction = mutableStateOf<FolioNotificationAction?>(null)
-    val pendingSharedText = mutableStateOf<String?>(null)
 }
 
 class MainActivity : FragmentActivity() {
@@ -84,7 +83,6 @@ class MainActivity : FragmentActivity() {
             lockViewModel.isSessionUnlocked.value = false
             lockViewModel.pendingShortcutAction.value = null
             lockViewModel.pendingNotificationAction.value = null
-            lockViewModel.pendingSharedText.value = null
             val app = application as FolioApplication
             app.applicationScope.launch(Dispatchers.IO) {
                 app.container.settingsAndBackupRepository.triggerSessionAutoBackupIfDirty()
@@ -100,9 +98,6 @@ class MainActivity : FragmentActivity() {
         }
         extractNotificationAction(intent)?.let { action ->
             lockViewModel.pendingNotificationAction.value = action
-        }
-        extractSharedText(intent)?.let { sharedText ->
-            lockViewModel.pendingSharedText.value = sharedText
         }
     }
 
@@ -120,14 +115,6 @@ class MainActivity : FragmentActivity() {
             }
             else -> null
         }
-    }
-
-    private fun extractSharedText(intent: Intent?): String? {
-        if (intent == null) return null
-        if (intent.action == Intent.ACTION_SEND && intent.type == "text/plain") {
-            return intent.getStringExtra(Intent.EXTRA_TEXT)
-        }
-        return null
     }
 
     private fun extractShortcutAction(intent: Intent?): TransactionType? {
@@ -151,9 +138,6 @@ class MainActivity : FragmentActivity() {
         }
         extractNotificationAction(intent)?.let { action ->
             lockViewModel.pendingNotificationAction.value = action
-        }
-        extractSharedText(intent)?.let { sharedText ->
-            lockViewModel.pendingSharedText.value = sharedText
         }
 
         val appContainer = (application as FolioApplication).container
@@ -246,7 +230,6 @@ class MainActivity : FragmentActivity() {
                 } else if (!activePrefs.biometricLockEnabled || isSessionUnlocked) {
                     val pendingShortcut by lockViewModel.pendingShortcutAction
                     val pendingNotification by lockViewModel.pendingNotificationAction
-                    val pendingSharedText by lockViewModel.pendingSharedText
                     FolioMainShell(
                         viewModelFactory = viewModelFactory,
                         initialShortcutAction = pendingShortcut,
@@ -256,10 +239,6 @@ class MainActivity : FragmentActivity() {
                         initialNotificationAction = pendingNotification,
                         onNotificationActionConsumed = {
                             lockViewModel.pendingNotificationAction.value = null
-                        },
-                        initialSharedText = pendingSharedText,
-                        onSharedTextConsumed = {
-                            lockViewModel.pendingSharedText.value = null
                         }
                     )
                 } else {
