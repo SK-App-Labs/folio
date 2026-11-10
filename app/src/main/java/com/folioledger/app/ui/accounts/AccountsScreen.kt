@@ -49,6 +49,8 @@ import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.accounts.sheets.AccountPassbookBottomSheet
 import com.folioledger.app.ui.accounts.dialogs.ReconcileBalanceDialog
 import com.folioledger.app.ui.accounts.sheets.CreditCardSettlementBottomSheet
+import androidx.compose.ui.platform.LocalContext
+import com.folioledger.app.data.notification.FolioNotificationManager
 import com.folioledger.app.ui.components.EmptyStateCard
 import com.folioledger.app.ui.components.ThreeColumnSummaryBanner
 
@@ -63,6 +65,7 @@ fun AccountsScreen(
     onPassbookDismissed: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState.snackbarMessage) {
@@ -240,7 +243,12 @@ fun AccountsScreen(
             isSaving = uiState.isSaving,
             onSelectPreset = viewModel::selectSettlementPreset,
             onUpdateState = viewModel::updateSettlementSheetState,
-            onConfirmSettlement = viewModel::submitCreditCardSettlement,
+            onConfirmSettlement = {
+                val cardId = settlementState.creditCardAccount.id
+                viewModel.submitCreditCardSettlement(onSuccess = {
+                    FolioNotificationManager.cancelCardNotification(context, cardId)
+                })
+            },
             onDismiss = viewModel::dismissSettlementSheet
         )
     }

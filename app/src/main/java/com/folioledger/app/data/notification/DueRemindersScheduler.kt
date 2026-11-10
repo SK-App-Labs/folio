@@ -15,7 +15,8 @@ object DueRemindersScheduler {
     fun scheduleDailyReminders(
         context: Context,
         hourOfDay: Int = 9,
-        minute: Int = 0
+        minute: Int = 0,
+        existingWorkPolicy: ExistingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.UPDATE
     ) {
         val now = LocalDateTime.now()
         var target = now.withHour(hourOfDay.coerceIn(0, 23))
@@ -36,7 +37,7 @@ object DueRemindersScheduler {
 
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
             UNIQUE_WORK_NAME,
-            ExistingPeriodicWorkPolicy.UPDATE,
+            existingWorkPolicy,
             workRequest
         )
     }

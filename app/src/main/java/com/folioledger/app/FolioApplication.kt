@@ -3,6 +3,7 @@ package com.folioledger.app
 
 import android.app.Application
 import androidx.room.InvalidationTracker
+import androidx.work.ExistingPeriodicWorkPolicy
 import com.folioledger.app.data.backup.SessionChangeTracker
 import com.folioledger.app.data.notification.DueRemindersScheduler
 import com.folioledger.app.data.notification.FolioNotificationManager
@@ -61,7 +62,8 @@ class FolioApplication : Application() {
                     DueRemindersScheduler.scheduleDailyReminders(
                         context = this@FolioApplication,
                         hourOfDay = prefs.reminderHourOfDay,
-                        minute = prefs.reminderMinute
+                        minute = prefs.reminderMinute,
+                        existingWorkPolicy = ExistingPeriodicWorkPolicy.KEEP
                     )
                 }
             } catch (e: Exception) {

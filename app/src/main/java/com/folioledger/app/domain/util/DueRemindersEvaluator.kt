@@ -32,15 +32,19 @@ object DueRemindersEvaluator {
                 paymentDueDayOfMonth = dueDay
             )
 
-            // Calculate amount due now (statement payable if present and positive, otherwise total debt)
-            val statementPayable = card.creditCardStatementPayable ?: MinorMoney.ZERO
-            val totalDebt = card.currentBalance.abs()
-            val amountDueNow = if (statementPayable.isPositive) {
-                statementPayable
-            } else if (totalDebt.isPositive) {
-                totalDebt
-            } else {
-                MinorMoney.ZERO
+            // Calculate amount due now:
+            // When creditCardStatementPayable is available, it reflects the closed cycle statement due on lastStatementDueDate.
+            // If statementPayable is zero or non-positive, that statement has been settled; do not alarm the user for active cycle spend.
+            val statementPayable = card.creditCardStatementPayable
+            val amountDueNow = when {
+                statementPayable != null -> {
+                    if (statementPayable.isPositive) statementPayable else MinorMoney.ZERO
+                }
+                card.currentBalance.isNegative -> {
+                    // Fallback only if no statement calculation exists and the card is in debt (negative balance)
+                    card.currentBalance.abs()
+                }
+                else -> MinorMoney.ZERO
             }
 
             // If nothing is due, skip

@@ -120,6 +120,7 @@ fun FolioMainShell(
     LaunchedEffect(initialNotificationAction) {
         when (val action = initialNotificationAction) {
             is FolioNotificationAction.SettleCard -> {
+                isEntrySheetOpen = false
                 selectedTab = FolioMainTab.ACCOUNTS
                 accountsViewModel.openSettlementSheetForAccountId(action.accountId)
                 onNotificationActionConsumed()

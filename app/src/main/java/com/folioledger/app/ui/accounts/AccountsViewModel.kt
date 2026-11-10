@@ -33,6 +33,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
@@ -636,8 +638,12 @@ class AccountsViewModel(
     }
 
     fun openSettlementSheetForAccountId(accountId: Long) {
-        val account = uiState.value.allAccounts.firstOrNull { it.id == accountId } ?: return
-        openSettlementSheet(account)
+        viewModelScope.launch {
+            val account = uiState.value.allAccounts.firstOrNull { it.id == accountId }
+                ?: allAccountsFlow.filter { it.isNotEmpty() }.first().firstOrNull { it.id == accountId }
+                ?: return@launch
+            openSettlementSheet(account)
+        }
     }
 
     fun openSettlementSheet(creditCard: AccountSummary) {
@@ -704,7 +710,7 @@ class AccountsViewModel(
         controlState.update { it.copy(settlementSheetState = null) }
     }
 
-    fun submitCreditCardSettlement() {
+    fun submitCreditCardSettlement(onSuccess: (() -> Unit)? = null) {
         val sheet = controlState.value.settlementSheetState ?: return
         val sourceId = sheet.selectedSourceAccountId
         if (sourceId == null) {
@@ -759,6 +765,7 @@ class AccountsViewModel(
                             snackbarMessage = "Settled $formatted towards ${sheet.creditCardAccount.name}"
                         )
                     }
+                    onSuccess?.invoke()
                 },
                 onFailure = { error ->
                     controlState.update { state ->

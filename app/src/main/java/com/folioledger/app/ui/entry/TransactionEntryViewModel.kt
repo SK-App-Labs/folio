@@ -30,6 +30,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -62,6 +63,7 @@ private data class EntryFormControlState(
     val payeeOrDescription: String = "",
     val note: String = "",
     val selectedTags: List<String> = emptyList(),
+    val linkedRecurringRuleId: Long? = null,
     val isKeypadVisible: Boolean = true,
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
@@ -205,6 +207,7 @@ class TransactionEntryViewModel(
             currencySpec = currencySpec,
             numberGrouping = prefs.numberGrouping,
             subcategoriesEnabled = prefs.subcategoriesEnabled,
+            linkedRecurringRuleId = form.linkedRecurringRuleId,
             isKeypadVisible = form.isKeypadVisible,
             isSaving = form.isSaving,
             errorMessage = form.errorMessage,
@@ -707,9 +710,9 @@ class TransactionEntryViewModel(
         viewModelScope.launch {
             val rules = repo.observeAllRecurringRules().first()
             val rule = rules.firstOrNull { it.id == ruleId } ?: return@launch
-            val currentUi = uiState.value
+            val spec = SupportedCurrencies.fromCode(rule.currencyCode)
             val isTransferMode = rule.type == TransactionType.TRANSFER || rule.type == TransactionType.CC_SETTLEMENT
-            val plainAmount = formatMinorPlain(rule.amount, currentUi.currencySpec.fractionDigits)
+            val plainAmount = formatMinorPlain(rule.amount, spec.fractionDigits)
             formState.update { current ->
                 current.copy(
                     editingTransactionId = 0L,
@@ -722,6 +725,7 @@ class TransactionEntryViewModel(
                     note = rule.note,
                     ledgerDateEpochDay = rule.nextOccurrenceEpochDay,
                     timestampEpochMillis = System.currentTimeMillis(),
+                    linkedRecurringRuleId = rule.id,
                     isSplit = false,
                     isKeypadVisible = false,
                     errorMessage = null
@@ -876,7 +880,8 @@ class TransactionEntryViewModel(
                 },
                 tags = state.selectedTags,
                 payeeOrDescription = state.payeeOrDescription.trim().ifEmpty { defaultPayee },
-                note = state.note.trim()
+                note = state.note.trim(),
+                recurringRuleId = state.linkedRecurringRuleId
             )
 
             val saveResult: Result<Any> = when {
@@ -910,6 +915,22 @@ class TransactionEntryViewModel(
 
             saveResult.fold(
                 onSuccess = {
+                    val linkedRuleId = state.linkedRecurringRuleId
+                    if (linkedRuleId != null && analyticsAndBudgetRepository != null) {
+                        launch(Dispatchers.IO) {
+                            val rules = analyticsAndBudgetRepository.observeAllRecurringRules().first()
+                            val rule = rules.firstOrNull { it.id == linkedRuleId }
+                            if (rule != null) {
+                                val nextDate = com.folioledger.app.domain.util.RecurringScheduleCalculator.computeNextOccurrence(
+                                    currentDate = LocalDate.ofEpochDay(rule.nextOccurrenceEpochDay),
+                                    frequency = rule.frequency
+                                )
+                                analyticsAndBudgetRepository.upsertRecurringRule(
+                                    rule.copy(nextOccurrenceEpochDay = nextDate.toEpochDay())
+                                )
+                            }
+                        }
+                    }
                     lastUsedLedgerDateEpochDay = state.ledgerDateEpochDay
                     formState.update { current ->
                         EntryFormControlState(

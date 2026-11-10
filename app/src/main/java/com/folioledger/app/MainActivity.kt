@@ -95,9 +95,11 @@ class MainActivity : FragmentActivity() {
         setIntent(intent)
         extractShortcutAction(intent)?.let { action ->
             lockViewModel.pendingShortcutAction.value = action
+            intent.removeExtra("shortcut_action")
         }
         extractNotificationAction(intent)?.let { action ->
             lockViewModel.pendingNotificationAction.value = action
+            intent.removeExtra(FolioNotificationManager.EXTRA_NOTIFICATION_ACTION)
         }
     }
 
@@ -133,11 +135,15 @@ class MainActivity : FragmentActivity() {
         window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
         enableEdgeToEdge()
 
-        extractShortcutAction(intent)?.let { action ->
-            lockViewModel.pendingShortcutAction.value = action
-        }
-        extractNotificationAction(intent)?.let { action ->
-            lockViewModel.pendingNotificationAction.value = action
+        if (savedInstanceState == null) {
+            extractShortcutAction(intent)?.let { action ->
+                lockViewModel.pendingShortcutAction.value = action
+                intent?.removeExtra("shortcut_action")
+            }
+            extractNotificationAction(intent)?.let { action ->
+                lockViewModel.pendingNotificationAction.value = action
+                intent?.removeExtra(FolioNotificationManager.EXTRA_NOTIFICATION_ACTION)
+            }
         }
 
         val appContainer = (application as FolioApplication).container

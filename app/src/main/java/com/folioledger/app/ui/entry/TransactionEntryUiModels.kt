@@ -81,6 +81,7 @@ data class TransactionEntryUiState(
     val currencySpec: CurrencySpec = SupportedCurrencies.INR,
     val numberGrouping: NumberGroupingSystem = NumberGroupingSystem.INDIAN,
     val subcategoriesEnabled: Boolean = true,
+    val linkedRecurringRuleId: Long? = null,
     val isKeypadVisible: Boolean = true,
     val isSaving: Boolean = false,
     val errorMessage: String? = null,

@@ -45,7 +45,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import com.folioledger.app.data.notification.FolioNotificationManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
@@ -90,6 +92,7 @@ fun TransactionEntrySheet(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val context = LocalContext.current
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -132,7 +135,15 @@ fun TransactionEntrySheet(
             onSetKeypadVisible = viewModel::setKeypadVisible,
             onAmountInputChange = viewModel::updateAmountInput,
             onKeypadKeyPress = viewModel::onKeypadKeyPress,
-            onSaveClick = { viewModel.saveTransaction(onSuccess = onTransactionSaved) },
+            onSaveClick = {
+                val linkedRule = uiState.linkedRecurringRuleId
+                viewModel.saveTransaction(onSuccess = {
+                    if (linkedRule != null) {
+                        FolioNotificationManager.cancelBillNotification(context, linkedRule)
+                    }
+                    onTransactionSaved()
+                })
+            },
             onSaveAndContinueClick = {
                 viewModel.saveTransaction {
                     // Save succeeds -> Keep sheet open and reset form for next rapid entry

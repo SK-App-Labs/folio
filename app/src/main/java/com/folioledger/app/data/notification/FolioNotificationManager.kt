@@ -77,6 +77,16 @@ class FolioNotificationManager(private val context: Context) {
                 true
             }
         }
+
+        fun cancelCardNotification(context: Context, accountId: Long) {
+            val notificationId = NOTIFICATION_ID_CC_BASE + (accountId % 9999).toInt()
+            NotificationManagerCompat.from(context).cancel(notificationId)
+        }
+
+        fun cancelBillNotification(context: Context, ruleId: Long) {
+            val notificationId = NOTIFICATION_ID_BILL_BASE + (ruleId % 9999).toInt()
+            NotificationManagerCompat.from(context).cancel(notificationId)
+        }
     }
 
     fun postDueReminders(

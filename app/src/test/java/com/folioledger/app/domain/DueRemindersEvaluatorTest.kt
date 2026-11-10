@@ -101,6 +101,58 @@ class DueRemindersEvaluatorTest {
     }
 
     @Test
+    fun testCreditCardReminder_skippedWhenStatementPaidEvenIfActiveCycleHasSpend() {
+        // Today is 2026-11-04 (1 day before statement due date 2026-11-05).
+        // Statement was paid in full (creditCardStatementPayable = ZERO),
+        // but user spent money in the new active cycle (currentBalance = -3,500).
+        val today = LocalDate.of(2026, 11, 4)
+        val card = AccountSummary(
+            id = 101L,
+            name = "HDFC Regalia",
+            groupType = AccountGroup.CREDIT_CARD,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(-3_500_00L),
+            creditLimit = MinorMoney(200_000_00L),
+            creditCardStatementPayable = MinorMoney.ZERO,
+            settlementDayOfMonth = 15,
+            paymentDueDayOfMonth = 5
+        )
+
+        val reminders = DueRemindersEvaluator.evaluateCreditCardReminders(
+            accounts = listOf(card),
+            todayEpochDay = today.toEpochDay(),
+            leadDaysNotice = 3
+        )
+
+        assertTrue("Should not alert for upcoming statement when statement is already settled", reminders.isEmpty())
+    }
+
+    @Test
+    fun testCreditCardReminder_skippedWhenPositiveOverpaymentBalance() {
+        // User overpaid card and has positive balance credit of +5,000 INR
+        val today = LocalDate.of(2026, 11, 4)
+        val card = AccountSummary(
+            id = 101L,
+            name = "ICICI Amazon Pay",
+            groupType = AccountGroup.CREDIT_CARD,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(5_000_00L),
+            creditLimit = MinorMoney(100_000_00L),
+            creditCardStatementPayable = null,
+            settlementDayOfMonth = 15,
+            paymentDueDayOfMonth = 5
+        )
+
+        val reminders = DueRemindersEvaluator.evaluateCreditCardReminders(
+            accounts = listOf(card),
+            todayEpochDay = today.toEpochDay(),
+            leadDaysNotice = 3
+        )
+
+        assertTrue("Should not treat positive overpayment balance as debt due", reminders.isEmpty())
+    }
+
+    @Test
     fun testCreditCardReminder_overdueTriggersAlert() {
         // Today is 2026-11-06 (1 day after due date 2026-11-05)
         val today = LocalDate.of(2026, 11, 6)
