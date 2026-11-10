@@ -126,22 +126,6 @@ class SmartTextParserEngineTest {
     }
 
     @Test
-    fun testNonFinancialTextWithDecimals_isSafelyIgnored() {
-        val nonFinancialTexts = listOf(
-            "Meeting tomorrow at 12.30 in room 4",
-            "Updated Folio to version 2.10",
-            "Bus number 405.20 arriving shortly"
-        )
-        for (text in nonFinancialTexts) {
-            val result = SmartTextParserEngine.parse(text)
-            org.junit.Assert.assertFalse(
-                "Non-financial text '$text' should not be parsed as valid transaction",
-                result.isValid
-            )
-        }
-    }
-
-    @Test
     fun testResolverAccountMatching() {
         val sbiAcct = AccountSummary(
             id = 101L,

@@ -20,14 +20,6 @@ object SmartTextParserEngine {
         RegexOption.IGNORE_CASE
     )
 
-    // Common keywords indicating financial context when parsing casual decimal numbers without currency
-    private val FINANCIAL_CONTEXT_KEYWORDS = listOf(
-        "spent", "paid", "lunch", "dinner", "coffee", "breakfast", "uber", "ola", "lyft",
-        "groceries", "grocery", "bill", "ticket", "store", "bought", "purchase", "cost",
-        "food", "recharge", "fee", "tax", "rent", "petrol", "fuel", "gas", "fare", "tip",
-        "order", "swiggy", "zomato", "amazon", "flipkart", "subscription"
-    )
-
     // Primary action verbs associated with financial debits/credits
     private val VERB_AMOUNT_REGEX = Regex(
         "(?i)(?:debited(?:\\s+for|\\s+with|\\s+by)?|spent|paid|purchase(?:\\s+of)?|charge(?:\\s+of)?|charged|sent|transfer(?:red)?(?:\\s+of)?|credited(?:\\s+with|\\s+for)?|received|refund(?:\\s+of)?|salary(?:\\s+of)?)\\s*(?:(?:INR|Rs\\.?|₹|\\$|USD|€|EUR|£|GBP)\\s*)?([0-9,]+(?:\\.[0-9]{1,2})?)",
@@ -200,21 +192,13 @@ object SmartTextParserEngine {
         val casualMatch = CASUAL_AMOUNT_REGEX.find(text)
         if (casualMatch != null && casualMatch.groupValues.size >= 2) {
             val amountStr = casualMatch.groupValues[1]
-            // Require at least one financial context keyword so non-financial text like "Meeting at 12.30" is ignored
-            if (hasFinancialContext(text)) {
-                val minor = parseMinorMoney(amountStr)
-                if (minor != null) {
-                    return Triple(minor, amountStr, null)
-                }
+            val minor = parseMinorMoney(amountStr)
+            if (minor != null) {
+                return Triple(minor, amountStr, null)
             }
         }
 
         return Triple(null, null, null)
-    }
-
-    private fun hasFinancialContext(text: String): Boolean {
-        val lower = text.lowercase(Locale.US)
-        return FINANCIAL_CONTEXT_KEYWORDS.any { lower.contains(it) }
     }
 
     private fun detectCurrencyCode(snippet: String): String {

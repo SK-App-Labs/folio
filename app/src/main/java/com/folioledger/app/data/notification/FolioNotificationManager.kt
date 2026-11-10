@@ -155,10 +155,9 @@ class FolioNotificationManager(private val context: Context) {
                 grouping
             )
 
-            val title = when {
-                bill.isOverdue -> "Overdue Bill: ${bill.title}"
-                bill.daysRemaining == 0L -> "Upcoming Bill: ${bill.title} (Today)"
-                bill.daysRemaining == 1L -> "Upcoming Bill: ${bill.title} (Tomorrow)"
+            val title = when (bill.daysRemaining) {
+                0L -> "Upcoming Bill: ${bill.title} (Today)"
+                1L -> "Upcoming Bill: ${bill.title} (Tomorrow)"
                 else -> "Upcoming Bill: ${bill.title} (in ${bill.daysRemaining} days)"
             }
 

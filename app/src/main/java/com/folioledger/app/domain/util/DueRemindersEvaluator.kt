@@ -32,9 +32,9 @@ object DueRemindersEvaluator {
                 paymentDueDayOfMonth = dueDay
             )
 
-            // Calculate amount due now (statement payable if present and positive, otherwise total debt if negative currentBalance)
+            // Calculate amount due now (statement payable if present and positive, otherwise total debt)
             val statementPayable = card.creditCardStatementPayable ?: MinorMoney.ZERO
-            val totalDebt = if (card.currentBalance.isNegative) card.currentBalance.abs() else MinorMoney.ZERO
+            val totalDebt = card.currentBalance.abs()
             val amountDueNow = if (statementPayable.isPositive) {
                 statementPayable
             } else if (totalDebt.isPositive) {
@@ -88,10 +88,7 @@ object DueRemindersEvaluator {
             val dueDate = LocalDate.ofEpochDay(rule.nextOccurrenceEpochDay)
             val daysRemaining = ChronoUnit.DAYS.between(today, dueDate)
 
-            val isDueSoon = daysRemaining in 0L..validLeadDays
-            val isRecentlyOverdue = daysRemaining < 0L && daysRemaining >= -2L
-
-            if (isDueSoon || isRecentlyOverdue) {
+            if (daysRemaining in 0L..validLeadDays) {
                 results.add(
                     BillDueReminderItem(
                         ruleId = rule.id,
@@ -101,16 +98,12 @@ object DueRemindersEvaluator {
                         amount = rule.amount,
                         dueDate = dueDate,
                         daysRemaining = daysRemaining,
-                        accountName = rule.accountName,
-                        isOverdue = daysRemaining < 0L
+                        accountName = rule.accountName
                     )
                 )
             }
         }
 
-        return results.sortedWith(
-            compareBy<BillDueReminderItem> { !it.isOverdue }
-                .thenBy { it.daysRemaining }
-        )
+        return results.sortedBy { it.daysRemaining }
     }
 }

@@ -97,15 +97,12 @@ class MainActivity : FragmentActivity() {
         setIntent(intent)
         extractShortcutAction(intent)?.let { action ->
             lockViewModel.pendingShortcutAction.value = action
-            intent.removeExtra("shortcut_action")
         }
         extractNotificationAction(intent)?.let { action ->
             lockViewModel.pendingNotificationAction.value = action
-            intent.removeExtra(FolioNotificationManager.EXTRA_NOTIFICATION_ACTION)
         }
         extractSharedText(intent)?.let { sharedText ->
             lockViewModel.pendingSharedText.value = sharedText
-            intent.removeExtra(Intent.EXTRA_TEXT)
         }
     }
 
@@ -149,19 +146,14 @@ class MainActivity : FragmentActivity() {
         window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
         enableEdgeToEdge()
 
-        if (savedInstanceState == null) {
-            extractShortcutAction(intent)?.let { action ->
-                lockViewModel.pendingShortcutAction.value = action
-                intent?.removeExtra("shortcut_action")
-            }
-            extractNotificationAction(intent)?.let { action ->
-                lockViewModel.pendingNotificationAction.value = action
-                intent?.removeExtra(FolioNotificationManager.EXTRA_NOTIFICATION_ACTION)
-            }
-            extractSharedText(intent)?.let { sharedText ->
-                lockViewModel.pendingSharedText.value = sharedText
-                intent?.removeExtra(Intent.EXTRA_TEXT)
-            }
+        extractShortcutAction(intent)?.let { action ->
+            lockViewModel.pendingShortcutAction.value = action
+        }
+        extractNotificationAction(intent)?.let { action ->
+            lockViewModel.pendingNotificationAction.value = action
+        }
+        extractSharedText(intent)?.let { sharedText ->
+            lockViewModel.pendingSharedText.value = sharedText
         }
 
         val appContainer = (application as FolioApplication).container
