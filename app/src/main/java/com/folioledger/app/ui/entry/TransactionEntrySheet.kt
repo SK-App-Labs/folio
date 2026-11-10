@@ -33,6 +33,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -40,6 +41,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -97,12 +101,29 @@ fun TransactionEntrySheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val clipboardManager = LocalClipboardManager.current
-    LaunchedEffect(uiState.smartClipboardEnabled, uiState.editingTransactionId) {
-        if (uiState.smartClipboardEnabled && uiState.editingTransactionId == 0L) {
-            val clipText = runCatching { clipboardManager.getText()?.text }.getOrNull()
-            if (!clipText.isNullOrBlank()) {
-                viewModel.processClipboardText(clipText)
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner, uiState.smartClipboardEnabled, uiState.editingTransactionId) {
+        val checkClipboard = {
+            if (uiState.smartClipboardEnabled && uiState.editingTransactionId == 0L) {
+                val clipText = runCatching { clipboardManager.getText()?.text }.getOrNull()
+                if (!clipText.isNullOrBlank()) {
+                    viewModel.processClipboardText(clipText)
+                }
             }
+        }
+        // Check immediately on composition
+        checkClipboard()
+
+        // Also re-check automatically on every ON_RESUME lifecycle event when returning from other apps
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                checkClipboard()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 

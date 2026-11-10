@@ -802,10 +802,21 @@ class TransactionEntryViewModel(
         viewModelScope.launch {
             val refs = referenceDataFlow.first()
             val categories = if (parsed.type == TransactionType.INCOME) refs.incomeCategories else refs.expenseCategories
+
+            // Tier 1 Historical Payee Learning: fetch recent transactions to map payee names to past categories
+            val today = LocalDate.now().toEpochDay()
+            val historicalPayeeMap = runCatching {
+                transactionRepository.observeTransactionsInRange(startEpochDay = today - 90, endEpochDay = today)
+                    .first()
+                    .filter { it.payeeOrDescription.isNotBlank() && it.categoryId != null }
+                    .associate { it.payeeOrDescription.lowercase(Locale.US).trim() to it.categoryId!! }
+            }.getOrDefault(emptyMap())
+
             val resolved = ParsedTransactionResolver.resolve(
                 parsed = parsed,
                 accounts = refs.accounts,
-                categories = categories
+                categories = categories,
+                historicalPayeeCategoryMap = historicalPayeeMap
             )
             formState.update { current ->
                 current.copy(pendingClipboardTransaction = resolved)
@@ -837,15 +848,22 @@ class TransactionEntryViewModel(
                 if (minor == 0L) major.toString() else String.format(Locale.US, "%d.%02d", major, minor)
             } else current.expressionBuffer
 
+            val modeChanged = current.mode != parsed.type
+            val resolvedCategoryId = resolved.matchedCategory?.id ?: if (modeChanged) null else current.selectedCategoryId
+            val resolvedCategoryName = resolved.matchedCategory?.name ?: if (modeChanged) null else current.selectedCategoryName
+            val resolvedParentCategoryName = resolved.matchedParentCategoryName ?: if (modeChanged) null else current.selectedParentCategoryName
+            val resolvedCategoryColorHex = resolved.matchedCategory?.colorHex ?: if (modeChanged) null else current.selectedCategoryColorHex
+            val resolvedCategoryIconName = resolved.matchedCategory?.iconName ?: if (modeChanged) null else current.selectedCategoryIconName
+
             current.copy(
                 mode = parsed.type,
                 expressionBuffer = formattedAmount,
                 selectedAccountId = resolved.matchedAccount?.id ?: current.selectedAccountId,
-                selectedCategoryId = resolved.matchedCategory?.id ?: current.selectedCategoryId,
-                selectedCategoryName = resolved.matchedCategory?.name ?: current.selectedCategoryName,
-                selectedParentCategoryName = resolved.matchedParentCategoryName ?: current.selectedParentCategoryName,
-                selectedCategoryColorHex = resolved.matchedCategory?.colorHex ?: current.selectedCategoryColorHex,
-                selectedCategoryIconName = resolved.matchedCategory?.iconName ?: current.selectedCategoryIconName,
+                selectedCategoryId = resolvedCategoryId,
+                selectedCategoryName = resolvedCategoryName,
+                selectedParentCategoryName = resolvedParentCategoryName,
+                selectedCategoryColorHex = resolvedCategoryColorHex,
+                selectedCategoryIconName = resolvedCategoryIconName,
                 payeeOrDescription = if (parsed.payeeOrDescription.isNotBlank()) parsed.payeeOrDescription else current.payeeOrDescription,
                 ledgerDateEpochDay = parsed.dateEpochDay ?: current.ledgerDateEpochDay,
                 pendingClipboardTransaction = null

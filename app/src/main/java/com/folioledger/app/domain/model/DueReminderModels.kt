@@ -24,5 +24,6 @@ data class BillDueReminderItem(
     val amount: MinorMoney,
     val dueDate: LocalDate,
     val daysRemaining: Long,
-    val accountName: String
+    val accountName: String,
+    val isOverdue: Boolean = false
 )
