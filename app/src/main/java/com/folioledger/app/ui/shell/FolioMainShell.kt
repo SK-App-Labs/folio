@@ -92,7 +92,9 @@ fun FolioMainShell(
     initialShortcutAction: TransactionType? = null,
     onShortcutActionConsumed: () -> Unit = {},
     initialNotificationAction: FolioNotificationAction? = null,
-    onNotificationActionConsumed: () -> Unit = {}
+    onNotificationActionConsumed: () -> Unit = {},
+    initialSharedText: String? = null,
+    onSharedTextConsumed: () -> Unit = {}
 ) {
     val ledgerViewModel: LedgerHomeViewModel = viewModel(factory = viewModelFactory)
     val accountsViewModel: AccountsViewModel = viewModel(factory = viewModelFactory)
@@ -114,6 +116,16 @@ fun FolioMainShell(
             entryViewModel.resetForNewTransaction(defaultMode = initialShortcutAction)
             isEntrySheetOpen = true
             onShortcutActionConsumed()
+        }
+    }
+
+    LaunchedEffect(initialSharedText) {
+        if (!initialSharedText.isNullOrBlank()) {
+            selectedTab = FolioMainTab.TRANSACTIONS
+            entryViewModel.resetForNewTransaction(defaultMode = TransactionType.EXPENSE)
+            entryViewModel.processClipboardText(initialSharedText)
+            isEntrySheetOpen = true
+            onSharedTextConsumed()
         }
     }
 

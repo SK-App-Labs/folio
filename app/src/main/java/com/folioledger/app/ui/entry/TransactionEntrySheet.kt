@@ -53,6 +53,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
+import androidx.compose.ui.platform.LocalClipboardManager
+import com.folioledger.app.domain.parser.ParsedTransactionResult
+import com.folioledger.app.domain.parser.ResolvedTransactionFormValues
+import com.folioledger.app.ui.entry.components.SmartPasteFloatingPill
+import com.folioledger.app.ui.entry.components.SmartPasteReviewDialog
 import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.TransactionType
@@ -90,6 +95,16 @@ fun TransactionEntrySheet(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    val clipboardManager = LocalClipboardManager.current
+    LaunchedEffect(uiState.smartClipboardEnabled, uiState.editingTransactionId) {
+        if (uiState.smartClipboardEnabled && uiState.editingTransactionId == 0L) {
+            val clipText = runCatching { clipboardManager.getText()?.text }.getOrNull()
+            if (!clipText.isNullOrBlank()) {
+                viewModel.processClipboardText(clipText)
+            }
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -132,6 +147,9 @@ fun TransactionEntrySheet(
             onSetKeypadVisible = viewModel::setKeypadVisible,
             onAmountInputChange = viewModel::updateAmountInput,
             onKeypadKeyPress = viewModel::onKeypadKeyPress,
+            onCheckClipboardText = viewModel::processClipboardText,
+            onDismissClipboardSuggestion = viewModel::dismissClipboardSuggestion,
+            onApplyResolvedTransaction = viewModel::applyResolvedTransaction,
             onSaveClick = { viewModel.saveTransaction(onSuccess = onTransactionSaved) },
             onSaveAndContinueClick = {
                 viewModel.saveTransaction {
@@ -180,6 +198,9 @@ fun TransactionEntryFormContent(
     onSetKeypadVisible: (Boolean) -> Unit,
     onAmountInputChange: (String) -> Unit = {},
     onKeypadKeyPress: (String) -> Unit,
+    onCheckClipboardText: (String) -> Unit = {},
+    onDismissClipboardSuggestion: () -> Unit = {},
+    onApplyResolvedTransaction: (ResolvedTransactionFormValues) -> Unit = {},
     onSaveClick: () -> Unit,
     onSaveAndContinueClick: () -> Unit = onSaveClick,
     onCloseClick: () -> Unit,
@@ -281,6 +302,28 @@ fun TransactionEntryFormContent(
                 onOpenBookmarks = { showBookmarksDialog = true },
                 onCloseClick = onCloseClick
             )
+
+            var showSmartPasteReviewDialog by rememberSaveable { mutableStateOf(false) }
+
+            // Feature 3: Smart Clipboard Floating Suggestion Pill
+            SmartPasteFloatingPill(
+                visible = uiState.pendingClipboardTransaction != null,
+                parsedResult = uiState.pendingClipboardTransaction?.parsedResult
+                    ?: ParsedTransactionResult(""),
+                onReviewClick = { showSmartPasteReviewDialog = true },
+                onDismissClick = onDismissClipboardSuggestion
+            )
+
+            if (showSmartPasteReviewDialog && uiState.pendingClipboardTransaction != null) {
+                SmartPasteReviewDialog(
+                    formValues = uiState.pendingClipboardTransaction,
+                    onApply = {
+                        onApplyResolvedTransaction(uiState.pendingClipboardTransaction)
+                        showSmartPasteReviewDialog = false
+                    },
+                    onDismiss = { showSmartPasteReviewDialog = false }
+                )
+            }
 
             // Unified Date, Time & Feature Actions Bar
             EntryDateAndTimeBar(

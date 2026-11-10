@@ -158,7 +158,8 @@ data class UserPreferences(
     val billReminderLeadDays: Int = 1,
     val reminderHourOfDay: Int = 9,
     val reminderMinute: Int = 0,
-    val hideAmountsOnLockScreen: Boolean = false
+    val hideAmountsOnLockScreen: Boolean = false,
+    val smartClipboardEnabled: Boolean = true
 )
 
 @Immutable

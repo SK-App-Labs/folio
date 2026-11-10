@@ -287,6 +287,14 @@ class SettingsViewModel(
         }
     }
 
+    fun setSmartClipboardEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                current.copy(smartClipboardEnabled = enabled)
+            }
+        }
+    }
+
     fun setThemeMode(themeMode: String) {
         viewModelScope.launch {
             settingsAndBackupRepository.updateUserPreferences { current ->

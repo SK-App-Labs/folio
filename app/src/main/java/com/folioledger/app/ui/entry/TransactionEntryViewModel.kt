@@ -4,6 +4,10 @@ package com.folioledger.app.ui.entry
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.folioledger.app.domain.parser.SmartTextParserEngine
+import com.folioledger.app.domain.parser.ParsedTransactionResolver
+import com.folioledger.app.domain.parser.ResolvedTransactionFormValues
+import java.util.Locale
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.CategoryNode
@@ -65,7 +69,9 @@ private data class EntryFormControlState(
     val isKeypadVisible: Boolean = true,
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
-    val savedSuccessfullyCounter: Int = 0
+    val savedSuccessfullyCounter: Int = 0,
+    val dismissedClipboardSnippetHashes: Set<Int> = emptySet(),
+    val pendingClipboardTransaction: ResolvedTransactionFormValues? = null
 )
 
 class TransactionEntryViewModel(
@@ -208,7 +214,9 @@ class TransactionEntryViewModel(
             isKeypadVisible = form.isKeypadVisible,
             isSaving = form.isSaving,
             errorMessage = form.errorMessage,
-            savedSuccessfullyCounter = form.savedSuccessfullyCounter
+            savedSuccessfullyCounter = form.savedSuccessfullyCounter,
+            smartClipboardEnabled = prefs.smartClipboardEnabled,
+            pendingClipboardTransaction = form.pendingClipboardTransaction
         )
     }.stateIn(
         scope = viewModelScope,
@@ -232,7 +240,8 @@ class TransactionEntryViewModel(
                 expressionBuffer = "0",
                 selectedAccountId = preselectedAccountId ?: current.selectedAccountId,
                 isKeypadVisible = true,
-                savedSuccessfullyCounter = current.savedSuccessfullyCounter
+                savedSuccessfullyCounter = current.savedSuccessfullyCounter,
+                dismissedClipboardSnippetHashes = current.dismissedClipboardSnippetHashes
             )
         }
     }
@@ -780,6 +789,70 @@ class TransactionEntryViewModel(
     }
 
     @Suppress("unused")
+
+    fun processClipboardText(rawText: String) {
+        val trimmed = rawText.trim()
+        if (trimmed.isEmpty()) return
+        val textHash = trimmed.hashCode()
+        if (formState.value.dismissedClipboardSnippetHashes.contains(textHash)) return
+
+        val parsed = SmartTextParserEngine.parse(trimmed)
+        if (!parsed.isValid) return
+
+        viewModelScope.launch {
+            val refs = referenceDataFlow.first()
+            val categories = if (parsed.type == TransactionType.INCOME) refs.incomeCategories else refs.expenseCategories
+            val resolved = ParsedTransactionResolver.resolve(
+                parsed = parsed,
+                accounts = refs.accounts,
+                categories = categories
+            )
+            formState.update { current ->
+                current.copy(pendingClipboardTransaction = resolved)
+            }
+        }
+    }
+
+    fun dismissClipboardSuggestion() {
+        formState.update { current ->
+            val pendingHash = current.pendingClipboardTransaction?.parsedResult?.rawText?.trim()?.hashCode()
+            val newDismissed = if (pendingHash != null) {
+                current.dismissedClipboardSnippetHashes + pendingHash
+            } else {
+                current.dismissedClipboardSnippetHashes
+            }
+            current.copy(
+                pendingClipboardTransaction = null,
+                dismissedClipboardSnippetHashes = newDismissed
+            )
+        }
+    }
+
+    fun applyResolvedTransaction(resolved: ResolvedTransactionFormValues) {
+        formState.update { current ->
+            val parsed = resolved.parsedResult
+            val formattedAmount = if (parsed.amountMinor != null) {
+                val major = parsed.amountMinor.amountMinor / 100L
+                val minor = parsed.amountMinor.amountMinor % 100L
+                if (minor == 0L) major.toString() else String.format(Locale.US, "%d.%02d", major, minor)
+            } else current.expressionBuffer
+
+            current.copy(
+                mode = parsed.type,
+                expressionBuffer = formattedAmount,
+                selectedAccountId = resolved.matchedAccount?.id ?: current.selectedAccountId,
+                selectedCategoryId = resolved.matchedCategory?.id ?: current.selectedCategoryId,
+                selectedCategoryName = resolved.matchedCategory?.name ?: current.selectedCategoryName,
+                selectedParentCategoryName = resolved.matchedParentCategoryName ?: current.selectedParentCategoryName,
+                selectedCategoryColorHex = resolved.matchedCategory?.colorHex ?: current.selectedCategoryColorHex,
+                selectedCategoryIconName = resolved.matchedCategory?.iconName ?: current.selectedCategoryIconName,
+                payeeOrDescription = if (parsed.payeeOrDescription.isNotBlank()) parsed.payeeOrDescription else current.payeeOrDescription,
+                ledgerDateEpochDay = parsed.dateEpochDay ?: current.ledgerDateEpochDay,
+                pendingClipboardTransaction = null
+            )
+        }
+    }
+
     fun clearErrorMessage() {
         formState.update { it.copy(errorMessage = null) }
     }
